@@ -70,17 +70,40 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		ui.message(f"共有錯字{error_count}個")
 
 	def _get_openai_completion_response(self, prompt_text):
-		import requests
 		prompt_augmented = f'改錯字\n\n題目:{prompt_text}\n\n答案:'
 
 		API_KEY = ''
+
+		# GPT 3.5
+
+		url = "https://api.openai.com/v1/chat/completions"
+		headers = {
+			"Content-Type": "application/json",
+			"Authorization": f"Bearer {API_KEY}",
+		}
+		data = {
+			'model': 'gpt-3.5-turbo',
+			'messages': [
+				{
+					"role": "user",
+					"content": prompt_augmented
+				}
+			]
+		}
+
+		response = requests.post(url, headers=headers, json=data).json()
+		return response['choices'][0]['message']['content']
+
+		# GPT 3
+
 		url =  "https://api.openai.com/v1/completions"
 		headers = {"Authorization": f"Bearer {API_KEY}"}
-		data = {'model': 'text-davinci-003',
+		data = {
+			'model': 'text-davinci-003',
 			'prompt': prompt_augmented,
 			'max_tokens': 60,
 			'temperature': 0,
-			}
+		}
 
 		response = requests.post(url, headers=headers, json=data).json()
 
