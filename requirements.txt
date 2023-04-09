@@ -1,4 +1,0 @@
-jieba
-pandas
-pypinyin
-chinese_converter
