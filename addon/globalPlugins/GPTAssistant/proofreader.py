@@ -1,56 +1,35 @@
-from typing import List
+from typing import List, Tuple
 from utils import strings_diff, text_segmentation
 from typo_corrector import TypoCorrector
 
-
-class SegmentReport():
-
-	def __init__(self, segment_original: str, segment_corrected: str):
-		self.segment_original = segment_original
-		self.segment_corrected = segment_corrected
-		self.diff = strings_diff(self.segment_original, self.segment_corrected)
-
-	def __repr__(self):
-		report_str = "SegmentReport<\n"
-		report_str += f"	segment_original = \"{self.segment_original}\",\n"
-		report_str += f"	segment_corrected = \"{self.segment_corrected}\",\n"
-		report_str += f"	diff = {self.diff}\n"
-		report_str += ">\n"
-		return report_str
 
 class Proofreader():
 
 	def __init__(self, segment_corrector: TypoCorrector):
 		self.segment_corrector = segment_corrector
 
-	def typo_analyzer(self, text: str, fake_operation: bool=False) -> List[SegmentReport]:
-		segment_reports = []
+	def typo_analyzer(self, text: str, fake_operation: bool=False) -> Tuple:
+		text_corrected = ""
 		for segment in text_segmentation(text):
 			segment_corrected = self.segment_corrector.correct_string(segment, fake_operation)
-			segment_reports.append(SegmentReport(segment, segment_corrected))
-			
-		return segment_reports
+			text_corrected += segment_corrected
+		diff = strings_diff(text, text_corrected)
+
+		return text_corrected, diff
 
 if __name__ == "__main__":
 	corrector = TypoCorrector(model="text-davinci-003",
 								api_key="OPENAI_API_KEY")
-
 	proofreader = Proofreader(corrector)
-	segment_reports = proofreader.typo_analyzer("天器真好，想出去完")
-	print(segment_reports)
+
+	text = "天器真好，想出去完"
+	text_corrected, diff = proofreader.typo_analyzer(text)
+	print(f"text = {text}, text_corrected = {text_corrected}, diff = {diff}")
 
 """
 Output:
-
-[SegmentReport<
-        segment_original = "天器真好，",
-        segment_corrected = "天氣真好，",
-        diff = [{'operation': 'replace', 'index_start1': 1, 'index_end1': 2, 'index_start2': 1, 'index_end2': 2}]
->
-, SegmentReport<
-        segment_original = "想出去完",
-        segment_corrected = "想出去玩",
-        diff = [{'operation': 'replace', 'index_start1': 3, 'index_end1': 4, 'index_start2': 3, 'index_end2': 4}]
->
-]
+text = 天器真好，想出去完,
+text_corrected = 天氣真好，想出去玩,
+diff = [{'operation': 'replace', 'index_start1': 1, 'index_end1': 2, 'index_start2': 1, 'index_end2': 2},
+		{'operation': 'replace', 'index_start1': 8, 'index_end1': 9, 'index_start2': 8, 'index_end2': 9}]
 """
