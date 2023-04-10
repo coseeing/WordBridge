@@ -9,17 +9,23 @@ from template import TEMPLATE_DICT
 
 class BaseTypoCorrector():
 
-	def __init__(self, model: str, api_key: str, max_tokens: int=2048,
-				temperature: float=0.0, top_p: float=0.0):
+	def __init__(
+		self,
+		model: str,
+		api_key: str,
+		max_tokens: int = 2048,
+		temperature: float = 0.0,
+		top_p: float = 0.0):
+
 		self.model = model
 		self.max_tokens = max_tokens
 		self.temperature = temperature
 		self.top_p = top_p
 
-		self.url =  "https://api.openai.com/v1/completions"
+		self.url = "https://api.openai.com/v1/completions"
 		self.headers = {"Authorization": f"Bearer {api_key}"}
 
-	def correct_string(self, original_text: str, fake_operation: bool=False) -> str:
+	def correct_string(self, original_text: str, fake_operation: bool = False) -> str:
 		if fake_operation or not has_chinese(original_text):
 			return original_text
 
@@ -36,12 +42,13 @@ class BaseTypoCorrector():
 		return corrected_text
 
 	def _do_completion(self, prompt: str) -> str:
-		data = {'model': self.model,
-				'prompt': prompt,
-				'max_tokens': self.max_tokens,
-				'temperature': self.temperature,
-				'top_p': self.top_p,
-				}
+		data = {
+			'model': self.model,
+			'prompt': prompt,
+			'max_tokens': self.max_tokens,
+			'temperature': self.temperature,
+			'top_p': self.top_p,
+		}
 
 		response = requests.post(self.url, headers=self.headers, json=data).json()
 		return response['choices'][0]['text']
@@ -70,8 +77,9 @@ class TypoCorrector(BaseTypoCorrector):
 	def _correct_typos(self, original_text: str, response: str):
 		corrected_text = original_text
 		response = rstrip_seperator(response)
-		
+
 		return response + original_text[len(response):]
+
 
 # Todo: Implement the TypoIdentifier
 class TypoIdentifier(BaseTypoCorrector):

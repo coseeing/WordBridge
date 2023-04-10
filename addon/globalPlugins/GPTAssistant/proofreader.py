@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Tuple
 from utils import strings_diff, text_segmentation
 from typo_corrector import TypoCorrector
 
@@ -8,7 +8,7 @@ class Proofreader():
 	def __init__(self, segment_corrector: TypoCorrector):
 		self.segment_corrector = segment_corrector
 
-	def typo_analyzer(self, text: str, fake_operation: bool=False) -> Tuple:
+	def typo_analyzer(self, text: str, fake_operation: bool = False) -> Tuple:
 		text_corrected = ""
 		for segment in text_segmentation(text):
 			segment_corrected = self.segment_corrector.correct_string(segment, fake_operation)
@@ -17,9 +17,9 @@ class Proofreader():
 
 		return text_corrected, diff
 
+
 if __name__ == "__main__":
-	corrector = TypoCorrector(model="text-davinci-003",
-								api_key="OPENAI_API_KEY")
+	corrector = TypoCorrector(model="text-davinci-003", api_key="OPENAI_API_KEY")
 	proofreader = Proofreader(corrector)
 
 	text = "天器真好，想出去完"
