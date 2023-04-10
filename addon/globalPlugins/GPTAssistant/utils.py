@@ -7,10 +7,6 @@ from typing import Dict
 SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t"
 
 
-def rstrip_seperator(string: str) -> str:
-	return string.rstrip(SEPERATOR)
-
-
 def text_segmentation(text: str, max_length: int = 50) -> list:
 	"""
 	This function can be used to split a string into substrings based on a set of specified separators or

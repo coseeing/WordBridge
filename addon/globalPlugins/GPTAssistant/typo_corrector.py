@@ -3,7 +3,6 @@ from typing import Any, List, Tuple
 import requests
 
 from hanzidentifier import has_chinese
-from utils import rstrip_seperator
 from template import TEMPLATE_DICT
 
 
@@ -75,10 +74,7 @@ class TypoCorrector(BaseTypoCorrector):
 		return True
 
 	def _correct_typos(self, original_text: str, response: str):
-		corrected_text = original_text
-		response = rstrip_seperator(response)
-
-		return response + original_text[len(response):]
+		return response
 
 
 # Todo: Implement the TypoIdentifier
