@@ -1,9 +1,13 @@
 from typing import Any, List, Tuple
 
+import logging
 import requests
+import time
 
 from hanzidentifier import has_chinese
 from template import TEMPLATE_DICT
+
+log = logging.getLogger(__name__)
 
 
 class BaseTypoCorrector():
@@ -14,12 +18,16 @@ class BaseTypoCorrector():
 		api_key: str,
 		max_tokens: int = 2048,
 		temperature: float = 0.0,
-		top_p: float = 0.0):
+		top_p: float = 0.0,
+		retries: int = 3,
+		backoff: int = 1):
 
 		self.model = model
 		self.max_tokens = max_tokens
 		self.temperature = temperature
 		self.top_p = top_p
+		self.retries = retries
+		self.backoff = backoff
 
 		self.url = "https://api.openai.com/v1/completions"
 		self.headers = {"Authorization": f"Bearer {api_key}"}
@@ -28,15 +36,27 @@ class BaseTypoCorrector():
 		if fake_operation or not has_chinese(original_text):
 			return original_text
 
-		for template in TEMPLATE_DICT[self.__class__.__name__]:
-			prompt = template.replace("{{text_input}}", original_text)
-			response_string = self._do_completion(prompt)
-			response = self._parse_response_string(response_string)
-			is_valid = self._is_validate_response(response, original_text)
+		corrected_text = None
+		for template_index, template in enumerate(TEMPLATE_DICT[self.__class__.__name__]):
+			try:
+				prompt = template.replace("{{text_input}}", original_text)
+				response_string = self._do_completion(prompt)
 
-			if is_valid:
-				corrected_text = self._correct_typos(original_text, response)
-				break
+				if response_string is None:
+					log.error(f"template {template_index} fails.\ntemplate = {template}")
+					continue
+
+				response = self._parse_response_string(response_string)
+				is_valid = self._is_validate_response(response, original_text)
+
+				if is_valid:
+					corrected_text = self._correct_typos(original_text, response)
+					break
+
+				log.warning(f"response of template {template_index} is not valid")
+
+			except Exception as e:
+				log.error(f"An unexpected error occurred: {e}")
 
 		return corrected_text
 
@@ -49,8 +69,16 @@ class BaseTypoCorrector():
 			'top_p': self.top_p,
 		}
 
-		response = requests.post(self.url, headers=self.headers, json=data).json()
-		return response['choices'][0]['text']
+		for r in range(self.retries):
+			response = requests.post(self.url, headers=self.headers, json=data)
+			if response.status_code == 200:
+				response = response.json()
+				return response['choices'][0]['text']
+
+			log.error(f"Retry = {r}, {response}, error: {response.reason}")
+			time.sleep(self.backoff)
+
+		return None
 
 	def _parse_response_string(self, response_string: str):
 		raise NotImplementedError("Subclass must implement this method")

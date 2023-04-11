@@ -12,7 +12,11 @@ class Proofreader():
 		text_corrected = ""
 		for segment in text_segmentation(text):
 			segment_corrected = self.segment_corrector.correct_string(segment, fake_operation)
+			if segment_corrected is None:
+				text_corrected += ("☐" * len(segment))
+				continue
 			text_corrected += segment_corrected
+
 		diff = strings_diff(text, text_corrected)
 
 		return text_corrected, diff
