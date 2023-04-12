@@ -67,7 +67,6 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		config.conf["GPTAssistant"]["settings"]["model"] = model_list[self.modelList.GetSelection()]
 		config.conf["GPTAssistant"]["settings"]["openai_key"] = self.keyNameCtrl.GetValue()
 		config.conf["GPTAssistant"]["settings"]["max_word_count"] = self.maxWordCount.GetValue()
-		print(f"_ = {_}, {type(_)}, {dir(_)}")
 
 	def _enterTriggersOnChangeKey(self, evt):
 		if evt.KeyCode == wx.WXK_RETURN:
