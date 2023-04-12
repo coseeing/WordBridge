@@ -5,7 +5,7 @@ import requests
 import time
 
 from hanzidentifier import has_chinese
-from template import TEMPLATE_DICT
+from .template import TEMPLATE_DICT
 
 log = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
 from typing import Tuple
-from utils import strings_diff, text_segmentation
-from typo_corrector import TypoCorrector
+from .utils import strings_diff, text_segmentation
+from .typo_corrector import TypoCorrector
 
 
 class Proofreader():
