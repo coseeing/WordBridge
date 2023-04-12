@@ -5,6 +5,18 @@ from .python import importlib
 import os
 import sys
 
+sys.modules['http.cookies'] = httpcookies
+sys.modules['http.client'] = httpclient
+sys.modules['importlib'] = importlib
+
+PATH = os.path.dirname(__file__)
+
+PYTHON_PATH = os.path.join(PATH, 'python')
+sys.path.insert(0, PYTHON_PATH)
+
+PACKAGE_PATH = os.path.join(PATH, 'package')
+sys.path.insert(0, PACKAGE_PATH)
+
 from .dialogs import GPTAssistantSettingsDialog
 from logHandler import log
 from scriptHandler import script
@@ -21,17 +33,6 @@ import wx
 from .proofreader import Proofreader
 from .typo_corrector import TypoCorrector
 
-sys.modules['http.cookies'] = httpcookies
-sys.modules['http.client'] = httpclient
-sys.modules['importlib'] = importlib
-
-PATH = os.path.dirname(__file__)
-
-PYTHON_PATH = os.path.join(PATH, 'python')
-sys.path.insert(0, PYTHON_PATH)
-
-PACKAGE_PATH = os.path.join(PATH, 'package')
-sys.path.insert(0, PACKAGE_PATH)
 
 addonHandler.initTranslation()
 ADDON_SUMMARY = "GPTAssistant"
@@ -84,10 +85,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		obj = api.getFocusObject()
 		text = obj.makeTextInfo(textInfos.POSITION_SELECTION).text
+		max_word_count = config.conf["GPTAssistant"]["settings"]["max_word_count"]
 
-		if len(text) > config.conf["GPTAssistant"]["settings"]["max_word_count"]:
-			ui.message(f"原文長度為: {len(text)}, 超過上限: {config.conf[\"GPTAssistant\"][\"settings\"][\"max_word_count\"]}")
-			log.warning(f"原文長度為: {len(text)}, 超過上限: {config.conf[\"GPTAssistant\"][\"settings\"][\"max_word_count\"]}")
+		if len(text) > max_word_count:
+			ui.message(f"原文長度: {len(text)}, 超過上限: {max_word_count}")
+			log.warning(f"原文長度: {len(text)}, 超過上限: {max_word_count}")
 			return
 
 		text_corrected, diff = proofreader.typo_analyzer(text)
@@ -95,4 +97,5 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		ui.message(f"原文是: {text}")
 		ui.message(f"diff是: {diff}")
 		print(f"原文是: {text}")
+		print(f"修正後是: {text_corrected}")
 		print(f"diff是: {diff}")
