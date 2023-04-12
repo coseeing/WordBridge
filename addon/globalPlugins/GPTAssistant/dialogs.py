@@ -4,10 +4,11 @@ import config
 import wx
 
 from gui import guiHelper, nvdaControls
-from gui.settingsDialogs import MultiCategorySettingsDialog, NVDASettingsDialog, SettingsDialog, SettingsPanel
+from gui.settingsDialogs import MultiCategorySettingsDialog, SettingsDialog, SettingsPanel
 
 
 model_list = ['text-davinci-003', 'text-curie-001', 'text-babbage-001', 'text-ada-001']
+
 
 class OpenAIGeneralSettingsPanel(SettingsPanel):
 	title = _("OpenAIGeneral")
@@ -16,7 +17,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 	def makeSettings(self, settingsSizer):
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 		modelLabelText = _("OpenAI Model:")
-		self.modelList=settingsSizerHelper.addLabeledControl(modelLabelText, wx.Choice, choices=model_list)
+		self.modelList = settingsSizerHelper.addLabeledControl(modelLabelText, wx.Choice, choices=model_list)
 		self.modelList.SetToolTip(wx.ToolTip("Choose the openAI model for the GPT assistant"))
 		self.modelList.SetSelection(model_list.index(config.conf["GPTAssistant"]["settings"]["model"]))
 
@@ -48,11 +49,11 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		maxTokensLabelText = _("Max Word Count")
 		maxWordCount = config.conf["GPTAssistant"]["settings"]["max_word_count"]
 		maxWordCountlowerBound = int(config.conf.getConfigValidation(
-							("GPTAssistant", "settings", "max_word_count")
-						).kwargs["min"])
+			("GPTAssistant", "settings", "max_word_count")
+		).kwargs["min"])
 		maxWordCountUpperBound = int(config.conf.getConfigValidation(
-							("GPTAssistant", "settings", "max_word_count")
-						).kwargs["max"])
+			("GPTAssistant", "settings", "max_word_count")
+		).kwargs["max"])
 		self.maxWordCount = settingsSizerHelper.addLabeledControl(
 			maxTokensLabelText,
 			nvdaControls.SelectOnFocusSpinCtrl,
@@ -87,6 +88,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 	def updateCurrentKey(self, key):
 		self.keyNameCtrl.SetValue(key)
 
+
 class GPTAssistantSettingsDialog(MultiCategorySettingsDialog):
 	# translators: title of the dialog.
 	dialogTitle = _("Settings")
@@ -100,6 +102,7 @@ class GPTAssistantSettingsDialog(MultiCategorySettingsDialog):
 
 	def __init__(self, parent, initialCategory=None):
 		super().__init__(parent, initialCategory)
+
 
 class OpenAIKeySettingDialog(SettingsDialog):
 	title = _("Set OpenAI Key")
