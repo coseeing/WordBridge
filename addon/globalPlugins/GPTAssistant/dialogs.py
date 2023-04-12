@@ -7,6 +7,8 @@ from gui import guiHelper, nvdaControls
 from gui.settingsDialogs import MultiCategorySettingsDialog, NVDASettingsDialog, SettingsDialog, SettingsPanel
 
 
+model_list = ['text-davinci-003', 'text-curie-001', 'text-babbage-001', 'text-ada-001']
+
 class OpenAIGeneralSettingsPanel(SettingsPanel):
 	title = _("OpenAIGeneral")
 	helpId = "OpenAIGeneralSettings"
@@ -14,13 +16,9 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 	def makeSettings(self, settingsSizer):
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 		modelLabelText = _("OpenAI Model:")
-		choices=['text-davinci-003', 'text-curie-001', 'text-babbage-001', 'text-ada-001']
-		self.modelList=settingsSizerHelper.addLabeledControl(modelLabelText, wx.Choice, choices=choices)
+		self.modelList=settingsSizerHelper.addLabeledControl(modelLabelText, wx.Choice, choices=model_list)
 		self.modelList.SetToolTip(wx.ToolTip("Choose the openAI model for the GPT assistant"))
-		self.modelList.SetSelection(0)
-		#self.oldLanguage = config.conf["general"]["language"]
-		#index = choices.index(self.oldLanguage)
-		#self.languageList.SetSelection(index)
+		self.modelList.SetSelection(model_list.index(config.conf["GPTAssistant"]["settings"]["model"]))
 
 		keyLabel = _("&OpenAI Key")
 		keyBoxSizer = wx.StaticBoxSizer(wx.HORIZONTAL, self, label=keyLabel)
@@ -31,9 +29,10 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		self.keyNameCtrl = ExpandoTextCtrl(
 			keyBox,
 			size=(self.scaleSize(250), -1),
-			value="",
+			value=config.conf["GPTAssistant"]["settings"]["openai_key"],
 			style=wx.TE_READONLY,
 		)
+		self.keyNameCtrl.Bind(wx.EVT_CHAR_HOOK, self._enterTriggersOnChangeKey)
 
 		changeKeyBtn = wx.Button(keyBox, label=_("C&hange..."))
 		self.bindHelpEvent("OpenAIKeyChange", self.keyNameCtrl)
@@ -46,47 +45,34 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		)
 		changeKeyBtn.Bind(wx.EVT_BUTTON, self.onChangeKey)
 
-		maxTokensLabelText = _("Max Tokens")
-		maxTokensLowerBound = 25
-		maxTokensUpperBound = 100
-		self.maxTokensEdit = settingsSizerHelper.addLabeledControl(
+		maxTokensLabelText = _("Max Word Count")
+		maxWordCount = config.conf["GPTAssistant"]["settings"]["max_word_count"]
+		maxWordCountlowerBound = int(config.conf.getConfigValidation(
+							("GPTAssistant", "settings", "max_word_count")
+						).kwargs["min"])
+		maxWordCountUpperBound = int(config.conf.getConfigValidation(
+							("GPTAssistant", "settings", "max_word_count")
+						).kwargs["max"])
+		self.maxWordCount = settingsSizerHelper.addLabeledControl(
 			maxTokensLabelText,
 			nvdaControls.SelectOnFocusSpinCtrl,
-			min=maxTokensLowerBound,
-			max=maxTokensUpperBound,
-			initial=50
+			min=maxWordCountlowerBound,
+			max=maxWordCountUpperBound,
+			initial=maxWordCount
 		)
-		self.bindHelpEvent("GeneralSettingsMaxToken", self.maxTokensEdit)
-
-		temperatureLabelText = _("Temperature")
-		temperatureLowerBound = 25
-		temperatureUpperBound = 100
-		self.temperatureEdit = settingsSizerHelper.addLabeledControl(
-			temperatureLabelText,
-			nvdaControls.SelectOnFocusSpinCtrl,
-			min=temperatureLowerBound,
-			max=temperatureUpperBound,
-			initial=50
-		)
-		self.bindHelpEvent("GeneralSettingsTemperature", self.temperatureEdit)
-
-		topPLabelText = _("TopP")
-		topPLowerBound = 25
-		topPUpperBound = 100
-		self.topPEdit = settingsSizerHelper.addLabeledControl(
-			topPLabelText,
-			nvdaControls.SelectOnFocusSpinCtrl,
-			min=topPLowerBound,
-			max=topPUpperBound,
-			initial=50
-		)
-		self.bindHelpEvent("GeneralSettingsTopP", self.topPEdit)
+		self.bindHelpEvent("GeneralSettingsMaxToken", self.maxWordCount)
 
 	def onSave(self):
-		pass
-		#choices=['lsssssssssss1', 'lsssssssss2', 'l3sssssss']
-		#print(f"config.getUserDefaultConfigPath() = {config.getUserDefaultConfigPath()}")
-		#config.conf["general"]["language"] = choices[self.languageList.GetSelection()]
+		config.conf["GPTAssistant"]["settings"]["model"] = model_list[self.modelList.GetSelection()]
+		config.conf["GPTAssistant"]["settings"]["openai_key"] = self.keyNameCtrl.GetValue()
+		config.conf["GPTAssistant"]["settings"]["max_word_count"] = self.maxWordCount.GetValue()
+		print(f"_ = {_}, {type(_)}, {dir(_)}")
+
+	def _enterTriggersOnChangeKey(self, evt):
+		if evt.KeyCode == wx.WXK_RETURN:
+			self.onChangeKey(evt)
+		else:
+			evt.Skip()
 
 	def onChangeKey(self, evt):
 		changeDisplay = OpenAIKeySettingDialog(self, multiInstanceAllowed=True)
@@ -97,6 +83,9 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			self.onPanelActivated()
 			self._sendLayoutUpdatedEvent()
 			self.Thaw()
+
+	def updateCurrentKey(self, key):
+		self.keyNameCtrl.SetValue(key)
 
 class GPTAssistantSettingsDialog(MultiCategorySettingsDialog):
 	# translators: title of the dialog.
@@ -119,8 +108,6 @@ class OpenAIKeySettingDialog(SettingsDialog):
 	def makeSettings(self, settingsSizer):
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 
-		openAIAPIKeyLabelText = _("OpenAI Key")
-
 		keyLabel = _("&Key")
 		keyBoxSizer = wx.StaticBoxSizer(wx.HORIZONTAL, self, label=keyLabel)
 		keyBox = keyBoxSizer.GetStaticBox()
@@ -130,6 +117,9 @@ class OpenAIKeySettingDialog(SettingsDialog):
 		self.keyNameCtrl = ExpandoTextCtrl(
 			keyBox,
 			size=(self.scaleSize(250), -1),
-			value="",
-			style=wx.TE_READONLY,
+			value=config.conf["GPTAssistant"]["settings"]["openai_key"],
 		)
+
+	def onOk(self, evt):
+		super().onOk(evt)
+		self.Parent.updateCurrentKey(self.keyNameCtrl.GetValue())

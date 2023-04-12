@@ -33,10 +33,19 @@ sys.modules['importlib'] = importlib
 
 import requests
 
+from .proofreader import Proofreader
+from .typo_corrector import TypoCorrector
+
 addonHandler.initTranslation()
 ADDON_SUMMARY = "GPTAssistant"
 
-config.conf.spec["GPTAssistant"] = {}
+config.conf.spec["GPTAssistant"] = {
+	"settings": {
+		"model": "string(default=text-davinci-003)",
+		"openai_key": "string(default=Please Enter Your Key)",
+		"max_word_count": "integer(default=100,min=2,max=200)",
+	}
+}
 
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
@@ -75,77 +84,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category=ADDON_SUMMARY,
 	)
 	def script_action(self, gesture):
-		print("YA")
+		corrector = TypoCorrector(model=config.conf["GPTAssistant"]["settings"]["model"],
+									api_key=config.conf["GPTAssistant"]["settings"]["openai_key"])
+		proofreader = Proofreader(corrector)
+
 		obj = api.getFocusObject()
 		text = obj.makeTextInfo(textInfos.POSITION_SELECTION).text
+		text_corrected, diff = proofreader.typo_analyzer(text)
 		ui.message(f"原文是: {text}")
-		text_corrected = self._get_openai_completion_response(text)
-		self._report_typos(text, text_corrected)
-
-	def _report_typos(self, text_original, text_corrected):
-		text_original_split = text_original.split('\r\n')
-		text_corrected_split = text_corrected.split('\n')
-		error_count = 0
-
-		ui.message(f"分析結果如下:")
-
-		for row in range(len(text_original_split)):
-			for col in range(len(text_original_split[row])):
-				if text_original_split[row][col] != text_corrected_split[row][col]:
-					ui.message(f"row {row + 1}, column {col + 1}: {text_original_split[row][col]} 應改成 {text_corrected_split[row][col]}")
-					error_count += 1
-
-		ui.message(f"共有錯字{error_count}個")
-
-	def _get_openai_completion_response(self, prompt_text):
-		prompt_augmented = f'改錯字\n\n題目:{prompt_text}\n\n答案:'
-
-		API_KEY = ''
-
-		# GPT 3.5
-
-		url = "https://api.openai.com/v1/chat/completions"
-		headers = {
-			"Content-Type": "application/json",
-			"Authorization": f"Bearer {API_KEY}",
-		}
-		data = {
-			'model': 'gpt-3.5-turbo',
-			'messages': [
-				{
-					"role": "user",
-					"content": prompt_augmented
-				}
-			]
-		}
-
-		response = requests.post(url, headers=headers, json=data).json()
-		return response['choices'][0]['message']['content']
-
-		# GPT 3
-
-		url =  "https://api.openai.com/v1/completions"
-		headers = {"Authorization": f"Bearer {API_KEY}"}
-		data = {
-			'model': 'text-davinci-003',
-			'prompt': prompt_augmented,
-			'max_tokens': 60,
-			'temperature': 0,
-		}
-
-		response = requests.post(url, headers=headers, json=data).json()
-
-		return response['choices'][0]['text']
-
-
-'''
-Example input cases:
-今天天器真好，
-好想初去完，
-結數回家吃泛。
-Expected output:
-今天天氣真好，
-好想出去玩，
-結束回家吃飯。
-'''
-''
+		ui.message(f"diff是: {diff}")
+		print(f"原文是: {text}")
+		print(f"diff是: {diff}")
