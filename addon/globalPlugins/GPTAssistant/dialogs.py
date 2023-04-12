@@ -29,7 +29,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 
 		self.keyNameCtrl = ExpandoTextCtrl(
 			keyBox,
-			size=(self.scaleSize(250), -1),
+			size=(self.scaleSize(500), -1),
 			value=config.conf["GPTAssistant"]["settings"]["openai_key"],
 			style=wx.TE_READONLY,
 		)
