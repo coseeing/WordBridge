@@ -6,6 +6,7 @@ import os
 import sys
 
 from .dialogs import GPTAssistantSettingsDialog
+from logHandler import log
 from scriptHandler import script
 
 import addonHandler
@@ -83,6 +84,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		obj = api.getFocusObject()
 		text = obj.makeTextInfo(textInfos.POSITION_SELECTION).text
+
+		if len(text) > config.conf["GPTAssistant"]["settings"]["max_word_count"]:
+			ui.message(f"原文長度為: {len(text)}, 超過上限: {config.conf[\"GPTAssistant\"][\"settings\"][\"max_word_count\"]}")
+			log.warning(f"原文長度為: {len(text)}, 超過上限: {config.conf[\"GPTAssistant\"][\"settings\"][\"max_word_count\"]}")
+			return
+
 		text_corrected, diff = proofreader.typo_analyzer(text)
 
 		ui.message(f"原文是: {text}")
