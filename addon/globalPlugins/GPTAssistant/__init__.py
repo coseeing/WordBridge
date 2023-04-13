@@ -30,8 +30,8 @@ import textInfos
 import ui
 import wx
 
-from .proofreader import Proofreader
-from .typo_corrector import TypoCorrector
+from .lib.proofreader import Proofreader
+from .lib.typo_corrector import TypoCorrector
 
 
 addonHandler.initTranslation()
