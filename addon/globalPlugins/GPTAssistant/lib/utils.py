@@ -1,8 +1,7 @@
 from difflib import SequenceMatcher
-from typing import Dict
-
-
-# from chinese_dictionary import pronouce_to_chars_dict, char_to_pronouces_dict
+from typing import Dict, List
+from chinese_converter import to_simplified, to_traditional
+from .chinese_dictionary import char_to_pronouce
 
 SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t"
 
@@ -37,24 +36,60 @@ def text_segmentation(text: str, max_length: int = 50) -> list:
 	return partitions
 
 
-def strings_diff(string1: str, string2: str) -> Dict:
+def analyze_diff(char_original: str, char_modified: str) -> List:
+	assert len(char_original) == len(char_modified) == 1, "Length of char_original, char_modified should be 1."
+	tags = []
 
-	# operation is replace or insert or delete
+	char_simplified = to_simplified(char_original)
+	char_traditional = to_traditional(char_original)
+	if char_original != char_simplified and char_simplified == char_modified:
+		tags.append("Tranditional to simplified")
+	elif char_original != char_traditional and char_traditional == char_modified:
+		tags.append("Simplified to tranditional")
 
-	matcher = SequenceMatcher(None, string1, string2)
+	if char_to_pronouce[char_original] | char_to_pronouce[char_modified]:
+		tags.append("Share the same pronouciation")
+	else:
+		tags.append("Do not share the same pronouciation")
+
+	return tags
+
+
+def strings_diff(string_before: str, string_after: str) -> Dict:
+
+	# operation (op) is replace or insert or delete
+
+	matcher = SequenceMatcher(None, string_before, string_after)
 	diff = []
-	for tag, index_start1, index_end1, index_start2, index_end2 in matcher.get_opcodes():
-		if tag == "equal":
+	for op, index_start_before, index_end_before, index_start_after, index_end_after in matcher.get_opcodes():
+		if op == "equal":
+			continue
+		elif op != "replace":
+			operation_dict = {
+				"operation": op,
+				"index_start_before": index_start_before,
+				"index_end_before": index_end_before,
+				"index_start_after": index_start_after,
+				"index_end_after": index_end_after,
+				"tags": None,
+			}
+			diff.append(operation_dict)
 			continue
 
-		operation_dict = {
-			"operation": tag,
-			"index_start1": index_start1,
-			"index_end1": index_end1,
-			"index_start2": index_start2,
-			"index_end2": index_end2,
-		}
+		for i in range(index_end_before - index_start_before):
+			operation_dict = {
+				"operation": op,
+				"index_start_before": index_start_before + i,
+				"index_end_before": index_start_before + i + 1,
+				"index_start_after": index_start_after + i,
+				"index_end_after": index_start_after + i + 1,
+				"tags": None,
+			}
+			operation_dict["tags"] = analyze_diff(
+				string_before[index_start_before + i],
+				string_after[index_start_after + i],
+			)
 
-		diff.append(operation_dict)
+			diff.append(operation_dict)
 
 	return diff
