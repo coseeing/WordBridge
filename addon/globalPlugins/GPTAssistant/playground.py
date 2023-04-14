@@ -14,6 +14,22 @@ if __name__ == "__main__":
 Output:
 text = 天器真好，想出去完,
 text_corrected = 天氣真好，想出去玩,
-diff = [{'operation': 'replace', 'index_start1': 1, 'index_end1': 2, 'index_start2': 1, 'index_end2': 2},
-		{'operation': 'replace', 'index_start1': 8, 'index_end1': 9, 'index_start2': 8, 'index_end2': 9}]
+diff = [
+	{
+		'operation': 'replace',
+		'index_start_before': 1,
+		'index_end_before': 2,
+		'index_start_after': 1,
+		'index_end_after': 2,
+		'tags': ['Share the same pronouciation']
+	},
+	{
+		'operation': 'replace',
+		'index_start_before': 8,
+		'index_end_before': 9,
+		'index_start_after': 8,
+		'index_end_after': 9,
+		'tags': ['Share the same pronouciation']
+	}
+]
 """
