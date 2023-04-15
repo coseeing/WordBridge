@@ -1,8 +1,10 @@
 from difflib import SequenceMatcher
 from typing import Dict, List
 from chinese_converter import to_simplified, to_traditional
-from .chinese_dictionary import char_to_pronouce
+from .chinese_dictionary import char_to_pronounce
 
+
+# Characters used for text segmentation
 SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t"
 
 
@@ -36,21 +38,32 @@ def text_segmentation(text: str, max_length: int = 50) -> list:
 	return partitions
 
 
-def analyze_diff(char_original: str, char_modified: str) -> List:
-	assert len(char_original) == len(char_modified) == 1, "Length of char_original, char_modified should be 1."
+def analyze_diff(char_original: str, char_corrected: str) -> List:
+	"""
+	This function takes in two single-character strings, `char_original` and `char_corrected`, and returns a list
+	of tags that describe the differences between the two characters.
+
+	Parameters:
+		char_original (str): A single-character string representing the original character.
+		char_corrected (str): A single-character string representing the corrected character.
+
+	Returns:
+		A list of tags that describe the differences between the two input characters.
+	"""
+	assert len(char_original) == len(char_corrected) == 1, "Length of char_original, char_corrected should be 1."
 	tags = []
 
 	char_simplified = to_simplified(char_original)
 	char_traditional = to_traditional(char_original)
-	if char_original != char_simplified and char_simplified == char_modified:
+	if char_original != char_simplified and char_simplified == char_corrected:
 		tags.append("Tranditional to simplified")
-	elif char_original != char_traditional and char_traditional == char_modified:
+	elif char_original != char_traditional and char_traditional == char_corrected:
 		tags.append("Simplified to tranditional")
 
-	if char_to_pronouce[char_original] | char_to_pronouce[char_modified]:
-		tags.append("Share the same pronouciation")
+	if char_to_pronounce[char_original] | char_to_pronounce[char_corrected]:
+		tags.append("Share the same pronunciation")
 	else:
-		tags.append("Do not share the same pronouciation")
+		tags.append("Do not share the same pronunciation")
 
 	return tags
 
