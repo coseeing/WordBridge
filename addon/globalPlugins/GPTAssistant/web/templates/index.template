@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>{|{ title }|}</title>
+		<meta name="description" content="{|{ title }|}" />
+		<meta name="keywords" content="{|{ title }|}" />
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<script src="modules/sweetalert2.all.min.js"></script>
+		<script src="modules/vue.js"></script>
+		<style>
+			body {
+				font-size: 16px;
+			}
+			span {
+				line-height: 30px;
+			}
+			.sr-only {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				padding: 0;
+				margin: -1px;
+				overflow: hidden;
+				clip: rect(0,0,0,0);
+				border: 0;
+			}
+			math {
+				text-align: left;
+			}
+			#app {
+				max-width: 80%;
+				margin: 30px auto;
+			}
+			.theme {
+				background-color: {|{ bg_color }|};
+				color: {|{ color }|};
+			}
+		</style>
+	</head>
+	<body>
+		<div id="app" class="theme">
+			<span v-for="item in data">
+				<span v-if="item.after == undefined">
+					{{ item.before.text }}
+				</span>
+				<span v-else>
+					<span v-if="(item.before.text != '') && (item.after.text == '')">
+						<del><button @click="openInfos({'descs': item.before.descs})">{{ item.before.text }}</button></del>
+					</span>
+					<span v-else-if="(item.before.text == '') && (item.after.text != '')">
+						<ins><button @click="openInfos({'descs': item.after.descs})">{{ item.after.text }}</button></ins>
+					</span>
+					<span v-else>
+						<div :aria-description="'已修正'"><button @click="openInfos({'descs': item.after.descs})">{{ item.after.text }}</button></div>
+					</span>
+				</span>
+			</span>
+		</div>
+		<script>
+			const {createApp, computed, ref} = Vue;
+			const Content = {
+				setup() {
+					const openInfos = (data) => {
+						function ariaHandler(e) {
+							let x = e.getAttribute("aria-live"); 
+							if (x !== "off") {
+								x = "off"
+							}
+							e.setAttribute("aria-live", x);
+						}
+						const html = "<ul>" + data.descs.reduce((a, b) => {
+							let chr = "";
+							let desc = "";
+							try{
+								chr = b[0];
+								descs = b[1].slice(",");
+								desc = "<ul>" + descs.reduce((a, b) => `${a}<li>${b}</li>`, "") + "</ul>";
+							} catch(e){
+							}
+							return `${a}<li>${chr}:${desc}</li>`;
+						}, "") + "</ul>"
+						Swal.fire({
+							title: "detail",
+							html,
+							confirmButtonColor: "#3085d6",
+							confirmButtonText: "close",
+							width: 'fit-content',
+							didRender: ariaHandler,
+						});
+					}
+					const raw = ref(JSON.parse(`{|{ raw }|}`));
+					const data = ref(JSON.parse(`{|{ data }|}`));
+
+					return {
+						data, raw, openInfos,
+					}
+				},
+			}
+			const app = createApp(Content).mount('#app');
+		</script>
+	</body>
+</html>

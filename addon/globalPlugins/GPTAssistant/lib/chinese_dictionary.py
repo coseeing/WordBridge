@@ -8,7 +8,7 @@ def load_dictionary(dictionary_path: str):
 
 	char_to_pronounce = defaultdict(set)
 
-	with open(dictionary_path, newline='') as csvfile:
+	with open(dictionary_path, encoding="utf8", newline='') as csvfile:
 		reader = csv.reader(csvfile)
 		next(reader)
 		for row in reader:

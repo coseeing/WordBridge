@@ -2,7 +2,9 @@ from .python.http import client as httpclient
 from .python.http import cookies as httpcookies
 from .python import importlib
 
+import json
 import os
+import shutil
 import sys
 
 sys.modules['http.cookies'] = httpcookies
@@ -18,8 +20,10 @@ PACKAGE_PATH = os.path.join(PATH, 'package')
 sys.path.insert(0, PACKAGE_PATH)
 
 from .dialogs import GPTAssistantSettingsDialog
+from languageHandler import getLanguage
 from logHandler import log
 from scriptHandler import script
+from speech.speech import getCharDescListFromText
 
 import addonHandler
 import api
@@ -32,6 +36,7 @@ import wx
 
 from .lib.proofreader import Proofreader
 from .lib.typo_corrector import TypoCorrector
+from .lib.viewHTML import text2template
 
 
 addonHandler.initTranslation()
@@ -99,3 +104,88 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		print(f"原文是: {text}")
 		print(f"修正後是: {text_corrected}")
 		print(f"diff是: {diff}")
+
+		template_folder = os.path.join(PATH, 'web', 'templates')
+		raw_folder = os.path.join(PATH, 'web', 'workspace', 'default')
+		review_folder = os.path.join(PATH, 'web', 'workspace', 'review')
+
+		try:
+			shutil.rmtree(raw_folder)
+		except BaseException:
+			pass
+		if not os.path.exists(raw_folder):
+			os.makedirs(raw_folder)
+
+		data = [
+			{
+				"before": "今天天",
+			},
+			{
+				"before": "器",
+				"after": "氣",
+			},
+			{
+				"before": "真好，我想初",
+			},
+			{
+				"before": "",
+				"after": "次",
+			},
+			{
+				"before": "去玩",
+			},
+		]
+		data = addCharDesc(data)
+
+		raw = os.path.join(raw_folder, "result.txt")
+		with open(raw, "w", encoding="utf8") as f:
+			f.write(json.dumps(data))
+
+		try:
+			shutil.rmtree(review_folder)
+		except BaseException:
+			pass
+		if not os.path.exists(review_folder):
+			os.makedirs(review_folder)
+
+		shutil.copytree(
+			os.path.join(template_folder, 'modules'),
+			os.path.join(review_folder, 'modules')
+		)
+
+		src = os.path.join(review_folder, os.path.basename(raw))
+		shutil.copyfile(
+			raw,
+			src,
+		)
+
+		dst = os.path.join(review_folder, "result.html")
+		text2template(src, dst)
+
+		self.OnPreview(dst)
+
+	def OnPreview(self, file):
+		def openfile():
+			os.startfile(file)
+		wx.CallAfter(openfile)
+
+def addCharDesc(data):
+	result = []
+	for item in data:
+		temp = {}
+		if "before" in item:
+			temp.update({
+				"before": {
+					"text": item["before"],
+					"descs": getCharDescListFromText(item["before"], getLanguage()),
+				},
+			})
+		if "after" in item:
+			temp.update({
+				"after": {
+					"text": item["after"],
+					"descs": getCharDescListFromText(item["after"], getLanguage()),
+				},
+			})
+		result.append(temp)
+	return result

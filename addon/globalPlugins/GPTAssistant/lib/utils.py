@@ -1,6 +1,6 @@
 from difflib import SequenceMatcher
 from typing import Dict, List
-from chinese_converter import to_simplified, to_traditional
+# from chinese_converter import to_simplified, to_traditional
 from .chinese_dictionary import char_to_pronounce
 
 
@@ -53,8 +53,10 @@ def analyze_diff(char_original: str, char_corrected: str) -> List:
 	assert len(char_original) == len(char_corrected) == 1, "Length of char_original, char_corrected should be 1."
 	tags = []
 
-	char_simplified = to_simplified(char_original)
-	char_traditional = to_traditional(char_original)
+	# char_simplified = to_simplified(char_original)
+	# char_traditional = to_traditional(char_original)
+	char_simplified = char_original
+	char_traditional = char_original
 	if char_original != char_simplified and char_simplified == char_corrected:
 		tags.append("Tranditional to simplified")
 	elif char_original != char_traditional and char_traditional == char_corrected:
