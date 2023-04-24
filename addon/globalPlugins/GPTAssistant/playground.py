@@ -24,20 +24,52 @@ text = 天器真好，想出去完,
 text_corrected = 天氣真好，想出去玩,
 diff = [
 	{
+		'operation': 'equal',
+		'before_text': '天',
+		'after_text': '天',
+		'index_start_before': 0,
+		'index_end_before': 1,
+		'index_start_after': 0,
+		'index_end_after': 1,
+		'before_descs': '',
+		'after_descs': '',
+		'tags': None
+	},
+	{
 		'operation': 'replace',
+		'before_text': '器',
+		'after_text': '氣',
 		'index_start_before': 1,
 		'index_end_before': 2,
 		'index_start_after': 1,
 		'index_end_after': 2,
-		'tags': ['Share the same pronouciation']
+		'before_descs': '',
+		'after_descs': '',
+		'tags': ['Share the same pronunciation']
+	},
+	{
+		'operation': 'equal',
+		'before_text': '真好，想出去',
+		'after_text': '真好 ，想出去',
+		'index_start_before': 2,
+		'index_end_before': 8,
+		'index_start_after': 2,
+		'index_end_after': 8,
+		'before_descs': '',
+		'after_descs': '',
+		'tags': None
 	},
 	{
 		'operation': 'replace',
+		'before_text': '完',
+		'after_text': '玩',
 		'index_start_before': 8,
 		'index_end_before': 9,
 		'index_start_after': 8,
 		'index_end_after': 9,
-		'tags': ['Share the same pronouciation']
+		'before_descs': '',
+		'after_descs': '',
+		'tags': ['Share the same pronunciation']
 	}
 ]
 """
