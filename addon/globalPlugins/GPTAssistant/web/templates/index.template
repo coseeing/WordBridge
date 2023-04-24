@@ -45,13 +45,13 @@
 				</span>
 				<span v-else>
 					<span v-if="item.operation == 'delete'">
-						<del><button @click="openInfos({'descs_before': item.before_descs, 'descs_after': ''})">{{ item.before_text }}</button></del>
+						<del><button @click="openInfos({'operation': '文字刪除', 'descs_before': item.before_descs, 'descs_after': ''})">{{ item.before_text }}</button></del>
 					</span>
 					<span v-else-if="item.operation == 'insert'">
-						<ins><button @click="openInfos({'descs_before': '', 'descs_after': item.after_descs})">{{ item.after_text }}</button></ins>
+						<ins><button @click="openInfos({'operation': '文字插入', 'descs_before': '', 'descs_after': item.after_descs})">{{ item.after_text }}</button></ins>
 					</span>
 					<span v-else-if="item.operation == 'replace'">
-						<div :aria-description="'已修正'"><button @click="openInfos({'descs_before': item.before_descs, 'descs_after': item.after_descs})">{{ item.after_text }}</button></div>
+						<div :aria-description="'已修正'"><button @click="openInfos({'operation': '文字替換', 'descs_before': item.before_descs, 'descs_after': item.after_descs})">{{ item.after_text }}</button></div>
 					</span>
 				</span>
 			</span>
@@ -68,7 +68,10 @@
 							}
 							e.setAttribute("aria-live", x);
 						}
-						const html = "<ul>" + data.descs_before.reduce((a, b) => {
+						descs_before = data.descs_before || [];
+						descs_after = data.descs_after || [];
+
+						const html = "<ul>" + descs_before.reduce((a, b) => {
 							let chr = "";
 							let desc = "";
 							try{
@@ -78,7 +81,7 @@
 							} catch(e){
 							}
 							return `${a}<li>${chr}:${desc}</li>`;
-						}, "") + data.descs_after.reduce((a, b) => {
+						}, "") + descs_after.reduce((a, b) => {
 							let chr = "";
 							let desc = "";
 							try{
@@ -90,7 +93,7 @@
 							return `${a}<li>${chr}:${desc}</li>`;
 						}, "") + "</ul>"
 						Swal.fire({
-							title: "detail",
+							title: data.operation,
 							html,
 							confirmButtonColor: "#3085d6",
 							confirmButtonText: "close",
