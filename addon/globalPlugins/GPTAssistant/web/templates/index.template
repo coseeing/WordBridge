@@ -40,18 +40,18 @@
 	<body>
 		<div id="app" class="theme">
 			<span v-for="item in data">
-				<span v-if="item.after == undefined">
-					{{ item.before.text }}
+				<span v-if="item.operation == 'equal'">
+					{{ item.before_text }}
 				</span>
 				<span v-else>
-					<span v-if="(item.before.text != '') && (item.after.text == '')">
-						<del><button @click="openInfos({'descs': item.before.descs})">{{ item.before.text }}</button></del>
+					<span v-if="item.operation == 'delete'">
+						<del><button @click="openInfos({'descs_before': item.before_descs, 'descs_after': ''})">{{ item.before_text }}</button></del>
 					</span>
-					<span v-else-if="(item.before.text == '') && (item.after.text != '')">
-						<ins><button @click="openInfos({'descs': item.after.descs})">{{ item.after.text }}</button></ins>
+					<span v-else-if="item.operation == 'insert'">
+						<ins><button @click="openInfos({'descs_before': '', 'descs_after': item.after_descs})">{{ item.after_text }}</button></ins>
 					</span>
-					<span v-else>
-						<div :aria-description="'已修正'"><button @click="openInfos({'descs': item.after.descs})">{{ item.after.text }}</button></div>
+					<span v-else-if="item.operation == 'replace'">
+						<div :aria-description="'已修正'"><button @click="openInfos({'descs_before': item.before_descs, 'descs_after': item.after_descs})">{{ item.after_text }}</button></div>
 					</span>
 				</span>
 			</span>
@@ -68,7 +68,17 @@
 							}
 							e.setAttribute("aria-live", x);
 						}
-						const html = "<ul>" + data.descs.reduce((a, b) => {
+						const html = "<ul>" + data.descs_before.reduce((a, b) => {
+							let chr = "";
+							let desc = "";
+							try{
+								chr = b[0];
+								descs = b[1].slice(",");
+								desc = "<ul>" + descs.reduce((a, b) => `${a}<li>${b}</li>`, "") + "</ul>";
+							} catch(e){
+							}
+							return `${a}<li>${chr}:${desc}</li>`;
+						}, "") + data.descs_after.reduce((a, b) => {
 							let chr = "";
 							let desc = "";
 							try{

@@ -3,6 +3,12 @@ from typing import Dict, List
 # from chinese_converter import to_simplified, to_traditional
 from .chinese_dictionary import char_to_pronounce
 
+try:
+	from languageHandler import getLanguage
+	from speech.speech import getCharDescListFromText
+except Exception as e:
+	getLanguage = None
+	getCharDescListFromText = None
 
 # Characters used for text segmentation
 SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t"
@@ -70,6 +76,13 @@ def analyze_diff(char_original: str, char_corrected: str) -> List:
 	return tags
 
 
+def get_descs(string: str) -> str:
+	if not string or getLanguage is None or getCharDescListFromText is None:
+		return ""
+
+	return getCharDescListFromText(string, getLanguage())
+
+
 def strings_diff(string_before: str, string_after: str) -> Dict:
 
 	# operation (op) is replace or insert or delete
@@ -78,14 +91,31 @@ def strings_diff(string_before: str, string_after: str) -> Dict:
 	diff = []
 	for op, index_start_before, index_end_before, index_start_after, index_end_after in matcher.get_opcodes():
 		if op == "equal":
-			continue
-		elif op != "replace":
 			operation_dict = {
 				"operation": op,
+				"before_text": string_before[index_start_before:index_end_before],
+				"after_text": string_after[index_start_after:index_end_after],
 				"index_start_before": index_start_before,
 				"index_end_before": index_end_before,
 				"index_start_after": index_start_after,
 				"index_end_after": index_end_after,
+				"before_descs": "",
+				"after_descs": "",
+				"tags": None,
+			}
+			diff.append(operation_dict)
+			continue
+		elif op != "replace":
+			operation_dict = {
+				"operation": op,
+				"before_text": string_before[index_start_before:index_end_before],
+				"after_text": string_after[index_start_after:index_end_after],
+				"index_start_before": index_start_before,
+				"index_end_before": index_end_before,
+				"index_start_after": index_start_after,
+				"index_end_after": index_end_after,
+				"before_descs": get_descs(string_before[index_start_before:index_end_before]),
+				"after_descs": get_descs(string_after[index_start_after:index_end_after]),
 				"tags": None,
 			}
 			diff.append(operation_dict)
@@ -94,10 +124,14 @@ def strings_diff(string_before: str, string_after: str) -> Dict:
 		for i in range(index_end_before - index_start_before):
 			operation_dict = {
 				"operation": op,
+				"before_text": string_before[(index_start_before + i):(index_start_before + i + 1)],
+				"after_text": string_after[(index_start_after + i):(index_start_after + i + 1)],
 				"index_start_before": index_start_before + i,
 				"index_end_before": index_start_before + i + 1,
 				"index_start_after": index_start_after + i,
 				"index_end_after": index_start_after + i + 1,
+				"before_descs": get_descs(string_before[(index_start_before + i):(index_start_before + i + 1)]),
+				"after_descs": get_descs(string_after[(index_start_after + i):(index_start_after + i + 1)]),
 				"tags": None,
 			}
 			operation_dict["tags"] = analyze_diff(

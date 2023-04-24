@@ -20,7 +20,7 @@ PACKAGE_PATH = os.path.join(PATH, 'package')
 sys.path.insert(0, PACKAGE_PATH)
 
 from .dialogs import GPTAssistantSettingsDialog
-from languageHandler import getLanguage
+
 from logHandler import log
 from scriptHandler import script
 from speech.speech import getCharDescListFromText
@@ -116,26 +116,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not os.path.exists(raw_folder):
 			os.makedirs(raw_folder)
 
-		data = [
-			{
-				"before": "今天天",
-			},
-			{
-				"before": "器",
-				"after": "氣",
-			},
-			{
-				"before": "真好，我想初",
-			},
-			{
-				"before": "",
-				"after": "次",
-			},
-			{
-				"before": "去玩",
-			},
-		]
-		data = addCharDesc(data)
+		data = diff
 
 		raw = os.path.join(raw_folder, "result.txt")
 		with open(raw, "w", encoding="utf8") as f:
@@ -169,23 +150,3 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			os.startfile(file)
 		wx.CallAfter(openfile)
 
-def addCharDesc(data):
-	result = []
-	for item in data:
-		temp = {}
-		if "before" in item:
-			temp.update({
-				"before": {
-					"text": item["before"],
-					"descs": getCharDescListFromText(item["before"], getLanguage()),
-				},
-			})
-		if "after" in item:
-			temp.update({
-				"after": {
-					"text": item["after"],
-					"descs": getCharDescListFromText(item["after"], getLanguage()),
-				},
-			})
-		result.append(temp)
-	return result
