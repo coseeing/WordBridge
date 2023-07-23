@@ -20,7 +20,8 @@ class BaseTypoCorrector():
 		temperature: float = 0.0,
 		top_p: float = 0.0,
 		retries: int = 3,
-		backoff: int = 1):
+		backoff: int = 1,
+		is_chat_completion: bool = False):
 
 		self.model = model
 		self.max_tokens = max_tokens
@@ -28,8 +29,8 @@ class BaseTypoCorrector():
 		self.top_p = top_p
 		self.retries = retries
 		self.backoff = backoff
+		self.is_chat_completion = is_chat_completion
 
-		self.url = "https://api.openai.com/v1/completions"
 		self.headers = {"Authorization": f"Bearer {api_key}"}
 
 	def correct_string(self, original_text: str, fake_operation: bool = False) -> str:
@@ -61,6 +62,12 @@ class BaseTypoCorrector():
 		return corrected_text
 
 	def _do_completion(self, prompt: str) -> str:
+		if self.is_chat_completion:
+			return self._chat_completion(prompt)
+
+		return self._completion(prompt)
+
+	def _completion(self, prompt: str) -> str:
 		data = {
 			'model': self.model,
 			'prompt': prompt,
@@ -70,10 +77,42 @@ class BaseTypoCorrector():
 		}
 
 		for r in range(self.retries):
-			response = requests.post(self.url, headers=self.headers, json=data)
+			response = requests.post(
+				"https://api.openai.com/v1/completions",
+				headers=self.headers,
+				json=data
+			)
 			if response.status_code == 200:
 				response = response.json()
 				return response['choices'][0]['text']
+
+			log.error(f"Retry = {r}, {response}, error: {response.reason}")
+			time.sleep(self.backoff)
+
+		return None
+
+	def _chat_completion(self, prompt: str) -> str:
+		messages = [
+			{"role": "user", "content": prompt},
+		]
+
+		data = {
+			'model': self.model,
+			'messages': messages,
+			'max_tokens': self.max_tokens,
+			'temperature': self.temperature,
+			'top_p': self.top_p,
+		}
+
+		for r in range(self.retries):
+			response = requests.post(
+				"https://api.openai.com/v1/chat/completions",
+				headers=self.headers,
+				json=data
+			)
+			if response.status_code == 200:
+				response = response.json()
+				return response['choices'][0]['message']['content']
 
 			log.error(f"Retry = {r}, {response}, error: {response.reason}")
 			time.sleep(self.backoff)
