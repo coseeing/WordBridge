@@ -7,16 +7,16 @@ import os
 import shutil
 import sys
 
-sys.modules['http.cookies'] = httpcookies
-sys.modules['http.client'] = httpclient
-sys.modules['importlib'] = importlib
+sys.modules["http.cookies"] = httpcookies
+sys.modules["http.client"] = httpclient
+sys.modules["importlib"] = importlib
 
 PATH = os.path.dirname(__file__)
 
-PYTHON_PATH = os.path.join(PATH, 'python')
+PYTHON_PATH = os.path.join(PATH, "python")
 sys.path.insert(0, PYTHON_PATH)
 
-PACKAGE_PATH = os.path.join(PATH, 'package')
+PACKAGE_PATH = os.path.join(PATH, "package")
 sys.path.insert(0, PACKAGE_PATH)
 
 from .dialogs import GPTAssistantSettingsDialog
@@ -111,9 +111,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		print(f"修正後是: {text_corrected}")
 		print(f"diff是: {diff}")
 
-		template_folder = os.path.join(PATH, 'web', 'templates')
-		raw_folder = os.path.join(PATH, 'web', 'workspace', 'default')
-		review_folder = os.path.join(PATH, 'web', 'workspace', 'review')
+		template_folder = os.path.join(PATH, "web", "templates")
+		raw_folder = os.path.join(PATH, "web", "workspace", "default")
+		review_folder = os.path.join(PATH, "web", "workspace", "review")
 
 		try:
 			shutil.rmtree(raw_folder)
@@ -136,8 +136,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			os.makedirs(review_folder)
 
 		shutil.copytree(
-			os.path.join(template_folder, 'modules'),
-			os.path.join(review_folder, 'modules')
+			os.path.join(template_folder, "modules"),
+			os.path.join(review_folder, "modules")
 		)
 
 		src = os.path.join(review_folder, os.path.basename(raw))

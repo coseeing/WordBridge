@@ -8,7 +8,7 @@ def load_dictionary(dictionary_path: str):
 
 	char_to_pronounce = defaultdict(set)
 
-	with open(dictionary_path, encoding="utf8", newline='') as csvfile:
+	with open(dictionary_path, encoding="utf8", newline="") as csvfile:
 		reader = csv.reader(csvfile)
 		next(reader)
 		for row in reader:
@@ -16,7 +16,7 @@ def load_dictionary(dictionary_path: str):
 			char_to_pronounce[row[1]].add(row[2])
 
 			if len(row) == 6:
-				for char in row[5].split('，'):
+				for char in row[5].split("，"):
 					char_to_pronounce[char].add(row[2])
 
 	return char_to_pronounce
