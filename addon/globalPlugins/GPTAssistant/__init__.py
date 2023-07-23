@@ -82,9 +82,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category=ADDON_SUMMARY,
 	)
 	def script_action(self, gesture):
+		# text-davinci-003 may be deprecated inthe future version of GPTAssistant
+		is_chat_completion = True
+		if config.conf["GPTAssistant"]["settings"]["model"] == "text-davinci-003":
+			is_chat_completion = False
+
 		corrector = TypoCorrector(
 			model=config.conf["GPTAssistant"]["settings"]["model"],
-			api_key=config.conf["GPTAssistant"]["settings"]["openai_key"]
+			api_key=config.conf["GPTAssistant"]["settings"]["openai_key"],
+			is_chat_completion=is_chat_completion,
 		)
 		proofreader = Proofreader(corrector)
 
@@ -98,7 +104,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return
 
 		text_corrected, diff = proofreader.typo_analyzer(text)
-
 		ui.message(f"原文是: {text}")
 		ui.message(f"diff是: {diff}")
 		print(f"原文是: {text}")
