@@ -9,7 +9,7 @@ This is a quick example program that demonstrates how to use the Proofreader and
 """
 if __name__ == "__main__":
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
-	corrector = TypoCorrector(model="text-davinci-003", api_key="OPENAI_API_KEY")
+	corrector = TypoCorrector(model="gpt-3.5-turbo", api_key="OPENAI_API_KEY", is_chat_completion=True)
 
 	# Initialize the proofreader object using the typo corrector
 	proofreader = Proofreader(corrector)
