@@ -104,6 +104,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return
 
 		text_corrected, diff = proofreader.typo_analyzer(text)
+
 		ui.message(f"原文是: {text}")
 		ui.message(f"diff是: {diff}")
 		print(f"原文是: {text}")
