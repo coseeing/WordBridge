@@ -93,7 +93,6 @@ class BaseTypoCorrector():
 
 	def _chat_completion(self, prompt: str) -> str:
 		messages = [
-			{"role": "system", "content": "You are a helpful assistant."},
 			{"role": "user", "content": prompt},
 		]
 
