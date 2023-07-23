@@ -69,11 +69,11 @@ class BaseTypoCorrector():
 
 	def _completion(self, prompt: str) -> str:
 		data = {
-			'model': self.model,
-			'prompt': prompt,
-			'max_tokens': self.max_tokens,
-			'temperature': self.temperature,
-			'top_p': self.top_p,
+			"model": self.model,
+			"prompt": prompt,
+			"max_tokens": self.max_tokens,
+			"temperature": self.temperature,
+			"top_p": self.top_p,
 		}
 
 		for r in range(self.retries):
@@ -84,7 +84,7 @@ class BaseTypoCorrector():
 			)
 			if response.status_code == 200:
 				response = response.json()
-				return response['choices'][0]['text']
+				return response["choices"][0]["text"]
 
 			log.error(f"Retry = {r}, {response}, error: {response.reason}")
 			time.sleep(self.backoff)
@@ -97,11 +97,11 @@ class BaseTypoCorrector():
 		]
 
 		data = {
-			'model': self.model,
-			'messages': messages,
-			'max_tokens': self.max_tokens,
-			'temperature': self.temperature,
-			'top_p': self.top_p,
+			"model": self.model,
+			"messages": messages,
+			"max_tokens": self.max_tokens,
+			"temperature": self.temperature,
+			"top_p": self.top_p,
 		}
 
 		for r in range(self.retries):
@@ -112,7 +112,7 @@ class BaseTypoCorrector():
 			)
 			if response.status_code == 200:
 				response = response.json()
-				return response['choices'][0]['message']['content']
+				return response["choices"][0]["message"]["content"]
 
 			log.error(f"Retry = {r}, {response}, error: {response.reason}")
 			time.sleep(self.backoff)
