@@ -31,14 +31,13 @@ class Proofreader():
 			return fake_corrected_text, strings_diff(text, fake_corrected_text)
 
 		text_corrected = ""
-
-		for segment in text_segmentation(text):
+		segments, separators = text_segmentation(text)
+		for segment, separator in zip(segments, separators):
 			segment_corrected = self.segment_corrector.correct_string(segment)
 			if segment_corrected is None:
 				text_corrected += ("■" * len(segment))
 				continue
-			text_corrected += segment_corrected
-
+			text_corrected += (segment_corrected + separator)
 		diff = strings_diff(text, text_corrected)
 
 		return text_corrected, diff

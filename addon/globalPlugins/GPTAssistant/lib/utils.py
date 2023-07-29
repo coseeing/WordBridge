@@ -14,7 +14,7 @@ except Exception as e:
 SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t"
 
 
-def text_segmentation(text: str, max_length: int = 50) -> list:
+def text_segmentation(text: str, max_length: int = 50) -> tuple:
 	"""
 	This function can be used to split a string into substrings based on a set of specified separators or
 	a maximum length limit.
@@ -29,19 +29,28 @@ def text_segmentation(text: str, max_length: int = 50) -> list:
 	"""
 
 	partitions = []
+	separators = []
 
 	word = ""
 	for char in text:
-		word += char
-		if char in SEPERATOR or len(word) >= max_length:
-			if word:
-				partitions.append(word)
+		if char in SEPERATOR:
+			separators.append(char)
+			partitions.append(word)
 			word = ""
+			continue
+
+		if len(word) >= max_length:
+			separators.append("")
+			partitions.append(word)
+			word = ""
+
+		word += char
 
 	if word:
 		partitions.append(word)
+		separators.append("")
 
-	return partitions
+	return partitions, separators
 
 
 def analyze_diff(char_original: str, char_corrected: str) -> List:
