@@ -1,4 +1,5 @@
-from typing import Tuple
+from collections import defaultdict
+from typing import Dict, Tuple
 from .utils import strings_diff, text_segmentation
 from .typo_corrector import TypoCorrector
 
@@ -13,6 +14,13 @@ class Proofreader():
 
 	def __init__(self, segment_corrector: TypoCorrector):
 		self.segment_corrector = segment_corrector
+
+	def get_total_usage(self) -> Dict:
+		total_usage = defaultdict(int)
+		for history in self.segment_corrector.usage_history:
+			for count in history[1]["usage"].keys():
+				total_usage[count] += history[1]["usage"][count]
+		return total_usage
 
 	def typo_analyzer(self, text: str, fake_corrected_text: str = None) -> Tuple:
 		"""

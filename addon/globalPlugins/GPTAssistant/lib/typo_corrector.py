@@ -30,6 +30,7 @@ class BaseTypoCorrector():
 		self.retries = retries
 		self.backoff = backoff
 		self.is_chat_completion = is_chat_completion
+		self.usage_history = []
 
 		self.headers = {"Authorization": f"Bearer {api_key}"}
 
@@ -46,6 +47,8 @@ class BaseTypoCorrector():
 				if response is None:
 					log.error(f"template {template_index} fails.\ntemplate = {template}")
 					continue
+
+				self.usage_history.append((prompt, response))
 
 				response_result = self._parse_response(response)
 				is_valid = self._is_validate_response(response_result, original_text)
