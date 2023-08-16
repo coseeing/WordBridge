@@ -30,6 +30,7 @@ class BaseTypoCorrector():
 		self.retries = retries
 		self.backoff = backoff
 		self.is_chat_completion = is_chat_completion
+		self.usage_history = []
 
 		self.headers = {"Authorization": f"Bearer {api_key}"}
 
@@ -40,21 +41,23 @@ class BaseTypoCorrector():
 		corrected_text = None
 		for template_index, template in enumerate(TEMPLATE_DICT[self.__class__.__name__]):
 			try:
-				prompt = template.replace("{{text_input}}", original_text)
-				response_string = self._do_completion(prompt)
+				prompt = self._create_prompt(template, original_text)
+				response = self._do_completion(prompt)
 
-				if response_string is None:
+				if response is None:
 					log.error(f"template {template_index} fails.\ntemplate = {template}")
 					continue
 
-				response = self._parse_response_string(response_string)
-				is_valid = self._is_validate_response(response, original_text)
+				self.usage_history.append((prompt, response))
+
+				response_text = self._parse_response(response)
+				is_valid = self._is_validate_response(response_text, original_text)
 
 				if is_valid:
-					corrected_text = self._correct_typos(original_text, response)
+					corrected_text = self._correct_typos(original_text, response_text)
 					break
 
-				log.warning(f"response of template {template_index} is not valid")
+				log.warning(f"response result of template {template_index} is not valid")
 
 			except Exception as e:
 				log.error(f"An unexpected error occurred: {e}")
@@ -83,8 +86,7 @@ class BaseTypoCorrector():
 				json=data
 			)
 			if response.status_code == 200:
-				response = response.json()
-				return response["choices"][0]["text"]
+				return response.json()
 
 			log.error(f"Retry = {r}, {response}, error: {response.reason}")
 			time.sleep(self.backoff)
@@ -111,15 +113,17 @@ class BaseTypoCorrector():
 				json=data
 			)
 			if response.status_code == 200:
-				response = response.json()
-				return response["choices"][0]["message"]["content"]
+				return response.json()
 
 			log.error(f"Retry = {r}, {response}, error: {response.reason}")
 			time.sleep(self.backoff)
 
 		return None
 
-	def _parse_response_string(self, response_string: str):
+	def _parse_response(self, response: str):
+		raise NotImplementedError("Subclass must implement this method")
+
+	def _create_prompt(self, template: str, text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
 	def _is_validate_response(self, response: Any, original_text: str):
@@ -134,8 +138,13 @@ class TypoCorrector(BaseTypoCorrector):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
-	def _parse_response_string(self, response_string: str) -> str:
-		return response_string
+	def _parse_response(self, response: str) -> str:
+		if self.is_chat_completion:
+			return response["choices"][0]["message"]["content"]
+		return response["choices"][0]["text"]
+
+	def _create_prompt(self, template: str, text: str):
+		return template.replace("{{text_input}}", text)
 
 	def _is_validate_response(self, response: str, original_text: str) -> bool:
 		return True

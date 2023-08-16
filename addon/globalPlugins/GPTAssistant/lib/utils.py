@@ -6,7 +6,7 @@ from .chinese_dictionary import char_to_pronounce
 try:
 	from languageHandler import getLanguage
 	from speech.speech import getCharDescListFromText
-except Exception as e:
+except ImportError:
 	getLanguage = None
 	getCharDescListFromText = None
 

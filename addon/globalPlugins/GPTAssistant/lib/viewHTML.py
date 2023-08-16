@@ -1,11 +1,11 @@
 import os
 import re
 
+from jinja2 import Environment, FileSystemLoader
+
 import addonHandler
 
 addonHandler.initTranslation()
-
-from jinja2 import Environment, FileSystemLoader
 
 PATH = os.path.dirname(os.path.dirname(__file__))
 TEMPLATES_PATH = os.path.join(PATH, "web", "templates")
