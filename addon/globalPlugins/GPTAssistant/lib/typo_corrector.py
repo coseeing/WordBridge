@@ -50,11 +50,11 @@ class BaseTypoCorrector():
 
 				self.usage_history.append((prompt, response))
 
-				response_result = self._parse_response(response)
-				is_valid = self._is_validate_response(response_result, original_text)
+				response_text = self._parse_response(response)
+				is_valid = self._is_validate_response(response_text, original_text)
 
 				if is_valid:
-					corrected_text = self._correct_typos(original_text, response_result)
+					corrected_text = self._correct_typos(original_text, response_text)
 					break
 
 				log.warning(f"response result of template {template_index} is not valid")
