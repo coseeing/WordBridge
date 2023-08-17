@@ -54,3 +54,10 @@ if __name__ == "__main__":
 		f.write(f"\n\nAccuracy = {correct/len(data) * 100}%\n")
 		print(f"\n\nAccuracy = {correct/len(data) * 100}%")
 
+		usage = proofreader.get_total_usage()
+
+		f.write(f"\n\nToken Usage:\n")
+		print("Token Usage:")
+		for k in usage:
+			f.write(f"{k} = {usage[k]}\n")
+			print(f"{k} = {usage[k]}")

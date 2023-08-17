@@ -18,6 +18,11 @@ if __name__ == "__main__":
 	text_corrected, diff = proofreader.typo_analyzer(text)
 	print(f"text = {text}, text_corrected = {text_corrected}, diff = {diff}")
 
+	print("Token Usage:")
+	usage = proofreader.get_total_usage()
+	for k in usage:
+		print(f"{k} = {usage[k]}")
+
 """
 Output:
 text = 天器真好，想出去完,
