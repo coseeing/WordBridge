@@ -1,7 +1,10 @@
+import random
+
 from difflib import SequenceMatcher
 from typing import Dict, List
 # from chinese_converter import to_simplified, to_traditional
 from .chinese_dictionary import char_to_pronounce
+from .chinese_dictionary import pronounce_to_char_traditional, pronounce_to_char_simplified
 
 try:
 	from languageHandler import getLanguage
@@ -12,6 +15,22 @@ except ImportError:
 
 # Characters used for text segmentation
 SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t"
+
+
+def typo_augmentation(text: str, is_traditional: bool, error_rate: float = 0.125) -> str:
+	text_aug = ""
+	p2c_dict = pronounce_to_char_traditional if is_traditional else pronounce_to_char_simplified
+
+	for char in text:
+		if char not in char_to_pronounce or random.random() > error_rate:
+			text_aug += char
+			continue
+
+		pronounce = random.choice(list(char_to_pronounce[char]))
+		char_aug = random.choice(list(p2c_dict[pronounce]))
+		text_aug += char_aug
+
+	return text_aug
 
 
 def text_segmentation(text: str, max_length: int = 50) -> tuple:
