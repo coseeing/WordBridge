@@ -9,6 +9,17 @@ Q:{{text_input}} A:
 {{text_input}} => """,
 ]
 
+typo_corrector_by_phone_templates = [
+"""拼音轉{{text_type}}
+Q:{{pinyin_input}} A:""",
+]
+
+typo_corrector_with_phone_templates = [
+"""拼音+改錯字(避免加字或減字，Q與A需讀音相同):
+Q:今天天器真好 A(拼音##改錯字):jīn tiān tiān qì zhēn hǎo##今天天氣真好
+Q:{{text_input}} A(拼音##改錯字):""",
+]
+
 typo_identifier_templates = [
 """輸出句子中帶有錯字的詞彙並修正 (誤重新輸出題目，全對請輸出None)
 example:
@@ -17,4 +28,9 @@ example:
 好累喔!想早點休習 => """,
 ]
 
-TEMPLATE_DICT = {"TypoCorrector": typo_corrector_templates, "TypoIdentifier": typo_identifier_templates, }
+TEMPLATE_DICT = {
+	"TypoCorrector": typo_corrector_templates,
+	"TypoCorrectorWithPhone": typo_corrector_with_phone_templates,
+	"TypoCorrectorByPhone": typo_corrector_by_phone_templates,
+	"TypoIdentifier": typo_identifier_templates,
+}

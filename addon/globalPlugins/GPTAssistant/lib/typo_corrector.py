@@ -5,7 +5,11 @@ import requests
 import time
 
 from hanzidentifier import has_chinese
+from pypinyin import lazy_pinyin, Style
 from .template import TEMPLATE_DICT
+from .utils import SEPERATOR
+
+import chinese_converter
 
 log = logging.getLogger(__name__)
 
@@ -145,6 +149,52 @@ class TypoCorrector(BaseTypoCorrector):
 
 	def _create_prompt(self, template: str, text: str):
 		return template.replace("{{text_input}}", text)
+
+	def _is_validate_response(self, response: str, original_text: str) -> bool:
+		return True
+
+	def _correct_typos(self, original_text: str, response: str):
+		return response
+
+
+class TypoCorrectorWithPhone(BaseTypoCorrector):
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+
+	def _parse_response(self, response: str) -> str:
+		if self.is_chat_completion:
+			return response["choices"][0]["message"]["content"]
+		return response["choices"][0]["text"]
+
+	def _create_prompt(self, template: str, text: str):
+		return template.replace("{{text_input}}", text)
+
+	def _is_validate_response(self, response: str, original_text: str) -> bool:
+		return True
+
+	def _correct_typos(self, original_text: str, response: str):
+		return chinese_converter.to_traditional(response.split("##")[-1])
+
+
+class TypoCorrectorByPhone(BaseTypoCorrector):
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+
+	def _parse_response(self, response: str) -> str:
+		if self.is_chat_completion:
+			text = response["choices"][0]["message"]["content"]
+		else:
+			text = response["choices"][0]["text"]
+
+		while text and text[-1] in SEPERATOR:
+			text = text[:-1]
+		return text
+
+	def _create_prompt(self, template: str, text: str):
+		pinyin = ' '.join(lazy_pinyin(text, style=Style.TONE))
+		return template.replace("{{pinyin_input}}", pinyin).replace("{{text_type}}", "繁體中文")
 
 	def _is_validate_response(self, response: str, original_text: str) -> bool:
 		return True
