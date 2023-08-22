@@ -15,9 +15,10 @@ Q:{{pinyin_input}} A:""",
 ]
 
 typo_corrector_with_phone_templates = [
-"""拼音+改錯字(避免加字或減字，Q與A需讀音相同):
-Q:今天天器真好 A(拼音##改錯字):jīn tiān tiān qì zhēn hǎo##今天天氣真好
-Q:{{text_input}} A(拼音##改錯字):""",
+"""請先按照原句子的語意輸出句子的拼音，再將拼音轉回文字並修正錯字並在結尾加上#(最終句子的拼音、字數需與原句相同，避免加字或減字且語意要合理):
+文字 => 拼音 => 文字#
+今天天器真好 => jīn tiān tiān qì zhēn hǎo => 今天天氣真好#
+{{text_input}} => {{phone_input}} => """,
 ]
 
 typo_identifier_templates = [

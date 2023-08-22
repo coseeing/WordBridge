@@ -108,6 +108,7 @@ class BaseTypoCorrector():
 			"max_tokens": self.max_tokens,
 			"temperature": self.temperature,
 			"top_p": self.top_p,
+			"stop": ["#", " =>"]
 		}
 
 		for r in range(self.retries):
@@ -168,13 +169,14 @@ class TypoCorrectorWithPhone(BaseTypoCorrector):
 		return response["choices"][0]["text"]
 
 	def _create_prompt(self, template: str, text: str):
-		return template.replace("{{text_input}}", text)
+		phone = ' '.join(lazy_pinyin(text, style=Style.TONE))
+		return template.replace("{{text_input}}", text).replace("{{phone_input}}", phone)
 
 	def _is_validate_response(self, response: str, original_text: str) -> bool:
 		return True
 
 	def _correct_typos(self, original_text: str, response: str):
-		return chinese_converter.to_traditional(response.split("##")[-1])
+		return chinese_converter.to_traditional(response)
 
 
 class TypoCorrectorByPhone(BaseTypoCorrector):
