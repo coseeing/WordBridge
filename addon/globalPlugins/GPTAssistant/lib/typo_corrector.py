@@ -25,7 +25,7 @@ class BaseTypoCorrector():
 		temperature: float = 0.0,
 		top_p: float = 0.0,
 		retries: int = 3,
-		backoff: int = 1,
+		backoff: int = 5,
 		prefix: str = "我說：“",
 		suffix: str = "”",
 		is_chat_completion: bool = False):
@@ -120,7 +120,8 @@ class BaseTypoCorrector():
 			response = requests.post(
 				"https://api.openai.com/v1/chat/completions",
 				headers=self.headers,
-				json=data
+				json=data,
+				timeout=10,
 			)
 			if response.status_code == 200:
 				return response.json()
