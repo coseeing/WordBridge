@@ -175,7 +175,7 @@ class TypoCorrectorWithPhone(BaseTypoCorrector):
 
 	def _create_prompt(self, template: str, text: str):
 		text = self.prefix + text + self.suffix
-		phone = ' '.join(lazy_pinyin(text, style=Style.TONE))
+		phone = ' '.join(lazy_pinyin(text, style=Style.TONE3))
 		return template.replace("{{text_input}}", text).replace("{{phone_input}}", phone)
 
 	def _is_validate_response(self, response: str, original_text: str) -> bool:
