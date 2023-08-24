@@ -25,6 +25,8 @@ class BaseTypoCorrector():
 		top_p: float = 0.0,
 		retries: int = 3,
 		backoff: int = 1,
+		prefix: str = "我說：“",
+		suffix: str = "”",
 		is_chat_completion: bool = False):
 
 		self.model = model
@@ -33,6 +35,8 @@ class BaseTypoCorrector():
 		self.top_p = top_p
 		self.retries = retries
 		self.backoff = backoff
+		self.prefix = prefix
+		self.suffix = suffix
 		self.is_chat_completion = is_chat_completion
 		self.usage_history = []
 
@@ -169,6 +173,7 @@ class TypoCorrectorWithPhone(BaseTypoCorrector):
 		return response["choices"][0]["text"]
 
 	def _create_prompt(self, template: str, text: str):
+		text = self.prefix + text + self.suffix
 		phone = ' '.join(lazy_pinyin(text, style=Style.TONE))
 		return template.replace("{{text_input}}", text).replace("{{phone_input}}", phone)
 
@@ -176,7 +181,11 @@ class TypoCorrectorWithPhone(BaseTypoCorrector):
 		return True
 
 	def _correct_typos(self, original_text: str, response: str):
-		return chinese_converter.to_traditional(response)
+		correct_sentence = response[len(self.prefix):-len(self.suffix)] if self.suffix else response[len(self.prefix):]
+		correct_sentence = correct_sentence.replace("。", "").replace("”", "").replace("“", "")
+		correct_sentence = chinese_converter.to_traditional(correct_sentence)
+
+		return correct_sentence
 
 
 class TypoCorrectorByPhone(BaseTypoCorrector):
