@@ -7,6 +7,7 @@ import time
 from hanzidentifier import has_chinese
 from pypinyin import lazy_pinyin, Style
 from .template import TEMPLATE_DICT
+from .utils import has_simplified_chinese_char, has_traditional_chinese_char
 from .utils import SEPERATOR
 
 import chinese_converter
@@ -183,7 +184,8 @@ class TypoCorrectorWithPhone(BaseTypoCorrector):
 	def _correct_typos(self, original_text: str, response: str):
 		correct_sentence = response[len(self.prefix):-len(self.suffix)] if self.suffix else response[len(self.prefix):]
 		correct_sentence = correct_sentence.replace("。", "").replace("”", "").replace("“", "")
-		correct_sentence = chinese_converter.to_traditional(correct_sentence)
+		if has_simplified_chinese_char(correct_sentence):
+			correct_sentence = chinese_converter.to_traditional(correct_sentence)
 
 		return correct_sentence
 

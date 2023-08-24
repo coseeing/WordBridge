@@ -5,6 +5,8 @@ from typing import Dict, List
 # from chinese_converter import to_simplified, to_traditional
 from .chinese_dictionary import char_to_pronounce
 from .chinese_dictionary import pronounce_to_char_traditional, pronounce_to_char_simplified
+from hanzidentifier import identify
+from hanzidentifier import MIXED, SIMPLIFIED, TRADITIONAL
 
 try:
 	from languageHandler import getLanguage
@@ -102,6 +104,14 @@ def analyze_diff(char_original: str, char_corrected: str) -> List:
 		tags.append("Do not share the same pronunciation")
 
 	return tags
+
+
+def has_simplified_chinese_char(string: str):
+	return identify(string) in [SIMPLIFIED, MIXED]
+
+
+def has_traditional_chinese_char(string: str):
+	return identify(string) in [TRADITIONAL, MIXED]
 
 
 def get_descs(string: str) -> str:
