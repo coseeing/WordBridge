@@ -89,15 +89,21 @@ class BaseTypoCorrector():
 		}
 
 		for r in range(self.retries):
-			response = requests.post(
-				"https://api.openai.com/v1/completions",
-				headers=self.headers,
-				json=data
-			)
+			try:
+				response = requests.post(
+					"https://api.openai.com/v1/completions",
+					headers=self.headers,
+					json=data
+				)
+			except Exception as e:
+				log.error(f"An unexpected error occurred when sending OpenAI request: {e}")
+				time.sleep(self.backoff)
+				continue
+
 			if response.status_code == 200:
 				return response.json()
 
-			log.error(f"Retry = {r}, {response}, error: {response.reason}")
+			log.error(f"Try = {r}, {response}, error: {response.reason}")
 			time.sleep(self.backoff)
 
 		return None
@@ -117,16 +123,22 @@ class BaseTypoCorrector():
 		}
 
 		for r in range(self.retries):
-			response = requests.post(
-				"https://api.openai.com/v1/chat/completions",
-				headers=self.headers,
-				json=data,
-				timeout=10,
-			)
+			try:
+				response = requests.post(
+					"https://api.openai.com/v1/chat/completions",
+					headers=self.headers,
+					json=data,
+					timeout=10,
+				)
+			except Exception as e:
+				log.error(f"An unexpected error occurred when sending OpenAI request: {e}")
+				time.sleep(self.backoff)
+				continue
+
 			if response.status_code == 200:
 				return response.json()
 
-			log.error(f"Retry = {r}, {response}, error: {response.reason}")
+			log.error(f"Try = {r}, {response}, error: {response.reason}")
 			time.sleep(self.backoff)
 
 		return None
