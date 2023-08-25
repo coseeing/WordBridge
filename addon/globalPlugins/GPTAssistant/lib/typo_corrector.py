@@ -27,7 +27,7 @@ class BaseTypoCorrector():
 		retries: int = 3,
 		backoff: int = 5,
 		prefix: str = "我說：“",
-		suffix: str = "”",
+		suffix: str = "。”",
 		is_chat_completion: bool = False):
 
 		self.model = model
