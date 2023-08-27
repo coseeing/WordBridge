@@ -24,6 +24,7 @@ def get_phone(char: str) -> List:
 	phones = char_to_pronounce[char] | set(pinyin(char, style=Style.TONE3, heteronym=True)[0])
 	return list(phones)
 
+
 def typo_augmentation(text: str, is_traditional: bool, error_rate: float = 0.125) -> str:
 	text_aug = ""
 	p2c_dict = pronounce_to_char_traditional if is_traditional else pronounce_to_char_simplified
