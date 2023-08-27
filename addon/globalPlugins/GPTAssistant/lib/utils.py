@@ -7,6 +7,7 @@ from .chinese_dictionary import char_to_pronounce
 from .chinese_dictionary import pronounce_to_char_traditional, pronounce_to_char_simplified
 from hanzidentifier import identify
 from hanzidentifier import MIXED, SIMPLIFIED, TRADITIONAL
+from pypinyin import pinyin, Style
 
 try:
 	from languageHandler import getLanguage
@@ -18,6 +19,10 @@ except ImportError:
 # Characters used for text segmentation
 SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t"
 
+
+def get_phone(char: str) -> List:
+	phones = char_to_pronounce[char] | set(pinyin(char, style=Style.TONE3, heteronym=True)[0])
+	return list(phones)
 
 def typo_augmentation(text: str, is_traditional: bool, error_rate: float = 0.125) -> str:
 	text_aug = ""
