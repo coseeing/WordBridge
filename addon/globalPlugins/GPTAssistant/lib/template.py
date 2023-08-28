@@ -15,9 +15,9 @@ Q:{{pinyin_input}} A:""",
 ]
 
 typo_corrector_with_phone_templates = [
-"""請先按照原句子的語意輸出句子的拼音，再將拼音轉回文字並修正錯字並在結尾加上#(最終句子的拼音、字數需與原句相同，避免加字或減字且語意要合理):
-文字 => 拼音 => 文字#
-今天天器真好 => jin1 tian1 tian1 qi4 zhen1 hao3 => 今天天氣真好#
+"""將文字轉為拼音，再將拼音轉回文字並修正錯字:
+文字 => 拼音 => 文字
+今天天器真好 => jin1 tian1 tian1 qi4 zhen1 hao3 => 今天天氣真好
 {{text_input}} => {{phone_input}} => """,
 ]
 
