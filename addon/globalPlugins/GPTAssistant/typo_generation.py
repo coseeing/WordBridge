@@ -9,9 +9,9 @@ if __name__ == "__main__":
 
 	random.seed(0)
 	error_rate = 0.1
-	is_traditional=True
+	is_traditional = True
 	file_name = "gpt4_250_sentence_gt.txt"
-	
+
 	random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=20))
 	output_name = f"gpt4_250_sentence_aug_err_{error_rate}_{random_str}.txt"
 	file_folder = os.path.join(".", "data")
@@ -30,4 +30,3 @@ if __name__ == "__main__":
 	with open(output_path, 'w') as f:
 		for sentence in sentences_aug:
 			f.write(sentence + '\n')
-		
