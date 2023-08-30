@@ -35,7 +35,7 @@ import ui
 import wx
 
 from .lib.proofreader import Proofreader
-from .lib.typo_corrector import TypoCorrector
+from .lib.typo_corrector import TypoCorrector, TypoCorrectorWithPhone
 from .lib.viewHTML import text2template
 
 
@@ -87,7 +87,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if config.conf["GPTAssistant"]["settings"]["model"] == "text-davinci-003":
 			is_chat_completion = False
 
-		corrector = TypoCorrector(
+		corrector = TypoCorrectorWithPhone(
 			model=config.conf["GPTAssistant"]["settings"]["model"],
 			api_key=config.conf["GPTAssistant"]["settings"]["openai_key"],
 			is_chat_completion=is_chat_completion,
