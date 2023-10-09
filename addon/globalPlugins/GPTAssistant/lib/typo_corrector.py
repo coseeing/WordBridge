@@ -1,6 +1,7 @@
 from typing import Any, List
 
 import logging
+import random
 import requests
 import time
 
@@ -89,25 +90,7 @@ class BaseTypoCorrector():
 			"top_p": self.top_p,
 		}
 
-		for r in range(self.retries):
-			try:
-				response = requests.post(
-					"https://api.openai.com/v1/completions",
-					headers=self.headers,
-					json=data
-				)
-			except Exception as e:
-				log.error(f"An unexpected error occurred when sending OpenAI request: {e}")
-				time.sleep(self.backoff)
-				continue
-
-			if response.status_code == 200:
-				return response.json()
-
-			log.error(f"Try = {r}, {response}, error: {response.reason}")
-			time.sleep(self.backoff)
-
-		return None
+		return self._openai_post_with_retries(data)
 
 	def _chat_completion(self, prompt: str, response_text_history: List) -> str:
 		messages = [
@@ -126,24 +109,37 @@ class BaseTypoCorrector():
 			"stop": ["#", " =>"]
 		}
 
+		return self._openai_post_with_retries(data)
+
+	def _openai_post_with_retries(self, data):
+		backoff = self.backoff
+		if self.is_chat_completion:
+			url = "https://api.openai.com/v1/chat/completions"
+		else:
+			url = "https://api.openai.com/v1/completions"
+
 		for r in range(self.retries):
+			response = None
 			try:
 				response = requests.post(
-					"https://api.openai.com/v1/chat/completions",
+					url,
 					headers=self.headers,
 					json=data,
 					timeout=10,
 				)
-			except Exception as e:
-				log.error(f"An unexpected error occurred when sending OpenAI request: {e}")
-				time.sleep(self.backoff)
-				continue
+				if response.status_code != 200:
+					raise Exception
 
-			if response.status_code == 200:
 				return response.json()
 
-			log.error(f"Try = {r}, {response}, error: {response.reason}")
-			time.sleep(self.backoff)
+			except Exception as e:
+				if response is None:
+					log.error(f"Try = {r}, An unexpected error occurred when sending OpenAI request: {e}")
+				else:
+					log.error(f"Try = {r}, {response}, error: {response.reason}")
+
+				time.sleep(backoff)
+				backoff = min(backoff * (1 + random.random()), 30)
 
 		return None
 
