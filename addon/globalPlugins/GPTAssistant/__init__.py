@@ -6,6 +6,8 @@ import json
 import os
 import shutil
 import sys
+import threading
+import time
 
 sys.modules["http.cookies"] = httpcookies
 sys.modules["http.client"] = httpclient
@@ -24,6 +26,7 @@ from .dialogs import GPTAssistantSettingsDialog
 from logHandler import log
 from scriptHandler import script
 from speech.speech import getCharDescListFromText
+from tones import beep
 
 import addonHandler
 import api
@@ -76,12 +79,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def onSettings(self, evt):
 		wx.CallAfter(gui.mainFrame._popupSettingsDialog, GPTAssistantSettingsDialog)
 
-	@script(
-		gesture="kb:NVDA+alt+o",
-		description=_("GPT"),
-		category=ADDON_SUMMARY,
-	)
-	def script_action(self, gesture):
+	def OnPreview(self, file):
+		def openfile():
+			os.startfile(file)
+		wx.CallAfter(openfile)
+
+	def correct_typo(self):
 		# text-davinci-003 may be deprecated inthe future version of GPTAssistant
 		is_chat_completion = True
 		if config.conf["GPTAssistant"]["settings"]["model"] == "text-davinci-003":
@@ -151,8 +154,19 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		self.OnPreview(dst)
 
-	def OnPreview(self, file):
-		def openfile():
-			os.startfile(file)
-		wx.CallAfter(openfile)
+	def action(self):
+		correct_typo_thread = threading.Thread(target=self.correct_typo)
+		correct_typo_thread.start()
 
+		while correct_typo_thread.is_alive():
+			beep(261.6, 300)
+			time.sleep(0.5)
+
+	@script(
+		gesture="kb:NVDA+alt+o",
+		description=_("GPT"),
+		category=ADDON_SUMMARY,
+	)
+	def script_action(self, gesture):
+		action_thread = threading.Thread(target=self.action)
+		action_thread.start()
