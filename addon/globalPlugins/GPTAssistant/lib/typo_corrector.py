@@ -23,8 +23,10 @@ class BaseTypoCorrector():
 		model: str,
 		api_key: str,
 		max_tokens: int = 2048,
+		seed: int = 0,
 		temperature: float = 0.0,
 		top_p: float = 0.0,
+		logprobs: bool = True,
 		max_correction_count: int = 3,
 		retries: int = 3,
 		backoff: int = 5,
@@ -32,8 +34,10 @@ class BaseTypoCorrector():
 
 		self.model = model
 		self.max_tokens = max_tokens
+		self.seed = seed
 		self.temperature = temperature
 		self.top_p = top_p
+		self.logprobs = logprobs
 		self.max_correction_count = max_correction_count
 		self.retries = retries
 		self.backoff = backoff
@@ -86,8 +90,10 @@ class BaseTypoCorrector():
 			"model": self.model,
 			"prompt": prompt,
 			"max_tokens": self.max_tokens,
+			"seed": self.seed,
 			"temperature": self.temperature,
 			"top_p": self.top_p,
+			"logprobs": self.logprobs,
 		}
 
 		return self._openai_post_with_retries(data)
@@ -104,8 +110,10 @@ class BaseTypoCorrector():
 			"model": self.model,
 			"messages": messages,
 			"max_tokens": self.max_tokens,
+			"seed": self.seed,
 			"temperature": self.temperature,
 			"top_p": self.top_p,
+			"logprobs": self.logprobs,
 			"stop": ["#", " =>"]
 		}
 
