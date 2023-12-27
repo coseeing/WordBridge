@@ -28,8 +28,8 @@ class BaseTypoCorrector():
 		top_p: float = 0.0,
 		logprobs: bool = True,
 		max_correction_count: int = 3,
-		retries: int = 3,
-		backoff: int = 5,
+		retries: int = 2,
+		backoff: int = 1,
 		is_chat_completion: bool = False):
 
 		self.model = model
@@ -146,7 +146,7 @@ class BaseTypoCorrector():
 					url,
 					headers=self.headers,
 					json=data,
-					timeout=10,
+					timeout=5,
 				)
 				if response.status_code != 200:
 					raise Exception
@@ -159,8 +159,8 @@ class BaseTypoCorrector():
 				else:
 					log.error(f"Try = {r}, {response}, error: {response.reason}")
 
+				backoff = min(backoff * (1 + random.random()), 3)
 				time.sleep(backoff)
-				backoff = min(backoff * (1 + random.random()), 30)
 
 		return None
 
