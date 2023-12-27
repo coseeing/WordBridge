@@ -99,9 +99,22 @@ class BaseTypoCorrector():
 		return self._openai_post_with_retries(data)
 
 	def _chat_completion(self, prompt: str, response_text_history: List) -> str:
+		lines = prompt.split("\n")
+		system_prompt = lines[0] + "\n" + lines[1]
+		prompt_example = "(今天天器真好&jin1 tian1 tian1 qi4 zhen1 hao3) => "
+		answer_example = "今天天氣真好"
+		prompt_input = lines[3]
+		messages = [
+			{"role": "system", "content": system_prompt},
+			{"role": "user", "content": prompt_example},
+			{"role": "assistant", "content": answer_example},
+			{"role": "user", "content": prompt_input},
+		]
+		"""
 		messages = [
 			{"role": "user", "content": prompt},
 		]
+		"""
 		for response_previous in response_text_history:
 			messages.append({"role": "assistant", "content": response_previous})
 			messages.append({"role": "user", "content": f"'{response_previous}'是錯誤答案，請修正重新輸出文字"})
