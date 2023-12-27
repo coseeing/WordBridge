@@ -15,10 +15,10 @@ Q:{{pinyin_input}} A:""",
 ]
 
 typo_corrector_with_phone_templates = [
-"""將文字轉為拼音，再將拼音轉回文字並修正錯字:
-文字 => 拼音 => 文字
-今天天器真好 => jin1 tian1 tian1 qi4 zhen1 hao3 => 今天天氣真好
-{{text_input}} => {{phone_input}} => """,
+"""輸入為文字與其正確拼音，請修正錯字並輸出正確文字:
+(文字&拼音) => 文字
+(今天天器真好&jin1 tian1 tian1 qi4 zhen1 hao3) => 今天天氣真好
+({{text_input}}&{{phone_input}}) => """,
 ]
 
 typo_identifier_templates = [
