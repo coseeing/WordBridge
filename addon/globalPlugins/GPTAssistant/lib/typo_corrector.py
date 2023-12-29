@@ -27,8 +27,8 @@ class BaseTypoCorrector():
 		temperature: float = 0.0,
 		top_p: float = 0.0,
 		logprobs: bool = True,
-		max_correction_count: int = 3,
-		post_retries: int = 2,
+		max_correction_attempts: int = 3,
+		httppost_retries: int = 2,
 		backoff: int = 1,
 		is_chat_completion: bool = False,
 	):
@@ -39,8 +39,8 @@ class BaseTypoCorrector():
 		self.temperature = temperature
 		self.top_p = top_p
 		self.logprobs = logprobs
-		self.max_correction_count = max_correction_count
-		self.post_retries = post_retries
+		self.max_correction_attempts = max_correction_attempts
+		self.httppost_retries = httppost_retries
 		self.backoff = backoff
 		self.is_chat_completion = is_chat_completion
 		self.usage_history = []
@@ -54,7 +54,7 @@ class BaseTypoCorrector():
 		response_text_history = []
 		corrected_text = None
 		template_index = 0
-		for _ in range(self.max_correction_count):
+		for _ in range(self.max_correction_attempts):
 			template = TEMPLATE_DICT[self.__class__.__name__][template_index]
 			prompt = self._create_prompt(template, text)
 			if self.is_chat_completion:
@@ -140,7 +140,7 @@ class BaseTypoCorrector():
 		else:
 			url = "https://api.openai.com/v1/completions"
 
-		for r in range(self.post_retries):
+		for r in range(self.httppost_retries):
 			response = None
 			try:
 				response = requests.post(
