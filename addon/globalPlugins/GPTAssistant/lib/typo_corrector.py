@@ -53,20 +53,20 @@ class BaseTypoCorrector():
 
 		text = self._text_preprocess(input_text)
 		response_text_history = []
-		corrected_text = None
 		template_name = self.__class__.__name__
 		if self.is_chat_completion:
 			template_name += "Chat"
 		template = deepcopy(TEMPLATE_DICT[template_name])
 		input = self._create_input(template, text, self.is_chat_completion)
 		for _ in range(self.max_correction_attempts):
+			corrected_text = None
 			if self.is_chat_completion:
 				response = self._chat_completion(input, response_text_history)
 			else:
 				response = self._completion(input)
 
 			if response is None:
-				continue
+				break
 
 			self.usage_history.append((input, response))
 
