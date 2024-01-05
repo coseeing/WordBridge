@@ -71,7 +71,7 @@ class BaseTypoCorrector():
 			response_text = self._parse_response(response)
 			corrected_text = self._correct_typos(response_text, text)
 
-			if not self._error_detection(corrected_text, text):
+			if not self._has_error(corrected_text, text):
 				break
 
 			response_text_history.append(corrected_text)
@@ -171,7 +171,7 @@ class BaseTypoCorrector():
 	def _create_prompt(self, template: str, text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
-	def _error_detection(self, response: Any, text: str):
+	def _has_error(self, response: Any, text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
 	def _correct_typos(self, response: Any, text: str):
@@ -197,7 +197,7 @@ class TypoCorrector(BaseTypoCorrector):
 	def _create_prompt(self, template: str, text: str):
 		return template.replace("{{text_input}}", text)
 
-	def _error_detection(self, response: Any, text: str) -> bool:
+	def _has_error(self, response: Any, text: str) -> bool:
 		return False
 
 	def _correct_typos(self, response: str, text: str):
@@ -232,7 +232,7 @@ class TypoCorrectorWithPhone(BaseTypoCorrector):
 		phone = ' '.join(lazy_pinyin(text, style=Style.TONE3))
 		return template.replace("{{text_input}}", text).replace("{{phone_input}}", phone)
 
-	def _error_detection(self, response: str, text: str) -> bool:
+	def _has_error(self, response: str, text: str) -> bool:
 		if len(response) != len(text):
 			return True
 
@@ -270,7 +270,7 @@ class TypoCorrectorByPhone(BaseTypoCorrector):
 		pinyin = ' '.join(lazy_pinyin(text, style=Style.TONE))
 		return template.replace("{{pinyin_input}}", pinyin).replace("{{text_type}}", "繁體中文")
 
-	def _error_detection(self, response: str, text: str) -> bool:
+	def _has_error(self, response: str, text: str) -> bool:
 		return False
 
 	def _correct_typos(self, response: str, text: str):
