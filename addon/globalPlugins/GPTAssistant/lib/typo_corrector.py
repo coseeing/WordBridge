@@ -128,7 +128,7 @@ class BaseTypoCorrector():
 			"temperature": self.temperature,
 			"top_p": self.top_p,
 			"logprobs": self.logprobs,
-			"stop": ["#", " =>"]
+			"stop": [" =>"]
 		}
 
 		return self._openai_post_with_retries(data)
