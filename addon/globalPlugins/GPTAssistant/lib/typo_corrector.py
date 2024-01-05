@@ -64,7 +64,6 @@ class BaseTypoCorrector():
 				response = self._completion(prompt)
 
 			if response is None:
-				log.error(f"template = {template} fails.")
 				continue
 
 			self.usage_history.append((prompt, response))
