@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Any, List
 
 import logging
@@ -53,17 +54,17 @@ class BaseTypoCorrector():
 		text = self._text_preprocess(input_text)
 		response_text_history = []
 		corrected_text = None
-		template_index = 0
+		template_name = self.__class__.__name__
+		template = deepcopy(TEMPLATE_DICT[template_name][0])
+		prompt = self._create_prompt(template, text)
 		for _ in range(self.max_correction_attempts):
-			template = TEMPLATE_DICT[self.__class__.__name__][template_index]
-			prompt = self._create_prompt(template, text)
 			if self.is_chat_completion:
 				response = self._chat_completion(prompt, response_text_history)
 			else:
 				response = self._completion(prompt)
 
 			if response is None:
-				log.error(f"template {template_index} fails.\ntemplate = {template}")
+				log.error(f"template = {template} fails.")
 				continue
 
 			self.usage_history.append((prompt, response))
@@ -75,9 +76,6 @@ class BaseTypoCorrector():
 				break
 
 			response_text_history.append(corrected_text)
-
-			if template_index + 1 < len(TEMPLATE_DICT[self.__class__.__name__]):
-				template_index += 1
 
 		if len(response_text_history) > 1:
 			log.warning("Correction history: ", response_text_history)
