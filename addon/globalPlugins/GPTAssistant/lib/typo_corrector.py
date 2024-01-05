@@ -80,7 +80,7 @@ class BaseTypoCorrector():
 				template_index += 1
 
 		if len(response_text_history) > 1:
-			print(response_text_history)
+			log.warning("Correction history: ", response_text_history)
 
 		output_text = self._text_postprocess(corrected_text) if corrected_text is not None else None
 
