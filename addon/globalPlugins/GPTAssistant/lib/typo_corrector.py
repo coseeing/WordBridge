@@ -47,7 +47,7 @@ class BaseTypoCorrector():
 		self.usage_history = []
 		self.headers = {"Authorization": f"Bearer {api_key}"}
 
-	def correct_string(self, input_text: str, fake_operation: bool = False) -> str:
+	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
 		if fake_operation or not has_chinese(input_text):
 			return input_text
 
