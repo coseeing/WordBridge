@@ -66,9 +66,6 @@ class BaseTypoCorrector():
 			else:
 				response_json = self._completion(input)
 
-			if response_json is None:
-				break
-
 			self.usage_history.append((input, response_json))
 
 			response_text = self._parse_response(response_json)
