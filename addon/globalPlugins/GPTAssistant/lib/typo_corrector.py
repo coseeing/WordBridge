@@ -51,13 +51,14 @@ class BaseTypoCorrector():
 		if fake_operation or not has_chinese(input_text):
 			return input_text
 
-		text = self._text_preprocess(input_text)
-		response_text_history = []
-		template_name = self.__class__.__name__
 		if self.is_chat_completion:
-			template_name += "Chat"
-		template = deepcopy(TEMPLATE_DICT[template_name])
+			template = deepcopy(TEMPLATE_DICT[self.__class__.__name__ + "Chat"])
+		else:
+			template = deepcopy(TEMPLATE_DICT[self.__class__.__name__])
+		text = self._text_preprocess(input_text)
 		input = self._create_input(template, text, self.is_chat_completion)
+
+		response_text_history = []
 		for _ in range(self.max_correction_attempts):
 			corrected_text = None
 			if self.is_chat_completion:
