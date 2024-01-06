@@ -61,16 +61,16 @@ class BaseTypoCorrector():
 		for _ in range(self.max_correction_attempts):
 			corrected_text = None
 			if self.is_chat_completion:
-				response = self._chat_completion(input, response_text_history)
+				response_json = self._chat_completion(input, response_text_history)
 			else:
-				response = self._completion(input)
+				response_json = self._completion(input)
 
-			if response is None:
+			if response_json is None:
 				break
 
-			self.usage_history.append((input, response))
+			self.usage_history.append((input, response_json))
 
-			response_text = self._parse_response(response)
+			response_text = self._parse_response(response_json)
 			corrected_text = self._correct_typos(response_text, text)
 
 			if not self._has_error(corrected_text, text):
