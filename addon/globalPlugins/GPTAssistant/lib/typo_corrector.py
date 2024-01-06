@@ -123,6 +123,7 @@ class BaseTypoCorrector():
 		else:
 			url = "https://api.openai.com/v1/completions"
 
+		response_json = None
 		for r in range(self.httppost_retries):
 			response = None
 			try:
@@ -135,7 +136,8 @@ class BaseTypoCorrector():
 				if response.status_code != 200:
 					raise Exception
 
-				return response.json()
+				response_json = response.json()
+				break
 
 			except Exception as e:
 				if response is None:
@@ -146,7 +148,10 @@ class BaseTypoCorrector():
 				backoff = min(backoff * (1 + random.random()), 3)
 				time.sleep(backoff)
 
-		return None
+		if response_json is None:
+			raise MaxIterationsExceededError(f"Exceeded maximum iterations of httppost_retries = {self.httppost_retries}")
+		return response_json
+
 
 	def _parse_response(self, response: str):
 		raise NotImplementedError("Subclass must implement this method")
