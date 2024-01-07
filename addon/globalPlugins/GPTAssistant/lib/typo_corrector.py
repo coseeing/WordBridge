@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Any, List
 
 import logging
@@ -27,10 +28,11 @@ class BaseTypoCorrector():
 		temperature: float = 0.0,
 		top_p: float = 0.0,
 		logprobs: bool = True,
-		max_correction_count: int = 3,
-		retries: int = 2,
+		max_correction_attempts: int = 3,
+		httppost_retries: int = 2,
 		backoff: int = 1,
-		is_chat_completion: bool = False):
+		is_chat_completion: bool = False,
+	):
 
 		self.model = model
 		self.max_tokens = max_tokens
@@ -38,48 +40,44 @@ class BaseTypoCorrector():
 		self.temperature = temperature
 		self.top_p = top_p
 		self.logprobs = logprobs
-		self.max_correction_count = max_correction_count
-		self.retries = retries
+		self.max_correction_attempts = max_correction_attempts
+		self.httppost_retries = httppost_retries
 		self.backoff = backoff
 		self.is_chat_completion = is_chat_completion
 		self.usage_history = []
 		self.headers = {"Authorization": f"Bearer {api_key}"}
 
-	def correct_string(self, input_text: str, fake_operation: bool = False) -> str:
+	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
 		if fake_operation or not has_chinese(input_text):
 			return input_text
 
+		if self.is_chat_completion:
+			template = deepcopy(TEMPLATE_DICT[self.__class__.__name__ + "Chat"])
+		else:
+			template = deepcopy(TEMPLATE_DICT[self.__class__.__name__])
 		text = self._text_preprocess(input_text)
+		input = self._create_input(template, text, self.is_chat_completion)
+
 		response_text_history = []
-		corrected_text = None
-		template_index = 0
-		for _ in range(self.max_correction_count):
-			template = TEMPLATE_DICT[self.__class__.__name__][template_index]
-			prompt = self._create_prompt(template, text)
+		for _ in range(self.max_correction_attempts):
+			corrected_text = None
 			if self.is_chat_completion:
-				response = self._chat_completion(prompt, response_text_history)
+				response_json = self._chat_completion(input, response_text_history)
 			else:
-				response = self._completion(prompt)
+				response_json = self._completion(input)
 
-			if response is None:
-				log.error(f"template {template_index} fails.\ntemplate = {template}")
-				continue
+			self.usage_history.append((input, response_json))
 
-			self.usage_history.append((prompt, response))
-
-			response_text = self._parse_response(response)
+			response_text = self._parse_response(response_json)
 			corrected_text = self._correct_typos(response_text, text)
 
-			if not self._error_detection(corrected_text, text):
+			if not self._has_error(corrected_text, text):
 				break
 
 			response_text_history.append(corrected_text)
 
-			if template_index + 1 < len(TEMPLATE_DICT[self.__class__.__name__]):
-				template_index += 1
-
 		if len(response_text_history) > 1:
-			print(response_text_history)
+			log.warning("Correction history: ", response_text_history)
 
 		output_text = self._text_postprocess(corrected_text) if corrected_text is not None else None
 
@@ -98,23 +96,7 @@ class BaseTypoCorrector():
 
 		return self._openai_post_with_retries(data)
 
-	def _chat_completion(self, prompt: str, response_text_history: List) -> str:
-		lines = prompt.split("\n")
-		system_prompt = lines[0] + "\n" + lines[1]
-		prompt_example = "(今天天器真好&jin1 tian1 tian1 qi4 zhen1 hao3) => "
-		answer_example = "今天天氣真好"
-		prompt_input = lines[3]
-		messages = [
-			{"role": "system", "content": system_prompt},
-			{"role": "user", "content": prompt_example},
-			{"role": "assistant", "content": answer_example},
-			{"role": "user", "content": prompt_input},
-		]
-		"""
-		messages = [
-			{"role": "user", "content": prompt},
-		]
-		"""
+	def _chat_completion(self, messages: List, response_text_history: List) -> str:
 		for response_previous in response_text_history:
 			messages.append({"role": "assistant", "content": response_previous})
 			messages.append({"role": "user", "content": f"'{response_previous}'是錯誤答案，請修正重新輸出文字"})
@@ -127,7 +109,7 @@ class BaseTypoCorrector():
 			"temperature": self.temperature,
 			"top_p": self.top_p,
 			"logprobs": self.logprobs,
-			"stop": ["#", " =>"]
+			"stop": [" =>"]
 		}
 
 		return self._openai_post_with_retries(data)
@@ -139,7 +121,8 @@ class BaseTypoCorrector():
 		else:
 			url = "https://api.openai.com/v1/completions"
 
-		for r in range(self.retries):
+		response_json = None
+		for r in range(self.httppost_retries):
 			response = None
 			try:
 				response = requests.post(
@@ -151,7 +134,8 @@ class BaseTypoCorrector():
 				if response.status_code != 200:
 					raise Exception
 
-				return response.json()
+				response_json = response.json()
+				break
 
 			except Exception as e:
 				if response is None:
@@ -162,15 +146,18 @@ class BaseTypoCorrector():
 				backoff = min(backoff * (1 + random.random()), 3)
 				time.sleep(backoff)
 
-		return None
+		if response_json is None:
+			raise MaxIterationsExceededError(f"Exceeded maximum iterations of httppost_retries = {self.httppost_retries}")
+		return response_json
+
 
 	def _parse_response(self, response: str):
 		raise NotImplementedError("Subclass must implement this method")
 
-	def _create_prompt(self, template: str, text: str):
+	def _create_input(self, template: str, text: str, is_chat_completion: bool):
 		raise NotImplementedError("Subclass must implement this method")
 
-	def _error_detection(self, response: Any, text: str):
+	def _has_error(self, response: Any, text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
 	def _correct_typos(self, response: Any, text: str):
@@ -193,10 +180,12 @@ class TypoCorrector(BaseTypoCorrector):
 			return response["choices"][0]["message"]["content"]
 		return response["choices"][0]["text"]
 
-	def _create_prompt(self, template: str, text: str):
+	def _create_input(self, template: str, text: str, is_chat_completion: bool):
+		if is_chat_completion:
+			raise NotImplementedError("TypoCorrector do not support chat completion")
 		return template.replace("{{text_input}}", text)
 
-	def _error_detection(self, response: Any, text: str) -> bool:
+	def _has_error(self, response: Any, text: str) -> bool:
 		return False
 
 	def _correct_typos(self, response: str, text: str):
@@ -227,11 +216,15 @@ class TypoCorrectorWithPhone(BaseTypoCorrector):
 
 		return sentence
 
-	def _create_prompt(self, template: str, text: str):
+	def _create_input(self, template: str, text: str, is_chat_completion: bool):
 		phone = ' '.join(lazy_pinyin(text, style=Style.TONE3))
+		if is_chat_completion:
+			template[-1]["content"] = template[-1]["content"].replace("{{text_input}}", text)
+			template[-1]["content"] = template[-1]["content"].replace("{{phone_input}}", phone)
+			return template
 		return template.replace("{{text_input}}", text).replace("{{phone_input}}", phone)
 
-	def _error_detection(self, response: str, text: str) -> bool:
+	def _has_error(self, response: str, text: str) -> bool:
 		if len(response) != len(text):
 			return True
 
@@ -265,11 +258,13 @@ class TypoCorrectorByPhone(BaseTypoCorrector):
 			text = text[:-1]
 		return text
 
-	def _create_prompt(self, template: str, text: str):
+	def _create_input(self, template: str, text: str, is_chat_completion: bool):
 		pinyin = ' '.join(lazy_pinyin(text, style=Style.TONE))
+		if is_chat_completion:
+			raise NotImplementedError("TypoCorrectorByPhone do not support chat completion")
 		return template.replace("{{pinyin_input}}", pinyin).replace("{{text_type}}", "繁體中文")
 
-	def _error_detection(self, response: str, text: str) -> bool:
+	def _has_error(self, response: str, text: str) -> bool:
 		return False
 
 	def _correct_typos(self, response: str, text: str):

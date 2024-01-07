@@ -41,7 +41,7 @@ class Proofreader():
 		text_corrected = ""
 		segments, separators = text_segmentation(text)
 		for segment, separator in zip(segments, separators):
-			segment_corrected = self.segment_corrector.correct_string(segment)
+			segment_corrected = self.segment_corrector.correct_segment(segment)
 			if segment_corrected is None:
 				text_corrected += ("■" * len(segment))
 				continue
