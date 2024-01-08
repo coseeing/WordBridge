@@ -40,6 +40,7 @@ import wx
 from .lib.proofreader import Proofreader
 from .lib.typo_corrector import TypoCorrector, TypoCorrectorWithPhone
 from .lib.viewHTML import text2template
+from hanzidentifier import has_chinese
 
 
 addonHandler.initTranslation()
@@ -105,8 +106,21 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			ui.message(f"原文長度: {len(text)}, 超過上限: {max_word_count}")
 			log.warning(f"原文長度: {len(text)}, 超過上限: {max_word_count}")
 			return
+		elif len(text) == 0:
+			ui.message(f"未選取任何文字，無法分析")
+			log.warning(f"未選取任何文字，無法分析")
+			return
+		elif not has_chinese(text):
+			ui.message(f"選取範圍不含漢字，無法分析")
+			log.warning(f"選取範圍不含漢字，無法分析")
+			return
 
-		text_corrected, diff = proofreader.typo_analyzer(text)
+		try:
+			text_corrected, diff = proofreader.typo_analyzer(text)
+		except Exception as e:
+			ui.message(f"抱歉，程式運行中遇到了一些問題，錯誤詳情是:{e}")
+			log.warning(f"抱歉，程式運行中遇到了一些問題，錯誤詳情是:{e}")
+			return
 
 		ui.message(f"原文是: {text}")
 		ui.message(f"diff是: {diff}")
