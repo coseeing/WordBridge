@@ -123,6 +123,7 @@ class BaseTypoCorrector():
 
 		response_json = None
 		for r in range(self.httppost_retries):
+			request_error = None
 			response = None
 			try:
 				response = requests.post(
@@ -131,23 +132,25 @@ class BaseTypoCorrector():
 					json=data,
 					timeout=5,
 				)
-				if response.status_code != 200:
-					raise Exception
-
-				response_json = response.json()
 				break
-
 			except Exception as e:
-				if response is None:
-					log.error(f"Try = {r}, An unexpected error occurred when sending OpenAI request: {e}")
-				else:
-					log.error(f"Try = {r}, {response}, error: {response.reason}")
-
+				request_error = type(e).__name__
+				log.error(f"Try = {r + 1}, {type(e).__name__}, An unexpected error occurred when sending OpenAI request: {e}")
 				backoff = min(backoff * (1 + random.random()), 3)
 				time.sleep(backoff)
 
-		if response_json is None:
-			raise MaxIterationsExceededError(f"Exceeded maximum iterations of httppost_retries = {self.httppost_retries}")
+		if response is None:
+			raise Exception(f"HTTP請求錯誤({request_error})，請檢查網路設定")
+			return
+
+		response_json = response.json()
+		if response.status_code == 401:
+			raise Exception("認證錯誤，請檢查OpenAI API Key是否正確")
+		elif response.status_code == 404:
+			raise Exception("服務不存在，請檢查使用的模型是否已過期")
+		elif response_json is None:
+			raise Exception(f"不明錯誤，請求狀態碼{response.status_code}")
+
 		return response_json
 
 
