@@ -48,7 +48,7 @@ ADDON_SUMMARY = "GPTAssistant"
 
 config.conf.spec["GPTAssistant"] = {
 	"settings": {
-		"model": "string(default=text-davinci-003)",
+		"model": "string(default=gpt-3.5-turbo)",
 		"openai_key": "string(default=Please Enter Your Key)",
 		"max_word_count": "integer(default=100,min=2,max=200)",
 	}
