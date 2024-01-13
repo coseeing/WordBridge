@@ -16,11 +16,14 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 
 	def makeSettings(self, settingsSizer):
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
+
+		# For selecting OpenAI model
 		modelLabelText = _("OpenAI Model:")
 		self.modelList = settingsSizerHelper.addLabeledControl(modelLabelText, wx.Choice, choices=model_list)
 		self.modelList.SetToolTip(wx.ToolTip("Choose the openAI model for the GPT assistant"))
 		self.modelList.SetSelection(model_list.index(config.conf["GPTAssistant"]["settings"]["model"]))
 
+		# For setting OpenAI API key
 		keyLabel = _("&OpenAI Key")
 		keyBoxSizer = wx.StaticBoxSizer(wx.HORIZONTAL, self, label=keyLabel)
 		keyBox = keyBoxSizer.GetStaticBox()
@@ -46,6 +49,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		)
 		changeKeyBtn.Bind(wx.EVT_BUTTON, self.onChangeKey)
 
+		# For setting upper bound of correction word count
 		maxTokensLabelText = _("Max Word Count")
 		maxWordCount = config.conf["GPTAssistant"]["settings"]["max_word_count"]
 		maxWordCountlowerBound = int(config.conf.getConfigValidation(
