@@ -21,7 +21,7 @@ sys.path.insert(0, PYTHON_PATH)
 PACKAGE_PATH = os.path.join(PATH, "package")
 sys.path.insert(0, PACKAGE_PATH)
 
-from .dialogs import GPTAssistantSettingsDialog
+from .dialogs import OpenAIGeneralSettingsPanel
 
 from logHandler import log
 from scriptHandler import script
@@ -58,27 +58,14 @@ config.conf.spec["GPTAssistant"] = {
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		self.create_menu()
+		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(OpenAIGeneralSettingsPanel)
 
 	def terminate(self, *args, **kwargs):
 		super().terminate(*args, **kwargs)
-		self.remove_menu()
-
-	def create_menu(self):
-		self.toolsMenu = gui.mainFrame.sysTrayIcon.toolsMenu
-		self.menu = wx.Menu()
-		self.settings = self.menu.Append(
-			wx.ID_ANY,
-			_("&Settings...")
-		)
-		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.onSettings, self.settings)
-		self.gpt_assistant_item = self.toolsMenu.AppendSubMenu(self.menu, _("GPTAssistant"), _("GPTAssistant"))
-
-	def remove_menu(self):
-		self.toolsMenu.Remove(self.gpt_assistant_item)
+		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(OpenAIGeneralSettingsPanel)
 
 	def onSettings(self, evt):
-		wx.CallAfter(gui.mainFrame._popupSettingsDialog, GPTAssistantSettingsDialog)
+		wx.CallAfter(gui.mainFrame._popupSettingsDialog, gui.settingsDialogs.NVDASettingsDialog, OpenAIGeneralSettingsPanel)
 
 	def OnPreview(self, file):
 		def openfile():

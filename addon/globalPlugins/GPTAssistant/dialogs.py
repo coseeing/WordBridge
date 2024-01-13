@@ -89,21 +89,6 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		self.keyNameCtrl.SetValue(key)
 
 
-class GPTAssistantSettingsDialog(MultiCategorySettingsDialog):
-	# translators: title of the dialog.
-	dialogTitle = _("Settings")
-	title = "% s - %s" % (_("GPT Assistant"), dialogTitle)
-	INITIAL_SIZE = (1000, 480)
-	MIN_SIZE = (470, 240)
-
-	categoryClasses = [
-		OpenAIGeneralSettingsPanel
-	]
-
-	def __init__(self, parent, initialCategory=None):
-		super().__init__(parent, initialCategory)
-
-
 class OpenAIKeySettingDialog(SettingsDialog):
 	title = _("Set OpenAI Key")
 	helpId = "SelectOpenAIKey"
