@@ -39,8 +39,6 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		self.keyNameCtrl.Bind(wx.EVT_CHAR_HOOK, self._enterTriggersOnChangeKey)
 
 		changeKeyBtn = wx.Button(keyBox, label=_("C&hange..."))
-		self.bindHelpEvent("OpenAIKeyChange", self.keyNameCtrl)
-		self.bindHelpEvent("OpenAIKeyChange", changeKeyBtn)
 		keyGroup.addItem(
 			guiHelper.associateElements(
 				self.keyNameCtrl,
@@ -65,7 +63,6 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			max=maxWordCountUpperBound,
 			initial=maxWordCount
 		)
-		self.bindHelpEvent("GeneralSettingsMaxToken", self.maxWordCount)
 
 	def onSave(self):
 		config.conf["GPTAssistant"]["settings"]["model"] = model_list[self.modelList.GetSelection()]
