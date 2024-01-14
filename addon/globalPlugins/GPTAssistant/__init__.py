@@ -79,6 +79,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# text-davinci-003 may be deprecated inthe future version of GPTAssistant
 		is_chat_completion = True
 
+		openai_api_key = self._obtain_openai_key()
+		if openai_api_key is None:
+			if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
+				ui.message(f"OpenAI API Key不存在")
+				log.warning(f"OpenAI API Key不存在")
+			else:
+				ui.message(f"XXX帳號的使用者名稱或密碼有誤")
+				log.warning(f"XXX帳號的使用者名稱或密碼有誤")
+			return
+
 		corrector = TypoCorrectorWithPhone(
 			model=config.conf["GPTAssistant"]["settings"]["model"],
 			api_key=config.conf["GPTAssistant"]["settings"]["openai_key"],
@@ -172,3 +182,30 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def script_action(self, gesture):
 		action_thread = threading.Thread(target=self.action)
 		action_thread.start()
+
+	# Could be move to another file
+	def _obtain_openai_key(self):
+		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
+			return config.conf["GPTAssistant"]["settings"]["openai_key"]
+
+		base_url = "http://openairelay.coseeing.org"  # Could be global
+		auth_data = {
+			"username": config.conf["GPTAssistant"]["settings"]["account_name"],
+			"password": config.conf["GPTAssistant"]["settings"]["password"],
+
+		}
+		# Send POST request to /login endpoint to obtain JWT token
+		import requests  # Could be import globally
+		response = requests.post(f"{base_url}/login", data=auth_data)
+
+		# Check if response is successful
+		if response.status_code == 200:
+			try:
+				# Get token from response
+				token = response.json()["access_token"]
+			except:
+				token = None
+		else:
+			token = None
+
+		return token
