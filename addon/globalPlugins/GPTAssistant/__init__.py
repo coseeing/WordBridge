@@ -50,7 +50,7 @@ config.conf.spec["GPTAssistant"] = {
 	"settings": {
 		"model": "string(default=gpt-3.5-turbo)",
 		"gpt_access_method": "string(default=OpenAI API Key)",
-		"openai_key": "string(default=Please Enter Your Key)",
+		"openai_key": "string(default=\0)",
 		"account_name": "string(default=\0)",
 		"password": "string(default=\0)",
 		"max_word_count": "integer(default=100,min=2,max=200)",
