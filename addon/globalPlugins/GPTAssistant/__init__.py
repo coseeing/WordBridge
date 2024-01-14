@@ -53,7 +53,7 @@ config.conf.spec["GPTAssistant"] = {
 		"openai_key": "string(default=\0)",
 		"account_name": "string(default=\0)",
 		"password": "string(default=\0)",
-		"max_word_count": "integer(default=100,min=2,max=200)",
+		"max_word_count": "integer(default=50,min=2,max=64)",
 	}
 }
 
