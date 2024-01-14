@@ -1,3 +1,4 @@
+from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
 from wx.lib.expando import ExpandoTextCtrl
 
 import config
@@ -91,7 +92,17 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 
 		# For setting upper bound of correction word count
 		maxTokensLabelText = _("Max Word Count")
-		maxWordCount = config.conf["GPTAssistant"]["settings"]["max_word_count"]
+		try:
+			maxWordCount = config.conf["GPTAssistant"]["settings"]["max_word_count"]
+		except VdtValueTooBigError:
+			maxWordCount = int(config.conf.getConfigValidation(
+				("GPTAssistant", "settings", "max_word_count")
+			).kwargs["max"])
+		except VdtValueTooSmallError:
+			maxWordCount = int(config.conf.getConfigValidation(
+				("GPTAssistant", "settings", "max_word_count")
+			).kwargs["min"])
+
 		maxWordCountlowerBound = int(config.conf.getConfigValidation(
 			("GPTAssistant", "settings", "max_word_count")
 		).kwargs["min"])
