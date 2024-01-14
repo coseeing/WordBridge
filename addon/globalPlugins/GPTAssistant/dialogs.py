@@ -43,10 +43,12 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 
 		apikeyTextLabel = wx.StaticText(accessPanel, label="API Key:")
 		sizer.Add(apikeyTextLabel, pos=(1, 0), flag=wx.LEFT, border=10)
+		show_key = "*" * (len(config.conf["GPTAssistant"]["settings"]["openai_key"]) - 4)
+		show_key += config.conf["GPTAssistant"]["settings"]["openai_key"][-4:]
 		self.apikeyTextCtrl = wx.TextCtrl(
 			accessPanel,
 			size=(self.scaleSize(375), -1),
-			value=config.conf["GPTAssistant"]["settings"]["openai_key"],
+			value=show_key,
 			style=wx.TE_READONLY,
 		)
 		sizer.Add(self.apikeyTextCtrl, pos=(1, 1))
@@ -75,7 +77,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			accessPanel,
 			size=(self.scaleSize(375), -1),
 			value=config.conf["GPTAssistant"]["settings"]["password"],
-			style=wx.TE_READONLY,
+			style=wx.TE_PASSWORD | wx.TE_READONLY,
 		)
 		sizer.Add(self.passwordTextCtrl, pos=(4, 1))
 
