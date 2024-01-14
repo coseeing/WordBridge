@@ -21,7 +21,7 @@ sys.path.insert(0, PYTHON_PATH)
 PACKAGE_PATH = os.path.join(PATH, "package")
 sys.path.insert(0, PACKAGE_PATH)
 
-from .dialogs import GPTAssistantSettingsDialog
+from .dialogs import OpenAIGeneralSettingsPanel
 
 from logHandler import log
 from scriptHandler import script
@@ -48,9 +48,12 @@ ADDON_SUMMARY = "GPTAssistant"
 
 config.conf.spec["GPTAssistant"] = {
 	"settings": {
-		"model": "string(default=text-davinci-003)",
-		"openai_key": "string(default=Please Enter Your Key)",
-		"max_word_count": "integer(default=100,min=2,max=200)",
+		"model": "string(default=gpt-3.5-turbo)",
+		"gpt_access_method": "string(default=OpenAI API Key)",
+		"openai_key": "string(default=\0)",
+		"account_name": "string(default=\0)",
+		"password": "string(default=\0)",
+		"max_word_count": "integer(default=50,min=2,max=64)",
 	}
 }
 
@@ -58,27 +61,14 @@ config.conf.spec["GPTAssistant"] = {
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		self.create_menu()
+		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(OpenAIGeneralSettingsPanel)
 
 	def terminate(self, *args, **kwargs):
 		super().terminate(*args, **kwargs)
-		self.remove_menu()
-
-	def create_menu(self):
-		self.toolsMenu = gui.mainFrame.sysTrayIcon.toolsMenu
-		self.menu = wx.Menu()
-		self.settings = self.menu.Append(
-			wx.ID_ANY,
-			_("&Settings...")
-		)
-		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.onSettings, self.settings)
-		self.gpt_assistant_item = self.toolsMenu.AppendSubMenu(self.menu, _("GPTAssistant"), _("GPTAssistant"))
-
-	def remove_menu(self):
-		self.toolsMenu.Remove(self.gpt_assistant_item)
+		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(OpenAIGeneralSettingsPanel)
 
 	def onSettings(self, evt):
-		wx.CallAfter(gui.mainFrame._popupSettingsDialog, GPTAssistantSettingsDialog)
+		wx.CallAfter(gui.mainFrame._popupSettingsDialog, gui.settingsDialogs.NVDASettingsDialog, OpenAIGeneralSettingsPanel)
 
 	def OnPreview(self, file):
 		def openfile():
@@ -88,8 +78,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def correct_typo(self):
 		# text-davinci-003 may be deprecated inthe future version of GPTAssistant
 		is_chat_completion = True
-		if config.conf["GPTAssistant"]["settings"]["model"] == "text-davinci-003":
-			is_chat_completion = False
+
+		openai_api_key = self._obtain_openai_key()
+		if openai_api_key is None:
+			if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
+				ui.message(f"OpenAI API Key不存在")
+				log.warning(f"OpenAI API Key不存在")
+			else:
+				ui.message(f"XXX帳號的使用者名稱或密碼有誤")
+				log.warning(f"XXX帳號的使用者名稱或密碼有誤")
+			return
 
 		corrector = TypoCorrectorWithPhone(
 			model=config.conf["GPTAssistant"]["settings"]["model"],
@@ -184,3 +182,30 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def script_action(self, gesture):
 		action_thread = threading.Thread(target=self.action)
 		action_thread.start()
+
+	# Could be move to another file
+	def _obtain_openai_key(self):
+		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
+			return config.conf["GPTAssistant"]["settings"]["openai_key"]
+
+		base_url = "http://openairelay.coseeing.org"  # Could be global
+		auth_data = {
+			"username": config.conf["GPTAssistant"]["settings"]["account_name"],
+			"password": config.conf["GPTAssistant"]["settings"]["password"],
+
+		}
+		# Send POST request to /login endpoint to obtain JWT token
+		import requests  # Could be import globally
+		response = requests.post(f"{base_url}/login", data=auth_data)
+
+		# Check if response is successful
+		if response.status_code == 200:
+			try:
+				# Get token from response
+				token = response.json()["access_token"]
+			except:
+				token = None
+		else:
+			token = None
+
+		return token
