@@ -7,7 +7,7 @@ from gui import guiHelper, nvdaControls
 from gui.settingsDialogs import MultiCategorySettingsDialog, SettingsDialog, SettingsPanel
 
 
-model_list = ["gpt-3.5-turbo", "text-davinci-003"]
+model_list = ["gpt-3.5-turbo"]
 gpt_access_method_list = ["OpenAI API Key", "XXX Account"]
 
 class OpenAIGeneralSettingsPanel(SettingsPanel):

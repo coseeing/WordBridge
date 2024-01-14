@@ -78,8 +78,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def correct_typo(self):
 		# text-davinci-003 may be deprecated inthe future version of GPTAssistant
 		is_chat_completion = True
-		if config.conf["GPTAssistant"]["settings"]["model"] == "text-davinci-003":
-			is_chat_completion = False
 
 		corrector = TypoCorrectorWithPhone(
 			model=config.conf["GPTAssistant"]["settings"]["model"],
