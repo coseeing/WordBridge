@@ -38,30 +38,28 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		accessPanel = wx.Panel(self)
 		sizer = wx.GridBagSizer(5, 3)
 
-		accessOpenAITextLabel = wx.StaticText(accessPanel, label="OpenAI Account")
-		sizer.Add(accessOpenAITextLabel, pos=(0, 0), flag=wx.LEFT, border=0)
+		self.accessOpenAITextLabel = wx.StaticText(accessPanel, label="OpenAI Account")
+		sizer.Add(self.accessOpenAITextLabel, pos=(0, 0), flag=wx.LEFT, border=0)
 
-		apikeyTextLabel = wx.StaticText(accessPanel, label="API Key:")
-		sizer.Add(apikeyTextLabel, pos=(1, 0), flag=wx.LEFT, border=10)
-		show_key = "*" * (len(config.conf["GPTAssistant"]["settings"]["openai_key"]) - 4)
-		show_key += config.conf["GPTAssistant"]["settings"]["openai_key"][-4:]
+		self.apikeyTextLabel = wx.StaticText(accessPanel, label="API Key:")
+		sizer.Add(self.apikeyTextLabel, pos=(1, 0), flag=wx.LEFT, border=10)
 		self.apikeyTextCtrl = wx.TextCtrl(
 			accessPanel,
 			size=(self.scaleSize(375), -1),
-			value=show_key,
-			style=wx.TE_READONLY,
+			value=config.conf["GPTAssistant"]["settings"]["openai_key"],
+			style=wx.TE_PASSWORD | wx.TE_READONLY,
 		)
 		sizer.Add(self.apikeyTextCtrl, pos=(1, 1))
 
-		apikeyChangeButton = wx.Button(accessPanel, label="C&hange...")
-		sizer.Add(apikeyChangeButton, pos=(1, 2), border=20)
-		apikeyChangeButton.Bind(wx.EVT_BUTTON, self.onChangeKey)
+		self.apikeyChangeButton = wx.Button(accessPanel, label="C&hange...")
+		sizer.Add(self.apikeyChangeButton, pos=(1, 2), border=20)
+		self.apikeyChangeButton.Bind(wx.EVT_BUTTON, self.onChangeKey)
 
-		accessXXXTextLabel = wx.StaticText(accessPanel, label="XXX Account")
-		sizer.Add(accessXXXTextLabel, pos=(2, 0), flag=wx.LEFT, border=0)
+		self.accessXXXTextLabel = wx.StaticText(accessPanel, label="XXX Account")
+		sizer.Add(self.accessXXXTextLabel, pos=(2, 0), flag=wx.LEFT, border=0)
 
-		accountTextLabel = wx.StaticText(accessPanel, label="Account Name:")
-		sizer.Add(accountTextLabel, pos=(3, 0), flag=wx.LEFT, border=10)
+		self.accountTextLabel = wx.StaticText(accessPanel, label="Account Name:")
+		sizer.Add(self.accountTextLabel, pos=(3, 0), flag=wx.LEFT, border=10)
 		self.accountTextCtrl = wx.TextCtrl(
 			accessPanel,
 			size=(self.scaleSize(375), -1),
@@ -70,8 +68,8 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		)
 		sizer.Add(self.accountTextCtrl, pos=(3, 1))
 
-		passwordTextLabel = wx.StaticText(accessPanel, label="Password:")
-		sizer.Add(passwordTextLabel, pos=(4, 0), flag=wx.LEFT, border=10)
+		self.passwordTextLabel = wx.StaticText(accessPanel, label="Password:")
+		sizer.Add(self.passwordTextLabel, pos=(4, 0), flag=wx.LEFT, border=10)
 
 		self.passwordTextCtrl = wx.TextCtrl(
 			accessPanel,
@@ -81,22 +79,11 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		)
 		sizer.Add(self.passwordTextCtrl, pos=(4, 1))
 
-		accountChangeButton = wx.Button(accessPanel, label="C&hange...")
-		sizer.Add(accountChangeButton, pos=(4, 2), border=20)
-		accountChangeButton.Bind(wx.EVT_BUTTON, self.onChangeKey)
+		self.accountChangeButton = wx.Button(accessPanel, label="C&hange...")
+		sizer.Add(self.accountChangeButton, pos=(4, 2), border=20)
+		self.accountChangeButton.Bind(wx.EVT_BUTTON, self.onChangeKey)
 
-		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
-			accessXXXTextLabel.Disable()
-			accountTextLabel.Disable()
-			passwordTextLabel.Disable()
-			self.accountTextCtrl.Disable()
-			self.passwordTextCtrl.Disable()
-			accountChangeButton.Disable()
-		else:
-			accessOpenAITextLabel.Disable()
-			apikeyTextLabel.Disable()
-			self.apikeyTextCtrl.Disable()
-			apikeyChangeButton.Disable()
+		self._toggleAccessElements()
 
 		accessPanel.SetSizer(sizer)
 		sizer.Fit(self)
@@ -154,9 +141,32 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		# trigger a refresh of the settings
 		self.onPanelActivated()
 		self._sendLayoutUpdatedEvent()
-		self.settingsSizer.Clear(delete_windows=True)
-		self.makeSettings(self.settingsSizer)
+		self._toggleAccessElements()
 		self.Thaw()
+
+	def _toggleAccessElements(self):
+		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
+			self.accessXXXTextLabel.Disable()
+			self.accountTextLabel.Disable()
+			self.passwordTextLabel.Disable()
+			self.accountTextCtrl.Disable()
+			self.passwordTextCtrl.Disable()
+			self.accountChangeButton.Disable()
+			self.accessOpenAITextLabel.Enable()
+			self.apikeyTextLabel.Enable()
+			self.apikeyTextCtrl.Enable()
+			self.apikeyChangeButton.Enable()
+		else:
+			self.accessXXXTextLabel.Enable()
+			self.accountTextLabel.Enable()
+			self.passwordTextLabel.Enable()
+			self.accountTextCtrl.Enable()
+			self.passwordTextCtrl.Enable()
+			self.accountChangeButton.Enable()
+			self.accessOpenAITextLabel.Disable()
+			self.apikeyTextLabel.Disable()
+			self.apikeyTextCtrl.Disable()
+			self.apikeyChangeButton.Disable()
 
 	def updateCurrentKey(self, key):
 		self.apikeyTextCtrl.SetValue(key)
@@ -175,7 +185,7 @@ class OpenAIKeySettingDialog(SettingsDialog):
 		self.setOpenaiTextCtrl = wx.TextCtrl(
 			self,
 			size=(self.scaleSize(400), -1),
-			value=config.conf["GPTAssistant"]["settings"]["openai_key"],
+			value=self.Parent.apikeyTextCtrl.GetValue(),
 		)
 
 		settingsSizer.Add(openaiTextLabel)
@@ -195,14 +205,14 @@ class XXXAccountSettingDialog(SettingsDialog):
 		self.setAccountTextCtrl = wx.TextCtrl(
 			self,
 			size=(self.scaleSize(300), -1),
-			value=config.conf["GPTAssistant"]["settings"]["account_name"],
+			value=self.Parent.accountTextCtrl.GetValue(),
 		)
 
 		passwordTextLabel = wx.StaticText(self, label="Password:")
 		self.setPasswordTextCtrl = wx.TextCtrl(
 			self,
 			size=(self.scaleSize(300), -1),
-			value=config.conf["GPTAssistant"]["settings"]["password"],
+			value=self.Parent.passwordTextCtrl.GetValue(),
 		)
 
 		settingsSizer.Add(accountTextLabel)
