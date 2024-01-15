@@ -85,8 +85,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				ui.message(f"OpenAI API Key不存在")
 				log.warning(f"OpenAI API Key不存在")
 			else:
-				ui.message(f"XXX帳號的使用者名稱或密碼有誤")
-				log.warning(f"XXX帳號的使用者名稱或密碼有誤")
+				ui.message(f"Coseeing 帳號的使用者名稱或密碼有誤")
+				log.warning(f"Coseeing 帳號的使用者名稱或密碼有誤")
 			return
 
 		corrector = TypoCorrectorWithPhone(

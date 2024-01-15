@@ -9,7 +9,7 @@ from gui.settingsDialogs import MultiCategorySettingsDialog, SettingsDialog, Set
 
 
 model_list = ["gpt-3.5-turbo"]
-gpt_access_method_list = ["OpenAI API Key", "XXX Account"]
+gpt_access_method_list = ["OpenAI API Key", "Coseeing Account"]
 
 class OpenAIGeneralSettingsPanel(SettingsPanel):
 	title = _("OpenAIGeneral")
@@ -56,8 +56,8 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		sizer.Add(self.apikeyChangeButton, pos=(1, 2), border=20)
 		self.apikeyChangeButton.Bind(wx.EVT_BUTTON, self.onChangeKey)
 
-		self.accessXXXTextLabel = wx.StaticText(accessPanel, label="XXX Account")
-		sizer.Add(self.accessXXXTextLabel, pos=(2, 0), flag=wx.LEFT, border=0)
+		self.accessCoseeingTextLabel = wx.StaticText(accessPanel, label="Coseeing Account")
+		sizer.Add(self.accessCoseeingTextLabel, pos=(2, 0), flag=wx.LEFT, border=0)
 
 		self.accountTextLabel = wx.StaticText(accessPanel, label="Account Name:")
 		sizer.Add(self.accountTextLabel, pos=(3, 0), flag=wx.LEFT, border=10)
@@ -137,7 +137,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
 			changeDisplay = OpenAIKeySettingDialog(self, multiInstanceAllowed=True)
 		else:
-			changeDisplay = XXXAccountSettingDialog(self, multiInstanceAllowed=True)
+			changeDisplay = CoseeingAccountSettingDialog(self, multiInstanceAllowed=True)
 		ret = changeDisplay.ShowModal()
 		if ret == wx.ID_OK:
 			self.Freeze()
@@ -157,7 +157,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 
 	def _toggleAccessElements(self):
 		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
-			self.accessXXXTextLabel.Disable()
+			self.accessCoseeingTextLabel.Disable()
 			self.accountTextLabel.Disable()
 			self.passwordTextLabel.Disable()
 			self.accountTextCtrl.Disable()
@@ -168,7 +168,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			self.apikeyTextCtrl.Enable()
 			self.apikeyChangeButton.Enable()
 		else:
-			self.accessXXXTextLabel.Enable()
+			self.accessCoseeingTextLabel.Enable()
 			self.accountTextLabel.Enable()
 			self.passwordTextLabel.Enable()
 			self.accountTextCtrl.Enable()
@@ -207,9 +207,9 @@ class OpenAIKeySettingDialog(SettingsDialog):
 		self.Parent.updateCurrentKey(self.setOpenaiTextCtrl.GetValue())
 
 
-class XXXAccountSettingDialog(SettingsDialog):
-	title = _("Set XXX Account Information")
-	helpId = "SetXXXAccountKey"
+class CoseeingAccountSettingDialog(SettingsDialog):
+	title = _("Set Coseeing Account Information")
+	helpId = "SetCoseeingAccountKey"
 
 	def makeSettings(self, settingsSizer):
 		accountTextLabel = wx.StaticText(self, label="Account Name:")
