@@ -37,7 +37,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 
 		# For setting account information
 		accessPanel = wx.Panel(self)
-		sizer = wx.GridBagSizer(5, 3)
+		sizer = wx.GridBagSizer(5, 2)
 
 		self.accessOpenAITextLabel = wx.StaticText(accessPanel, label="OpenAI Account")
 		sizer.Add(self.accessOpenAITextLabel, pos=(0, 0), flag=wx.LEFT, border=0)
@@ -48,13 +48,8 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			accessPanel,
 			size=(self.scaleSize(375), -1),
 			value=config.conf["GPTAssistant"]["settings"]["openai_key"],
-			style=wx.TE_PASSWORD | wx.TE_READONLY,
 		)
 		sizer.Add(self.apikeyTextCtrl, pos=(1, 1))
-
-		self.apikeyChangeButton = wx.Button(accessPanel, label="C&hange...")
-		sizer.Add(self.apikeyChangeButton, pos=(1, 2), border=20)
-		self.apikeyChangeButton.Bind(wx.EVT_BUTTON, self.onChangeKey)
 
 		self.accessCoseeingTextLabel = wx.StaticText(accessPanel, label="Coseeing Account")
 		sizer.Add(self.accessCoseeingTextLabel, pos=(2, 0), flag=wx.LEFT, border=0)
@@ -65,7 +60,6 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			accessPanel,
 			size=(self.scaleSize(375), -1),
 			value=config.conf["GPTAssistant"]["settings"]["coseeing_username"],
-			style=wx.TE_READONLY,
 		)
 		sizer.Add(self.usernameTextCtrl, pos=(3, 1))
 
@@ -76,13 +70,9 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			accessPanel,
 			size=(self.scaleSize(375), -1),
 			value=config.conf["GPTAssistant"]["settings"]["coseeing_password"],
-			style=wx.TE_PASSWORD | wx.TE_READONLY,
+			style=wx.TE_PASSWORD,
 		)
 		sizer.Add(self.passwordTextCtrl, pos=(4, 1))
-
-		self.accountChangeButton = wx.Button(accessPanel, label="C&hange...")
-		sizer.Add(self.accountChangeButton, pos=(4, 2), border=20)
-		self.accountChangeButton.Bind(wx.EVT_BUTTON, self.onChangeKey)
 
 		self._toggleAccessElements()
 
@@ -127,25 +117,6 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		config.conf["GPTAssistant"]["settings"]["coseeing_password"] = self.passwordTextCtrl.GetValue()
 		config.conf["GPTAssistant"]["settings"]["max_word_count"] = self.maxWordCount.GetValue()
 
-	def _enterTriggersOnChangeKey(self, evt):
-		if evt.KeyCode == wx.WXK_RETURN:
-			self.onChangeKey(evt)
-		else:
-			evt.Skip()
-
-	def onChangeKey(self, evt):
-		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
-			changeDisplay = OpenAIKeySettingDialog(self, multiInstanceAllowed=True)
-		else:
-			changeDisplay = CoseeingAccountSettingDialog(self, multiInstanceAllowed=True)
-		ret = changeDisplay.ShowModal()
-		if ret == wx.ID_OK:
-			self.Freeze()
-			# trigger a refresh of the settings
-			self.onPanelActivated()
-			self._sendLayoutUpdatedEvent()
-			self.Thaw()
-
 	def onChangeChoice(self, evt):
 		config.conf["GPTAssistant"]["settings"]["gpt_access_method"] = gpt_access_method_list[self.methodList.GetSelection()]
 		self.Freeze()
@@ -162,22 +133,18 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			self.passwordTextLabel.Disable()
 			self.usernameTextCtrl.Disable()
 			self.passwordTextCtrl.Disable()
-			self.accountChangeButton.Disable()
 			self.accessOpenAITextLabel.Enable()
 			self.apikeyTextLabel.Enable()
 			self.apikeyTextCtrl.Enable()
-			self.apikeyChangeButton.Enable()
 		else:
 			self.accessCoseeingTextLabel.Enable()
 			self.usernameTextLabel.Enable()
 			self.passwordTextLabel.Enable()
 			self.usernameTextCtrl.Enable()
 			self.passwordTextCtrl.Enable()
-			self.accountChangeButton.Enable()
 			self.accessOpenAITextLabel.Disable()
 			self.apikeyTextLabel.Disable()
 			self.apikeyTextCtrl.Disable()
-			self.apikeyChangeButton.Disable()
 
 	def updateCurrentKey(self, key):
 		self.apikeyTextCtrl.SetValue(key)
@@ -185,55 +152,3 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 	def updateAccountInformation(self, username, password):
 		self.usernameTextCtrl.SetValue(username)
 		self.passwordTextCtrl.SetValue(password)
-
-
-class OpenAIKeySettingDialog(SettingsDialog):
-	title = _("Set OpenAI Key")
-	helpId = "SelectOpenAIKey"
-
-	def makeSettings(self, settingsSizer):
-		openaiTextLabel = wx.StaticText(self, label="OpenAI Key:")
-		self.setOpenaiTextCtrl = wx.TextCtrl(
-			self,
-			size=(self.scaleSize(400), -1),
-			value=self.Parent.apikeyTextCtrl.GetValue(),
-		)
-
-		settingsSizer.Add(openaiTextLabel)
-		settingsSizer.Add(self.setOpenaiTextCtrl)
-
-	def onOk(self, evt):
-		super().onOk(evt)
-		self.Parent.updateCurrentKey(self.setOpenaiTextCtrl.GetValue())
-
-
-class CoseeingAccountSettingDialog(SettingsDialog):
-	title = _("Set Coseeing Account Information")
-	helpId = "SetCoseeingAccountKey"
-
-	def makeSettings(self, settingsSizer):
-		usernameTextLabel = wx.StaticText(self, label="Account Name:")
-		self.setUsernameTextCtrl = wx.TextCtrl(
-			self,
-			size=(self.scaleSize(300), -1),
-			value=self.Parent.usernameTextCtrl.GetValue(),
-		)
-
-		passwordTextLabel = wx.StaticText(self, label="Password:")
-		self.setPasswordTextCtrl = wx.TextCtrl(
-			self,
-			size=(self.scaleSize(300), -1),
-			value=self.Parent.passwordTextCtrl.GetValue(),
-		)
-
-		settingsSizer.Add(usernameTextLabel)
-		settingsSizer.Add(self.setUsernameTextCtrl)
-		settingsSizer.Add(passwordTextLabel)
-		settingsSizer.Add(self.setPasswordTextCtrl)
-
-	def onOk(self, evt):
-		super().onOk(evt)
-		self.Parent.updateAccountInformation(
-			self.setUsernameTextCtrl.GetValue(),
-			self.setPasswordTextCtrl.GetValue(),
-		)
