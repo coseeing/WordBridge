@@ -51,8 +51,8 @@ config.conf.spec["GPTAssistant"] = {
 		"model": "string(default=gpt-3.5-turbo)",
 		"gpt_access_method": "string(default=OpenAI API Key)",
 		"openai_key": "string(default=\0)",
-		"account_name": "string(default=\0)",
-		"password": "string(default=\0)",
+		"coseeing_username": "string(default=\0)",
+		"coseeing_password": "string(default=\0)",
 		"max_word_count": "integer(default=50,min=2,max=64)",
 	}
 }
@@ -85,8 +85,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				ui.message(f"OpenAI API Key不存在")
 				log.warning(f"OpenAI API Key不存在")
 			else:
-				ui.message(f"XXX帳號的使用者名稱或密碼有誤")
-				log.warning(f"XXX帳號的使用者名稱或密碼有誤")
+				ui.message(f"Coseeing 帳號的使用者名稱或密碼有誤")
+				log.warning(f"Coseeing 帳號的使用者名稱或密碼有誤")
 			return
 
 		corrector = TypoCorrectorWithPhone(
@@ -190,8 +190,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		base_url = "http://openairelay.coseeing.org"  # Could be global
 		auth_data = {
-			"username": config.conf["GPTAssistant"]["settings"]["account_name"],
-			"password": config.conf["GPTAssistant"]["settings"]["password"],
+			"username": config.conf["GPTAssistant"]["settings"]["coseeing_username"],
+			"password": config.conf["GPTAssistant"]["settings"]["coseeing_password"],
 
 		}
 		# Send POST request to /login endpoint to obtain JWT token
