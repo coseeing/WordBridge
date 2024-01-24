@@ -37,6 +37,7 @@ import textInfos
 import ui
 import wx
 
+from .lib.coseeing import obtain_openai_key
 from .lib.proofreader import Proofreader
 from .lib.typo_corrector import TypoCorrector, TypoCorrectorWithPhone
 from .lib.viewHTML import text2template
@@ -79,7 +80,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# text-davinci-003 may be deprecated inthe future version of GPTAssistant
 		is_chat_completion = True
 
-		openai_api_key = self._obtain_openai_key()
+		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
+			openai_api_key = config.conf["GPTAssistant"]["settings"]["openai_key"]
+		else:
+			openai_api_key = obtain_openai_key(
+				config.conf["GPTAssistant"]["settings"]["coseeing_username"],
+				config.conf["GPTAssistant"]["settings"]["coseeing_password"],
+			)
+
 		if openai_api_key is None:
 			if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
 				ui.message(f"OpenAI API Key不存在")
@@ -182,30 +190,3 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def script_action(self, gesture):
 		action_thread = threading.Thread(target=self.action)
 		action_thread.start()
-
-	# Could be move to another file
-	def _obtain_openai_key(self):
-		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
-			return config.conf["GPTAssistant"]["settings"]["openai_key"]
-
-		base_url = "http://openairelay.coseeing.org"  # Could be global
-		auth_data = {
-			"username": config.conf["GPTAssistant"]["settings"]["coseeing_username"],
-			"password": config.conf["GPTAssistant"]["settings"]["coseeing_password"],
-
-		}
-		# Send POST request to /login endpoint to obtain JWT token
-		import requests  # Could be import globally
-		response = requests.post(f"{base_url}/login", data=auth_data)
-
-		# Check if response is successful
-		if response.status_code == 200:
-			try:
-				# Get token from response
-				token = response.json()["access_token"]
-			except:
-				token = None
-		else:
-			token = None
-
-		return token
