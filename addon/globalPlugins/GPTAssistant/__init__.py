@@ -76,6 +76,28 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			os.startfile(file)
 		wx.CallAfter(openfile)
 
+	def getSelectedText(self):
+		obj = api.getFocusObject()
+		text = obj.makeTextInfo(textInfos.POSITION_SELECTION).text
+		return text
+
+	def isTextValid(self, text):
+		max_word_count = config.conf["GPTAssistant"]["settings"]["max_word_count"]
+		if len(text) > max_word_count:
+			ui.message(f"原文長度: {len(text)}, 超過上限: {max_word_count}")
+			log.warning(f"原文長度: {len(text)}, 超過上限: {max_word_count}")
+			return False
+		elif len(text) == 0:
+			ui.message(f"未選取任何文字，無法分析")
+			log.warning(f"未選取任何文字，無法分析")
+			return False
+		elif not has_chinese(text):
+			ui.message(f"選取範圍不含漢字，無法分析")
+			log.warning(f"選取範圍不含漢字，無法分析")
+			return False
+
+		return True
+
 	def correct_typo(self, text):
 		# text-davinci-003 may be deprecated inthe future version of GPTAssistant
 		is_chat_completion = True
@@ -103,20 +125,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			is_chat_completion=is_chat_completion,
 		)
 		proofreader = Proofreader(corrector)
-
-		max_word_count = config.conf["GPTAssistant"]["settings"]["max_word_count"]
-		if len(text) > max_word_count:
-			ui.message(f"原文長度: {len(text)}, 超過上限: {max_word_count}")
-			log.warning(f"原文長度: {len(text)}, 超過上限: {max_word_count}")
-			return
-		elif len(text) == 0:
-			ui.message(f"未選取任何文字，無法分析")
-			log.warning(f"未選取任何文字，無法分析")
-			return
-		elif not has_chinese(text):
-			ui.message(f"選取範圍不含漢字，無法分析")
-			log.warning(f"選取範圍不含漢字，無法分析")
-			return
 
 		try:
 			text_corrected, diff = proofreader.typo_analyzer(text)
@@ -188,7 +196,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category=ADDON_SUMMARY,
 	)
 	def script_action(self, gesture):
-		obj = api.getFocusObject()
-		text = obj.makeTextInfo(textInfos.POSITION_SELECTION).text
+		text = self.getSelectedText()
+		if not self.isTextValid(text):
+			return
 		action_thread = threading.Thread(target=self.action, args=(text,))
 		action_thread.start()
