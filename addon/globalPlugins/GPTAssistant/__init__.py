@@ -84,8 +84,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def isTextValid(self, text):
 		max_word_count = config.conf["GPTAssistant"]["settings"]["max_word_count"]
 		if len(text) > max_word_count:
-			ui.message(f"原文長度: {len(text)}, 超過上限: {max_word_count}")
-			log.warning(f"原文長度: {len(text)}, 超過上限: {max_word_count}")
+			ui.message(f"原文字符數為{len(text)}, 超過上限{max_word_count}")
+			log.warning(f"原文字符數: {len(text)}, 超過上限: {max_word_count}")
 			return False
 		elif len(text) == 0:
 			ui.message(f"未選取任何文字，無法分析")
