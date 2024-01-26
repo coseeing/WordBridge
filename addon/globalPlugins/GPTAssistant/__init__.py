@@ -76,7 +76,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			os.startfile(file)
 		wx.CallAfter(openfile)
 
-	def correct_typo(self):
+	def correct_typo(self, text):
 		# text-davinci-003 may be deprecated inthe future version of GPTAssistant
 		is_chat_completion = True
 
@@ -104,10 +104,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		)
 		proofreader = Proofreader(corrector)
 
-		obj = api.getFocusObject()
-		text = obj.makeTextInfo(textInfos.POSITION_SELECTION).text
 		max_word_count = config.conf["GPTAssistant"]["settings"]["max_word_count"]
-
 		if len(text) > max_word_count:
 			ui.message(f"原文長度: {len(text)}, 超過上限: {max_word_count}")
 			log.warning(f"原文長度: {len(text)}, 超過上限: {max_word_count}")
@@ -177,8 +174,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		self.OnPreview(dst)
 
-	def action(self):
-		correct_typo_thread = threading.Thread(target=self.correct_typo)
+	def action(self, text):
+		correct_typo_thread = threading.Thread(target=self.correct_typo, args=(text,))
 		correct_typo_thread.start()
 
 		while correct_typo_thread.is_alive():
@@ -191,5 +188,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category=ADDON_SUMMARY,
 	)
 	def script_action(self, gesture):
-		action_thread = threading.Thread(target=self.action)
+		obj = api.getFocusObject()
+		text = obj.makeTextInfo(textInfos.POSITION_SELECTION).text
+		action_thread = threading.Thread(target=self.action, args=(text,))
 		action_thread.start()
