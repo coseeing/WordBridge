@@ -98,7 +98,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		return True
 
-	def correct_typo(self, text):
+	def correctTypo(self, text):
 		# text-davinci-003 may be deprecated inthe future version of GPTAssistant
 		is_chat_completion = True
 
@@ -183,7 +183,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self.OnPreview(dst)
 
 	def action(self, text):
-		correct_typo_thread = threading.Thread(target=self.correct_typo, args=(text,))
+		correct_typo_thread = threading.Thread(target=self.correctTypo, args=(text,))
 		correct_typo_thread.start()
 
 		while correct_typo_thread.is_alive():
