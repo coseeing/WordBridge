@@ -138,6 +138,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			log.warning(f"選取範圍未檢測出錯誤")
 			return
 
+		api.copyToClip(text_corrected)
+		ui.message(f"結果已複製到剪貼簿")
+		log.warning(f"結果已複製到剪貼簿")
+
 		print(f"原文是: {text}")
 		print(f"修正後是: {text_corrected}")
 		print(f"diff是: {diff}")
