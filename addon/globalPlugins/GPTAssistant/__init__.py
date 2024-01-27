@@ -187,7 +187,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		self.showReport(diff_data)
 
-	def action(self, text):
+	def correctionAction(self, text):
 		correct_typo_thread = threading.Thread(target=self.correctTypo, args=(text,))
 		correct_typo_thread.start()
 
@@ -200,9 +200,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		description=_("GPT"),
 		category=ADDON_SUMMARY,
 	)
-	def script_action(self, gesture):
+	def script_correction(self, gesture):
 		text = self.getSelectedText()
 		if not self.isTextValid(text):
 			return
-		action_thread = threading.Thread(target=self.action, args=(text,))
+		action_thread = threading.Thread(target=self.correctionAction, args=(text,))
 		action_thread.start()
