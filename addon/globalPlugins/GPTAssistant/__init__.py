@@ -76,6 +76,45 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			os.startfile(file)
 		wx.CallAfter(openfile)
 
+	def showReport(self, diff_data):
+		template_folder = os.path.join(PATH, "web", "templates")
+		raw_folder = os.path.join(PATH, "web", "workspace", "default")
+		review_folder = os.path.join(PATH, "web", "workspace", "review")
+
+		try:
+			shutil.rmtree(raw_folder)
+		except BaseException:
+			pass
+		if not os.path.exists(raw_folder):
+			os.makedirs(raw_folder)
+
+		raw = os.path.join(raw_folder, "result.txt")
+		with open(raw, "w", encoding="utf8") as f:
+			f.write(json.dumps(diff_data))
+
+		try:
+			shutil.rmtree(review_folder)
+		except BaseException:
+			pass
+		if not os.path.exists(review_folder):
+			os.makedirs(review_folder)
+
+		shutil.copytree(
+			os.path.join(template_folder, "modules"),
+			os.path.join(review_folder, "modules")
+		)
+
+		src = os.path.join(review_folder, os.path.basename(raw))
+		shutil.copyfile(
+			raw,
+			src,
+		)
+
+		dst = os.path.join(review_folder, "result.html")
+		text2template(src, dst)
+
+		self.OnPreview(dst)
+
 	def getSelectedText(self):
 		obj = api.getFocusObject()
 		text = obj.makeTextInfo(textInfos.POSITION_SELECTION).text
@@ -127,7 +166,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		proofreader = Proofreader(corrector)
 
 		try:
-			text_corrected, diff = proofreader.typo_analyzer(text)
+			text_corrected, diff_data = proofreader.typo_analyzer(text)
 		except Exception as e:
 			ui.message(f"抱歉，程式運行中遇到了一些問題，錯誤詳情是:{e}")
 			log.warning(f"抱歉，程式運行中遇到了一些問題，錯誤詳情是:{e}")
@@ -144,47 +183,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		print(f"原文是: {text}")
 		print(f"修正後是: {text_corrected}")
-		print(f"diff是: {diff}")
+		print(f"diff是: {diff_data}")
 
-		template_folder = os.path.join(PATH, "web", "templates")
-		raw_folder = os.path.join(PATH, "web", "workspace", "default")
-		review_folder = os.path.join(PATH, "web", "workspace", "review")
-
-		try:
-			shutil.rmtree(raw_folder)
-		except BaseException:
-			pass
-		if not os.path.exists(raw_folder):
-			os.makedirs(raw_folder)
-
-		data = diff
-
-		raw = os.path.join(raw_folder, "result.txt")
-		with open(raw, "w", encoding="utf8") as f:
-			f.write(json.dumps(data))
-
-		try:
-			shutil.rmtree(review_folder)
-		except BaseException:
-			pass
-		if not os.path.exists(review_folder):
-			os.makedirs(review_folder)
-
-		shutil.copytree(
-			os.path.join(template_folder, "modules"),
-			os.path.join(review_folder, "modules")
-		)
-
-		src = os.path.join(review_folder, os.path.basename(raw))
-		shutil.copyfile(
-			raw,
-			src,
-		)
-
-		dst = os.path.join(review_folder, "result.html")
-		text2template(src, dst)
-
-		self.OnPreview(dst)
+		self.showReport(diff_data)
 
 	def action(self, text):
 		correct_typo_thread = threading.Thread(target=self.correctTypo, args=(text,))
