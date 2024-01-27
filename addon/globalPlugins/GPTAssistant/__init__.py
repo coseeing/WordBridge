@@ -137,6 +137,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		return True
 
+	def isNVDASettingsDialogCreate(self):
+		create_state = gui.settingsDialogs.NVDASettingsDialog.DialogState.CREATED
+		for dlg, state in gui.settingsDialogs.NVDASettingsDialog._instances.items():
+			if isinstance(dlg, gui.settingsDialogs.NVDASettingsDialog) and state == create_state:
+				return True
+		return False
+
 	def correctTypo(self, text):
 		# text-davinci-003 may be deprecated inthe future version of GPTAssistant
 		is_chat_completion = True
@@ -201,6 +208,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category=ADDON_SUMMARY,
 	)
 	def script_correction(self, gesture):
+		if self.isNVDASettingsDialogCreate():
+			ui.message(f"無法運行，請先結束NVDA設定")
+			log.warning(f"無法運行，請先結束NVDA設定")
+			return
+
 		text = self.getSelectedText()
 		if not self.isTextValid(text):
 			return
