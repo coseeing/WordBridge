@@ -74,7 +74,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		)
 		sizer.Add(self.passwordTextCtrl, pos=(4, 1))
 
-		self._toggleAccessElements()
+		self._enableAccessElements(gpt_access_method_list[self.methodList.GetSelection()])
 
 		accessPanel.SetSizer(sizer)
 		sizer.Fit(self)
@@ -118,16 +118,15 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		config.conf["GPTAssistant"]["settings"]["max_word_count"] = self.maxWordCount.GetValue()
 
 	def onChangeChoice(self, evt):
-		config.conf["GPTAssistant"]["settings"]["gpt_access_method"] = gpt_access_method_list[self.methodList.GetSelection()]
 		self.Freeze()
 		# trigger a refresh of the settings
 		self.onPanelActivated()
 		self._sendLayoutUpdatedEvent()
-		self._toggleAccessElements()
+		self._enableAccessElements(gpt_access_method_list[self.methodList.GetSelection()])
 		self.Thaw()
 
-	def _toggleAccessElements(self):
-		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
+	def _enableAccessElements(self, gpt_access_method):
+		if gpt_access_method == "OpenAI API Key":
 			self.accessCoseeingTextLabel.Disable()
 			self.usernameTextLabel.Disable()
 			self.passwordTextLabel.Disable()
