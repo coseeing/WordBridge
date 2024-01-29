@@ -22,7 +22,8 @@ class BaseTypoCorrector():
 	def __init__(
 		self,
 		model: str,
-		api_key: str,
+		access_token: str,
+		api_base_url: str,
 		max_tokens: int = 2048,
 		seed: int = 0,
 		temperature: float = 0.0,
@@ -35,6 +36,7 @@ class BaseTypoCorrector():
 	):
 
 		self.model = model
+		self.api_base_url = api_base_url
 		self.max_tokens = max_tokens
 		self.seed = seed
 		self.temperature = temperature
@@ -45,7 +47,7 @@ class BaseTypoCorrector():
 		self.backoff = backoff
 		self.is_chat_completion = is_chat_completion
 		self.usage_history = []
-		self.headers = {"Authorization": f"Bearer {api_key}"}
+		self.headers = {"Authorization": f"Bearer {access_token}"}
 
 	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
 		if fake_operation or not has_chinese(input_text):
@@ -117,9 +119,9 @@ class BaseTypoCorrector():
 	def _openai_post_with_retries(self, data):
 		backoff = self.backoff
 		if self.is_chat_completion:
-			url = "https://api.openai.com/v1/chat/completions"
+			url = f"{self.api_base_url}/v1/chat/completions"
 		else:
-			url = "https://api.openai.com/v1/completions"
+			url = f"{self.api_base_url}/v1/completions"
 
 		response_json = None
 		for r in range(self.httppost_retries):

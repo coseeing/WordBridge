@@ -149,14 +149,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		is_chat_completion = True
 
 		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
-			openai_api_key = config.conf["GPTAssistant"]["settings"]["openai_key"]
+			access_token = config.conf["GPTAssistant"]["settings"]["openai_key"]
+			api_base_url = "https://api.openai.com"
 		else:
-			openai_api_key = obtain_openai_key(
+			access_token = obtain_openai_key(
 				config.conf["GPTAssistant"]["settings"]["coseeing_username"],
 				config.conf["GPTAssistant"]["settings"]["coseeing_password"],
 			)
+			api_base_url = "http://openairelay.coseeing.org"
 
-		if openai_api_key is None:
+		if access_token is None:
 			if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
 				ui.message(f"OpenAI API Key不存在")
 				log.warning(f"OpenAI API Key不存在")
@@ -167,7 +169,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		corrector = TypoCorrectorWithPhone(
 			model=config.conf["GPTAssistant"]["settings"]["model"],
-			api_key=config.conf["GPTAssistant"]["settings"]["openai_key"],
+			access_token=access_token,
+			api_base_url=api_base_url,
 			is_chat_completion=is_chat_completion,
 		)
 		proofreader = Proofreader(corrector)
