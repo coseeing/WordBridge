@@ -221,3 +221,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return
 		action_thread = threading.Thread(target=self.correctionAction, args=(text,))
 		action_thread.start()
+
+	@script(
+		gesture="kb:NVDA+alt+i",
+		description=_("GPT"),
+		category=ADDON_SUMMARY,
+	)
+	def script_showGPTSettings(self, gesture):
+		wx.CallAfter(gui.mainFrame._popupSettingsDialog, gui.settingsDialogs.NVDASettingsDialog, OpenAIGeneralSettingsPanel)
