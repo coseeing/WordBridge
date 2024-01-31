@@ -50,7 +50,7 @@ class BaseTypoCorrector():
 		self.headers = {"Authorization": f"Bearer {access_token}"}
 
 	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
-		if fake_operation or not has_chinese(input_text):
+		if fake_operation or not self._has_target_language(input_text):
 			return input_text
 
 		if self.is_chat_completion:
@@ -174,6 +174,9 @@ class BaseTypoCorrector():
 	def _text_postprocess(self, text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
+	def _has_target_language(self, text: str):
+		raise NotImplementedError("Subclass must implement this method")
+
 
 class ChineseTypoCorrectorLite(BaseTypoCorrector):
 
@@ -201,6 +204,9 @@ class ChineseTypoCorrectorLite(BaseTypoCorrector):
 
 	def _text_postprocess(self, text: str):
 		return text
+
+	def _has_target_language(self, text: str):
+		return has_chinese(text)
 
 
 class ChineseTypoCorrector(BaseTypoCorrector):
@@ -247,3 +253,5 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 	def _text_postprocess(self, text: str):
 		return text[len(self.prefix):(len(text) - len(self.suffix))]
 
+	def _has_target_language(self, text: str):
+		return has_chinese(text)
