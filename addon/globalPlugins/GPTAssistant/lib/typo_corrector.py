@@ -32,7 +32,7 @@ class BaseTypoCorrector():
 		max_correction_attempts: int = 3,
 		httppost_retries: int = 2,
 		backoff: int = 1,
-		is_chat_completion: bool = False,
+		is_chat_completion: bool = True,
 	):
 
 		self.model = model

@@ -145,9 +145,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, text):
-		# text-davinci-003 may be deprecated inthe future version of GPTAssistant
-		is_chat_completion = True
-
 		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
 			access_token = config.conf["GPTAssistant"]["settings"]["openai_key"]
 			api_base_url = "https://api.openai.com"
@@ -171,7 +168,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			model=config.conf["GPTAssistant"]["settings"]["model"],
 			access_token=access_token,
 			api_base_url=api_base_url,
-			is_chat_completion=is_chat_completion,
 		)
 		proofreader = Proofreader(corrector)
 
