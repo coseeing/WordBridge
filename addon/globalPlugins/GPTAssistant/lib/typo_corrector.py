@@ -175,7 +175,7 @@ class BaseTypoCorrector():
 		raise NotImplementedError("Subclass must implement this method")
 
 
-class TypoCorrector(BaseTypoCorrector):
+class ChineseTypoCorrectorLite(BaseTypoCorrector):
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
@@ -203,7 +203,7 @@ class TypoCorrector(BaseTypoCorrector):
 		return text
 
 
-class TypoCorrectorWithPhone(BaseTypoCorrector):
+class ChineseTypoCorrector(BaseTypoCorrector):
 
 	def __init__(self, prefix="我說：“", suffix="。”", *args, **kwargs):
 		self.prefix = prefix
@@ -247,36 +247,3 @@ class TypoCorrectorWithPhone(BaseTypoCorrector):
 	def _text_postprocess(self, text: str):
 		return text[len(self.prefix):(len(text) - len(self.suffix))]
 
-
-class TypoCorrectorByPhone(BaseTypoCorrector):
-
-	def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
-
-	def _parse_response(self, response: str) -> str:
-		if self.is_chat_completion:
-			text = response["choices"][0]["message"]["content"]
-		else:
-			text = response["choices"][0]["text"]
-
-		while text and text[-1] in SEPERATOR:
-			text = text[:-1]
-		return text
-
-	def _create_input(self, template: str, text: str, is_chat_completion: bool):
-		pinyin = ' '.join(lazy_pinyin(text, style=Style.TONE))
-		if is_chat_completion:
-			raise NotImplementedError("TypoCorrectorByPhone do not support chat completion")
-		return template.replace("{{pinyin_input}}", pinyin).replace("{{text_type}}", "繁體中文")
-
-	def _has_error(self, response: str, text: str) -> bool:
-		return False
-
-	def _correct_typos(self, response: str, text: str):
-		return response
-
-	def _text_preprocess(self, input_text: str):
-		return input_text
-
-	def _text_postprocess(self, text: str):
-		return text

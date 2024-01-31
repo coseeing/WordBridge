@@ -39,7 +39,7 @@ import wx
 
 from .lib.coseeing import obtain_openai_key
 from .lib.proofreader import Proofreader
-from .lib.typo_corrector import TypoCorrector, TypoCorrectorWithPhone
+from .lib.typo_corrector import ChineseTypoCorrector
 from .lib.viewHTML import text2template
 from hanzidentifier import has_chinese
 
@@ -164,7 +164,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				log.warning(f"Coseeing 帳號的使用者名稱或密碼有誤")
 			return
 
-		corrector = TypoCorrectorWithPhone(
+		corrector = ChineseTypoCorrector(
 			model=config.conf["GPTAssistant"]["settings"]["model"],
 			access_token=access_token,
 			api_base_url=api_base_url,
