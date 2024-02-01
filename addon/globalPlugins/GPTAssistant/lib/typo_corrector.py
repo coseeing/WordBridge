@@ -79,7 +79,7 @@ class BaseTypoCorrector():
 			response_text_history.append(corrected_text)
 
 		if len(response_text_history) > 1:
-			log.warning("Correction history: ", response_text_history)
+			log.warning(f"Correction history: {response_text_history}")
 
 		output_text = self._text_postprocess(corrected_text) if corrected_text is not None else None
 
