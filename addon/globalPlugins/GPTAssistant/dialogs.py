@@ -22,7 +22,11 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		modelLabelText = _("OpenAI Model:")
 		self.modelList = settingsSizerHelper.addLabeledControl(modelLabelText, wx.Choice, choices=model_list)
 		self.modelList.SetToolTip(wx.ToolTip("Choose the openAI model for the GPT assistant"))
-		self.modelList.SetSelection(model_list.index(config.conf["GPTAssistant"]["settings"]["model"]))
+		if config.conf["GPTAssistant"]["settings"]["model"] in model_list:
+			self.modelList.SetSelection(model_list.index(config.conf["GPTAssistant"]["settings"]["model"]))
+		else:
+			self.modelList.SetSelection(0)
+			config.conf["GPTAssistant"]["settings"]["model"] = model_list[0]
 
 		# For selecting GPT access method
 		accessMethodLabelText = _("GPT Access Method:")
