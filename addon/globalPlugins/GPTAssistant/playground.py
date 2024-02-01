@@ -1,15 +1,19 @@
 from lib.proofreader import Proofreader
-from lib.typo_corrector import TypoCorrector
+from lib.typo_corrector import ChineseTypoCorrector
 
 
 """
-This is a quick example program that demonstrates how to use the Proofreader and TypoCorrector classes to
+This is a quick example program that demonstrates how to use the Proofreader and ChineseTypoCorrector classes to
 1. Correct typos in a sample text string
 2. Analyze the differences between original and corrected texts
 """
 if __name__ == "__main__":
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
-	corrector = TypoCorrector(model="gpt-3.5-turbo", api_key="OPENAI_API_KEY", is_chat_completion=True)
+	corrector = ChineseTypoCorrector(
+		model="gpt-3.5-turbo",
+		access_token="<API_KEY>",
+		api_base_url="https://api.openai.com",
+	)
 
 	# Initialize the proofreader object using the typo corrector
 	proofreader = Proofreader(corrector)

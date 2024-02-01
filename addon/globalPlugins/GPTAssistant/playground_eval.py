@@ -1,17 +1,17 @@
 import os
 
 from lib.proofreader import Proofreader
-from lib.typo_corrector import TypoCorrector
+from lib.typo_corrector import ChineseTypoCorrector
 
 
 if __name__ == "__main__":
 
 	model = "gpt-3.5-turbo"
-	api_key = "OPENAI_API_KEY"
-	is_chat_completion = True
+	api_key = "<API_KEY>"
+	api_base_url="https://api.openai.com"
 	data_name = "gpt4_250_sentence_aug_err_0.1_41PJSO2KRV6SK1WJ6936.txt"
 	groundtruth_name = "gpt4_250_sentence_gt.txt"
-	tag = "fix_word_count_v2"
+	tag = "2024-02-02"
 
 	data_path = os.path.join(".", "data", data_name)
 	groundtruth_path = os.path.join(".", "data", groundtruth_name)
@@ -24,7 +24,11 @@ if __name__ == "__main__":
 		os.makedirs(result_folder_name)
 
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
-	corrector = TypoCorrector(model=model, api_key=api_key, is_chat_completion=is_chat_completion)
+	corrector = ChineseTypoCorrector(
+		model=model,
+		access_token=api_key,
+		api_base_url=api_base_url,
+	)
 
 	# Initialize the proofreader object using the typo corrector
 	proofreader = Proofreader(corrector)
@@ -42,10 +46,13 @@ if __name__ == "__main__":
 	correct = 0
 	with open(result_path_path, 'w') as f:
 		for i in range(len(data)):
-			text_corrected, _ = proofreader.typo_analyzer(data[i])
+			while 1:
+				try:
+					text_corrected, _ = proofreader.typo_analyzer(data[i])
+					break
+				except:
+					continue
 			if text_corrected == groundtruth[i]:
-				f.write(f"{data[i]} => {text_corrected}\n")
-				print(f"{data[i]} => {text_corrected}")
 				correct += 1
 				continue
 			f.write(f"{data[i]} => {text_corrected}, ans: {groundtruth[i]}\n")
