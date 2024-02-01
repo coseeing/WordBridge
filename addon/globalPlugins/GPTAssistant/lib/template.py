@@ -16,6 +16,12 @@ chinese_with_phone_chat_templates = [
 	{"role": "user", "content": "({{text_input}}&{{phone_input}}) => "},
 ]
 
+chinese_comment = "'{{response_previous}}'是錯誤答案，請修正重新輸出文字"
+
+COMMENT_DICT = {
+	"ChineseTypoCorrectorChat": chinese_comment,
+}
+
 TEMPLATE_DICT = {
 	"ChineseTypoCorrectorLite": chinese_lite_templates,
 	"ChineseTypoCorrector": chinese_with_phone_templates,

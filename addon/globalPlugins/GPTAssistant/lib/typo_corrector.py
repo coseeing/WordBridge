@@ -8,7 +8,7 @@ import time
 
 from hanzidentifier import has_chinese
 from pypinyin import lazy_pinyin, Style
-from .template import TEMPLATE_DICT
+from .template import COMMENT_DICT, TEMPLATE_DICT
 from .utils import get_phone, has_simplified_chinese_char, has_traditional_chinese_char
 from .utils import SEPERATOR
 
@@ -99,9 +99,11 @@ class BaseTypoCorrector():
 		return self._openai_post_with_retries(data)
 
 	def _chat_completion(self, messages: List, response_text_history: List) -> str:
+		comment_template = COMMENT_DICT[self.__class__.__name__ + "Chat"]
 		for response_previous in response_text_history:
+			comment = comment_template.replace("{{response_previous}}", response_previous)
 			messages.append({"role": "assistant", "content": response_previous})
-			messages.append({"role": "user", "content": f"'{response_previous}'是錯誤答案，請修正重新輸出文字"})
+			messages.append({"role": "user", "content": comment})
 
 		data = {
 			"model": self.model,
