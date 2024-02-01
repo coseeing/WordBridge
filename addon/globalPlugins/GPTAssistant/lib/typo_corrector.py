@@ -8,7 +8,7 @@ import time
 
 from hanzidentifier import has_chinese
 from pypinyin import lazy_pinyin, Style
-from .template import TEMPLATE_DICT
+from .template import COMMENT_DICT, TEMPLATE_DICT
 from .utils import get_phone, has_simplified_chinese_char, has_traditional_chinese_char
 from .utils import SEPERATOR
 
@@ -32,7 +32,7 @@ class BaseTypoCorrector():
 		max_correction_attempts: int = 3,
 		httppost_retries: int = 2,
 		backoff: int = 1,
-		is_chat_completion: bool = False,
+		is_chat_completion: bool = True,
 	):
 
 		self.model = model
@@ -50,7 +50,7 @@ class BaseTypoCorrector():
 		self.headers = {"Authorization": f"Bearer {access_token}"}
 
 	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
-		if fake_operation or not has_chinese(input_text):
+		if fake_operation or not self._has_target_language(input_text):
 			return input_text
 
 		if self.is_chat_completion:
@@ -79,7 +79,7 @@ class BaseTypoCorrector():
 			response_text_history.append(corrected_text)
 
 		if len(response_text_history) > 1:
-			log.warning("Correction history: ", response_text_history)
+			log.warning(f"Correction history: {response_text_history}")
 
 		output_text = self._text_postprocess(corrected_text) if corrected_text is not None else None
 
@@ -98,10 +98,13 @@ class BaseTypoCorrector():
 
 		return self._openai_post_with_retries(data)
 
-	def _chat_completion(self, messages: List, response_text_history: List) -> str:
+	def _chat_completion(self, input: List, response_text_history: List) -> str:
+		messages = deepcopy(input)
+		comment_template = COMMENT_DICT[self.__class__.__name__ + "Chat"]
 		for response_previous in response_text_history:
+			comment = comment_template.replace("{{response_previous}}", response_previous)
 			messages.append({"role": "assistant", "content": response_previous})
-			messages.append({"role": "user", "content": f"'{response_previous}'是錯誤答案，請修正重新輸出文字"})
+			messages.append({"role": "user", "content": comment})
 
 		data = {
 			"model": self.model,
@@ -174,8 +177,11 @@ class BaseTypoCorrector():
 	def _text_postprocess(self, text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
+	def _has_target_language(self, text: str):
+		raise NotImplementedError("Subclass must implement this method")
 
-class TypoCorrector(BaseTypoCorrector):
+
+class ChineseTypoCorrectorLite(BaseTypoCorrector):
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
@@ -202,8 +208,11 @@ class TypoCorrector(BaseTypoCorrector):
 	def _text_postprocess(self, text: str):
 		return text
 
+	def _has_target_language(self, text: str):
+		return has_chinese(text)
 
-class TypoCorrectorWithPhone(BaseTypoCorrector):
+
+class ChineseTypoCorrector(BaseTypoCorrector):
 
 	def __init__(self, prefix="我說：“", suffix="。”", *args, **kwargs):
 		self.prefix = prefix
@@ -247,36 +256,5 @@ class TypoCorrectorWithPhone(BaseTypoCorrector):
 	def _text_postprocess(self, text: str):
 		return text[len(self.prefix):(len(text) - len(self.suffix))]
 
-
-class TypoCorrectorByPhone(BaseTypoCorrector):
-
-	def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
-
-	def _parse_response(self, response: str) -> str:
-		if self.is_chat_completion:
-			text = response["choices"][0]["message"]["content"]
-		else:
-			text = response["choices"][0]["text"]
-
-		while text and text[-1] in SEPERATOR:
-			text = text[:-1]
-		return text
-
-	def _create_input(self, template: str, text: str, is_chat_completion: bool):
-		pinyin = ' '.join(lazy_pinyin(text, style=Style.TONE))
-		if is_chat_completion:
-			raise NotImplementedError("TypoCorrectorByPhone do not support chat completion")
-		return template.replace("{{pinyin_input}}", pinyin).replace("{{text_type}}", "繁體中文")
-
-	def _has_error(self, response: str, text: str) -> bool:
-		return False
-
-	def _correct_typos(self, response: str, text: str):
-		return response
-
-	def _text_preprocess(self, input_text: str):
-		return input_text
-
-	def _text_postprocess(self, text: str):
-		return text
+	def _has_target_language(self, text: str):
+		return has_chinese(text)
