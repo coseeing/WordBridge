@@ -98,7 +98,8 @@ class BaseTypoCorrector():
 
 		return self._openai_post_with_retries(data)
 
-	def _chat_completion(self, messages: List, response_text_history: List) -> str:
+	def _chat_completion(self, input: List, response_text_history: List) -> str:
+		messages = deepcopy(input)
 		comment_template = COMMENT_DICT[self.__class__.__name__ + "Chat"]
 		for response_previous in response_text_history:
 			comment = comment_template.replace("{{response_previous}}", response_previous)
