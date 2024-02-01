@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import Dict, Tuple
 from .utils import strings_diff, text_segmentation
-from .typo_corrector import TypoCorrector
+from .typo_corrector import BaseTypoCorrector
 
 
 class Proofreader():
@@ -9,10 +9,10 @@ class Proofreader():
 	A class that provides a proofreading tool to refine texts.
 
 	Parameters:
-		segment_corrector (TypoCorrector): An instance of the TypoCorrector for correcting typos in the input text.
+		segment_corrector (BaseTypoCorrector): An instance of the BaseTypoCorrector for correcting typos in the input text.
 	"""
 
-	def __init__(self, segment_corrector: TypoCorrector):
+	def __init__(self, segment_corrector: BaseTypoCorrector):
 		self.segment_corrector = segment_corrector
 
 	def get_total_usage(self) -> Dict:
@@ -24,7 +24,7 @@ class Proofreader():
 
 	def typo_analyzer(self, text: str, fake_corrected_text: str = None) -> Tuple:
 		"""
-		Analyze the input text's typos and corrects them using the TypoCorrector instance passed to the Proofreader
+		Analyze the input text's typos and corrects them using the BaseTypoCorrector instance passed to the Proofreader
 		constructor. It also calculates the difference between the original and corrected text.
 
 		Parameters:
