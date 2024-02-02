@@ -24,8 +24,8 @@ class Proofreader():
 
 	def typo_analyzer(self, text: str, fake_corrected_text: str = None) -> Tuple:
 		"""
-		Analyze typos of text using self.segment_corrector. It also analyzes the difference between the original text
-		and corrected text.
+		Analyze typos of text using self.segment_corrector. It also analyzes the difference between the original
+		text and corrected text.
 
 		Parameters:
 			text (str): The text to be analyzed for typos.
