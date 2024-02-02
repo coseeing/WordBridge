@@ -152,20 +152,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			access_token = config.conf["GPTAssistant"]["settings"]["openai_key"]
 			api_base_url = "https://api.openai.com"
 		else:
-			access_token = obtain_openai_key(
-				config.conf["GPTAssistant"]["settings"]["coseeing_username"],
-				config.conf["GPTAssistant"]["settings"]["coseeing_password"],
-			)
+			try:
+				access_token = obtain_openai_key(
+					config.conf["GPTAssistant"]["settings"]["coseeing_username"],
+					config.conf["GPTAssistant"]["settings"]["coseeing_password"],
+				)
+			except Exception as e:
+				ui.message(f"抱歉，登入coseeing時遇到了一些問題，錯誤詳情是:{e}")
+				log.warning(f"抱歉，登入coseeing時遇到了一些問題，錯誤詳情是:{e}")
+				return
 			api_base_url = "http://openairelay.coseeing.org"
-
-		if access_token is None:
-			if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
-				ui.message("OpenAI API Key不存在")
-				log.warning("OpenAI API Key不存在")
-			else:
-				ui.message("Coseeing 帳號的使用者名稱或密碼有誤")
-				log.warning("Coseeing 帳號的使用者名稱或密碼有誤")
-			return
 
 		corrector = ChineseTypoCorrector(
 			model=config.conf["GPTAssistant"]["settings"]["model"],
