@@ -10,7 +10,6 @@ from hanzidentifier import has_chinese
 from pypinyin import lazy_pinyin, Style
 from .template import COMMENT_DICT, TEMPLATE_DICT
 from .utils import get_phone, has_simplified_chinese_char, has_traditional_chinese_char
-from .utils import SEPERATOR
 
 import chinese_converter
 
@@ -140,7 +139,9 @@ class BaseTypoCorrector():
 				break
 			except Exception as e:
 				request_error = type(e).__name__
-				log.error(f"Try = {r + 1}, {type(e).__name__}, An unexpected error occurred when sending OpenAI request: {e}")
+				log.error(
+					f"Try = {r + 1}, {type(e).__name__}, An unexpected error occurred when sending OpenAI request: {e}"
+				)
 				backoff = min(backoff * (1 + random.random()), 3)
 				time.sleep(backoff)
 
@@ -157,7 +158,6 @@ class BaseTypoCorrector():
 			raise Exception(f"不明錯誤，請求狀態碼{response.status_code}")
 
 		return response_json
-
 
 	def _parse_response(self, response: str):
 		raise NotImplementedError("Subclass must implement this method")
