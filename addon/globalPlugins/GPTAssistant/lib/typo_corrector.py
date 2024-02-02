@@ -140,14 +140,13 @@ class BaseTypoCorrector():
 			except Exception as e:
 				request_error = type(e).__name__
 				log.error(
-					f"Try = {r + 1}, {type(e).__name__}, An unexpected error occurred when sending OpenAI request: {e}"
+					f"Try = {r + 1}, {request_error}, an error occurred when sending OpenAI request: {e}"
 				)
 				backoff = min(backoff * (1 + random.random()), 3)
 				time.sleep(backoff)
 
 		if response is None:
 			raise Exception(f"HTTP請求錯誤({request_error})，請檢查網路設定")
-			return
 
 		response_json = response.json()
 		if response.status_code == 401:
