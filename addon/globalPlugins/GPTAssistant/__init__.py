@@ -68,7 +68,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(OpenAIGeneralSettingsPanel)
 
 	def onSettings(self, evt):
-		wx.CallAfter(gui.mainFrame._popupSettingsDialog, gui.settingsDialogs.NVDASettingsDialog, OpenAIGeneralSettingsPanel)
+		wx.CallAfter(
+			gui.mainFrame._popupSettingsDialog,
+			gui.settingsDialogs.NVDASettingsDialog,
+			OpenAIGeneralSettingsPanel
+		)
 
 	def OnPreview(self, file):
 		def openfile():

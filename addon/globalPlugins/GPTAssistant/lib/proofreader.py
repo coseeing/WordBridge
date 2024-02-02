@@ -9,7 +9,7 @@ class Proofreader():
 	A class that provides a proofreading tool to refine texts.
 
 	Parameters:
-		segment_corrector (BaseTypoCorrector): An instance of the BaseTypoCorrector for correcting typos in the input text.
+		segment_corrector (BaseTypoCorrector): An instance of a typo corrector for correcting typos of texts.
 	"""
 
 	def __init__(self, segment_corrector: BaseTypoCorrector):
@@ -24,8 +24,8 @@ class Proofreader():
 
 	def typo_analyzer(self, text: str, fake_corrected_text: str = None) -> Tuple:
 		"""
-		Analyze the input text's typos and corrects them using the BaseTypoCorrector instance passed to the Proofreader
-		constructor. It also calculates the difference between the original and corrected text.
+		Analyze typos of text using self.segment_corrector. It also analyzes the difference between the original text
+		and corrected text.
 
 		Parameters:
 			text (str): The text to be analyzed for typos.
