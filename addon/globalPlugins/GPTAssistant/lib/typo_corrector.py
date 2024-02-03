@@ -1,4 +1,6 @@
 from copy import deepcopy
+from queue import Queue
+from threading import Thread
 from typing import Any, List
 
 import logging
@@ -10,11 +12,22 @@ from hanzidentifier import has_chinese
 from pypinyin import lazy_pinyin, Style
 from .template import COMMENT_DICT, TEMPLATE_DICT
 from .utils import get_phone, has_simplified_chinese_char, has_traditional_chinese_char
-from .utils import SEPERATOR
 
 import chinese_converter
 
 log = logging.getLogger(__name__)
+
+
+class CorrectorResult():
+	def __init__(
+		self,
+		original_text: str,
+		corrected_text: str,
+		response_history: List,
+	):
+		self.original_text = original_text
+		self.corrected_text = corrected_text
+		self.response_history = response_history
 
 
 class BaseTypoCorrector():
@@ -46,7 +59,6 @@ class BaseTypoCorrector():
 		self.httppost_retries = httppost_retries
 		self.backoff = backoff
 		self.is_chat_completion = is_chat_completion
-		self.usage_history = []
 		self.headers = {"Authorization": f"Bearer {access_token}"}
 
 	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
@@ -60,6 +72,7 @@ class BaseTypoCorrector():
 		text = self._text_preprocess(input_text)
 		input = self._create_input(template, text, self.is_chat_completion)
 
+		response_history = []
 		response_text_history = []
 		for _ in range(self.max_correction_attempts):
 			corrected_text = None
@@ -68,7 +81,7 @@ class BaseTypoCorrector():
 			else:
 				response_json = self._completion(input)
 
-			self.usage_history.append((input, response_json))
+			response_history.append(response_json)
 
 			response_text = self._parse_response(response_json)
 			corrected_text = self._correct_typos(response_text, text)
@@ -83,7 +96,56 @@ class BaseTypoCorrector():
 
 		output_text = self._text_postprocess(corrected_text) if corrected_text is not None else None
 
-		return output_text
+		corrector_result = CorrectorResult(
+			original_text=input_text,
+			corrected_text=output_text,
+			response_history=response_history,
+		)
+
+		return corrector_result
+
+	def correct_segment_batch(self, input_text_list: list) -> list:
+		assert isinstance(input_text_list, list)
+
+		exception_queue = Queue()
+
+		if not input_text_list:
+			return input_text_list
+
+		output_text_list = [None] * len(input_text_list)
+
+		threads = []
+		for index, input_text in enumerate(input_text_list):
+			thread = Thread(
+				target=self._correct_segment_task,
+				args=(input_text, output_text_list, index, exception_queue)
+			)
+			thread.start()
+			threads.append(thread)
+
+		for thread in threads:
+			thread.join()
+
+		exception_set = set()
+		while not exception_queue.empty():
+			exception_set.add(str(exception_queue.get()))
+		if exception_set:
+			raise Exception(", ".join(list(exception_set)))
+
+		return output_text_list
+
+	def _correct_segment_task(
+		self,
+		input_text: str,
+		output_text_list: list,
+		index: int,
+		exception_queue: Queue
+	) -> str:
+		try:
+			text = self.correct_segment(input_text)
+			output_text_list[index] = text
+		except Exception as e:
+			exception_queue.put(e)
 
 	def _completion(self, prompt: str) -> str:
 		data = {
@@ -140,13 +202,14 @@ class BaseTypoCorrector():
 				break
 			except Exception as e:
 				request_error = type(e).__name__
-				log.error(f"Try = {r + 1}, {type(e).__name__}, An unexpected error occurred when sending OpenAI request: {e}")
+				log.error(
+					f"Try = {r + 1}, {request_error}, an error occurred when sending OpenAI request: {e}"
+				)
 				backoff = min(backoff * (1 + random.random()), 3)
 				time.sleep(backoff)
 
 		if response is None:
 			raise Exception(f"HTTP請求錯誤({request_error})，請檢查網路設定")
-			return
 
 		response_json = response.json()
 		if response.status_code == 401:
@@ -157,7 +220,6 @@ class BaseTypoCorrector():
 			raise Exception(f"不明錯誤，請求狀態碼{response.status_code}")
 
 		return response_json
-
 
 	def _parse_response(self, response: str):
 		raise NotImplementedError("Subclass must implement this method")

@@ -25,7 +25,6 @@ from .dialogs import OpenAIGeneralSettingsPanel
 
 from logHandler import log
 from scriptHandler import script
-from speech.speech import getCharDescListFromText
 from tones import beep
 
 import addonHandler
@@ -69,7 +68,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(OpenAIGeneralSettingsPanel)
 
 	def onSettings(self, evt):
-		wx.CallAfter(gui.mainFrame._popupSettingsDialog, gui.settingsDialogs.NVDASettingsDialog, OpenAIGeneralSettingsPanel)
+		wx.CallAfter(
+			gui.mainFrame._popupSettingsDialog,
+			gui.settingsDialogs.NVDASettingsDialog,
+			OpenAIGeneralSettingsPanel
+		)
 
 	def OnPreview(self, file):
 		def openfile():
@@ -127,12 +130,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			log.warning(f"原文字符數: {len(text)}, 超過上限: {max_word_count}")
 			return False
 		elif len(text) == 0:
-			ui.message(f"未選取任何文字，無法分析")
-			log.warning(f"未選取任何文字，無法分析")
+			ui.message("未選取任何文字，無法分析")
+			log.warning("未選取任何文字，無法分析")
 			return False
 		elif not has_chinese(text):
-			ui.message(f"選取範圍不含漢字，無法分析")
-			log.warning(f"選取範圍不含漢字，無法分析")
+			ui.message("選取範圍不含漢字，無法分析")
+			log.warning("選取範圍不含漢字，無法分析")
 			return False
 
 		return True
@@ -149,20 +152,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			access_token = config.conf["GPTAssistant"]["settings"]["openai_key"]
 			api_base_url = "https://api.openai.com"
 		else:
-			access_token = obtain_openai_key(
-				config.conf["GPTAssistant"]["settings"]["coseeing_username"],
-				config.conf["GPTAssistant"]["settings"]["coseeing_password"],
-			)
+			try:
+				access_token = obtain_openai_key(
+					config.conf["GPTAssistant"]["settings"]["coseeing_username"],
+					config.conf["GPTAssistant"]["settings"]["coseeing_password"],
+				)
+			except Exception as e:
+				ui.message(f"抱歉，登入coseeing時遇到了一些問題，錯誤詳情是:{e}")
+				log.warning(f"抱歉，登入coseeing時遇到了一些問題，錯誤詳情是:{e}")
+				return
 			api_base_url = "http://openairelay.coseeing.org"
-
-		if access_token is None:
-			if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
-				ui.message(f"OpenAI API Key不存在")
-				log.warning(f"OpenAI API Key不存在")
-			else:
-				ui.message(f"Coseeing 帳號的使用者名稱或密碼有誤")
-				log.warning(f"Coseeing 帳號的使用者名稱或密碼有誤")
-			return
 
 		corrector = ChineseTypoCorrector(
 			model=config.conf["GPTAssistant"]["settings"]["model"],
@@ -179,13 +178,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return
 
 		if text == text_corrected:
-			ui.message(f"選取範圍未檢測出錯誤")
-			log.warning(f"選取範圍未檢測出錯誤")
+			ui.message("選取範圍未檢測出錯誤")
+			log.warning("選取範圍未檢測出錯誤")
 			return
 
 		api.copyToClip(text_corrected)
-		ui.message(f"結果已複製到剪貼簿")
-		log.warning(f"結果已複製到剪貼簿")
+		ui.message("結果已複製到剪貼簿")
+		log.warning("結果已複製到剪貼簿")
 
 		print(f"原文是: {text}")
 		print(f"修正後是: {text_corrected}")
@@ -208,8 +207,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	)
 	def script_correction(self, gesture):
 		if self.isNVDASettingsDialogCreate():
-			ui.message(f"無法運行，請先結束NVDA設定")
-			log.warning(f"無法運行，請先結束NVDA設定")
+			ui.message("無法運行，請先結束NVDA設定")
+			log.warning("無法運行，請先結束NVDA設定")
 			return
 
 		text = self.getSelectedText()
@@ -224,4 +223,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category=ADDON_SUMMARY,
 	)
 	def script_showGPTSettings(self, gesture):
-		wx.CallAfter(gui.mainFrame._popupSettingsDialog, gui.settingsDialogs.NVDASettingsDialog, OpenAIGeneralSettingsPanel)
+		wx.CallAfter(
+			gui.mainFrame._popupSettingsDialog,
+			gui.settingsDialogs.NVDASettingsDialog,
+			OpenAIGeneralSettingsPanel
+		)
