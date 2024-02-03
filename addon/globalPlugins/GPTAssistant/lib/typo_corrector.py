@@ -1,4 +1,5 @@
 from copy import deepcopy
+from threading import Thread, Lock
 from typing import Any, List
 
 import logging
@@ -47,6 +48,7 @@ class BaseTypoCorrector():
 		self.is_chat_completion = is_chat_completion
 		self.usage_history = []
 		self.headers = {"Authorization": f"Bearer {access_token}"}
+		self.lock = Lock()
 
 	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
 		if fake_operation or not self._has_target_language(input_text):
@@ -67,7 +69,8 @@ class BaseTypoCorrector():
 			else:
 				response_json = self._completion(input)
 
-			self.usage_history.append((input, response_json))
+			with self.lock:
+				self.usage_history.append((input, response_json))
 
 			response_text = self._parse_response(response_json)
 			corrected_text = self._correct_typos(response_text, text)
@@ -83,6 +86,29 @@ class BaseTypoCorrector():
 		output_text = self._text_postprocess(corrected_text) if corrected_text is not None else None
 
 		return output_text
+
+	def correct_segment_batch(self, input_text_list: list) -> list:
+		assert isinstance(input_text_list, list)
+
+		if not input_text_list:
+			return input_text_list
+
+		output_text_list = [None] * len(input_text_list)
+
+		threads = []
+		for index, input_text in enumerate(input_text_list):
+			thread = Thread(target=self._correct_segment_task, args=(input_text, output_text_list, index))
+			thread.start()
+			threads.append(thread)
+
+		for thread in threads:
+			thread.join()
+
+		return output_text_list
+
+	def _correct_segment_task(self, input_text: str, output_text_list: list, index: int) -> str:
+		text = self.correct_segment(input_text)
+		output_text_list[index] = text
 
 	def _completion(self, prompt: str) -> str:
 		data = {

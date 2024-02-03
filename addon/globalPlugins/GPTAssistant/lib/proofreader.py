@@ -40,11 +40,9 @@ class Proofreader():
 
 		text_corrected = ""
 		segments, separators = text_segmentation(text)
-		for segment, separator in zip(segments, separators):
-			segment_corrected = self.segment_corrector.correct_segment(segment)
-			if segment_corrected is None:
-				text_corrected += ("■" * len(segment))
-				continue
+
+		segment_corrected_list = self.segment_corrector.correct_segment_batch(segments)
+		for segment_corrected, separator in zip(segment_corrected_list, separators):
 			text_corrected += (segment_corrected + separator)
 		diff = strings_diff(text, text_corrected)
 
