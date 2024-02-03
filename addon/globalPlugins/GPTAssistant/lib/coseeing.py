@@ -7,6 +7,7 @@ import time
 OPENAIRELAY_URL = "http://openairelay.coseeing.org"
 log = logging.getLogger(__name__)
 
+
 def obtain_openai_key(coseeing_username, coseeing_password):
 	auth_data = {
 		"username": coseeing_username,
