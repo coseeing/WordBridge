@@ -14,12 +14,13 @@ class Proofreader():
 
 	def __init__(self, segment_corrector: BaseTypoCorrector):
 		self.segment_corrector = segment_corrector
+		self.response_history = []
 
 	def get_total_usage(self) -> Dict:
 		total_usage = defaultdict(int)
-		for history in self.segment_corrector.usage_history:
-			for count in history[1]["usage"].keys():
-				total_usage[count] += history[1]["usage"][count]
+		for response in self.response_history:
+			for usage_type in response["usage"].keys():
+				total_usage[usage_type] += response["usage"][usage_type]
 		return total_usage
 
 	def typo_analyzer(self, text: str, fake_corrected_text: str = None) -> Tuple:
@@ -41,9 +42,10 @@ class Proofreader():
 		text_corrected = ""
 		segments, separators = text_segmentation(text)
 
-		segment_corrected_list = self.segment_corrector.correct_segment_batch(segments)
-		for segment_corrected, separator in zip(segment_corrected_list, separators):
-			text_corrected += (segment_corrected + separator)
+		corrector_result_list = self.segment_corrector.correct_segment_batch(segments)
+		for corrector_result, separator in zip(corrector_result_list, separators):
+			text_corrected += (corrector_result.corrected_text + separator)
+			self.response_history.extend(corrector_result.response_history)
 		diff = strings_diff(text, text_corrected)
 
 		return text_corrected, diff
