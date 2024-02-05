@@ -203,21 +203,21 @@ class BaseTypoCorrector():
 			except Exception as e:
 				request_error = type(e).__name__
 				log.error(
-					f"Try = {r + 1}, {request_error}, an error occurred when sending OpenAI request: {e}"
+					_(f"Try = {r + 1}, {request_error}, an error occurred when sending OpenAI request: {e}")
 				)
 				backoff = min(backoff * (1 + random.random()), 3)
 				time.sleep(backoff)
 
 		if response is None:
-			raise Exception(f"HTTP請求錯誤({request_error})，請檢查網路設定")
+			raise Exception(_(f"HTTP request error ({request_error}). Please check the network setting"))
 
 		response_json = response.json()
 		if response.status_code == 401:
-			raise Exception("認證錯誤，請檢查OpenAI API Key是否正確")
+			raise Exception(_("Authentication error. Please check if the OpenAI API Key is correct."))
 		elif response.status_code == 404:
-			raise Exception("服務不存在，請檢查使用的模型是否已過期")
-		elif response_json is None:
-			raise Exception(f"不明錯誤，請求狀態碼{response.status_code}")
+			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
+		elif response.status_code != 200:
+			raise Exception(_(f"Unknown errors. Status code = {response.status_code}"))
 
 		return response_json
 
