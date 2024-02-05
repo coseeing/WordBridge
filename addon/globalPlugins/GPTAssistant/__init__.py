@@ -126,16 +126,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def isTextValid(self, text):
 		max_word_count = config.conf["GPTAssistant"]["settings"]["max_word_count"]
 		if len(text) > max_word_count:
-			ui.message(f"原文字符數為{len(text)}, 超過上限{max_word_count}")
-			log.warning(f"原文字符數: {len(text)}, 超過上限: {max_word_count}")
+			ui.message(_(f"The number of characters is {len(text)}, which exceeds the maximum, {max_word_count}"))
+			log.warning(_(f"The number of characters is {len(text)}, which exceeds the maximum, {max_word_count}"))
 			return False
 		elif len(text) == 0:
-			ui.message("未選取任何文字，無法分析")
-			log.warning("未選取任何文字，無法分析")
+			ui.message(_("No text is selected, unable to analyze."))
+			log.warning(_("No text is selected, unable to analyze."))
 			return False
 		elif not has_chinese(text):
-			ui.message("選取範圍不含漢字，無法分析")
-			log.warning("選取範圍不含漢字，無法分析")
+			ui.message(_("The selected text does not contain Chinese characters, unable to analyze."))
+			log.warning(_("The selected text does not contain Chinese characters, unable to analyze."))
 			return False
 
 		return True
@@ -148,7 +148,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, text):
-		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
+		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == _("OpenAI API Key"):
 			access_token = config.conf["GPTAssistant"]["settings"]["openai_key"]
 			api_base_url = "https://api.openai.com"
 		else:
@@ -158,8 +158,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					config.conf["GPTAssistant"]["settings"]["coseeing_password"],
 				)
 			except Exception as e:
-				ui.message(f"抱歉，登入coseeing時遇到了一些問題，錯誤詳情是:{e}")
-				log.warning(f"抱歉，登入coseeing時遇到了一些問題，錯誤詳情是:{e}")
+				ui.message(_(f"Sorry, an error occurred while logging into Coseeing, the details are: {e}"))
+				log.warning(_(f"Sorry, an error occurred while logging into Coseeing, the details are: {e}"))
 				return
 			api_base_url = "http://openairelay.coseeing.org"
 
@@ -173,22 +173,22 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		try:
 			text_corrected, diff_data = proofreader.typo_analyzer(text)
 		except Exception as e:
-			ui.message(f"抱歉，程式運行中遇到了一些問題，錯誤詳情是:{e}")
-			log.warning(f"抱歉，程式運行中遇到了一些問題，錯誤詳情是:{e}")
+			ui.message(_(f"Sorry, an error occurred during the program execution, the details are: {e}"))
+			log.warning(_(f"Sorry, an error occurred during the program execution, the details are: {e}"))
 			return
 
 		if text == text_corrected:
-			ui.message("選取範圍未檢測出錯誤")
-			log.warning("選取範圍未檢測出錯誤")
+			ui.message(_("No errors in the selected range."))
+			log.warning(_("No errors in the selected range."))
 			return
 
 		api.copyToClip(text_corrected)
-		ui.message("結果已複製到剪貼簿")
-		log.warning("結果已複製到剪貼簿")
+		ui.message(_("The corrected text has been copied to the clipboard."))
+		log.warning(_("The corrected text has been copied to the clipboard."))
 
-		print(f"原文是: {text}")
-		print(f"修正後是: {text_corrected}")
-		print(f"diff是: {diff_data}")
+		print(_(f"Original text: {text}"))
+		print(_(f"Corrected text: {text_corrected}"))
+		print(_(f"Difference: {diff_data}"))
 
 		self.showReport(diff_data)
 
@@ -202,13 +202,17 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+o",
-		description=_("GPT"),
+		description=_("Execute GPT typo correction for Chinese character"),
 		category=ADDON_SUMMARY,
 	)
 	def script_correction(self, gesture):
 		if self.isNVDASettingsDialogCreate():
-			ui.message("無法運行，請先結束NVDA設定")
-			log.warning("無法運行，請先結束NVDA設定")
+			ui.message(
+				_("The function cannot be executed. Please finish the configuration and close the setting window.")
+			)
+			log.warning(
+				_("The function cannot be executed. Please finish the configuration and close the setting window.")
+			)
 			return
 
 		text = self.getSelectedText()
@@ -219,7 +223,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+i",
-		description=_("GPT"),
+		description=_("Show settings of GPT Assistant"),
 		category=ADDON_SUMMARY,
 	)
 	def script_showGPTSettings(self, gesture):

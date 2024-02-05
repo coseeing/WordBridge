@@ -12,8 +12,8 @@ gpt_access_method_list = ["OpenAI API Key", "Coseeing Account"]
 
 
 class OpenAIGeneralSettingsPanel(SettingsPanel):
-	title = _("OpenAIGeneral")
-	helpId = "OpenAIGeneralSettings"
+	title = _("GPT Assistant")
+	helpId = "GPTAssistantSettings"
 
 	def makeSettings(self, settingsSizer):
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
@@ -21,7 +21,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		# For selecting OpenAI model
 		modelLabelText = _("OpenAI Model:")
 		self.modelList = settingsSizerHelper.addLabeledControl(modelLabelText, wx.Choice, choices=model_list)
-		self.modelList.SetToolTip(wx.ToolTip("Choose the openAI model for the GPT assistant"))
+		self.modelList.SetToolTip(wx.ToolTip(_("Choose the OpenAI model for the GPT assistant")))
 		if config.conf["GPTAssistant"]["settings"]["model"] in model_list:
 			self.modelList.SetSelection(model_list.index(config.conf["GPTAssistant"]["settings"]["model"]))
 		else:
@@ -35,7 +35,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			wx.Choice,
 			choices=gpt_access_method_list,
 		)
-		self.methodList.SetToolTip(wx.ToolTip("Choose the GPT access method"))
+		self.methodList.SetToolTip(wx.ToolTip(_("Choose the GPT access method")))
 		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] in gpt_access_method_list:
 			self.methodList.SetSelection(
 				gpt_access_method_list.index(config.conf["GPTAssistant"]["settings"]["gpt_access_method"])
@@ -49,10 +49,10 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		accessPanel = wx.Panel(self)
 		sizer = wx.GridBagSizer(5, 2)
 
-		self.accessOpenAITextLabel = wx.StaticText(accessPanel, label="OpenAI Account")
+		self.accessOpenAITextLabel = wx.StaticText(accessPanel, label=_("OpenAI Account"))
 		sizer.Add(self.accessOpenAITextLabel, pos=(0, 0), flag=wx.LEFT, border=0)
 
-		self.apikeyTextLabel = wx.StaticText(accessPanel, label="API Key:")
+		self.apikeyTextLabel = wx.StaticText(accessPanel, label=_("API Key:"))
 		sizer.Add(self.apikeyTextLabel, pos=(1, 0), flag=wx.LEFT, border=10)
 		self.apikeyTextCtrl = wx.TextCtrl(
 			accessPanel,
@@ -61,10 +61,10 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		)
 		sizer.Add(self.apikeyTextCtrl, pos=(1, 1))
 
-		self.accessCoseeingTextLabel = wx.StaticText(accessPanel, label="Coseeing Account")
+		self.accessCoseeingTextLabel = wx.StaticText(accessPanel, label=_("Coseeing Account"))
 		sizer.Add(self.accessCoseeingTextLabel, pos=(2, 0), flag=wx.LEFT, border=0)
 
-		self.usernameTextLabel = wx.StaticText(accessPanel, label="Username:")
+		self.usernameTextLabel = wx.StaticText(accessPanel, label=_("Username:"))
 		sizer.Add(self.usernameTextLabel, pos=(3, 0), flag=wx.LEFT, border=10)
 		self.usernameTextCtrl = wx.TextCtrl(
 			accessPanel,
@@ -73,7 +73,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		)
 		sizer.Add(self.usernameTextCtrl, pos=(3, 1))
 
-		self.passwordTextLabel = wx.StaticText(accessPanel, label="Password:")
+		self.passwordTextLabel = wx.StaticText(accessPanel, label=_("Password:"))
 		sizer.Add(self.passwordTextLabel, pos=(4, 0), flag=wx.LEFT, border=10)
 
 		self.passwordTextCtrl = wx.TextCtrl(
@@ -137,7 +137,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		self.Thaw()
 
 	def _enableAccessElements(self, gpt_access_method):
-		if gpt_access_method == "OpenAI API Key":
+		if gpt_access_method == _("OpenAI API Key"):
 			self.accessCoseeingTextLabel.Disable()
 			self.usernameTextLabel.Disable()
 			self.passwordTextLabel.Disable()

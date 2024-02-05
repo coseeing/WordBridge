@@ -30,21 +30,21 @@ def obtain_openai_key(coseeing_username, coseeing_password):
 		except Exception as e:
 			request_error = type(e).__name__
 			log.error(
-				f"Try = {r + 1}, {request_error}, an error occurred when sending request to Coseeing: {e}"
+				_(f"Try = {r + 1}, {request_error}, an error occurred when sending request to Coseeing: {e}")
 			)
 			backoff = min(backoff * (1 + random.random()), 3)
 			time.sleep(backoff)
 
 	if response is None:
-		raise Exception(f"HTTP請求錯誤({request_error})，請檢查網路設定")
+		raise Exception(_(f"HTTP request error ({request_error}), Please check the network setting"))
 
 	# Check if response is successful
-	if response.status_code == 200:
-		# Get token from response
-		token = response.json()["access_token"]
-	elif response.status_code == 400:
-		raise Exception("帳號的使用者名稱或密碼有誤，請檢察Coseeing帳號的使用者名稱或密碼是否正確")
-	else:
-		raise Exception(f"HTTP錯誤，代碼={response.status_code}")
+	if response.status_code == 400:
+		raise Exception(_("The username or password for the Coseeing account is incorrect."))
+	elif response.status_code != 200:
+		raise Exception(_(f"Unknown errors. Status code = {response.status_code}"))
+
+	# Get token from response
+	token = response.json()["access_token"]
 
 	return token
