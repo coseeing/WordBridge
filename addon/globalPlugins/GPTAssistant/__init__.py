@@ -53,7 +53,7 @@ config.conf.spec["GPTAssistant"] = {
 		"openai_key": "string(default=\0)",
 		"coseeing_username": "string(default=\0)",
 		"coseeing_password": "string(default=\0)",
-		"max_word_count": "integer(default=50,min=2,max=64)",
+		"max_char_count": "integer(default=50,min=2,max=64)",
 	}
 }
 
@@ -124,10 +124,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return text
 
 	def isTextValid(self, text):
-		max_word_count = config.conf["GPTAssistant"]["settings"]["max_word_count"]
-		if len(text) > max_word_count:
-			ui.message(_(f"The number of characters is {len(text)}, which exceeds the maximum, {max_word_count}."))
-			log.warning(_(f"The number of characters is {len(text)}, which exceeds the maximum, {max_word_count}."))
+		max_char_count = config.conf["GPTAssistant"]["settings"]["max_char_count"]
+		if len(text) > max_char_count:
+			ui.message(_(f"The number of characters is {len(text)}, which exceeds the maximum, {max_char_count}"))
+			log.warning(_(f"The number of characters is {len(text)}, which exceeds the maximum, {max_char_count}"))
 			return False
 		elif len(text) == 0:
 			ui.message(_("No text is selected, unable to analyze."))
@@ -178,8 +178,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return
 
 		if text == text_corrected:
-			ui.message(_("No errors in the selected range."))
-			log.warning(_("No errors in the selected range."))
+			ui.message(_("No errors in the selected text."))
+			log.warning(_("No errors in the selected text."))
 			return
 
 		api.copyToClip(text_corrected)
