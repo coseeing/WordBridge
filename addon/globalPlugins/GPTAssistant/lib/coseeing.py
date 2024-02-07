@@ -36,7 +36,7 @@ def obtain_openai_key(coseeing_username, coseeing_password):
 			time.sleep(backoff)
 
 	if response is None:
-		raise Exception(_(f"HTTP request error ({request_error}), Please check the network setting"))
+		raise Exception(_(f"HTTP request error ({request_error}). Please check the network setting."))
 
 	# Check if response is successful
 	if response.status_code == 400:

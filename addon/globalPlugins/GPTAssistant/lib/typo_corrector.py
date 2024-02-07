@@ -209,7 +209,7 @@ class BaseTypoCorrector():
 				time.sleep(backoff)
 
 		if response is None:
-			raise Exception(_(f"HTTP request error ({request_error}). Please check the network setting"))
+			raise Exception(_(f"HTTP request error ({request_error}). Please check the network setting."))
 
 		response_json = response.json()
 		if response.status_code == 401:
