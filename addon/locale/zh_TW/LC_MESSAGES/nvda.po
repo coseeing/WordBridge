@@ -8,186 +8,186 @@ msgstr ""
 "Project-Id-Version: 'GPTAssistant' '1.0'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
 "POT-Creation-Date: 2024-02-07 18:23+0800\n"
-"PO-Revision-Date: 2024-02-07 18:24+0800\n"
+"PO-Revision-Date: 2024-02-08 01:45+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 3.4\n"
+"X-Generator: Poedit 3.4.2\n"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:129
 #: addon\globalPlugins\GPTAssistant\__init__.py:130
 msgid ""
 "The number of characters is {len(text)}, which exceeds the maximum, "
 "{max_word_count}"
-msgstr ""
+msgstr "原文字符數為{len(text)}，超過上限{max_word_count}。"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:133
 #: addon\globalPlugins\GPTAssistant\__init__.py:134
 msgid "No text is selected, unable to analyze."
-msgstr ""
+msgstr "未選取任何文字，無法分析。"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:137
 #: addon\globalPlugins\GPTAssistant\__init__.py:138
 msgid ""
 "The selected text does not contain Chinese characters, unable to analyze."
-msgstr ""
+msgstr "選取範圍不含漢字，無法分析。"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:151
 #: addon\globalPlugins\GPTAssistant\dialogs.py:140
 msgid "OpenAI API Key"
-msgstr ""
+msgstr "OpenAI API 金鑰"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:161
 #: addon\globalPlugins\GPTAssistant\__init__.py:162
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred while logging into Coseeing, the details are: {e}"
-msgstr ""
+msgstr "抱歉，登入Coseeing時遇到了一些問題，錯誤詳情是: {e}"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:176
 #: addon\globalPlugins\GPTAssistant\__init__.py:177
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred during the program execution, the details are: {e}"
-msgstr ""
+msgstr "抱歉，程式運行中遇到了一些問題，錯誤詳情是: {e}"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:181
 #: addon\globalPlugins\GPTAssistant\__init__.py:182
 msgid "No errors in the selected range."
-msgstr ""
+msgstr "選取範圍未檢測出錯誤。"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:186
 #: addon\globalPlugins\GPTAssistant\__init__.py:187
 msgid "The corrected text has been copied to the clipboard."
-msgstr ""
+msgstr "結果已複製到剪貼簿。"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:189
 #, python-brace-format
 msgid "Original text: {text}"
-msgstr ""
+msgstr "原文是: {text}"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:190
 #, python-brace-format
 msgid "Corrected text: {text_corrected}"
-msgstr ""
+msgstr "修正後是: {text_corrected}"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:191
 #, python-brace-format
 msgid "Difference: {diff_data}"
-msgstr ""
+msgstr "差異: {diff_data}"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:205
 msgid "Execute GPT typo correction for Chinese character"
-msgstr ""
+msgstr "執行GPT中文改錯字"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:211
 #: addon\globalPlugins\GPTAssistant\__init__.py:214
 msgid ""
 "The function cannot be executed. Please finish the configuration and close "
 "the setting window."
-msgstr ""
+msgstr "改錯字無法運行，請先結束NVDA設定視窗。"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:226
 msgid "Show settings of GPT Assistant"
-msgstr ""
+msgstr "顯示GPT Assistant設定視窗"
 
 #. Add-on summary, usually the user visible name of the addon.
 #. Translators: Summary for this add-on
 #. to be shown on installation and add-on information found in Add-ons Manager.
 #: addon\globalPlugins\GPTAssistant\dialogs.py:15 buildVars.py:23
 msgid "GPT Assistant"
-msgstr ""
+msgstr "GPT Assistant"
 
 #. For selecting OpenAI model
 #: addon\globalPlugins\GPTAssistant\dialogs.py:22
 msgid "OpenAI Model:"
-msgstr ""
+msgstr "OpenAI 模型:"
 
 #: addon\globalPlugins\GPTAssistant\dialogs.py:24
 msgid "Choose the OpenAI model for the GPT assistant"
-msgstr ""
+msgstr "選擇GPT Assistant所使用的OpenAI模型"
 
 #. For selecting GPT access method
 #: addon\globalPlugins\GPTAssistant\dialogs.py:32
 msgid "GPT Access Method:"
-msgstr ""
+msgstr "GPT訪問方式:"
 
 #: addon\globalPlugins\GPTAssistant\dialogs.py:38
 msgid "Choose the GPT access method"
-msgstr ""
+msgstr "選擇GPT訪問方式"
 
 #: addon\globalPlugins\GPTAssistant\dialogs.py:52
 msgid "OpenAI Account"
-msgstr ""
+msgstr "OpenAI 帳號"
 
 #: addon\globalPlugins\GPTAssistant\dialogs.py:55
 msgid "API Key:"
-msgstr ""
+msgstr "API 金鑰:"
 
 #: addon\globalPlugins\GPTAssistant\dialogs.py:64
 msgid "Coseeing Account"
-msgstr ""
+msgstr "Coseeing 帳號"
 
 #: addon\globalPlugins\GPTAssistant\dialogs.py:67
 msgid "Username:"
-msgstr ""
+msgstr "使用者名稱:"
 
 #: addon\globalPlugins\GPTAssistant\dialogs.py:76
 msgid "Password:"
-msgstr ""
+msgstr "密碼:"
 
 #. For setting upper bound of correction word count
 #: addon\globalPlugins\GPTAssistant\dialogs.py:94
 msgid "Max Word Count"
-msgstr ""
+msgstr "最大字元數"
 
 #: addon\globalPlugins\GPTAssistant\lib\coseeing.py:33
 msgid ""
 "Try = {r + 1}, {request_error}, an error occurred when sending request to "
 "Coseeing: {e}"
-msgstr ""
+msgstr "Try = {r + 1}, {request_error}, 向Coseeing發送請求時發生錯誤: {e}"
 
 #: addon\globalPlugins\GPTAssistant\lib\coseeing.py:39
 #, python-brace-format
 msgid "HTTP request error ({request_error}), Please check the network setting"
-msgstr ""
+msgstr "HTTP請求錯誤 ({request_error})，請檢察網路設定"
 
 #: addon\globalPlugins\GPTAssistant\lib\coseeing.py:43
 msgid "The username or password for the Coseeing account is incorrect."
-msgstr ""
+msgstr "Coseeing帳戶的使用者名稱或密碼不正確。"
 
 #: addon\globalPlugins\GPTAssistant\lib\coseeing.py:45
 #: addon\globalPlugins\GPTAssistant\lib\typo_corrector.py:220
 #, python-brace-format
 msgid "Unknown errors. Status code = {response.status_code}"
-msgstr ""
+msgstr "未知錯誤。狀態碼 = {response.status_code}"
 
 #: addon\globalPlugins\GPTAssistant\lib\typo_corrector.py:206
 msgid ""
 "Try = {r + 1}, {request_error}, an error occurred when sending OpenAI "
 "request: {e}"
-msgstr ""
+msgstr "Try = {r + 1}, {request_error}, 向OpenAI發送請求時發生錯誤: {e}"
 
 #: addon\globalPlugins\GPTAssistant\lib\typo_corrector.py:212
 #, python-brace-format
 msgid "HTTP request error ({request_error}). Please check the network setting"
-msgstr ""
+msgstr "HTTP請求錯誤 ({request_error})，請檢察網路設定"
 
 #: addon\globalPlugins\GPTAssistant\lib\typo_corrector.py:216
 msgid "Authentication error. Please check if the OpenAI API Key is correct."
-msgstr ""
+msgstr "認證錯誤。請檢查OpenAI API金鑰是否正確。"
 
 #: addon\globalPlugins\GPTAssistant\lib\typo_corrector.py:218
 msgid ""
 "Service does not exist. Please check if the model does not exist or has "
 "expired."
-msgstr ""
+msgstr "服務不存在。請檢察模型是已到期或不存在。"
 
 #. Add-on description
 #. Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 #: buildVars.py:26
 msgid "Apply GTP to help people"
-msgstr ""
+msgstr "應用GTP來幫助人們"
