@@ -1,8 +1,13 @@
 import os
 import random
 import string
+import sys
 
-from lib.utils import typo_augmentation
+path = os.path.dirname(__file__)
+PYTHON_PATH = os.path.join(path, "..", "..", "addon", "globalPlugins", "GPTAssistant", "lib")
+sys.path.insert(0, PYTHON_PATH)
+
+from utils import typo_augmentation
 
 
 if __name__ == "__main__":

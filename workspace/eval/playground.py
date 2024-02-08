@@ -1,5 +1,12 @@
-from lib.proofreader import Proofreader
-from lib.typo_corrector import ChineseTypoCorrector
+import os
+import sys
+
+path = os.path.dirname(__file__)
+PYTHON_PATH = os.path.join(path, "..", "..", "addon", "globalPlugins", "GPTAssistant", "lib")
+sys.path.insert(0, PYTHON_PATH)
+
+from proofreader import Proofreader
+from typo_corrector import ChineseTypoCorrector
 
 
 """
