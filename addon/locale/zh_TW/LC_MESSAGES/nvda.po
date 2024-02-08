@@ -3,12 +3,13 @@
 # This file is distributed under the same license as the 'GPTAssistant' package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
+#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: 'GPTAssistant' '1.0'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2024-02-07 18:23+0800\n"
-"PO-Revision-Date: 2024-02-08 01:45+0800\n"
+"POT-Creation-Date: 2024-02-08 18:34+0800\n"
+"PO-Revision-Date: 2024-02-08 23:18+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -21,7 +22,7 @@ msgstr ""
 #: addon\globalPlugins\GPTAssistant\__init__.py:130
 msgid ""
 "The number of characters is {len(text)}, which exceeds the maximum, "
-"{max_word_count}"
+"{max_char_count}."
 msgstr "原文字符數為{len(text)}，超過上限{max_word_count}。"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:133
@@ -56,7 +57,7 @@ msgstr "抱歉，程式運行中遇到了一些問題，錯誤詳情是: {e}"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:181
 #: addon\globalPlugins\GPTAssistant\__init__.py:182
-msgid "No errors in the selected range."
+msgid "No errors in the selected text."
 msgstr "選取範圍未檢測出錯誤。"
 
 #: addon\globalPlugins\GPTAssistant\__init__.py:186
@@ -139,9 +140,9 @@ msgstr "使用者名稱:"
 msgid "Password:"
 msgstr "密碼:"
 
-#. For setting upper bound of correction word count
+#. For setting upper bound of correction character count
 #: addon\globalPlugins\GPTAssistant\dialogs.py:94
-msgid "Max Word Count"
+msgid "Max Character Count"
 msgstr "最大字元數"
 
 #: addon\globalPlugins\GPTAssistant\lib\coseeing.py:33
@@ -151,9 +152,10 @@ msgid ""
 msgstr "Try = {r + 1}, {request_error}, 向Coseeing發送請求時發生錯誤: {e}"
 
 #: addon\globalPlugins\GPTAssistant\lib\coseeing.py:39
+#: addon\globalPlugins\GPTAssistant\lib\typo_corrector.py:212
 #, python-brace-format
-msgid "HTTP request error ({request_error}), Please check the network setting"
-msgstr "HTTP請求錯誤 ({request_error})，請檢察網路設定"
+msgid "HTTP request error ({request_error}). Please check the network setting."
+msgstr "HTTP請求錯誤 ({request_error})，請檢察網路設定。"
 
 #: addon\globalPlugins\GPTAssistant\lib\coseeing.py:43
 msgid "The username or password for the Coseeing account is incorrect."
@@ -170,11 +172,6 @@ msgid ""
 "Try = {r + 1}, {request_error}, an error occurred when sending OpenAI "
 "request: {e}"
 msgstr "Try = {r + 1}, {request_error}, 向OpenAI發送請求時發生錯誤: {e}"
-
-#: addon\globalPlugins\GPTAssistant\lib\typo_corrector.py:212
-#, python-brace-format
-msgid "HTTP request error ({request_error}). Please check the network setting"
-msgstr "HTTP請求錯誤 ({request_error})，請檢察網路設定"
 
 #: addon\globalPlugins\GPTAssistant\lib\typo_corrector.py:216
 msgid "Authentication error. Please check if the OpenAI API Key is correct."
