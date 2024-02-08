@@ -1,3 +1,10 @@
+import os
+import sys
+
+path = os.path.dirname(__file__)
+api_path = os.path.join(path, "..", "..", "addon", "globalPlugins", "GPTAssistant")
+sys.path.insert(0, api_path)
+
 from lib.proofreader import Proofreader
 from lib.typo_corrector import ChineseTypoCorrector
 
