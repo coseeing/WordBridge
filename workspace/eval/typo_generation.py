@@ -4,10 +4,10 @@ import string
 import sys
 
 path = os.path.dirname(__file__)
-PYTHON_PATH = os.path.join(path, "..", "..", "addon", "globalPlugins", "GPTAssistant", "lib")
-sys.path.insert(0, PYTHON_PATH)
+api_path = os.path.join(path, "..", "..", "addon", "globalPlugins", "GPTAssistant")
+sys.path.insert(0, api_path)
 
-from utils import typo_augmentation
+from lib.utils import typo_augmentation
 
 
 if __name__ == "__main__":
