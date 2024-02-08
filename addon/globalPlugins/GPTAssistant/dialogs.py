@@ -90,31 +90,31 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		sizer.Fit(self)
 		settingsSizerHelper.addItem(accessPanel)
 
-		# For setting upper bound of correction word count
-		maxTokensLabelText = _("Max Word Count")
+		# For setting upper bound of correction character count
+		maxTokensLabelText = _("Max Character Count")
 		try:
-			maxWordCount = config.conf["GPTAssistant"]["settings"]["max_word_count"]
+			maxCharCount = config.conf["GPTAssistant"]["settings"]["max_char_count"]
 		except VdtValueTooBigError:
-			maxWordCount = int(config.conf.getConfigValidation(
-				("GPTAssistant", "settings", "max_word_count")
+			maxCharCount = int(config.conf.getConfigValidation(
+				("GPTAssistant", "settings", "max_char_count")
 			).kwargs["max"])
 		except VdtValueTooSmallError:
-			maxWordCount = int(config.conf.getConfigValidation(
-				("GPTAssistant", "settings", "max_word_count")
+			maxCharCount = int(config.conf.getConfigValidation(
+				("GPTAssistant", "settings", "max_char_count")
 			).kwargs["min"])
 
-		maxWordCountlowerBound = int(config.conf.getConfigValidation(
-			("GPTAssistant", "settings", "max_word_count")
+		maxCharCountlowerBound = int(config.conf.getConfigValidation(
+			("GPTAssistant", "settings", "max_char_count")
 		).kwargs["min"])
-		maxWordCountUpperBound = int(config.conf.getConfigValidation(
-			("GPTAssistant", "settings", "max_word_count")
+		maxCharCountUpperBound = int(config.conf.getConfigValidation(
+			("GPTAssistant", "settings", "max_char_count")
 		).kwargs["max"])
-		self.maxWordCount = settingsSizerHelper.addLabeledControl(
+		self.maxCharCount = settingsSizerHelper.addLabeledControl(
 			maxTokensLabelText,
 			nvdaControls.SelectOnFocusSpinCtrl,
-			min=maxWordCountlowerBound,
-			max=maxWordCountUpperBound,
-			initial=maxWordCount
+			min=maxCharCountlowerBound,
+			max=maxCharCountUpperBound,
+			initial=maxCharCount
 		)
 
 		self.settingsSizer = settingsSizer
@@ -126,7 +126,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		config.conf["GPTAssistant"]["settings"]["openai_key"] = self.apikeyTextCtrl.GetValue()
 		config.conf["GPTAssistant"]["settings"]["coseeing_username"] = self.usernameTextCtrl.GetValue()
 		config.conf["GPTAssistant"]["settings"]["coseeing_password"] = self.passwordTextCtrl.GetValue()
-		config.conf["GPTAssistant"]["settings"]["max_word_count"] = self.maxWordCount.GetValue()
+		config.conf["GPTAssistant"]["settings"]["max_char_count"] = self.maxCharCount.GetValue()
 
 	def onChangeChoice(self, evt):
 		self.Freeze()
