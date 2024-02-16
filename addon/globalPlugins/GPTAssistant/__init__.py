@@ -148,7 +148,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, text):
-		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == _("OpenAI API Key"):
+		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
 			access_token = config.conf["GPTAssistant"]["settings"]["openai_key"]
 			api_base_url = "https://api.openai.com"
 		else:

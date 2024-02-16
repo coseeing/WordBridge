@@ -137,7 +137,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		self.Thaw()
 
 	def _enableAccessElements(self, gpt_access_method):
-		if gpt_access_method == _("OpenAI API Key"):
+		if gpt_access_method == "OpenAI API Key":
 			self.accessCoseeingTextLabel.Disable()
 			self.usernameTextLabel.Disable()
 			self.passwordTextLabel.Disable()
