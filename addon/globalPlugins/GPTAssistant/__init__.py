@@ -49,7 +49,7 @@ ADDON_SUMMARY = "GPTAssistant"
 config.conf.spec["GPTAssistant"] = {
 	"settings": {
 		"model": "string(default=gpt-3.5-turbo)",
-		"gpt_access_method": "string(default=OpenAI API Key)",
+		"gpt_access_method": "string(default=openai_api_key)",
 		"openai_key": "string(default=\0)",
 		"coseeing_username": "string(default=\0)",
 		"coseeing_password": "string(default=\0)",
@@ -126,8 +126,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def isTextValid(self, text):
 		max_char_count = config.conf["GPTAssistant"]["settings"]["max_char_count"]
 		if len(text) > max_char_count:
-			ui.message(_(f"The number of characters is {len(text)}, which exceeds the maximum, {max_char_count}."))
-			log.warning(_(f"The number of characters is {len(text)}, which exceeds the maximum, {max_char_count}."))
+			ui.message(
+				_("The number of characters is {len_text}, which exceeds the maximum, {max_char_count}.").format(
+					len_text=len(text),
+					max_char_count=max_char_count
+				)
+			)
+			log.warning(
+				_("The number of characters is {len_text}, which exceeds the maximum, {max_char_count}.").format(
+					len_text=len(text),
+					max_char_count=max_char_count
+				)
+			)
 			return False
 		elif len(text) == 0:
 			ui.message(_("No text is selected, unable to analyze."))
@@ -148,7 +158,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, text):
-		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == _("OpenAI API Key"):
+		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "openai_api_key":
 			access_token = config.conf["GPTAssistant"]["settings"]["openai_key"]
 			api_base_url = "https://api.openai.com"
 		else:
@@ -158,8 +168,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					config.conf["GPTAssistant"]["settings"]["coseeing_password"],
 				)
 			except Exception as e:
-				ui.message(_(f"Sorry, an error occurred while logging into Coseeing, the details are: {e}"))
-				log.warning(_(f"Sorry, an error occurred while logging into Coseeing, the details are: {e}"))
+				ui.message(_("Sorry, an error occurred while logging into Coseeing, the details are: {e}").format(e=e))
+				log.warning(_("Sorry, an error occurred while logging into Coseeing, the details are: {e}").format(e=e))
 				return
 			api_base_url = "http://openairelay.coseeing.org"
 
@@ -173,8 +183,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		try:
 			text_corrected, diff_data = proofreader.typo_analyzer(text)
 		except Exception as e:
-			ui.message(_(f"Sorry, an error occurred during the program execution, the details are: {e}"))
-			log.warning(_(f"Sorry, an error occurred during the program execution, the details are: {e}"))
+			ui.message(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
+			log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 			return
 
 		if text == text_corrected:
@@ -186,9 +196,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		ui.message(_("The corrected text has been copied to the clipboard."))
 		log.warning(_("The corrected text has been copied to the clipboard."))
 
-		print(_(f"Original text: {text}"))
-		print(_(f"Corrected text: {text_corrected}"))
-		print(_(f"Difference: {diff_data}"))
+		print(_("Original text: {text}").format(text=text))
+		print(_("Corrected text: {text_corrected}").format(text_corrected=text_corrected))
+		print(_("Difference: {diff_data}").format(diff_data=diff_data))
 
 		self.showReport(diff_data)
 

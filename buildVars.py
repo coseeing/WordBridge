@@ -23,7 +23,7 @@ addon_info = {
 	"addon_summary": _("GPT Assistant"),
 	# Add-on description
 	# Translators: Long description to be shown for this add-on on add-on information from add-ons manager
-	"addon_description": _("""Apply GTP to help people"""),
+	"addon_description": _("""Apply GPT to help people"""),
 	# version
 	"addon_version": "1.0",
 	# Author(s)

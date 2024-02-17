@@ -2,13 +2,17 @@ from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
 
 import config
 import wx
+import addonHandler
 
 from gui import guiHelper, nvdaControls
 from gui.settingsDialogs import SettingsPanel
 
 
+addonHandler.initTranslation()
+
 model_list = ["gpt-3.5-turbo"]
-gpt_access_method_list = ["OpenAI API Key", "Coseeing Account"]
+gpt_access_method_list = [_("OpenAI API Key"), _("Coseeing Account")]
+gpt_access_methods = ["openai_api_key", "coseeing_account"]
 
 
 class OpenAIGeneralSettingsPanel(SettingsPanel):
@@ -36,13 +40,13 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			choices=gpt_access_method_list,
 		)
 		self.methodList.SetToolTip(wx.ToolTip(_("Choose the GPT access method")))
-		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] in gpt_access_method_list:
+		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] in gpt_access_methods:
 			self.methodList.SetSelection(
-				gpt_access_method_list.index(config.conf["GPTAssistant"]["settings"]["gpt_access_method"])
+				gpt_access_methods.index(config.conf["GPTAssistant"]["settings"]["gpt_access_method"])
 			)
 		else:
 			self.methodList.SetSelection(0)
-			config.conf["GPTAssistant"]["settings"]["gpt_access_method"] = gpt_access_method_list[0]
+			config.conf["GPTAssistant"]["settings"]["gpt_access_method"] = gpt_access_methods[0]
 		self.methodList.Bind(wx.EVT_CHOICE, self.onChangeChoice)
 
 		# For setting account information
@@ -84,7 +88,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		)
 		sizer.Add(self.passwordTextCtrl, pos=(4, 1))
 
-		self._enableAccessElements(gpt_access_method_list[self.methodList.GetSelection()])
+		self._enableAccessElements(gpt_access_methods[self.methodList.GetSelection()])
 
 		accessPanel.SetSizer(sizer)
 		sizer.Fit(self)
@@ -120,7 +124,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		self.settingsSizer = settingsSizer
 
 	def onSave(self):
-		current_gpt_access_method = gpt_access_method_list[self.methodList.GetSelection()]
+		current_gpt_access_method = gpt_access_methods[self.methodList.GetSelection()]
 		config.conf["GPTAssistant"]["settings"]["model"] = model_list[self.modelList.GetSelection()]
 		config.conf["GPTAssistant"]["settings"]["gpt_access_method"] = current_gpt_access_method
 		config.conf["GPTAssistant"]["settings"]["openai_key"] = self.apikeyTextCtrl.GetValue()
@@ -133,11 +137,11 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		# trigger a refresh of the settings
 		self.onPanelActivated()
 		self._sendLayoutUpdatedEvent()
-		self._enableAccessElements(gpt_access_method_list[self.methodList.GetSelection()])
+		self._enableAccessElements(gpt_access_methods[self.methodList.GetSelection()])
 		self.Thaw()
 
 	def _enableAccessElements(self, gpt_access_method):
-		if gpt_access_method == _("OpenAI API Key"):
+		if gpt_access_method == "openai_api_key":
 			self.accessCoseeingTextLabel.Disable()
 			self.usernameTextLabel.Disable()
 			self.passwordTextLabel.Disable()
