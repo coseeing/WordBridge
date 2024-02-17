@@ -2,8 +2,10 @@ import logging
 import random
 import requests
 import time
+import addonHandler
 
 
+addonHandler.initTranslation()
 OPENAIRELAY_URL = "http://openairelay.coseeing.org"
 log = logging.getLogger(__name__)
 

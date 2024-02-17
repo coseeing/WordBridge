@@ -2,10 +2,13 @@ from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
 
 import config
 import wx
+import addonHandler
 
 from gui import guiHelper, nvdaControls
 from gui.settingsDialogs import SettingsPanel
 
+
+addonHandler.initTranslation()
 
 model_list = ["gpt-3.5-turbo"]
 gpt_access_method_list = [_("OpenAI API Key"), _("Coseeing Account")]

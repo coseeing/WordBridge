@@ -13,8 +13,11 @@ from pypinyin import lazy_pinyin, Style
 from .template import COMMENT_DICT, TEMPLATE_DICT
 from .utils import get_phone, has_simplified_chinese_char, has_traditional_chinese_char
 
+import addonHandler
 import chinese_converter
 
+
+addonHandler.initTranslation()
 log = logging.getLogger(__name__)
 
 
