@@ -49,7 +49,7 @@ ADDON_SUMMARY = "GPTAssistant"
 config.conf.spec["GPTAssistant"] = {
 	"settings": {
 		"model": "string(default=gpt-3.5-turbo)",
-		"gpt_access_method": "string(default=OpenAI API Key)",
+		"gpt_access_method": "string(default=openai_api_key)",
 		"openai_key": "string(default=\0)",
 		"coseeing_username": "string(default=\0)",
 		"coseeing_password": "string(default=\0)",
@@ -158,7 +158,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, text):
-		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "OpenAI API Key":
+		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "openai_api_key":
 			access_token = config.conf["GPTAssistant"]["settings"]["openai_key"]
 			api_base_url = "https://api.openai.com"
 		else:
