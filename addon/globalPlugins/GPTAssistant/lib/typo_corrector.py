@@ -203,13 +203,21 @@ class BaseTypoCorrector():
 			except Exception as e:
 				request_error = type(e).__name__
 				log.error(
-					_("Try = {try_index}, {request_error}, an error occurred when sending OpenAI request: {e}".format(try_index=(r + 1), request_error=request_error, e=e))
+					_("Try = {try_index}, {request_error}, an error occurred when sending OpenAI request: {e}").format(
+						try_index=(r + 1),
+						request_error=request_error,
+						e=e
+					)
 				)
 				backoff = min(backoff * (1 + random.random()), 3)
 				time.sleep(backoff)
 
 		if response is None:
-			raise Exception(_("HTTP request error ({request_error}). Please check the network setting.").format(request_error=request_error))
+			raise Exception(
+				_("HTTP request error ({request_error}). Please check the network setting.").format(
+					request_error=request_error
+				)
+			)
 
 		response_json = response.json()
 		if response.status_code == 401:

@@ -126,8 +126,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def isTextValid(self, text):
 		max_char_count = config.conf["GPTAssistant"]["settings"]["max_char_count"]
 		if len(text) > max_char_count:
-			ui.message(_("The number of characters is {len_text}, which exceeds the maximum, {max_char_count}.").format(len_text=len(text), max_char_count=max_char_count))
-			log.warning(_("The number of characters is {len_text}, which exceeds the maximum, {max_char_count}.").format(len_text=len(text), max_char_count=max_char_count))
+			ui.message(
+				_("The number of characters is {len_text}, which exceeds the maximum, {max_char_count}.").format(
+					len_text=len(text),
+					max_char_count=max_char_count
+				)
+			)
+			log.warning(
+				_("The number of characters is {len_text}, which exceeds the maximum, {max_char_count}.").format(
+					len_text=len(text),
+					max_char_count=max_char_count
+				)
+			)
 			return False
 		elif len(text) == 0:
 			ui.message(_("No text is selected, unable to analyze."))
