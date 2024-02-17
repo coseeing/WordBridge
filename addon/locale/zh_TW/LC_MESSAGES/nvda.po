@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 'GPTAssistant' '1.0'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2024-02-17 11:00+0800\n"
-"PO-Revision-Date: 2024-02-17 11:52+0800\n"
+"POT-Creation-Date: 2024-02-17 16:04+0800\n"
+"PO-Revision-Date: 2024-02-17 16:24+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -91,53 +91,58 @@ msgstr "改錯字無法運行，請先結束NVDA設定視窗。"
 msgid "Show settings of GPT Assistant"
 msgstr "顯示GPT Assistant設定視窗"
 
+#: addon\globalPlugins\GPTAssistant\dialogs.py:11
+msgid "OpenAI API Key"
+msgstr "OpenAI API 金鑰"
+
+#: addon\globalPlugins\GPTAssistant\dialogs.py:11
+#: addon\globalPlugins\GPTAssistant\dialogs.py:65
+msgid "Coseeing Account"
+msgstr "Coseeing 帳號"
+
 #. Add-on summary, usually the user visible name of the addon.
 #. Translators: Summary for this add-on
 #. to be shown on installation and add-on information found in Add-ons Manager.
-#: addon\globalPlugins\GPTAssistant\dialogs.py:15 buildVars.py:23
+#: addon\globalPlugins\GPTAssistant\dialogs.py:16 buildVars.py:23
 msgid "GPT Assistant"
 msgstr "GPT Assistant"
 
 #. For selecting OpenAI model
-#: addon\globalPlugins\GPTAssistant\dialogs.py:22
+#: addon\globalPlugins\GPTAssistant\dialogs.py:23
 msgid "OpenAI Model:"
 msgstr "OpenAI 模型:"
 
-#: addon\globalPlugins\GPTAssistant\dialogs.py:24
+#: addon\globalPlugins\GPTAssistant\dialogs.py:25
 msgid "Choose the OpenAI model for the GPT assistant"
 msgstr "選擇GPT Assistant所使用的OpenAI模型"
 
 #. For selecting GPT access method
-#: addon\globalPlugins\GPTAssistant\dialogs.py:32
+#: addon\globalPlugins\GPTAssistant\dialogs.py:33
 msgid "GPT Access Method:"
 msgstr "GPT訪問方式:"
 
-#: addon\globalPlugins\GPTAssistant\dialogs.py:38
+#: addon\globalPlugins\GPTAssistant\dialogs.py:39
 msgid "Choose the GPT access method"
 msgstr "選擇GPT訪問方式"
 
-#: addon\globalPlugins\GPTAssistant\dialogs.py:52
+#: addon\globalPlugins\GPTAssistant\dialogs.py:53
 msgid "OpenAI Account"
 msgstr "OpenAI 帳號"
 
-#: addon\globalPlugins\GPTAssistant\dialogs.py:55
+#: addon\globalPlugins\GPTAssistant\dialogs.py:56
 msgid "API Key:"
 msgstr "API 金鑰:"
 
-#: addon\globalPlugins\GPTAssistant\dialogs.py:64
-msgid "Coseeing Account"
-msgstr "Coseeing 帳號"
-
-#: addon\globalPlugins\GPTAssistant\dialogs.py:67
+#: addon\globalPlugins\GPTAssistant\dialogs.py:68
 msgid "Username:"
 msgstr "使用者名稱:"
 
-#: addon\globalPlugins\GPTAssistant\dialogs.py:76
+#: addon\globalPlugins\GPTAssistant\dialogs.py:77
 msgid "Password:"
 msgstr "密碼:"
 
 #. For setting upper bound of correction character count
-#: addon\globalPlugins\GPTAssistant\dialogs.py:94
+#: addon\globalPlugins\GPTAssistant\dialogs.py:95
 msgid "Max Character Count"
 msgstr "最大字元數"
 
@@ -184,5 +189,5 @@ msgstr "服務不存在。請檢察模型是已到期或不存在。"
 #. Add-on description
 #. Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 #: buildVars.py:26
-msgid "Apply GTP to help people"
+msgid "Apply GPT to help people"
 msgstr "應用GTP來幫助人們"
