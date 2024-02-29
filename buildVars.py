@@ -27,7 +27,7 @@ addon_info = {
 	# version
 	"addon_version": "1.0",
 	# Author(s)
-	"addon_author": "Tseng Woody <tsengwoody.tw@gmail.com>, Music Tsai <foreverlovekaggle3@gmail.com>",
+	"addon_author": "Coseeing Community Contributors <accessibility@coseeing.org>, Tseng Woody <tsengwoody.tw@gmail.com>, Music Tsai <foreverlovekaggle3@gmail.com>, ",
 	# URL for the add-on documentation support
 	"addon_url": "https://github.com/tsengwoody/GPTAssistant",
 	# URL for the add-on repository where the source code can be found

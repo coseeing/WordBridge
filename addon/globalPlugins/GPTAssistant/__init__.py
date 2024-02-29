@@ -9,6 +9,8 @@ import sys
 import threading
 import time
 
+import requests
+
 sys.modules["http.cookies"] = httpcookies
 sys.modules["http.client"] = httpclient
 sys.modules["importlib"] = importlib
@@ -157,10 +159,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				return True
 		return False
 
-	def correctTypo(self, text):
+	def correctTypo(self, request):
 		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "openai_api_key":
 			access_token = config.conf["GPTAssistant"]["settings"]["openai_key"]
 			api_base_url = "https://api.openai.com"
+			corrector = ChineseTypoCorrector(
+				model=config.conf["GPTAssistant"]["settings"]["model"],
+				access_token=access_token,
+				api_base_url=api_base_url,
+			)
+			proofreader = Proofreader(corrector)
+
+			try:
+				response, diff_data = proofreader.typo_analyzer(request)
+			except Exception as e:
+				ui.message(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
+				log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
+				return
 		else:
 			try:
 				access_token = obtain_openai_key(
@@ -172,33 +187,30 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				log.warning(_("Sorry, an error occurred while logging into Coseeing, the details are: {e}").format(e=e))
 				return
 			api_base_url = "http://openairelay.coseeing.org"
+			# api_base_url = "http://localhost:8000"
 
-		corrector = ChineseTypoCorrector(
-			model=config.conf["GPTAssistant"]["settings"]["model"],
-			access_token=access_token,
-			api_base_url=api_base_url,
-		)
-		proofreader = Proofreader(corrector)
+			data = {
+				"request": request,
+			}
+			headers = {
+				"Authorization": f"Bearer {access_token}",
+			}
+			result = requests.post(f"{api_base_url}/proofreader", headers=headers, json=data).json()
+			response = result["response"]
+			diff_data = result["diff"]
 
-		try:
-			text_corrected, diff_data = proofreader.typo_analyzer(text)
-		except Exception as e:
-			ui.message(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
-			log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
-			return
-
-		if text == text_corrected:
+		if request == response:
 			ui.message(_("No errors in the selected text."))
 			log.warning(_("No errors in the selected text."))
 			return
 
-		api.copyToClip(text_corrected)
+		api.copyToClip(response)
 		ui.message(_("The corrected text has been copied to the clipboard."))
 		log.warning(_("The corrected text has been copied to the clipboard."))
 
-		print(_("Original text: {text}").format(text=text))
-		print(_("Corrected text: {text_corrected}").format(text_corrected=text_corrected))
-		print(_("Difference: {diff_data}").format(diff_data=diff_data))
+		print(_(f"Original text: {request}"))
+		print(_(f"Corrected text: {response}"))
+		print(_(f"Difference: {diff_data}"))
 
 		self.showReport(diff_data)
 
