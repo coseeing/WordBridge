@@ -121,6 +121,10 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			initial=maxCharCount
 		)
 
+		# For setting auto display report
+		self.autoDisplayReport = settingsSizerHelper.addItem(wx.CheckBox(self, label=_("Auto display report")))
+		self.autoDisplayReport.SetValue(config.conf["GPTAssistant"]["settings"]["auto_display_report"])
+
 		self.settingsSizer = settingsSizer
 
 	def onSave(self):
@@ -131,6 +135,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		config.conf["GPTAssistant"]["settings"]["coseeing_username"] = self.usernameTextCtrl.GetValue()
 		config.conf["GPTAssistant"]["settings"]["coseeing_password"] = self.passwordTextCtrl.GetValue()
 		config.conf["GPTAssistant"]["settings"]["max_char_count"] = self.maxCharCount.GetValue()
+		config.conf["GPTAssistant"]["settings"]["auto_display_report"] = self.autoDisplayReport.GetValue()
 
 	def onChangeChoice(self, evt):
 		self.Freeze()

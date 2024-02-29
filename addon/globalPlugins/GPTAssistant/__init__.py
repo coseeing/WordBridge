@@ -54,6 +54,7 @@ config.conf.spec["GPTAssistant"] = {
 		"coseeing_username": "string(default=\0)",
 		"coseeing_password": "string(default=\0)",
 		"max_char_count": "integer(default=50,min=2,max=64)",
+		"auto_display_report": "boolean(default=False)",
 	}
 }
 
@@ -62,6 +63,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(OpenAIGeneralSettingsPanel)
+		self.typo_report = None
 
 	def terminate(self, *args, **kwargs):
 		super().terminate(*args, **kwargs)
@@ -200,7 +202,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		print(_("Corrected text: {text_corrected}").format(text_corrected=text_corrected))
 		print(_("Difference: {diff_data}").format(diff_data=diff_data))
 
-		self.showReport(diff_data)
+		self.typo_report = diff_data
+		if config.conf["GPTAssistant"]["settings"]["auto_display_report"]:
+			self.showReport(self.typo_report)
 
 	def correctionAction(self, text):
 		correct_typo_thread = threading.Thread(target=self.correctTypo, args=(text,))
@@ -242,3 +246,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			gui.settingsDialogs.NVDASettingsDialog,
 			OpenAIGeneralSettingsPanel
 		)
+
+	@script(
+		gesture="kb:NVDA+alt+u",
+		description=_("Show report of typos"),
+		category=ADDON_SUMMARY,
+	)
+	def script_showTypoReport(self, gesture):
+		if self.typo_report is None:
+			ui.message(_("No report has been generated yet."))
+			log.warning(_("No report has been generated yet."))
+			return
+
+		self.showReport(self.typo_report)
