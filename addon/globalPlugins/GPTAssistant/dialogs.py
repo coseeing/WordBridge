@@ -121,8 +121,8 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			initial=maxCharCount
 		)
 
-		# For setting auto display report
-		self.autoDisplayReport = settingsSizerHelper.addItem(wx.CheckBox(self, label=_("Auto display report")))
+		# For setting auto display typo report
+		self.autoDisplayReport = settingsSizerHelper.addItem(wx.CheckBox(self, label=_("Auto display typo report")))
 		self.autoDisplayReport.SetValue(config.conf["GPTAssistant"]["settings"]["auto_display_report"])
 
 		self.settingsSizer = settingsSizer
