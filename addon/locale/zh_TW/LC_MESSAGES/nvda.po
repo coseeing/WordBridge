@@ -146,6 +146,11 @@ msgstr "密碼:"
 msgid "Max Character Count"
 msgstr "最大字元數"
 
+#. For setting auto display typo report
+#: addon\globalPlugins\GPTAssistant\dialogs.py:125
+msgid "Auto display typo report"
+msgstr "自動顯示改錯字報告"
+
 #: addon\globalPlugins\GPTAssistant\lib\coseeing.py:33
 #, python-brace-format
 msgid ""
