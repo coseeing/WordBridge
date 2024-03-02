@@ -5,6 +5,7 @@ import wx
 import addonHandler
 
 from gui import guiHelper, nvdaControls
+from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
 
 
@@ -171,3 +172,33 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 	def updateAccountInformation(self, username, password):
 		self.usernameTextCtrl.SetValue(username)
 		self.passwordTextCtrl.SetValue(password)
+
+
+class FeedbackDialog(
+		ContextHelpMixin,
+		wx.Dialog  # wxPython does not seem to call base class initializer, put last in MRO
+):
+
+	helpId = "FeedbackCOseeing"
+	
+	def __init__(self, parent, request, response):
+		# Translators: This is the label for the feedback coseeing dialog.
+		super().__init__(parent, title=_("Feedback Coseeing"))
+		mainSizer = wx.BoxSizer(wx.VERTICAL)
+		sHelper = guiHelper.BoxSizerHelper(self, orientation=wx.VERTICAL)
+
+		# Translators: This is the label for the request edit field in the feedback coseeing dialog.
+		self.requestTextCtrl = sHelper.addLabeledControl(_("&Request:"), wx.TextCtrl, style=wx.TE_READONLY | wx.TE_MULTILINE)
+		self.requestTextCtrl.SetValue(request)
+		self.responseTextCtrl = sHelper.addLabeledControl(_("&Response:"), wx.TextCtrl, style=wx.TE_READONLY | wx.TE_MULTILINE)
+		self.responseTextCtrl.SetValue(response)
+		self.feedbackTextCtrl = sHelper.addLabeledControl(_("&Feedback:"), wx.TextCtrl)
+
+		sHelper.addDialogDismissButtons(self.CreateButtonSizer(wx.OK | wx.CANCEL))
+
+		mainSizer.Add(sHelper.sizer, border=guiHelper.BORDER_FOR_DIALOGS, flag=wx.ALL)
+		mainSizer.Fit(self)
+		self.SetSizer(mainSizer)
+
+		self.feedbackTextCtrl.SetFocus()
+		self.CentreOnScreen()

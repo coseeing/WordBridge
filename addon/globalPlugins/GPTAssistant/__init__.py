@@ -23,7 +23,7 @@ sys.path.insert(0, PYTHON_PATH)
 PACKAGE_PATH = os.path.join(PATH, "package")
 sys.path.insert(0, PACKAGE_PATH)
 
-from .dialogs import OpenAIGeneralSettingsPanel
+from .dialogs import OpenAIGeneralSettingsPanel, FeedbackDialog
 
 from logHandler import log
 from scriptHandler import script
@@ -41,6 +41,7 @@ import wx
 from .lib.coseeing import obtain_openai_key
 from .lib.proofreader import Proofreader
 from .lib.typo_corrector import ChineseTypoCorrector
+from .lib.utils import strings_diff
 from .lib.viewHTML import text2template
 from hanzidentifier import has_chinese
 
@@ -59,13 +60,21 @@ config.conf.spec["GPTAssistant"] = {
 		"auto_display_report": "boolean(default=False)",
 	}
 }
+OPENAI_BASE_URL = "https://api.openai.com"
+COSEEING_BASE_URL = "http://openairelay.coseeing.org"
+# COSEEING_BASE_URL = "http://localhost:8000"
 
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(OpenAIGeneralSettingsPanel)
-		self.typo_report = None
+		self.latest_action = {
+			"request": None,
+			"response": None,
+			"diff": None,
+			"interaction_id": None,
+		}
 
 	def terminate(self, *args, **kwargs):
 		super().terminate(*args, **kwargs)
@@ -164,7 +173,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def correctTypo(self, request):
 		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "openai_api_key":
 			access_token = config.conf["GPTAssistant"]["settings"]["openai_key"]
-			api_base_url = "https://api.openai.com"
+			api_base_url = OPENAI_BASE_URL
 			corrector = ChineseTypoCorrector(
 				model=config.conf["GPTAssistant"]["settings"]["model"],
 				access_token=access_token,
@@ -173,11 +182,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			proofreader = Proofreader(corrector)
 
 			try:
-				response, diff_data = proofreader.typo_analyzer(request)
+				response, _diff_ = proofreader.typo_analyzer(request)
 			except Exception as e:
 				ui.message(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 				log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 				return
+			interaction_id = None
 		else:
 			try:
 				access_token = obtain_openai_key(
@@ -188,8 +198,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				ui.message(_("Sorry, an error occurred while logging into Coseeing, the details are: {e}").format(e=e))
 				log.warning(_("Sorry, an error occurred while logging into Coseeing, the details are: {e}").format(e=e))
 				return
-			api_base_url = "http://openairelay.coseeing.org"
-			# api_base_url = "http://localhost:8000"
 
 			data = {
 				"request": request,
@@ -197,9 +205,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			headers = {
 				"Authorization": f"Bearer {access_token}",
 			}
-			result = requests.post(f"{api_base_url}/proofreader", headers=headers, json=data).json()
+			result = requests.post(f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data).json()
 			response = result["response"]
-			diff_data = result["diff"]
+			interaction_id = result["interaction_id"]
+
+		diff = strings_diff(request, response)
+
+		self.latest_action = {
+			"request": request,
+			"response": response,
+			"diff": diff,
+			"interaction_id": interaction_id,
+		}
 
 		if request == response:
 			ui.message(_("No errors in the selected text."))
@@ -210,13 +227,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		ui.message(_("The corrected text has been copied to the clipboard."))
 		log.warning(_("The corrected text has been copied to the clipboard."))
 
-		print(_(f"Original text: {request}"))
-		print(_(f"Corrected text: {response}"))
-		print(_(f"Difference: {diff_data}"))
+		# print(_(f"Original text: {request}"))
+		# print(_(f"Corrected text: {response}"))
+		# print(_(f"Difference: {diff}"))
 
-		self.typo_report = diff_data
 		if config.conf["GPTAssistant"]["settings"]["auto_display_report"]:
-			self.showReport(self.typo_report)
+			self.showReport(self.latest_action["diff"])
 
 	def correctionAction(self, text):
 		correct_typo_thread = threading.Thread(target=self.correctTypo, args=(text,))
@@ -265,9 +281,73 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category=ADDON_SUMMARY,
 	)
 	def script_showTypoReport(self, gesture):
-		if self.typo_report is None:
+		if self.latest_action["diff"] is None:
+			ui.message(_("No report has been generated yet."))
+			log.warning(_("No report has been generated yet."))
+			return
+
+		self.showReport(self.latest_action["diff"])
+
+	@script(
+		gesture="kb:NVDA+alt+u",
+		description=_("Show report of typos"),
+		category=ADDON_SUMMARY,
+	)
+	def script_showTypoReport(self, gesture):
+		if self.latest_action["diff"] is None:
 			ui.message(_("No report has been generated yet."))
 			log.warning(_("No report has been generated yet."))
 			return
 
 		self.showReport(self.typo_report)
+
+	@script(
+		gesture="kb:NVDA+alt+f",
+		description=_("Feedback of typos"),
+		category=ADDON_SUMMARY,
+	)
+	def script_feedbackTypo(self, gesture):
+		# self.latest_action = {
+			# "request": "考式以經通過",
+			# "response": "考試已經通過",
+			# "diff": None,
+			# "interaction_id": 1,
+		# }
+		if self.latest_action["interaction_id"] is None:
+			ui.message(_("No report has been generated yet."))
+			log.warning(_("No report has been generated yet."))
+			return
+
+		def show():
+			with FeedbackDialog(gui.mainFrame, self.latest_action["request"], self.latest_action["response"]) as feedbackDialog:
+				if feedbackDialog.ShowModal() != wx.ID_OK:
+					return
+				feedback_value = feedbackDialog.feedbackTextCtrl.GetValue()
+				if not feedback_value:
+					return
+
+			try:
+				access_token = obtain_openai_key(
+					config.conf["GPTAssistant"]["settings"]["coseeing_username"],
+					config.conf["GPTAssistant"]["settings"]["coseeing_password"],
+				)
+			except Exception as e:
+				ui.message(_("Sorry, an error occurred while logging into Coseeing, the details are: {e}").format(e=e))
+				log.warning(_("Sorry, an error occurred while logging into Coseeing, the details are: {e}").format(e=e))
+				return
+
+			data = {
+				"interaction_id": self.latest_action["interaction_id"],
+				"review_content": feedback_value,
+			}
+			headers = {
+				"Authorization": f"Bearer {access_token}",
+			}
+			try:
+				result = requests.post(f"{COSEEING_BASE_URL}/feedback", headers=headers, json=data).json()
+			except Exception as e:
+				ui.message(_("Sorry, an error occurred during the feedback request, the details are: {e}").format(e=e))
+				log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
+				return
+
+		wx.CallAfter(show)
