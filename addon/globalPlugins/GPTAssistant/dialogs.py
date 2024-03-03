@@ -175,29 +175,29 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 
 
 class FeedbackDialog(
-		ContextHelpMixin,
-		wx.Dialog  # wxPython does not seem to call base class initializer, put last in MRO
+	ContextHelpMixin,
+	wx.Dialog  # wxPython does not seem to call base class initializer, put last in MRO
 ):
-
-	helpId = "FeedbackCOseeing"
+	helpId = "FeedbackCoseeing"
 	
 	def __init__(self, parent, request, response):
-		# Translators: This is the label for the feedback coseeing dialog.
+		# This is the label for the feedback dialog for Coseeing.
 		super().__init__(parent, title=_("Feedback Coseeing"))
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
 		sHelper = guiHelper.BoxSizerHelper(self, orientation=wx.VERTICAL)
 
-		# Translators: This is the label for the request edit field in the feedback coseeing dialog.
-		self.requestTextCtrl = sHelper.addLabeledControl(_("&Request:"), wx.TextCtrl, style=wx.TE_READONLY | wx.TE_MULTILINE)
+		# Here are text Controls for request, response and feedback. Only feedback can be editable.
+		self.requestTextCtrl = sHelper.addLabeledControl(_("&Request:   "), wx.TextCtrl, style=wx.TE_READONLY | wx.TE_MULTILINE, size=wx.Size(800, 70))
 		self.requestTextCtrl.SetValue(request)
-		self.responseTextCtrl = sHelper.addLabeledControl(_("&Response:"), wx.TextCtrl, style=wx.TE_READONLY | wx.TE_MULTILINE)
+		self.responseTextCtrl = sHelper.addLabeledControl(_("&Response:"), wx.TextCtrl, style=wx.TE_READONLY | wx.TE_MULTILINE, size=wx.Size(800, 70))
 		self.responseTextCtrl.SetValue(response)
-		self.feedbackTextCtrl = sHelper.addLabeledControl(_("&Feedback:"), wx.TextCtrl)
+		self.feedbackTextCtrl = sHelper.addLabeledControl(_("&Feedback:"), wx.TextCtrl, style=wx.TE_MULTILINE, size=wx.Size(800, 130))
 
 		sHelper.addDialogDismissButtons(self.CreateButtonSizer(wx.OK | wx.CANCEL))
 
 		mainSizer.Add(sHelper.sizer, border=guiHelper.BORDER_FOR_DIALOGS, flag=wx.ALL)
 		mainSizer.Fit(self)
+		self.SetSize(1000, 450)
 		self.SetSizer(mainSizer)
 
 		self.feedbackTextCtrl.SetFocus()

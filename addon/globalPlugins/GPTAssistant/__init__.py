@@ -9,8 +9,6 @@ import sys
 import threading
 import time
 
-import requests
-
 sys.modules["http.cookies"] = httpcookies
 sys.modules["http.client"] = httpclient
 sys.modules["importlib"] = importlib
@@ -34,6 +32,7 @@ import api
 import config
 import globalPluginHandler
 import gui
+import requests
 import textInfos
 import ui
 import wx
@@ -287,19 +286,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return
 
 		self.showReport(self.latest_action["diff"])
-
-	@script(
-		gesture="kb:NVDA+alt+u",
-		description=_("Show report of typos"),
-		category=ADDON_SUMMARY,
-	)
-	def script_showTypoReport(self, gesture):
-		if self.latest_action["diff"] is None:
-			ui.message(_("No report has been generated yet."))
-			log.warning(_("No report has been generated yet."))
-			return
-
-		self.showReport(self.typo_report)
 
 	@script(
 		gesture="kb:NVDA+alt+f",
