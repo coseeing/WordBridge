@@ -9,8 +9,6 @@ import sys
 import threading
 import time
 
-import requests
-
 sys.modules["http.cookies"] = httpcookies
 sys.modules["http.client"] = httpclient
 sys.modules["importlib"] = importlib
@@ -34,6 +32,7 @@ import api
 import config
 import globalPluginHandler
 import gui
+import requests
 import textInfos
 import ui
 import wx
