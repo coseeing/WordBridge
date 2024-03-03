@@ -179,7 +179,7 @@ class FeedbackDialog(
 		wx.Dialog  # wxPython does not seem to call base class initializer, put last in MRO
 ):
 
-	helpId = "FeedbackCOseeing"
+	helpId = "FeedbackCoseeing"
 	
 	def __init__(self, parent, request, response):
 		# Translators: This is the label for the feedback coseeing dialog.
