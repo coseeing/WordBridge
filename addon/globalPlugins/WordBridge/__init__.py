@@ -46,9 +46,9 @@ from hanzidentifier import has_chinese
 
 
 addonHandler.initTranslation()
-ADDON_SUMMARY = "GPTAssistant"
+ADDON_SUMMARY = "WordBridge"
 
-config.conf.spec["GPTAssistant"] = {
+config.conf.spec["WordBridge"] = {
 	"settings": {
 		"model": "string(default=gpt-3.5-turbo)",
 		"gpt_access_method": "string(default=openai_api_key)",
@@ -136,7 +136,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return text
 
 	def isTextValid(self, text):
-		max_char_count = config.conf["GPTAssistant"]["settings"]["max_char_count"]
+		max_char_count = config.conf["WordBridge"]["settings"]["max_char_count"]
 		if len(text) > max_char_count:
 			ui.message(
 				_("The number of characters is {len_text}, which exceeds the maximum, {max_char_count}.").format(
@@ -170,11 +170,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, request):
-		if config.conf["GPTAssistant"]["settings"]["gpt_access_method"] == "openai_api_key":
-			access_token = config.conf["GPTAssistant"]["settings"]["openai_key"]
+		if config.conf["WordBridge"]["settings"]["gpt_access_method"] == "openai_api_key":
+			access_token = config.conf["WordBridge"]["settings"]["openai_key"]
 			api_base_url = OPENAI_BASE_URL
 			corrector = ChineseTypoCorrector(
-				model=config.conf["GPTAssistant"]["settings"]["model"],
+				model=config.conf["WordBridge"]["settings"]["model"],
 				access_token=access_token,
 				api_base_url=api_base_url,
 			)
@@ -190,8 +190,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		else:
 			try:
 				access_token = obtain_openai_key(
-					config.conf["GPTAssistant"]["settings"]["coseeing_username"],
-					config.conf["GPTAssistant"]["settings"]["coseeing_password"],
+					config.conf["WordBridge"]["settings"]["coseeing_username"],
+					config.conf["WordBridge"]["settings"]["coseeing_password"],
 				)
 			except Exception as e:
 				ui.message(_("Sorry, an error occurred while logging into Coseeing, the details are: {e}").format(e=e))
@@ -230,7 +230,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# print(_(f"Corrected text: {response}"))
 		# print(_(f"Difference: {diff}"))
 
-		if config.conf["GPTAssistant"]["settings"]["auto_display_report"]:
+		if config.conf["WordBridge"]["settings"]["auto_display_report"]:
 			self.showReport(self.latest_action["diff"])
 
 	def correctionAction(self, text):
@@ -314,8 +314,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 			try:
 				access_token = obtain_openai_key(
-					config.conf["GPTAssistant"]["settings"]["coseeing_username"],
-					config.conf["GPTAssistant"]["settings"]["coseeing_password"],
+					config.conf["WordBridge"]["settings"]["coseeing_username"],
+					config.conf["WordBridge"]["settings"]["coseeing_password"],
 				)
 			except Exception as e:
 				ui.message(_("Sorry, an error occurred while logging into Coseeing, the details are: {e}").format(e=e))
