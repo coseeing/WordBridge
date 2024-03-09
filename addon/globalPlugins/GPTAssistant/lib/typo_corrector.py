@@ -66,7 +66,7 @@ class BaseTypoCorrector():
 
 	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
 		if fake_operation or not self._has_target_language(input_text):
-			return input_text
+			return CorrectorResult(input_text, input_text, [])
 
 		if self.is_chat_completion:
 			template = deepcopy(TEMPLATE_DICT[self.__class__.__name__ + "Chat"])
