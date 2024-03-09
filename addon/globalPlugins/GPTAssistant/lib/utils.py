@@ -1,11 +1,12 @@
 import random
+import string
 
 from difflib import SequenceMatcher
 from typing import Dict, List
 # from chinese_converter import to_simplified, to_traditional
 from .chinese_dictionary import char_to_pronounce
 from .chinese_dictionary import pronounce_to_char_traditional, pronounce_to_char_simplified
-from hanzidentifier import identify
+from hanzidentifier import has_chinese, identify
 from hanzidentifier import MIXED, SIMPLIFIED, TRADITIONAL
 from pypinyin import pinyin, Style
 
@@ -17,7 +18,7 @@ except ImportError:
 	getCharDescListFromText = None
 
 # Characters used for text segmentation
-SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t"
+SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t" + string.punctuation
 
 
 def get_phone(char: str) -> List:
@@ -60,7 +61,7 @@ def text_segmentation(text: str, max_length: int = 50) -> tuple:
 
 	word = ""
 	for char in text:
-		if char in SEPERATOR:
+		if char in SEPERATOR or (not has_chinese(char)):
 			separators.append(char)
 			partitions.append(word)
 			word = ""
