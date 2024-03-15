@@ -6,7 +6,7 @@ api_path = os.path.join(path, "..", "..", "addon", "globalPlugins", "GPTAssistan
 sys.path.insert(0, api_path)
 
 from lib.proofreader import Proofreader
-from lib.typo_corrector import ChineseTypoCorrector
+from lib.typo_corrector import ChineseTypoCorrector, ChineseCharacterReselector
 
 
 """
@@ -16,12 +16,14 @@ This is a quick example program that demonstrates how to use the Proofreader and
 """
 if __name__ == "__main__":
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
+	corrector = ChineseCharacterReselector()
+	"""
 	corrector = ChineseTypoCorrector(
 		model="gpt-3.5-turbo",
 		access_token="<API_KEY>",
 		api_base_url="https://api.openai.com",
 	)
-
+	"""
 	# Initialize the proofreader object using the typo corrector
 	proofreader = Proofreader(corrector)
 

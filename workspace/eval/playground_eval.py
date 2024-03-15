@@ -6,7 +6,7 @@ api_path = os.path.join(path, "..", "..", "addon", "globalPlugins", "GPTAssistan
 sys.path.insert(0, api_path)
 
 from lib.proofreader import Proofreader
-from lib.typo_corrector import ChineseTypoCorrector
+from lib.typo_corrector import ChineseTypoCorrector, ChineseCharacterReselector
 
 
 if __name__ == "__main__":
@@ -16,7 +16,7 @@ if __name__ == "__main__":
 	api_base_url="https://api.openai.com"
 	data_name = "gpt4_250_sentence_aug_err_0.1_41PJSO2KRV6SK1WJ6936.txt"
 	groundtruth_name = "gpt4_250_sentence_gt.txt"
-	tag = "2024-02-02"
+	tag = "2024-03-12-reselect"
 
 	data_path = os.path.join(".", "data", data_name)
 	groundtruth_path = os.path.join(".", "data", groundtruth_name)
@@ -29,12 +29,14 @@ if __name__ == "__main__":
 		os.makedirs(result_folder_name)
 
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
+	corrector = ChineseCharacterReselector()
+	"""
 	corrector = ChineseTypoCorrector(
 		model=model,
 		access_token=api_key,
 		api_base_url=api_base_url,
 	)
-
+	"""
 	# Initialize the proofreader object using the typo corrector
 	proofreader = Proofreader(corrector)
 
@@ -65,7 +67,7 @@ if __name__ == "__main__":
 
 		f.write(f"\n\nAccuracy = {correct/len(data) * 100}%\n")
 		print(f"\n\nAccuracy = {correct/len(data) * 100}%")
-
+		"""
 		usage = proofreader.get_total_usage()
 
 		f.write(f"\n\nToken Usage:\n")
@@ -73,3 +75,4 @@ if __name__ == "__main__":
 		for k in usage:
 			f.write(f"{k} = {usage[k]}\n")
 			print(f"{k} = {usage[k]}")
+		"""

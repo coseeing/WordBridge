@@ -4,8 +4,10 @@ from threading import Thread
 from typing import Any, List
 
 import logging
+import os
 import random
 import requests
+import subprocess
 import time
 
 from hanzidentifier import has_chinese
@@ -13,11 +15,11 @@ from pypinyin import lazy_pinyin, Style
 from .template import COMMENT_DICT, TEMPLATE_DICT
 from .utils import get_phone, has_simplified_chinese_char, has_traditional_chinese_char
 
-import addonHandler
+#import addonHandler
 import chinese_converter
 
 
-addonHandler.initTranslation()
+#addonHandler.initTranslation()
 log = logging.getLogger(__name__)
 
 
@@ -331,3 +333,24 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 
 	def _has_target_language(self, text: str):
 		return has_chinese(text)
+
+
+class ChineseCharacterReselector():
+	def correct_segment_batch(self, input_text_list: list) -> list:
+		output_list = []
+		for input_text in input_text_list:
+			output_text = ""
+			phone = ''.join(lazy_pinyin(input_text, style=Style.TONE3)).replace("1", "-").replace("2", "/").replace("3", ",").replace("4", "\\").replace("5", " ")
+			os.chdir(r"C:\Users\forev\Desktop\librime\build\bin")
+			cmd = r"echo {pinyin_string} | .\Release\rime_api_console.exe".format(pinyin_string=phone)
+			rime_log = subprocess.check_output(cmd, shell=True).decode("utf-8").split("\r\n")
+			for s in rime_log:
+				if s.startswith("commit: "):
+					output_text = s.replace("commit: ", "")
+			corrector_result = CorrectorResult(
+				original_text=input_text,
+				corrected_text=output_text,
+				response_history=[],
+			)
+			output_list.append(corrector_result)
+		return output_list
