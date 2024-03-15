@@ -194,5 +194,5 @@ msgstr "服務不存在。請檢察模型是已到期或不存在。"
 #. Add-on description
 #. Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 #: buildVars.py:26
-msgid "Apply GPT to help people"
-msgstr "應用GTP來幫助人們"
+msgid "Helping fix Chinese typos to ensure the words are correct."
+msgstr "協助修正中文打字錯誤，確保用詞正確。"

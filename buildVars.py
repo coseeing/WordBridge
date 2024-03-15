@@ -23,7 +23,7 @@ addon_info = {
 	"addon_summary": _("Word Bridge"),
 	# Add-on description
 	# Translators: Long description to be shown for this add-on on add-on information from add-ons manager
-	"addon_description": _("""Helping correct a Chinese typo to the appropriate and accurate word"""),
+	"addon_description": _("""Helping fix Chinese typos to ensure the words are correct."""),
 	# version
 	"addon_version": "1.0",
 	# Author(s)
