@@ -26,7 +26,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		# For selecting OpenAI model
 		modelLabelText = _("OpenAI Model:")
 		self.modelList = settingsSizerHelper.addLabeledControl(modelLabelText, wx.Choice, choices=model_list)
-		self.modelList.SetToolTip(wx.ToolTip(_("Choose the OpenAI model for the GPT assistant")))
+		self.modelList.SetToolTip(wx.ToolTip(_("Choose the OpenAI model for the Word Bridge")))
 		if config.conf["WordBridge"]["settings"]["model"] in model_list:
 			self.modelList.SetSelection(model_list.index(config.conf["WordBridge"]["settings"]["model"]))
 		else:

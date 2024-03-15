@@ -1,8 +1,8 @@
 {
-	"addonId": "GPTAssistant",
-	"displayName": "GPTAssistant",
+	"addonId": "WordBridge",
+	"displayName": "WordBridge",
 	"URL": "",
-	"description": "GPTAssistant",
+	"description": "WordBridge",
 	"sha256": "28cea71f298a5ff41a3edc0ad459a9289c61bd127d99313f74a3946225dbcfbc",
 	"homepage": null,
 	"addonVersionName": "0.1",

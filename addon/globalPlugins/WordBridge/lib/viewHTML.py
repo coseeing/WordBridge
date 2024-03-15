@@ -23,7 +23,7 @@ def text2template(src, dst):
 	try:
 		title = ".".join(os.path.basename(dst).split(".")[:-1])
 	except BaseException:
-		title = "GPTAssistant"
+		title = "WordBridge"
 	backslash_pattern = re.compile(r"\\")
 	data = backslash_pattern.sub(lambda m: m.group(0).replace("\\", "\\\\"), value)
 	data = data.replace(r"`", r"\`")
