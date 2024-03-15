@@ -194,5 +194,5 @@ msgstr "服務不存在。請檢察模型是已到期或不存在。"
 #. Add-on description
 #. Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 #: buildVars.py:26
-msgid "Assisting in correcting a typo in Chinese to ensure the word is accurate and appropriate."
-msgstr "協助更正中文打字錯誤，確保用詞準確恰當。"
+msgid "Assisting in correcting a Chinese typo to ensure the word is appropriate and accurate."
+msgstr "協助更正中文打字錯誤，確保用詞恰當準確。"
