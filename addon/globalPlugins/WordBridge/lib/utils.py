@@ -3,9 +3,8 @@ import string
 
 from difflib import SequenceMatcher
 from typing import Dict, List
-# from chinese_converter import to_simplified, to_traditional
-from .chinese_dictionary import char_to_pronounce
-from .chinese_dictionary import pronounce_to_char_traditional, pronounce_to_char_simplified
+from chinese_converter import to_simplified, to_traditional
+from .chinese_dictionary import string_to_pinyin, pinyin_to_string
 from hanzidentifier import has_chinese, identify
 from hanzidentifier import MIXED, SIMPLIFIED, TRADITIONAL
 from pypinyin import pinyin, Style
@@ -21,23 +20,28 @@ except ImportError:
 SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t" + string.punctuation
 
 
-def get_phone(char: str) -> List:
-	phones = char_to_pronounce[char] | set(pinyin(char, style=Style.TONE3, heteronym=True)[0])
-	return list(phones)
+def get_char_pinyin(char: str) -> List:
+	assert len(char) == 1, "Length of char should be 1."
+	pinyins_set = set(string_to_pinyin[char]) | set(pinyin(char, heteronym=True)[0])
+	return list(pinyins_set)
 
 
 def typo_augmentation(text: str, is_traditional: bool, error_rate: float = 0.125) -> str:
-	text_aug = ""
-	p2c_dict = pronounce_to_char_traditional if is_traditional else pronounce_to_char_simplified
+	if not is_traditional:
+		text = to_traditional(text)
 
+	text_aug = ""
 	for char in text:
-		if char not in char_to_pronounce or random.random() > error_rate:
+		if char not in string_to_pinyin or random.random() > error_rate:
 			text_aug += char
 			continue
 
-		pronounce = random.choice(list(char_to_pronounce[char]))
-		char_aug = random.choice(list(p2c_dict[pronounce]))
+		pronounce = random.choice(string_to_pinyin[char])
+		char_aug = random.choice(pinyin_to_string[pronounce])
 		text_aug += char_aug
+
+	if not is_traditional:
+		text_aug = to_simplified(text_aug)
 
 	return text_aug
 
@@ -105,7 +109,7 @@ def analyze_diff(char_original: str, char_corrected: str) -> List:
 	elif char_original != char_traditional and char_traditional == char_corrected:
 		tags.append("Simplified to tranditional")
 
-	if char_to_pronounce[char_original] | char_to_pronounce[char_corrected]:
+	if set(string_to_pinyin[char_original]) | set(string_to_pinyin[char_corrected]):
 		tags.append("Share the same pronunciation")
 	else:
 		tags.append("Do not share the same pronunciation")
