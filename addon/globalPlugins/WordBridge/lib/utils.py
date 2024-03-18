@@ -1,5 +1,4 @@
 import random
-import string
 
 from difflib import SequenceMatcher
 from typing import Dict, List
@@ -120,19 +119,19 @@ def analyze_diff(char_original: str, char_corrected: str) -> List:
 	return tags
 
 
-def has_simplified_chinese_char(string: str):
-	return identify(string) in [SIMPLIFIED, MIXED]
+def has_simplified_chinese_char(text: str):
+	return identify(text) in [SIMPLIFIED, MIXED]
 
 
-def has_traditional_chinese_char(string: str):
-	return identify(string) in [TRADITIONAL, MIXED]
+def has_traditional_chinese_char(text: str):
+	return identify(text) in [TRADITIONAL, MIXED]
 
 
-def get_descs(string: str) -> str:
-	if not string or getLanguage is None or getCharDescListFromText is None:
+def get_descs(text: str) -> str:
+	if not text or getLanguage is None or getCharDescListFromText is None:
 		return ""
 
-	return getCharDescListFromText(string, getLanguage())
+	return getCharDescListFromText(text, getLanguage())
 
 
 def strings_diff(string_before: str, string_after: str) -> Dict:
