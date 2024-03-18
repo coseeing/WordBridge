@@ -115,7 +115,7 @@ def analyze_diff(char_original: str, char_corrected: str) -> List:
 	elif char_original != char_traditional and char_traditional == char_corrected:
 		tags.append("Simplified to tranditional")
 
-	if set(string_to_pinyin[char_original]) | set(string_to_pinyin[char_corrected]):
+	if set(string_to_pinyin[char_original]) & set(string_to_pinyin[char_corrected]):
 		tags.append("Share the same pronunciation")
 	else:
 		tags.append("Do not share the same pronunciation")
