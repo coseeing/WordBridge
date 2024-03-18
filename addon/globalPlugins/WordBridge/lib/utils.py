@@ -6,7 +6,7 @@ from typing import Dict, List
 # from chinese_converter import to_simplified, to_traditional
 from .chinese_dictionary import char_to_pronounce
 from .chinese_dictionary import pronounce_to_char_traditional, pronounce_to_char_simplified
-from hanzidentifier import has_chinese, identify
+from hanzidentifier import identify
 from hanzidentifier import MIXED, SIMPLIFIED, TRADITIONAL
 from pypinyin import pinyin, Style
 
@@ -18,7 +18,14 @@ except ImportError:
 	getCharDescListFromText = None
 
 # Characters used for text segmentation
-SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t" + string.punctuation
+SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t\"\'#$%&()*+-/<=>@[\]^_`{|}~"
+
+
+def has_chinese(text: str):
+	for char in text:
+		if char >= '\u4e00' and char <= '\u9fff':
+			return True
+	return False
 
 
 def get_phone(char: str) -> List:
