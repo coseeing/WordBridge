@@ -8,10 +8,10 @@ import random
 import requests
 import time
 
-from hanzidentifier import has_chinese
 from pypinyin import lazy_pinyin, Style
 from .template import COMMENT_DICT, TEMPLATE_DICT
-from .utils import get_char_pinyin, has_simplified_chinese_char, has_traditional_chinese_char
+
+from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
 
 import addonHandler
 import chinese_converter

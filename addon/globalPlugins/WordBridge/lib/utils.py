@@ -1,11 +1,10 @@
 import random
-import string
 
 from difflib import SequenceMatcher
 from typing import Dict, List
 from chinese_converter import to_simplified, to_traditional
 from .chinese_dictionary import string_to_pinyin, pinyin_to_string
-from hanzidentifier import has_chinese, identify
+from hanzidentifier import identify
 from hanzidentifier import MIXED, SIMPLIFIED, TRADITIONAL
 from pypinyin import pinyin, Style
 
@@ -17,7 +16,14 @@ except ImportError:
 	getCharDescListFromText = None
 
 # Characters used for text segmentation
-SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t" + string.punctuation
+SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t\"\'#$%&()*+-/<=>@[\]^_`{|}~"
+
+
+def has_chinese(text: str):
+	for char in text:
+		if char >= '\u4e00' and char <= '\u9fff':
+			return True
+	return False
 
 
 def get_char_pinyin(char: str) -> List:
@@ -117,19 +123,19 @@ def analyze_diff(char_original: str, char_corrected: str) -> List:
 	return tags
 
 
-def has_simplified_chinese_char(string: str):
-	return identify(string) in [SIMPLIFIED, MIXED]
+def has_simplified_chinese_char(text: str):
+	return identify(text) in [SIMPLIFIED, MIXED]
 
 
-def has_traditional_chinese_char(string: str):
-	return identify(string) in [TRADITIONAL, MIXED]
+def has_traditional_chinese_char(text: str):
+	return identify(text) in [TRADITIONAL, MIXED]
 
 
-def get_descs(string: str) -> str:
-	if not string or getLanguage is None or getCharDescListFromText is None:
+def get_descs(text: str) -> str:
+	if not text or getLanguage is None or getCharDescListFromText is None:
 		return ""
 
-	return getCharDescListFromText(string, getLanguage())
+	return getCharDescListFromText(text, getLanguage())
 
 
 def strings_diff(string_before: str, string_after: str) -> Dict:
