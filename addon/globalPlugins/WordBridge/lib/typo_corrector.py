@@ -10,7 +10,8 @@ import time
 
 from pypinyin import lazy_pinyin, Style
 from .template import COMMENT_DICT, TEMPLATE_DICT
-from .utils import get_phone, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
+
+from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
 
 import addonHandler
 import chinese_converter
@@ -315,7 +316,7 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 			return True
 
 		for i in range(len(text)):
-			if len(set(get_phone(text[i])) & set(get_phone(response[i]))) == 0:
+			if len(set(get_char_pinyin(text[i])) & set(get_char_pinyin(response[i]))) == 0:
 				return True
 		return False
 
