@@ -11,7 +11,7 @@ from gui.settingsDialogs import SettingsPanel
 
 addonHandler.initTranslation()
 
-model_list = ["gpt-3.5-turbo"]
+model_list = ["gpt-3.5-turbo", "gpt-4-turbo", "gpt-4o"]
 gpt_access_method_list = [_("OpenAI API Key"), _("Coseeing Account")]
 gpt_access_methods = ["openai_api_key", "coseeing_account"]
 

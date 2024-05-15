@@ -6,7 +6,7 @@ import addonHandler
 
 
 addonHandler.initTranslation()
-OPENAIRELAY_URL = "http://openairelay.coseeing.org"
+OPENAIRELAY_URL = "https://wordbridge.coseeing.org"
 # OPENAIRELAY_URL = "http://localhost:8000"
 log = logging.getLogger(__name__)
 

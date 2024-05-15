@@ -47,7 +47,7 @@ config.conf.spec["WordBridge"] = {
 	}
 }
 OPENAI_BASE_URL = "https://api.openai.com"
-COSEEING_BASE_URL = "http://openairelay.coseeing.org"
+COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
 # COSEEING_BASE_URL = "http://localhost:8000"
 
 
