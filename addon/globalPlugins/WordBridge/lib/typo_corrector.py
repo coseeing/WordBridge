@@ -66,7 +66,7 @@ class BaseTypoCorrector():
 		if fake_operation or not self._has_target_language(input_text):
 			return CorrectorResult(input_text, input_text, [])
 
-		template = deepcopy(TEMPLATE_DICT[self.__class__.__name__ + "Chat"])
+		template = deepcopy(TEMPLATE_DICT[self.__class__.__name__])
 		text = self._text_preprocess(input_text)
 		input = self._create_input(template, text)
 
@@ -144,7 +144,7 @@ class BaseTypoCorrector():
 
 	def _chat_completion(self, input: List, response_text_history: List) -> str:
 		messages = deepcopy(input)
-		comment_template = COMMENT_DICT[self.__class__.__name__ + "Chat"]
+		comment_template = COMMENT_DICT[self.__class__.__name__]
 		for response_previous in response_text_history:
 			comment = comment_template.replace("{{response_previous}}", response_previous)
 			messages.append({"role": "assistant", "content": response_previous})
