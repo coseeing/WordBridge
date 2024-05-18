@@ -179,7 +179,7 @@ class FeedbackDialog(
 	wx.Dialog  # wxPython does not seem to call base class initializer, put last in MRO
 ):
 	helpId = "FeedbackCoseeing"
-	
+
 	def __init__(self, parent, request, response):
 		# This is the label for the feedback dialog for Coseeing.
 		super().__init__(parent, title=_("Feedback Coseeing"))
@@ -187,11 +187,26 @@ class FeedbackDialog(
 		sHelper = guiHelper.BoxSizerHelper(self, orientation=wx.VERTICAL)
 
 		# Here are text Controls for request, response and feedback. Only feedback can be editable.
-		self.requestTextCtrl = sHelper.addLabeledControl(_("&Request:   "), wx.TextCtrl, style=wx.TE_READONLY | wx.TE_MULTILINE, size=wx.Size(800, 70))
+		self.requestTextCtrl = sHelper.addLabeledControl(
+			_("&Request:   "),
+			wx.TextCtrl,
+			style=wx.TE_READONLY | wx.TE_MULTILINE,
+			size=wx.Size(800, 70)
+		)
 		self.requestTextCtrl.SetValue(request)
-		self.responseTextCtrl = sHelper.addLabeledControl(_("&Response:"), wx.TextCtrl, style=wx.TE_READONLY | wx.TE_MULTILINE, size=wx.Size(800, 70))
+		self.responseTextCtrl = sHelper.addLabeledControl(
+			_("&Response:"),
+			wx.TextCtrl,
+			style=wx.TE_READONLY | wx.TE_MULTILINE,
+			size=wx.Size(800, 70)
+		)
 		self.responseTextCtrl.SetValue(response)
-		self.feedbackTextCtrl = sHelper.addLabeledControl(_("&Feedback:"), wx.TextCtrl, style=wx.TE_MULTILINE, size=wx.Size(800, 130))
+		self.feedbackTextCtrl = sHelper.addLabeledControl(
+			_("&Feedback:"),
+			wx.TextCtrl,
+			style=wx.TE_MULTILINE,
+			size=wx.Size(800, 130)
+		)
 
 		sHelper.addDialogDismissButtons(self.CreateButtonSizer(wx.OK | wx.CANCEL))
 

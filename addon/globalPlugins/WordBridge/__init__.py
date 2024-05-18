@@ -287,10 +287,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	)
 	def script_feedbackTypo(self, gesture):
 		# self.latest_action = {
-			# "request": "考式以經通過",
-			# "response": "考試已經通過",
-			# "diff": None,
-			# "interaction_id": 1,
+		# 	"request": "考式以經通過",
+		# 	"response": "考試已經通過",
+		# 	"diff": None,
+		# 	"interaction_id": 1,
 		# }
 		if self.latest_action["interaction_id"] is None:
 			ui.message(_("No report has been generated yet."))
@@ -298,7 +298,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return
 
 		def show():
-			with FeedbackDialog(gui.mainFrame, self.latest_action["request"], self.latest_action["response"]) as feedbackDialog:
+			with FeedbackDialog(
+				gui.mainFrame,
+				self.latest_action["request"],
+				self.latest_action["response"]
+			) as feedbackDialog:
 				if feedbackDialog.ShowModal() != wx.ID_OK:
 					return
 				feedback_value = feedbackDialog.feedbackTextCtrl.GetValue()
