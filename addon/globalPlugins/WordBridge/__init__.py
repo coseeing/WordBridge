@@ -1,7 +1,3 @@
-from .python.http import client as httpclient
-from .python.http import cookies as httpcookies
-from .python import importlib
-
 import json
 import os
 import shutil
@@ -9,34 +5,25 @@ import sys
 import threading
 import time
 
-sys.modules["http.cookies"] = httpcookies
-sys.modules["http.client"] = httpclient
-sys.modules["importlib"] = importlib
-
 PATH = os.path.dirname(__file__)
-
-PYTHON_PATH = os.path.join(PATH, "python")
-sys.path.insert(0, PYTHON_PATH)
-
 PACKAGE_PATH = os.path.join(PATH, "package")
 sys.path.insert(0, PACKAGE_PATH)
-
-from .dialogs import OpenAIGeneralSettingsPanel, FeedbackDialog
-
-from logHandler import log
-from scriptHandler import script
-from tones import beep
 
 import addonHandler
 import api
 import config
 import globalPluginHandler
 import gui
-import requests
+from logHandler import log
+from scriptHandler import script
 import textInfos
+from tones import beep
 import ui
 import wx
 
+import requests
+
+from .dialogs import OpenAIGeneralSettingsPanel, FeedbackDialog
 from .lib.coseeing import obtain_openai_key
 from .lib.proofreader import Proofreader
 from .lib.typo_corrector import ChineseTypoCorrector
@@ -60,7 +47,7 @@ config.conf.spec["WordBridge"] = {
 	}
 }
 OPENAI_BASE_URL = "https://api.openai.com"
-COSEEING_BASE_URL = "http://openairelay.coseeing.org"
+COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
 # COSEEING_BASE_URL = "http://localhost:8000"
 
 
@@ -264,7 +251,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+i",
-		description=_("Show settings of Word Bridge"),
+		description=_("Show settings of GPT Assistant"),
 		category=ADDON_SUMMARY,
 	)
 	def script_showGPTSettings(self, gesture):
