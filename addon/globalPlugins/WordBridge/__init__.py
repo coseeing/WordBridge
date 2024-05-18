@@ -26,7 +26,7 @@ import requests
 from .dialogs import OpenAIGeneralSettingsPanel, FeedbackDialog
 from .lib.coseeing import obtain_openai_key
 from .lib.proofreader import Proofreader
-from .lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorLite
+from .lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorSimple
 from .lib.utils import strings_diff
 from .lib.viewHTML import text2template
 from hanzidentifier import has_chinese
@@ -160,12 +160,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if config.conf["WordBridge"]["settings"]["gpt_access_method"] == "openai_api_key":
 			access_token = config.conf["WordBridge"]["settings"]["openai_key"]
 			api_base_url = OPENAI_BASE_URL
-			model_name = config.conf["WordBridge"]["settings"]["model"].split("|")[0]
+			model_name = config.conf["WordBridge"]["settings"]["model"].split("|")[0].strip()
 
 			corrector_mode = "Normal"
-			if "Quick Mode" in config.conf["WordBridge"]["settings"]["model"]:
-				corrector_mode = "Quick Mode"
-			corrector_class = ChineseTypoCorrectorLite if corrector_mode == "Quick Mode" else ChineseTypoCorrector
+			if "Simple Mode" in config.conf["WordBridge"]["settings"]["model"]:
+				corrector_mode = "Simple Mode"
+			corrector_class = ChineseTypoCorrectorSimple if corrector_mode == "Simple Mode" else ChineseTypoCorrector
 			corrector = corrector_class(
 				model=model_name,
 				access_token=access_token,

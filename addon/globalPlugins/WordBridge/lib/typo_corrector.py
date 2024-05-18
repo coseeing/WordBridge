@@ -230,7 +230,7 @@ class BaseTypoCorrector():
 		raise NotImplementedError("Subclass must implement this method")
 
 
-class ChineseTypoCorrectorLite(BaseTypoCorrector):
+class ChineseTypoCorrectorSimple(BaseTypoCorrector):
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
