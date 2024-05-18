@@ -17,8 +17,8 @@ chinese_lite_templates = [
 chinese_comment = "'{{response_previous}}'是錯誤答案，請修正重新輸出文字"
 
 COMMENT_DICT = {
-	"ChineseTypoCorrector": chinese_comment,
 	"ChineseTypoCorrectorLite": chinese_comment,
+	"ChineseTypoCorrector": chinese_comment,
 }
 
 TEMPLATE_DICT = {
