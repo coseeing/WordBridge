@@ -11,7 +11,7 @@ import time
 from pypinyin import lazy_pinyin, Style
 from .template import COMMENT_DICT, TEMPLATE_DICT
 
-from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
+from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char, SEPERATOR
 
 import addonHandler
 import chinese_converter
@@ -261,12 +261,19 @@ class ChineseTypoCorrectorLite(BaseTypoCorrector):
 
 	def _parse_response(self, response: str) -> str:
 		if self.is_chat_completion:
-			return response["choices"][0]["message"]["content"]
-		return response["choices"][0]["text"]
+			sentence = response["choices"][0]["message"]["content"]
+		else:
+			sentence = response["choices"][0]["text"]
+
+		if has_simplified_chinese_char(sentence):
+			sentence = chinese_converter.to_traditional(sentence)
+
+		return sentence
 
 	def _create_input(self, template: str, text: str, is_chat_completion: bool):
 		if is_chat_completion:
-			raise NotImplementedError("TypoCorrector do not support chat completion")
+			template[-1]["content"] = template[-1]["content"].replace("{{text_input}}", text)
+			return template
 		return template.replace("{{text_input}}", text)
 
 	def _has_error(self, response: Any, text: str) -> bool:
@@ -279,6 +286,8 @@ class ChineseTypoCorrectorLite(BaseTypoCorrector):
 		return input_text
 
 	def _text_postprocess(self, text: str):
+		while text and text[-1] in SEPERATOR:
+			text = text[:-1]
 		return text
 
 	def _has_target_language(self, text: str):
