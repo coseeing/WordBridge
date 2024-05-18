@@ -48,7 +48,6 @@ class BaseTypoCorrector():
 		max_correction_attempts: int = 3,
 		httppost_retries: int = 2,
 		backoff: int = 1,
-		is_chat_completion: bool = True,
 	):
 
 		self.model = model
@@ -61,28 +60,21 @@ class BaseTypoCorrector():
 		self.max_correction_attempts = max_correction_attempts
 		self.httppost_retries = httppost_retries
 		self.backoff = backoff
-		self.is_chat_completion = is_chat_completion
 		self.headers = {"Authorization": f"Bearer {access_token}"}
 
 	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
 		if fake_operation or not self._has_target_language(input_text):
 			return CorrectorResult(input_text, input_text, [])
 
-		if self.is_chat_completion:
-			template = deepcopy(TEMPLATE_DICT[self.__class__.__name__ + "Chat"])
-		else:
-			template = deepcopy(TEMPLATE_DICT[self.__class__.__name__])
+		template = deepcopy(TEMPLATE_DICT[self.__class__.__name__ + "Chat"])
 		text = self._text_preprocess(input_text)
-		input = self._create_input(template, text, self.is_chat_completion)
+		input = self._create_input(template, text)
 
 		response_history = []
 		response_text_history = []
 		for _ in range(self.max_correction_attempts):
 			corrected_text = None
-			if self.is_chat_completion:
-				response_json = self._chat_completion(input, response_text_history)
-			else:
-				response_json = self._completion(input)
+			response_json = self._chat_completion(input, response_text_history)
 
 			response_history.append(response_json)
 
@@ -150,19 +142,6 @@ class BaseTypoCorrector():
 		except Exception as e:
 			exception_queue.put(e)
 
-	def _completion(self, prompt: str) -> str:
-		data = {
-			"model": self.model,
-			"prompt": prompt,
-			"max_tokens": self.max_tokens,
-			"seed": self.seed,
-			"temperature": self.temperature,
-			"top_p": self.top_p,
-			"logprobs": self.logprobs,
-		}
-
-		return self._openai_post_with_retries(data)
-
 	def _chat_completion(self, input: List, response_text_history: List) -> str:
 		messages = deepcopy(input)
 		comment_template = COMMENT_DICT[self.__class__.__name__ + "Chat"]
@@ -186,10 +165,7 @@ class BaseTypoCorrector():
 
 	def _openai_post_with_retries(self, data):
 		backoff = self.backoff
-		if self.is_chat_completion:
-			url = f"{self.api_base_url}/v1/chat/completions"
-		else:
-			url = f"{self.api_base_url}/v1/completions"
+		url = f"{self.api_base_url}/v1/chat/completions"
 
 		response_json = None
 		for r in range(self.httppost_retries):
@@ -235,7 +211,7 @@ class BaseTypoCorrector():
 	def _parse_response(self, response: str):
 		raise NotImplementedError("Subclass must implement this method")
 
-	def _create_input(self, template: str, text: str, is_chat_completion: bool):
+	def _create_input(self, template: str, text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
 	def _has_error(self, response: Any, text: str):
@@ -260,21 +236,16 @@ class ChineseTypoCorrectorLite(BaseTypoCorrector):
 		super().__init__(*args, **kwargs)
 
 	def _parse_response(self, response: str) -> str:
-		if self.is_chat_completion:
-			sentence = response["choices"][0]["message"]["content"]
-		else:
-			sentence = response["choices"][0]["text"]
+		sentence = response["choices"][0]["message"]["content"]
 
 		if has_simplified_chinese_char(sentence):
 			sentence = chinese_converter.to_traditional(sentence)
 
 		return sentence
 
-	def _create_input(self, template: str, text: str, is_chat_completion: bool):
-		if is_chat_completion:
-			template[-1]["content"] = template[-1]["content"].replace("{{text_input}}", text)
-			return template
-		return template.replace("{{text_input}}", text)
+	def _create_input(self, template: str, text: str):
+		template[-1]["content"] = template[-1]["content"].replace("{{text_input}}", text)
+		return template
 
 	def _has_error(self, response: Any, text: str) -> bool:
 		return False
@@ -302,23 +273,19 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 		super().__init__(*args, **kwargs)
 
 	def _parse_response(self, response: str) -> str:
-		if self.is_chat_completion:
-			sentence = response["choices"][0]["message"]["content"]
-		else:
-			sentence = response["choices"][0]["text"]
+		sentence = response["choices"][0]["message"]["content"]
 
 		if has_simplified_chinese_char(sentence):
 			sentence = chinese_converter.to_traditional(sentence)
 
 		return sentence
 
-	def _create_input(self, template: str, text: str, is_chat_completion: bool):
+	def _create_input(self, template: str, text: str):
 		phone = ' '.join(lazy_pinyin(text, style=Style.TONE3))
-		if is_chat_completion:
-			template[-1]["content"] = template[-1]["content"].replace("{{text_input}}", text)
-			template[-1]["content"] = template[-1]["content"].replace("{{phone_input}}", phone)
-			return template
-		return template.replace("{{text_input}}", text).replace("{{phone_input}}", phone)
+
+		template[-1]["content"] = template[-1]["content"].replace("{{text_input}}", text)
+		template[-1]["content"] = template[-1]["content"].replace("{{phone_input}}", phone)
+		return template
 
 	def _has_error(self, response: str, text: str) -> bool:
 		if len(response) != len(text):
