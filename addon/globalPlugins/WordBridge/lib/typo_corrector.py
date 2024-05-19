@@ -240,8 +240,10 @@ class ChineseTypoCorrectorSimple(BaseTypoCorrector):
 	def _parse_response(self, response: str) -> str:
 		sentence = response["choices"][0]["message"]["content"]
 
-		if has_simplified_chinese_char(sentence):
+		if self.output_format == "traditional_tw" and has_simplified_chinese_char(sentence):
 			sentence = chinese_converter.to_traditional(sentence)
+		if self.output_format == "simplified" and has_traditional_chinese_char(sentence):
+			sentence = chinese_converter.to_simplified(sentence)
 
 		return sentence
 
@@ -269,16 +271,25 @@ class ChineseTypoCorrectorSimple(BaseTypoCorrector):
 
 class ChineseTypoCorrector(BaseTypoCorrector):
 
-	def __init__(self, prefix="我說：“", suffix="。”", *args, **kwargs):
-		self.prefix = prefix
-		self.suffix = suffix
+	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
+
+		if self.output_format == "traditional_tw":
+			self.prefix = "我說：“"
+			self.suffix = "。”"
+		elif self.output_format == "simplified":
+			self.prefix = "我说：“"
+			self.suffix = "。”"
+		else:
+			raise NotImplementedError
 
 	def _parse_response(self, response: str) -> str:
 		sentence = response["choices"][0]["message"]["content"]
 
-		if has_simplified_chinese_char(sentence):
+		if self.output_format == "traditional_tw" and has_simplified_chinese_char(sentence):
 			sentence = chinese_converter.to_traditional(sentence)
+		if self.output_format == "simplified" and has_traditional_chinese_char(sentence):
+			sentence = chinese_converter.to_simplified(sentence)
 
 		return sentence
 
