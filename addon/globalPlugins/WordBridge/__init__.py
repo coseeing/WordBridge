@@ -38,6 +38,7 @@ ADDON_SUMMARY = "WordBridge"
 config.conf.spec["WordBridge"] = {
 	"settings": {
 		"model": "string(default=gpt-3.5-turbo)",
+		"language": "string(default=zh_traditional_tw)",
 		"gpt_access_method": "string(default=openai_api_key)",
 		"openai_key": "string(default=\0)",
 		"coseeing_username": "string(default=\0)",
@@ -162,6 +163,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			api_base_url = OPENAI_BASE_URL
 			model_name = config.conf["WordBridge"]["settings"]["model"].split("|")[0].strip()
 
+			language = config.conf["WordBridge"]["settings"]["language"]
 			corrector_mode = "Normal"
 			if "Simple Mode" in config.conf["WordBridge"]["settings"]["model"]:
 				corrector_mode = "Simple Mode"
@@ -170,6 +172,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				model=model_name,
 				access_token=access_token,
 				api_base_url=api_base_url,
+				language=language,
 			)
 			proofreader = Proofreader(corrector)
 

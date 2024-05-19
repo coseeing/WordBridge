@@ -48,6 +48,7 @@ class BaseTypoCorrector():
 		max_correction_attempts: int = 3,
 		httppost_retries: int = 2,
 		backoff: int = 1,
+		language: str = "zh_traditional_tw",
 	):
 
 		self.model = model
@@ -61,12 +62,13 @@ class BaseTypoCorrector():
 		self.httppost_retries = httppost_retries
 		self.backoff = backoff
 		self.headers = {"Authorization": f"Bearer {access_token}"}
+		self.language = language
 
 	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
 		if fake_operation or not self._has_target_language(input_text):
 			return CorrectorResult(input_text, input_text, [])
 
-		template = deepcopy(TEMPLATE_DICT[self.__class__.__name__])
+		template = deepcopy(TEMPLATE_DICT[self.__class__.__name__][self.language])
 		text = self._text_preprocess(input_text)
 		input = self._create_input(template, text)
 
@@ -144,7 +146,7 @@ class BaseTypoCorrector():
 
 	def _chat_completion(self, input: List, response_text_history: List) -> str:
 		messages = deepcopy(input)
-		comment_template = COMMENT_DICT[self.__class__.__name__]
+		comment_template = COMMENT_DICT[self.__class__.__name__][self.language]
 		for response_previous in response_text_history:
 			comment = comment_template.replace("{{response_previous}}", response_previous)
 			messages.append({"role": "assistant", "content": response_previous})
@@ -238,8 +240,10 @@ class ChineseTypoCorrectorSimple(BaseTypoCorrector):
 	def _parse_response(self, response: str) -> str:
 		sentence = response["choices"][0]["message"]["content"]
 
-		if has_simplified_chinese_char(sentence):
+		if self.language == "zh_traditional_tw" and has_simplified_chinese_char(sentence):
 			sentence = chinese_converter.to_traditional(sentence)
+		if self.language == "zh_simplified" and has_traditional_chinese_char(sentence):
+			sentence = chinese_converter.to_simplified(sentence)
 
 		return sentence
 
@@ -267,16 +271,25 @@ class ChineseTypoCorrectorSimple(BaseTypoCorrector):
 
 class ChineseTypoCorrector(BaseTypoCorrector):
 
-	def __init__(self, prefix="我說：“", suffix="。”", *args, **kwargs):
-		self.prefix = prefix
-		self.suffix = suffix
+	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
+
+		if self.language == "zh_traditional_tw":
+			self.prefix = "我說：“"
+			self.suffix = "。”"
+		elif self.language == "zh_simplified":
+			self.prefix = "我说：“"
+			self.suffix = "。”"
+		else:
+			raise NotImplementedError
 
 	def _parse_response(self, response: str) -> str:
 		sentence = response["choices"][0]["message"]["content"]
 
-		if has_simplified_chinese_char(sentence):
+		if self.language == "zh_traditional_tw" and has_simplified_chinese_char(sentence):
 			sentence = chinese_converter.to_traditional(sentence)
+		if self.language == "zh_simplified" and has_traditional_chinese_char(sentence):
+			sentence = chinese_converter.to_simplified(sentence)
 
 		return sentence
 
