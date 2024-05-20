@@ -27,11 +27,11 @@ addon_info = {
 	# version
 	"addon_version": "1.0",
 	# Author(s)
-	"addon_author": "Coseeing Community Contributors <accessibility@coseeing.org>, Tseng Woody <tsengwoody.tw@gmail.com>, Music Tsai <foreverlovekaggle3@gmail.com>, ",
+	"addon_author": "Coseeing Community Contributors <coseeing@coseeing.org>, Tseng Woody <tsengwoody.tw@gmail.com>, Music Tsai <foreverlovekaggle3@gmail.com>, ",
 	# URL for the add-on documentation support
-	"addon_url": "https://github.com/tsengwoody/WordBridge",
+	"addon_url": None,
 	# URL for the add-on repository where the source code can be found
-	"addon_sourceURL": "https://github.com/coseeing/WordBridge",
+	"addon_sourceURL": None,
 	# Documentation file name
 	"addon_docFileName": "readme.html",
 	# Minimum NVDA version supported (e.g. "2018.3.0", minor version is optional)

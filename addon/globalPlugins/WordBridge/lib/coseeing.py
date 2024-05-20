@@ -2,16 +2,11 @@ import logging
 import random
 import requests
 import time
-import addonHandler
 
-
-addonHandler.initTranslation()
-OPENAIRELAY_URL = "https://wordbridge.coseeing.org"
-# OPENAIRELAY_URL = "http://localhost:8000"
 log = logging.getLogger(__name__)
 
 
-def obtain_openai_key(coseeing_username, coseeing_password):
+def obtain_openai_key(coseeing_url, coseeing_username, coseeing_password):
 	auth_data = {
 		"username": coseeing_username,
 		"password": coseeing_password,
@@ -25,7 +20,7 @@ def obtain_openai_key(coseeing_username, coseeing_password):
 	for r in range(httppost_retries):
 		try:
 			response = requests.post(
-				f"{OPENAIRELAY_URL}/login",
+				f"{coseeing_url}/login",
 				data=auth_data,
 				timeout=3,
 			)

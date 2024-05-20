@@ -158,12 +158,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, request):
+		model = config.conf["WordBridge"]["settings"]["model"]
+		language = config.conf["WordBridge"]["settings"]["language"]
 		if config.conf["WordBridge"]["settings"]["gpt_access_method"] == "openai_api_key":
 			access_token = config.conf["WordBridge"]["settings"]["openai_key"]
 			api_base_url = OPENAI_BASE_URL
-			model_name = config.conf["WordBridge"]["settings"]["model"].split("|")[0].strip()
-
-			language = config.conf["WordBridge"]["settings"]["language"]
+			model_name = model.split("|")[0].strip()
 			corrector_mode = "Normal"
 			if "Simple Mode" in config.conf["WordBridge"]["settings"]["model"]:
 				corrector_mode = "Simple Mode"
@@ -186,6 +186,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		else:
 			try:
 				access_token = obtain_openai_key(
+					COSEEING_BASE_URL,
 					config.conf["WordBridge"]["settings"]["coseeing_username"],
 					config.conf["WordBridge"]["settings"]["coseeing_password"],
 				)
@@ -196,11 +197,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 			data = {
 				"request": request,
+				"model": model,
+				"language": language,
 			}
 			headers = {
 				"Authorization": f"Bearer {access_token}",
 			}
-			result = requests.post(f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data).json()
+			try:
+				response = requests.post(f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data)
+				result = response.json()
+			except requests.exceptions.JSONDecodeError as e:
+				ui.message(_("Sorry, an error occurred while decode Coseeing response, the details are: {e}").format(e=e))
+				return
 			response = result["response"]
 			interaction_id = result["interaction_id"]
 
