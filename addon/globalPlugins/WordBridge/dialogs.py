@@ -140,10 +140,9 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		self.settingsSizer = settingsSizer
 
 	def onSave(self):
-		current_gpt_access_method = gpt_access_methods[self.methodList.GetSelection()]
 		config.conf["WordBridge"]["settings"]["model"] = model_list[self.modelList.GetSelection()]
 		config.conf["WordBridge"]["settings"]["language"] = languages[self.languageList.GetSelection()]
-		config.conf["WordBridge"]["settings"]["gpt_access_method"] = current_gpt_access_method
+		config.conf["WordBridge"]["settings"]["gpt_access_method"] = gpt_access_methods[self.methodList.GetSelection()]
 		config.conf["WordBridge"]["settings"]["openai_key"] = self.apikeyTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_username"] = self.usernameTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_password"] = self.passwordTextCtrl.GetValue()
