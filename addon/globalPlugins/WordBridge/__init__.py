@@ -268,7 +268,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+i",
-		description=_("Show settings of GPT Assistant"),
+		description=_("Show settings dialog of WordBridge"),
 		category=ADDON_SUMMARY,
 	)
 	def script_showGPTSettings(self, gesture):
