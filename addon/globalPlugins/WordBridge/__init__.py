@@ -32,6 +32,7 @@ from .lib.viewHTML import text2template
 from hanzidentifier import has_chinese
 
 
+DEBUG_MODE = False
 addonHandler.initTranslation()
 ADDON_SUMMARY = "WordBridge"
 
@@ -177,7 +178,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			proofreader = Proofreader(corrector)
 
 			try:
-				response, _diff_ = proofreader.typo_analyzer(request)
+				batch_mode = not(DEBUG_MODE)
+				response, _diff_ = proofreader.typo_analyzer(request, batch_mode=batch_mode)
 			except Exception as e:
 				ui.message(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 				log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))

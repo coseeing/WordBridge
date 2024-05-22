@@ -23,7 +23,7 @@ class Proofreader():
 				total_usage[usage_type] += response["usage"][usage_type]
 		return total_usage
 
-	def typo_analyzer(self, text: str, fake_corrected_text: str = None) -> Tuple:
+	def typo_analyzer(self, text: str, batch_mode: bool = True, fake_corrected_text: str = None) -> Tuple:
 		"""
 		Analyze typos of text using self.segment_corrector. It also analyzes the difference between the original
 		text and corrected text.
@@ -42,7 +42,10 @@ class Proofreader():
 		text_corrected = ""
 		segments, separators = text_segmentation(text)
 
-		corrector_result_list = self.segment_corrector.correct_segment_batch(segments)
+		if batch_mode:
+			corrector_result_list = self.segment_corrector.correct_segment_batch(segments)
+		else:
+			corrector_result_list = [self.segment_corrector.correct_segment(segment) for segment in segments]
 		for corrector_result, separator in zip(corrector_result_list, separators):
 			text_corrected += (corrector_result.corrected_text + separator)
 			self.response_history.extend(corrector_result.response_history)
