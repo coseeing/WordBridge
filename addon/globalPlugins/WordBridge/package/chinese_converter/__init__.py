@@ -9,7 +9,8 @@ __all__ = ['to_simplified', 'to_traditional']
 BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 
 with open(os.path.join(BASE_PATH, 'traditional.txt'), encoding="utf8") as f, open(os.path.join(BASE_PATH, 'simplified.txt'), encoding="utf8") as g:
-    traditional, simplified = f.read().strip(), g.read().strip()
+    traditional = ''.join([line.strip() for line in f.readlines()])
+    simplified = ''.join([line.strip() for line in g.readlines()])
 
 with open(os.path.join(BASE_PATH, 'bigram.json'), encoding="utf8") as f, open(os.path.join(BASE_PATH, 'monogram.json'), encoding="utf8") as g:
     bigrams, monograms = Counter(json.load(f)), Counter(json.load(g))
