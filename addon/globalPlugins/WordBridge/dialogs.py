@@ -11,10 +11,26 @@ from gui.settingsDialogs import SettingsPanel
 
 addonHandler.initTranslation()
 
-model_labels = [_("gpt-3.5-turbo"), _("gpt-4-turbo"), _("gpt-4o"), _("gpt-4o | Simple Mode")]
-model_values = ["gpt-3.5-turbo", "gpt-4-turbo", "gpt-4o", "gpt-4o | Simple Mode"]
-gpt_access_method_labels = [_("OpenAI API Key"), _("Coseeing Account")]
-gpt_access_method_values = ["openai_api_key", "coseeing_account"]
+model_labels = [
+	_("gpt-3.5-turbo"),
+	_("gpt-4-turbo"),
+	_("gpt-4o"),
+	_("gpt-4o | Simple Mode"),
+]
+model_values = [
+	"gpt-3.5-turbo",
+	"gpt-4-turbo",
+	"gpt-4o",
+	"gpt-4o | Simple Mode",
+]
+gpt_access_method_labels = [
+	_("OpenAI API Key"),
+	_("Coseeing Account"),
+]
+gpt_access_method_values = [
+	"openai_api_key",
+	"coseeing_account",
+]
 language_labels = [_("Traditional Chinese"), _("Simplified Chinese")]
 language_values = ["zh_traditional_tw", "zh_simplified"]
 
