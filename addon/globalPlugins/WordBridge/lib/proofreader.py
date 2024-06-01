@@ -17,6 +17,12 @@ class Proofreader():
 		self.response_history = []
 
 	def get_total_usage(self) -> Dict:
+		"""
+		Get the total usage of OpenAI model (in tokens)
+
+		Returns:
+			The total usage of OpenAI model (in tokens)
+		"""
 		total_usage = defaultdict(int)
 		for response in self.response_history:
 			for usage_type in response["usage"].keys():
@@ -30,8 +36,8 @@ class Proofreader():
 
 		Parameters:
 			text (str): The text to be analyzed for typos.
-			fake_corrected_text (str, optional): If specified, the function will return this text as the corrected
-												text instead of correcting the input text.
+			batch_mode (bool): If specified, enable multithread for typo correction
+			fake_corrected_text (str, optional): If specified, return input text without correction steps.
 
 		Returns:
 			A tuple containing the corrected text and a list of differences between the original and corrected text.
