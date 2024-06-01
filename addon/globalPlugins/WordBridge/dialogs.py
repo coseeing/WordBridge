@@ -11,11 +11,28 @@ from gui.settingsDialogs import SettingsPanel
 
 addonHandler.initTranslation()
 
-model_list = ["gpt-3.5-turbo", "gpt-4-turbo", "gpt-4o", "gpt-4o | Simple Mode"]
-gpt_access_method_list = [_("OpenAI API Key"), _("Coseeing Account")]
-gpt_access_methods = ["openai_api_key", "coseeing_account"]
-language_list = [_("Traditional Chinese"), _("Simplified Chinese")]
-languages = ["zh_traditional_tw", "zh_simplified"]
+model_labels = [
+	_("gpt-3.5-turbo"),
+	_("gpt-4-turbo"),
+	_("gpt-4o"),
+	_("gpt-4o | Simple Mode"),
+]
+model_values = [
+	"gpt-3.5-turbo",
+	"gpt-4-turbo",
+	"gpt-4o",
+	"gpt-4o | Simple Mode",
+]
+gpt_access_method_labels = [
+	_("OpenAI API Key"),
+	_("Coseeing Account"),
+]
+gpt_access_method_values = [
+	"openai_api_key",
+	"coseeing_account",
+]
+language_labels = [_("Traditional Chinese"), _("Simplified Chinese")]
+language_values = ["zh_traditional_tw", "zh_simplified"]
 
 class OpenAIGeneralSettingsPanel(SettingsPanel):
 	title = _("WordBridge")
@@ -25,40 +42,40 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 
 		# For selecting OpenAI model
-		modelLabelText = _("OpenAI Model:")
-		self.modelList = settingsSizerHelper.addLabeledControl(modelLabelText, wx.Choice, choices=model_list)
+		modelLabelText = _("Model:")
+		self.modelList = settingsSizerHelper.addLabeledControl(modelLabelText, wx.Choice, choices=model_labels)
 		self.modelList.SetToolTip(wx.ToolTip(_("Choose the OpenAI model for the Word Bridge")))
-		if config.conf["WordBridge"]["settings"]["model"] in model_list:
-			self.modelList.SetSelection(model_list.index(config.conf["WordBridge"]["settings"]["model"]))
+		if config.conf["WordBridge"]["settings"]["model"] in model_values:
+			self.modelList.SetSelection(model_values.index(config.conf["WordBridge"]["settings"]["model"]))
 		else:
 			self.modelList.SetSelection(0)
-			config.conf["WordBridge"]["settings"]["model"] = model_list[0]
+			config.conf["WordBridge"]["settings"]["model"] = model_values[0]
 
 		# For selecting language
 		languageLabelText = _("Language:")
-		self.languageList = settingsSizerHelper.addLabeledControl(languageLabelText, wx.Choice, choices=language_list)
+		self.languageList = settingsSizerHelper.addLabeledControl(languageLabelText, wx.Choice, choices=language_labels)
 		self.languageList.SetToolTip(wx.ToolTip(_("Choose the language for the Word Bridge")))
-		if config.conf["WordBridge"]["settings"]["language"] in languages:
-			self.languageList.SetSelection(languages.index(config.conf["WordBridge"]["settings"]["language"]))
+		if config.conf["WordBridge"]["settings"]["language"] in language_values:
+			self.languageList.SetSelection(language_values.index(config.conf["WordBridge"]["settings"]["language"]))
 		else:
 			self.languageList.SetSelection(0)
-			config.conf["WordBridge"]["settings"]["language"] = languages[0]
+			config.conf["WordBridge"]["settings"]["language"] = language_values[0]
 
 		# For selecting GPT access method
 		accessMethodLabelText = _("GPT Access Method:")
 		self.methodList = settingsSizerHelper.addLabeledControl(
 			accessMethodLabelText,
 			wx.Choice,
-			choices=gpt_access_method_list,
+			choices=gpt_access_method_labels,
 		)
 		self.methodList.SetToolTip(wx.ToolTip(_("Choose the GPT access method")))
-		if config.conf["WordBridge"]["settings"]["gpt_access_method"] in gpt_access_methods:
+		if config.conf["WordBridge"]["settings"]["gpt_access_method"] in gpt_access_method_values:
 			self.methodList.SetSelection(
-				gpt_access_methods.index(config.conf["WordBridge"]["settings"]["gpt_access_method"])
+				gpt_access_method_values.index(config.conf["WordBridge"]["settings"]["gpt_access_method"])
 			)
 		else:
 			self.methodList.SetSelection(0)
-			config.conf["WordBridge"]["settings"]["gpt_access_method"] = gpt_access_methods[0]
+			config.conf["WordBridge"]["settings"]["gpt_access_method"] = gpt_access_method_values[0]
 		self.methodList.Bind(wx.EVT_CHOICE, self.onChangeChoice)
 
 		# For setting account information
@@ -100,7 +117,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		)
 		sizer.Add(self.passwordTextCtrl, pos=(4, 1))
 
-		self._enableAccessElements(gpt_access_methods[self.methodList.GetSelection()])
+		self._enableAccessElements(gpt_access_method_values[self.methodList.GetSelection()])
 
 		accessPanel.SetSizer(sizer)
 		sizer.Fit(self)
@@ -140,9 +157,9 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		self.settingsSizer = settingsSizer
 
 	def onSave(self):
-		config.conf["WordBridge"]["settings"]["model"] = model_list[self.modelList.GetSelection()]
-		config.conf["WordBridge"]["settings"]["language"] = languages[self.languageList.GetSelection()]
-		config.conf["WordBridge"]["settings"]["gpt_access_method"] = gpt_access_methods[self.methodList.GetSelection()]
+		config.conf["WordBridge"]["settings"]["model"] = model_values[self.modelList.GetSelection()]
+		config.conf["WordBridge"]["settings"]["language"] = language_values[self.languageList.GetSelection()]
+		config.conf["WordBridge"]["settings"]["gpt_access_method"] = gpt_access_method_values[self.methodList.GetSelection()]
 		config.conf["WordBridge"]["settings"]["openai_key"] = self.apikeyTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_username"] = self.usernameTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_password"] = self.passwordTextCtrl.GetValue()
@@ -154,7 +171,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		# trigger a refresh of the settings
 		self.onPanelActivated()
 		self._sendLayoutUpdatedEvent()
-		self._enableAccessElements(gpt_access_methods[self.methodList.GetSelection()])
+		self._enableAccessElements(gpt_access_method_values[self.methodList.GetSelection()])
 		self.Thaw()
 
 	def _enableAccessElements(self, gpt_access_method):
@@ -199,21 +216,21 @@ class FeedbackDialog(
 
 		# Here are text Controls for request, response and feedback. Only feedback can be editable.
 		self.requestTextCtrl = sHelper.addLabeledControl(
-			_("&Request:   "),
+			_("Request:"),
 			wx.TextCtrl,
 			style=wx.TE_READONLY | wx.TE_MULTILINE,
 			size=wx.Size(800, 70)
 		)
 		self.requestTextCtrl.SetValue(request)
 		self.responseTextCtrl = sHelper.addLabeledControl(
-			_("&Response:"),
+			_("Response:"),
 			wx.TextCtrl,
 			style=wx.TE_READONLY | wx.TE_MULTILINE,
 			size=wx.Size(800, 70)
 		)
 		self.responseTextCtrl.SetValue(response)
 		self.feedbackTextCtrl = sHelper.addLabeledControl(
-			_("&Feedback:"),
+			_("Feedback:"),
 			wx.TextCtrl,
 			style=wx.TE_MULTILINE,
 			size=wx.Size(800, 130)

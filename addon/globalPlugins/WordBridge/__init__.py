@@ -40,7 +40,7 @@ config.conf.spec["WordBridge"] = {
 	"settings": {
 		"model": "string(default=gpt-3.5-turbo)",
 		"language": "string(default=zh_traditional_tw)",
-		"gpt_access_method": "string(default=openai_api_key)",
+		"gpt_access_method": "string(default=coseeing_account)",
 		"openai_key": "string(default=\0)",
 		"coseeing_username": "string(default=\0)",
 		"coseeing_password": "string(default=\0)",
@@ -184,6 +184,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				ui.message(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 				log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 				return
+			res = proofreader.get_total_usage()
 			interaction_id = None
 		else:
 			try:
@@ -206,10 +207,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				"Authorization": f"Bearer {access_token}",
 			}
 			try:
-				response = requests.post(f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data)
-				result = response.json()
+				data = requests.post(f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data)
+				result = data.json()
 			except requests.exceptions.JSONDecodeError as e:
 				ui.message(_("Sorry, an error occurred while decode Coseeing response, the details are: {e}").format(e=e))
+				return
+			if data.status_code == 403:
+				ui.message(_("Sorry, http 403 forbidden, the details are: {e}").format(e=data.json()["detail"]))
 				return
 			response = result["response"]
 			interaction_id = result["interaction_id"]
@@ -270,7 +274,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+i",
-		description=_("Show settings of GPT Assistant"),
+		description=_("Show settings dialog of WordBridge"),
 		category=ADDON_SUMMARY,
 	)
 	def script_showGPTSettings(self, gesture):
@@ -324,6 +328,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 			try:
 				access_token = obtain_openai_key(
+					COSEEING_BASE_URL,
 					config.conf["WordBridge"]["settings"]["coseeing_username"],
 					config.conf["WordBridge"]["settings"]["coseeing_password"],
 				)
