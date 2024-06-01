@@ -17,21 +17,27 @@ class Proofreader():
 		self.response_history = []
 
 	def get_total_usage(self) -> Dict:
+		"""
+		Get the total usage of OpenAI model (in tokens)
+
+		Returns:
+			The total usage of OpenAI model (in tokens)
+		"""
 		total_usage = defaultdict(int)
 		for response in self.response_history:
 			for usage_type in response["usage"].keys():
 				total_usage[usage_type] += response["usage"][usage_type]
 		return total_usage
 
-	def typo_analyzer(self, text: str, fake_corrected_text: str = None) -> Tuple:
+	def typo_analyzer(self, text: str, batch_mode: bool = True, fake_corrected_text: str = None) -> Tuple:
 		"""
 		Analyze typos of text using self.segment_corrector. It also analyzes the difference between the original
 		text and corrected text.
 
 		Parameters:
 			text (str): The text to be analyzed for typos.
-			fake_corrected_text (str, optional): If specified, the function will return this text as the corrected
-												text instead of correcting the input text.
+			batch_mode (bool): If specified, enable multithread for typo correction
+			fake_corrected_text (str, optional): If specified, return input text without correction steps.
 
 		Returns:
 			A tuple containing the corrected text and a list of differences between the original and corrected text.
@@ -42,7 +48,10 @@ class Proofreader():
 		text_corrected = ""
 		segments, separators = text_segmentation(text)
 
-		corrector_result_list = self.segment_corrector.correct_segment_batch(segments)
+		if batch_mode:
+			corrector_result_list = self.segment_corrector.correct_segment_batch(segments)
+		else:
+			corrector_result_list = [self.segment_corrector.correct_segment(segment) for segment in segments]
 		for corrector_result, separator in zip(corrector_result_list, separators):
 			text_corrected += (corrector_result.corrected_text + separator)
 			self.response_history.extend(corrector_result.response_history)
