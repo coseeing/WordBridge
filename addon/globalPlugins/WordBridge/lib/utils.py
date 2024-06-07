@@ -18,10 +18,41 @@ except ImportError:
 # Characters used for text segmentation
 SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t\"\'#$%&()*+-/<=>@[\]^_`{|}~"
 
+ZH_UNICODE_INTERVALS = [
+	["\u4e00", "\u9fff"],
+	["\u3400", "\u4dbf"],
+	["\u20000", "\u2a6df"],
+	["\u2a700", "\u2b739"],
+	["\u2b740", "\u2b81d"],
+	["\u2b820", "\u2cea1"],
+	["\u2ceb0", "\u2ebe0"],
+	["\u30000", "\u3134a"],
+	["\u31350", "\u323af"],
+	["\u3100", "\u312f"],
+	["\u31a0", "\u31bf"],
+	["\uf900", "\ufaff"],
+	["\u2f800", "\u2fa1f"],
+]
+
+def get_pinyin_combination(list1: List, list2: List) -> List:
+	list_output = []
+	for element1 in list1:
+		for element2 in list2:
+			list_output.append(element1 + " " + element2)
+	return list_output
+
+
+def is_chinese_character(char: str) -> bool:
+	assert len(char) == 1, "Length of char should be 1."
+	for interval in ZH_UNICODE_INTERVALS:
+		if char >= interval[0] and char <= interval[1]:
+			return True
+
+	return False
 
 def has_chinese(text: str):
 	for char in text:
-		if char >= '\u4e00' and char <= '\u9fff':
+		if is_chinese_character(char):
 			return True
 	return False
 
