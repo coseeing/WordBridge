@@ -34,13 +34,6 @@ ZH_UNICODE_INTERVALS = [
 	["\u2f800", "\u2fa1f"],
 ]
 
-def get_pinyin_combination(list1: List, list2: List) -> List:
-	list_output = []
-	for element1 in list1:
-		for element2 in list2:
-			list_output.append(element1 + " " + element2)
-	return list_output
-
 
 def is_chinese_character(char: str) -> bool:
 	assert len(char) == 1, "Length of char should be 1."
