@@ -167,8 +167,23 @@ def strings_diff(string_before: str, string_after: str) -> Dict:
 	# operation (op) is replace or insert or delete
 
 	matcher = SequenceMatcher(None, string_before, string_after)
-	diff = []
+
+	# Postprocess the op codes
+	matcher_ops = []
 	for op, index_start_before, index_end_before, index_start_after, index_end_after in matcher.get_opcodes():
+		if op != "replace" or (index_end_before - index_start_before) == (index_end_after - index_start_after):
+			matcher_ops.append((op, index_start_before, index_end_before, index_start_after, index_end_after))
+		elif index_end_before - index_start_before < index_end_after - index_start_after:
+			index_middle = index_start_after + (index_end_before - index_start_before)
+			matcher_ops.append(("replace", index_start_before, index_end_before, index_start_after, index_middle))
+			matcher_ops.append(("insert", index_end_before, index_end_before, index_middle, index_end_after))
+		else:
+			index_middle = index_start_before + (index_end_after - index_start_after)
+			matcher_ops.append(("replace", index_start_before, index_middle, index_start_after, index_end_after))
+			matcher_ops.append(("delete", index_middle, index_end_before, index_end_after, index_end_after))
+
+	diff = []
+	for op, index_start_before, index_end_before, index_start_after, index_end_after in matcher_ops:
 		if op == "equal":
 			operation_dict = {
 				"operation": op,
