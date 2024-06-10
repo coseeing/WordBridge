@@ -1,8 +1,8 @@
 zh_with_phone_traditional_tw = [
 	{"role": "system", "content": "輸入為文字與其正確拼音，請修正錯字並輸出正確文字:\n(文字&拼音) => 文字"},
-	{"role": "user", "content": "(今天天器真好&jin1 tian1 tian1 qi4 zhen1 hao3) => "},
-	{"role": "assistant", "content": "今天天氣真好"},
-	{"role": "user", "content": "({{text_input}}&{{phone_input}}) => "},
+	{"role": "user", "content": "{{QUESTION}}今天天器真好&jin1 tian1 tian1 qi4 zhen1 hao3 => "},
+	{"role": "assistant", "content": "{{ANSWER}}今天天氣真好"},
+	{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "},
 ]
 
 zh_simple_traditional_tw = [
@@ -16,9 +16,9 @@ zh_simple_traditional_tw = [
 
 zh_with_phone_simplified = [
 	{"role": "system", "content": "输入为文字与其正确拼音，请修正错字并输出正确文字:\n(文字&拼音) => 文字"},
-	{"role": "user", "content": "(今天天器真好&jin1 tian1 tian1 qi4 zhen1 hao3) => "},
-	{"role": "assistant", "content": "今天天气真好"},
-	{"role": "user", "content": "({{text_input}}&{{phone_input}}) => "},
+	{"role": "user", "content": "{{QUESTION}}今天天器真好&jin1 tian1 tian1 qi4 zhen1 hao3 => "},
+	{"role": "assistant", "content": "{{ANSWER}}今天天气真好"},
+	{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "},
 ]
 
 zh_simple_simplified = [

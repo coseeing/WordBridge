@@ -275,11 +275,15 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 		super().__init__(*args, **kwargs)
 
 		if self.language == "zh_traditional_tw":
-			self.prefix = "我說：“"
-			self.suffix = "。”"
+			self.prefix = ""
+			self.suffix = ""
+			self.question_string: str = "<題>"
+			self.answer_string: str = "<答>"
 		elif self.language == "zh_simplified":
-			self.prefix = "我说：“"
-			self.suffix = "。”"
+			self.prefix = ""
+			self.suffix = ""
+			self.question_string: str = "<题>"
+			self.answer_string: str = "<答>"
 		else:
 			raise NotImplementedError
 
@@ -296,16 +300,21 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 	def _create_input(self, template: str, text: str):
 		phone = ' '.join(lazy_pinyin(text, style=Style.TONE3))
 
-		template[-1]["content"] = template[-1]["content"].replace("{{text_input}}", text)
-		template[-1]["content"] = template[-1]["content"].replace("{{phone_input}}", phone)
+		for i in range(len(template)):
+			template[i]["content"] = template[i]["content"].replace("{{text_input}}", text)
+			template[i]["content"] = template[i]["content"].replace("{{phone_input}}", phone)
+			template[i]["content"] = template[i]["content"].replace("{{QUESTION}}", self.question_string)
+			template[i]["content"] = template[i]["content"].replace("{{ANSWER}}", self.answer_string)
+
 		return template
 
 	def _has_error(self, response: str, text: str) -> bool:
-		if len(response) != len(text):
+		response_text = response[len(self.answer_string):]
+		if len(response_text) != len(text):
 			return True
 
 		for i in range(len(text)):
-			if len(set(get_char_pinyin(text[i])) & set(get_char_pinyin(response[i]))) == 0:
+			if len(set(get_char_pinyin(text[i])) & set(get_char_pinyin(response_text[i]))) == 0:
 				return True
 		return False
 
@@ -316,7 +325,7 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 		return self.prefix + input_text + self.suffix
 
 	def _text_postprocess(self, text: str):
-		return text[len(self.prefix):(len(text) - len(self.suffix))]
+		return text[(len(self.prefix) + len(self.answer_string)):(len(text) - len(self.suffix))]
 
 	def _has_target_language(self, text: str):
 		return has_chinese(text)
