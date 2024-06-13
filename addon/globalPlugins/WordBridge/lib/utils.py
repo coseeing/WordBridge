@@ -95,7 +95,7 @@ def text_segmentation(text: str, max_length: int = 50) -> tuple:
 
 	word = ""
 	for char in text:
-		if char in SEPERATOR or (not has_chinese(char)):
+		if char in SEPERATOR:
 			separators.append(char)
 			partitions.append(word)
 			word = ""
