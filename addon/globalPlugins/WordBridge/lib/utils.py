@@ -76,7 +76,7 @@ def typo_augmentation(text: str, is_traditional: bool, error_rate: float = 0.125
 	return text_aug
 
 
-def text_segmentation(text: str, max_length: int = 50) -> tuple:
+def text_segmentation(text: str, max_length: int = 30) -> tuple:
 	"""
 	This function can be used to split a string into substrings based on a set of specified separators or
 	a maximum length limit.
@@ -90,27 +90,28 @@ def text_segmentation(text: str, max_length: int = 50) -> tuple:
 		A list of substrings that are separated by certain separators or a maximum length limit.
 	"""
 
+	# output "separators" will be removed in future revision
+
 	partitions = []
 	separators = []
 
 	word = ""
 	for char in text:
-		if char in SEPERATOR:
-			separators.append(char)
-			partitions.append(word)
-			word = ""
-			continue
+		word += char
 
-		if len(word) >= max_length:
+		if char in SEPERATOR and len(word) >= max_length:
 			separators.append("")
 			partitions.append(word)
 			word = ""
 
-		word += char
+	if not word:
+		return partitions, separators
 
-	if word:
+	if len(word) > max_length / 2:
 		partitions.append(word)
 		separators.append("")
+	else:
+		partitions[-1] += word
 
 	return partitions, separators
 

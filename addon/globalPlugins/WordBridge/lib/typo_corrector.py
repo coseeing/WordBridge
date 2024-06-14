@@ -91,7 +91,7 @@ class BaseTypoCorrector():
 		if len(response_text_history) > 1:
 			log.warning(f"Correction history: {response_text_history}")
 
-		output_text = self._text_postprocess(corrected_text) if corrected_text is not None else None
+		output_text = self._text_postprocess(corrected_text, input_text) if corrected_text is not None else None
 
 		corrector_result = CorrectorResult(
 			original_text=input_text,
@@ -225,7 +225,7 @@ class BaseTypoCorrector():
 	def _text_preprocess(self, input_text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
-	def _text_postprocess(self, text: str):
+	def _text_postprocess(self, text: str, input_text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
 	def _has_target_language(self, text: str):
@@ -260,7 +260,11 @@ class ChineseTypoCorrectorSimple(BaseTypoCorrector):
 	def _text_preprocess(self, input_text: str):
 		return input_text
 
-	def _text_postprocess(self, text: str):
+	def _text_postprocess(self, text: str, input_text: str):
+		if input_text[-1] in SEPERATOR:
+			return text
+
+		# Remove automatically added punctuations since there is no punctuation at the end of input
 		while text and text[-1] in SEPERATOR:
 			text = text[:-1]
 		return text
@@ -324,8 +328,15 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 	def _text_preprocess(self, input_text: str):
 		return self.prefix + input_text + self.suffix
 
-	def _text_postprocess(self, text: str):
-		return text[(len(self.prefix) + len(self.answer_string)):(len(text) - len(self.suffix))]
+	def _text_postprocess(self, text: str, input_text: str):
+		text = text[(len(self.prefix) + len(self.answer_string)):(len(text) - len(self.suffix))]
+		if input_text[-1] in SEPERATOR:
+			return text
+
+		# Remove automatically added punctuations since there is no punctuation at the end of input
+		while text and text[-1] in SEPERATOR:
+			text = text[:-1]
+		return text
 
 	def _has_target_language(self, text: str):
 		return has_chinese(text)
