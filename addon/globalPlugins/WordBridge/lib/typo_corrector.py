@@ -12,12 +12,12 @@ from pypinyin import lazy_pinyin, Style
 from .template import COMMENT_DICT, TEMPLATE_DICT
 
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char, SEPERATOR
+try:
+	import addonHandler
+	addonHandler.initTranslation()
+except:
+	pass
 
-import addonHandler
-import chinese_converter
-
-
-addonHandler.initTranslation()
 log = logging.getLogger(__name__)
 
 
