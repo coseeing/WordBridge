@@ -282,10 +282,10 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 		super().__init__(*args, **kwargs)
 
 		if self.language == "zh_traditional_tw":
-			self.prefix = ""
+			self.prefix = "我說"
 			self.suffix = ""
-			self.question_string: str = "<題>"
-			self.answer_string: str = "<答>"
+			self.question_string: str = ""
+			self.answer_string: str = ""
 		elif self.language == "zh_simplified":
 			self.prefix = ""
 			self.suffix = ""
