@@ -87,33 +87,28 @@ def text_segmentation(text: str, max_length: int = 30) -> tuple:
 		max_length (int): The maximum length of each substring. If a substring reaches this length, it will be
 							partitioned at the next separator encountered.
 	Returns:
-		A list of substrings that are separated by certain separators or a maximum length limit.
+		A list of substrings.
 	"""
 
-	# output "separators" will be removed in future revision
-
 	partitions = []
-	separators = []
 
 	word = ""
 	for char in text:
 		word += char
 
 		if char in SEPERATOR and len(word) >= max_length:
-			separators.append("")
 			partitions.append(word)
 			word = ""
 
 	if not word:
-		return partitions, separators
+		return partitions
 
 	if len(word) > max_length / 2:
 		partitions.append(word)
-		separators.append("")
 	else:
 		partitions[-1] += word
 
-	return partitions, separators
+	return partitions
 
 
 def analyze_diff(char_original: str, char_corrected: str) -> List:

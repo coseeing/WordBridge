@@ -46,14 +46,14 @@ class Proofreader():
 			return fake_corrected_text, strings_diff(text, fake_corrected_text)
 
 		text_corrected = ""
-		segments, separators = text_segmentation(text)
+		segments = text_segmentation(text)
 
 		if batch_mode:
 			corrector_result_list = self.segment_corrector.correct_segment_batch(segments)
 		else:
 			corrector_result_list = [self.segment_corrector.correct_segment(segment) for segment in segments]
-		for corrector_result, separator in zip(corrector_result_list, separators):
-			text_corrected += (corrector_result.corrected_text + separator)
+		for corrector_result in corrector_result_list:
+			text_corrected += corrector_result.corrected_text
 			self.response_history.extend(corrector_result.response_history)
 		diff = strings_diff(text, text_corrected)
 
