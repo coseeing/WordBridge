@@ -10,9 +10,11 @@ import time
 
 from pypinyin import lazy_pinyin, Style
 from .template import COMMENT_DICT, TEMPLATE_DICT
-
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
 from .utils import SEPERATOR, is_chinese_character
+
+import chinese_converter
+
 
 try:
 	import addonHandler
