@@ -11,7 +11,8 @@ import time
 from pypinyin import lazy_pinyin, Style
 from .template import COMMENT_DICT, TEMPLATE_DICT
 
-from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char, SEPERATOR
+from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
+from .utils import SEPERATOR, is_chinese_character
 
 import addonHandler
 import chinese_converter
@@ -314,11 +315,22 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 
 	def _has_error(self, response: str, text: str) -> bool:
 		response_text = response[len(self.answer_string):]
-		if len(response_text) != len(text):
+
+		response_list = []
+		for char in response_text:
+			if is_chinese_character(char):
+				response_list.append(char)
+
+		text_list = []
+		for char in text:
+			if is_chinese_character(char):
+				text_list.append(char)
+
+		if len(response_list) != len(text_list):
 			return True
 
-		for i in range(len(text)):
-			if len(set(get_char_pinyin(text[i])) & set(get_char_pinyin(response_text[i]))) == 0:
+		for i in range(len(text_list)):
+			if len(set(get_char_pinyin(text_list[i])) & set(get_char_pinyin(response_list[i]))) == 0:
 				return True
 		return False
 
