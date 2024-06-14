@@ -104,7 +104,7 @@ def text_segmentation(text: str, max_length: int = 30) -> tuple:
 	if not word:
 		return partitions
 
-	if len(word) > max_length / 2:
+	if not partitions or len(word) > max_length / 2:
 		partitions.append(word)
 	else:
 		partitions[-1] += word
