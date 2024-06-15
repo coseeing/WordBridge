@@ -10,15 +10,18 @@ import time
 
 from pypinyin import lazy_pinyin, Style
 from .template import COMMENT_DICT, TEMPLATE_DICT
+from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
+from .utils import SEPERATOR, is_chinese_character
 
-from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char, SEPERATOR
 import chinese_converter
+
 
 try:
 	import addonHandler
 	addonHandler.initTranslation()
 except:
 	pass
+
 
 log = logging.getLogger(__name__)
 
@@ -93,7 +96,7 @@ class BaseTypoCorrector():
 		if len(response_text_history) > 1:
 			log.warning(f"Correction history: {response_text_history}")
 
-		output_text = self._text_postprocess(corrected_text) if corrected_text is not None else None
+		output_text = self._text_postprocess(corrected_text, input_text) if corrected_text is not None else None
 
 		corrector_result = CorrectorResult(
 			original_text=input_text,
@@ -227,7 +230,7 @@ class BaseTypoCorrector():
 	def _text_preprocess(self, input_text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
-	def _text_postprocess(self, text: str):
+	def _text_postprocess(self, text: str, input_text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
 	def _has_target_language(self, text: str):
@@ -262,7 +265,11 @@ class ChineseTypoCorrectorSimple(BaseTypoCorrector):
 	def _text_preprocess(self, input_text: str):
 		return input_text
 
-	def _text_postprocess(self, text: str):
+	def _text_postprocess(self, text: str, input_text: str):
+		if input_text[-1] in SEPERATOR:
+			return text
+
+		# Remove automatically added punctuations since there is no punctuation at the end of input
 		while text and text[-1] in SEPERATOR:
 			text = text[:-1]
 		return text
@@ -277,11 +284,15 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 		super().__init__(*args, **kwargs)
 
 		if self.language == "zh_traditional_tw":
-			self.prefix = "我說：“"
-			self.suffix = "。”"
+			self.prefix = "我說"
+			self.suffix = ""
+			self.question_string: str = ""
+			self.answer_string: str = ""
 		elif self.language == "zh_simplified":
-			self.prefix = "我说：“"
-			self.suffix = "。”"
+			self.prefix = "我说"
+			self.suffix = ""
+			self.question_string: str = ""
+			self.answer_string: str = ""
 		else:
 			raise NotImplementedError
 
@@ -298,16 +309,32 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 	def _create_input(self, template: str, text: str):
 		phone = ' '.join(lazy_pinyin(text, style=Style.TONE3))
 
-		template[-1]["content"] = template[-1]["content"].replace("{{text_input}}", text)
-		template[-1]["content"] = template[-1]["content"].replace("{{phone_input}}", phone)
+		for i in range(len(template)):
+			template[i]["content"] = template[i]["content"].replace("{{text_input}}", text)
+			template[i]["content"] = template[i]["content"].replace("{{phone_input}}", phone)
+			template[i]["content"] = template[i]["content"].replace("{{QUESTION}}", self.question_string)
+			template[i]["content"] = template[i]["content"].replace("{{ANSWER}}", self.answer_string)
+
 		return template
 
 	def _has_error(self, response: str, text: str) -> bool:
-		if len(response) != len(text):
+		response_text = response[len(self.answer_string):]
+
+		response_list = []
+		for char in response_text:
+			if is_chinese_character(char):
+				response_list.append(char)
+
+		text_list = []
+		for char in text:
+			if is_chinese_character(char):
+				text_list.append(char)
+
+		if len(response_list) != len(text_list):
 			return True
 
-		for i in range(len(text)):
-			if len(set(get_char_pinyin(text[i])) & set(get_char_pinyin(response[i]))) == 0:
+		for i in range(len(text_list)):
+			if len(set(get_char_pinyin(text_list[i])) & set(get_char_pinyin(response_list[i]))) == 0:
 				return True
 		return False
 
@@ -317,8 +344,15 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 	def _text_preprocess(self, input_text: str):
 		return self.prefix + input_text + self.suffix
 
-	def _text_postprocess(self, text: str):
-		return text[len(self.prefix):(len(text) - len(self.suffix))]
+	def _text_postprocess(self, text: str, input_text: str):
+		text = text[(len(self.prefix) + len(self.answer_string)):(len(text) - len(self.suffix))]
+		if input_text[-1] in SEPERATOR:
+			return text
+
+		# Remove automatically added punctuations since there is no punctuation at the end of input
+		while text and text[-1] in SEPERATOR:
+			text = text[:-1]
+		return text
 
 	def _has_target_language(self, text: str):
 		return has_chinese(text)

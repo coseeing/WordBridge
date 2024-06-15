@@ -16,12 +16,37 @@ except ImportError:
 	getCharDescListFromText = None
 
 # Characters used for text segmentation
-SEPERATOR = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t\"\'#$%&()*+-/<=>@[\]^_`{|}~"
+SEPERATOR = "﹐，,.。﹒．｡!ǃⵑ︕！;;︔﹔；?︖﹖？⋯"
+PUNCTUATION = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t\"\'#$%&()*+-/<=>@[\]^_`{|}~"
 
+ZH_UNICODE_INTERVALS = [
+	["\u4e00", "\u9fff"],
+	["\u3400", "\u4dbf"],
+	["\u20000", "\u2a6df"],
+	["\u2a700", "\u2b739"],
+	["\u2b740", "\u2b81d"],
+	["\u2b820", "\u2cea1"],
+	["\u2ceb0", "\u2ebe0"],
+	["\u30000", "\u3134a"],
+	["\u31350", "\u323af"],
+	["\u3100", "\u312f"],
+	["\u31a0", "\u31bf"],
+	["\uf900", "\ufaff"],
+	["\u2f800", "\u2fa1f"],
+]
+
+
+def is_chinese_character(char: str) -> bool:
+	assert len(char) == 1, "Length of char should be 1."
+	for interval in ZH_UNICODE_INTERVALS:
+		if char >= interval[0] and char <= interval[1]:
+			return True
+
+	return False
 
 def has_chinese(text: str):
 	for char in text:
-		if char >= '\u4e00' and char <= '\u9fff':
+		if is_chinese_character(char):
 			return True
 	return False
 
@@ -52,7 +77,7 @@ def typo_augmentation(text: str, is_traditional: bool, error_rate: float = 0.125
 	return text_aug
 
 
-def text_segmentation(text: str, max_length: int = 50) -> tuple:
+def text_segmentation(text: str, max_length: int = 30) -> tuple:
 	"""
 	This function can be used to split a string into substrings based on a set of specified separators or
 	a maximum length limit.
@@ -63,32 +88,28 @@ def text_segmentation(text: str, max_length: int = 50) -> tuple:
 		max_length (int): The maximum length of each substring. If a substring reaches this length, it will be
 							partitioned at the next separator encountered.
 	Returns:
-		A list of substrings that are separated by certain separators or a maximum length limit.
+		A list of substrings.
 	"""
 
 	partitions = []
-	separators = []
 
 	word = ""
 	for char in text:
-		if char in SEPERATOR or (not has_chinese(char)):
-			separators.append(char)
-			partitions.append(word)
-			word = ""
-			continue
-
-		if len(word) >= max_length:
-			separators.append("")
-			partitions.append(word)
-			word = ""
-
 		word += char
 
-	if word:
-		partitions.append(word)
-		separators.append("")
+		if char in SEPERATOR and len(word) >= max_length:
+			partitions.append(word)
+			word = ""
 
-	return partitions, separators
+	if not word:
+		return partitions
+
+	if not partitions or len(word) > max_length / 2:
+		partitions.append(word)
+	else:
+		partitions[-1] += word
+
+	return partitions
 
 
 def analyze_diff(char_original: str, char_corrected: str) -> List:
