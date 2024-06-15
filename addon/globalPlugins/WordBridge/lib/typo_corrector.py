@@ -289,10 +289,10 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 			self.question_string: str = ""
 			self.answer_string: str = ""
 		elif self.language == "zh_simplified":
-			self.prefix = ""
+			self.prefix = "我说"
 			self.suffix = ""
-			self.question_string: str = "<题>"
-			self.answer_string: str = "<答>"
+			self.question_string: str = ""
+			self.answer_string: str = ""
 		else:
 			raise NotImplementedError
 
