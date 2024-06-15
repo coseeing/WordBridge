@@ -16,6 +16,9 @@ This is a quick example program that demonstrates how to use the Proofreader and
 """
 if __name__ == "__main__":
 
+	# Input text
+	text = "天器真好，想出去完"
+
 	# Settings
 	model = "gpt-3.5-turbo"
 	typo_corrector_class = ChineseTypoCorrector
@@ -34,7 +37,6 @@ if __name__ == "__main__":
 	# Initialize the proofreader object using the typo corrector
 	proofreader = Proofreader(corrector)
 
-	text = "天器真好，想出去完"
 	text_corrected, diff = proofreader.typo_analyzer(text)
 	print(f"text = {text}, text_corrected = {text_corrected}, diff = {diff}")
 
