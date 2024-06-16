@@ -6,7 +6,7 @@ api_path = os.path.join(path, "..", "..", "addon", "globalPlugins", "WordBridge"
 sys.path.insert(0, api_path)
 
 from lib.proofreader import Proofreader
-from lib.typo_corrector import ChineseTypoCorrector
+from lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorSimple
 
 
 """
@@ -15,17 +15,28 @@ This is a quick example program that demonstrates how to use the Proofreader and
 2. Analyze the differences between original and corrected texts
 """
 if __name__ == "__main__":
+
+	# Input text
+	text = "天器真好，想出去完"
+
+	# Settings
+	model = "gpt-3.5-turbo"
+	typo_corrector_class = ChineseTypoCorrector
+	language = "zh_traditional_tw"
+	api_key = "<API_KEY>"
+	api_base_url="https://api.openai.com"
+
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
-	corrector = ChineseTypoCorrector(
-		model="gpt-3.5-turbo",
-		access_token="<API_KEY>",
-		api_base_url="https://api.openai.com",
+	corrector = typo_corrector_class(
+		model=model,
+		language=language,
+		access_token=api_key,
+		api_base_url=api_base_url,
 	)
 
 	# Initialize the proofreader object using the typo corrector
 	proofreader = Proofreader(corrector)
 
-	text = "天器真好，想出去完"
 	text_corrected, diff = proofreader.typo_analyzer(text)
 	print(f"text = {text}, text_corrected = {text_corrected}, diff = {diff}")
 
