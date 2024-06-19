@@ -21,17 +21,20 @@ if __name__ == "__main__":
 
 	# Settings
 	model = "gpt-3.5-turbo"
+	provider = "OpenAI"
+	credential = {
+		# "api_key": "<API_KEY>",
+		"secret_key": "<SECRET_KEY>"
+	}
 	typo_corrector_class = ChineseTypoCorrector
 	language = "zh_traditional_tw"
-	api_key = "<API_KEY>"
-	api_base_url="https://api.openai.com"
 
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
 	corrector = typo_corrector_class(
 		model=model,
+		provider=provider,
+		credential=credential,
 		language=language,
-		access_token=api_key,
-		api_base_url=api_base_url,
 	)
 
 	# Initialize the proofreader object using the typo corrector

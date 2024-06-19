@@ -29,10 +29,13 @@ def generate_results(text, groundtruth, proofreader):
 if __name__ == "__main__":
 
 	model = "gpt-3.5-turbo"
+	provider = "OpenAI"
 	typo_corrector_class = ChineseTypoCorrector
 	language = "zh_traditional_tw"
-	api_key = "<API_KEY>"
-	api_base_url="https://api.openai.com"
+	credential = {
+		# "api_key": "<API_KEY>",
+		"secret_key": "<SECRET_KEY>"
+	}
 	data_name = "gpt4_250_sentence_aug_err_0.1_41PJSO2KRV6SK1WJ6936.txt"
 	groundtruth_name = "gpt4_250_sentence_gt.txt"
 	tag = "2024-06-14-gpt-3.5-turbo-new"
@@ -48,8 +51,8 @@ if __name__ == "__main__":
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
 	corrector = typo_corrector_class(
 		model=model,
-		access_token=api_key,
-		api_base_url=api_base_url,
+		provider=provider,
+		credential=credential,
 		language=language,
 	)
 
