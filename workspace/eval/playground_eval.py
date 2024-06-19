@@ -33,8 +33,8 @@ if __name__ == "__main__":
 	typo_corrector_class = ChineseTypoCorrector
 	language = "zh_traditional_tw"
 	credential = {
-		# "api_key": "<API_KEY>",
-		"secret_key": "<SECRET_KEY>"
+		"api_key": "<API_KEY>",
+		# "secret_key": "<SECRET_KEY>"
 	}
 	data_name = "gpt4_250_sentence_aug_err_0.1_41PJSO2KRV6SK1WJ6936.txt"
 	groundtruth_name = "gpt4_250_sentence_gt.txt"

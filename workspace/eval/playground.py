@@ -23,8 +23,8 @@ if __name__ == "__main__":
 	model = "gpt-3.5-turbo"
 	provider = "OpenAI"
 	credential = {
-		# "api_key": "<API_KEY>",
-		"secret_key": "<SECRET_KEY>"
+		"api_key": "<API_KEY>",
+		# "secret_key": "<SECRET_KEY>"
 	}
 	typo_corrector_class = ChineseTypoCorrector
 	language = "zh_traditional_tw"

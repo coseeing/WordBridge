@@ -194,7 +194,7 @@ class BaseTypoCorrector():
 
 	def _get_headers(self):
 		if self.provider == "OpenAI":
-			headers = {"Authorization": f"Bearer {self.credential['secret_key']}"}
+			headers = {"Authorization": f"Bearer {self.credential['api_key']}"}
 		elif self.provider == "Baidu":
 			headers = {'Content-Type': 'application/json'}
 		else:
