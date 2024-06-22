@@ -164,10 +164,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, request):
+		provider = config.conf["WordBridge"]["settings"]["model_provider"]
+		model_name = config.conf["WordBridge"]["settings"]["model_name"]
 		language = config.conf["WordBridge"]["settings"]["language"]
 		if config.conf["WordBridge"]["settings"]["llm_access_method"] == "personal_api_key":
-			provider = config.conf["WordBridge"]["settings"]["model_provider"]
-			model_name = config.conf["WordBridge"]["settings"]["model_name"]
 			corrector_mode = config.conf["WordBridge"]["settings"]["typo_correction_mode"]
 			if provider not in config.conf["WordBridge"]["settings"]["api_key"]:
 				config.conf["WordBridge"]["settings"]["api_key"][provider] = ""
@@ -209,7 +209,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 			data = {
 				"request": request,
-				"model": model,
+				"model": model_name,
 				"language": language,
 			}
 			headers = {
