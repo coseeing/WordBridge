@@ -1,6 +1,9 @@
 from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
 
 import config
+import glob
+import json
+import os
 import wx
 import addonHandler
 
@@ -11,28 +14,41 @@ from gui.settingsDialogs import SettingsPanel
 
 addonHandler.initTranslation()
 
-model_labels = [
-	_("gpt-3.5-turbo"),
-	_("gpt-4-turbo"),
-	_("gpt-4o"),
-	_("gpt-4o | Simple Mode"),
-]
-model_values = [
-	"gpt-3.5-turbo",
-	"gpt-4-turbo",
-	"gpt-4o",
-	"gpt-4o | Simple Mode",
-]
-gpt_access_method_labels = [
-	_("OpenAI API Key"),
+info_dict = {
+	"OpenAI": _("OpenAI"),
+	"gpt-3.5-turbo": _("gpt-3.5-turbo"),
+	"gpt-4-turbo": _("gpt-4-turbo"),
+	"gpt-4o": _("gpt-4o"),
+	"Default Mode": _("Default Mode"),
+	"Simple Mode": _("Simple Mode")
+}
+
+llm_access_method_labels = [
+	_("Personal API Key"),
 	_("Coseeing Account"),
 ]
-gpt_access_method_values = [
-	"openai_api_key",
+llm_access_method_values = [
+	"personal_api_key",
 	"coseeing_account",
 ]
 language_labels = [_("Traditional Chinese"), _("Simplified Chinese")]
 language_values = ["zh_traditional_tw", "zh_simplified"]
+
+llm_config_paths = sorted(glob.glob(os.path.join(os.path.dirname(__file__), "model_config", "*.json")))
+llm_configs = []
+for path in llm_config_paths:
+	with open(path, "r") as f:
+		llm_configs.append(json.loads(f.read()))
+
+model_config_labels = []
+model_config_values = []
+for llm_config in llm_configs:
+	provider = llm_config['model']['provider']
+	model_name = llm_config['model']['model_name']
+	typo_correction_mode = llm_config["typo_corrector"]["typo_correction_mode"]
+	model_config_labels.append(f"{info_dict[provider]}: {info_dict[model_name]} | {info_dict[typo_correction_mode]}")
+	model_config_values.append((provider, model_name, typo_correction_mode))
+
 
 class OpenAIGeneralSettingsPanel(SettingsPanel):
 	title = _("WordBridge")
@@ -42,14 +58,23 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 
 		# For selecting OpenAI model
-		modelLabelText = _("Model:")
-		self.modelList = settingsSizerHelper.addLabeledControl(modelLabelText, wx.Choice, choices=model_labels)
-		self.modelList.SetToolTip(wx.ToolTip(_("Choose the OpenAI model for the Word Bridge")))
-		if config.conf["WordBridge"]["settings"]["model"] in model_values:
-			self.modelList.SetSelection(model_values.index(config.conf["WordBridge"]["settings"]["model"]))
-		else:
-			self.modelList.SetSelection(0)
-			config.conf["WordBridge"]["settings"]["model"] = model_values[0]
+		modelLabelText = _("Large Language Model:")
+		self.modelList = settingsSizerHelper.addLabeledControl(modelLabelText, wx.Choice, choices=model_config_labels)
+		self.modelList.SetToolTip(wx.ToolTip(_("Choose the large language model for the Word Bridge")))
+		model_config_val = (
+			config.conf["WordBridge"]["settings"]["model_provider"],
+			config.conf["WordBridge"]["settings"]["model_name"],
+			config.conf["WordBridge"]["settings"]["typo_correction_mode"],
+		)
+		if model_config_val not in model_config_values:
+			model_config_val = ("OpenAI", "gpt-3.5-turbo", "Default Mode")
+			config.conf["WordBridge"]["settings"]["model_provider"] = "OpenAI"
+			config.conf["WordBridge"]["settings"]["model_name"] = "gpt-3.5-turbo"
+			config.conf["WordBridge"]["settings"]["typo_correction_mode"] = "Default Mode"
+
+		model_index = model_config_values.index(model_config_val)
+		model_provider_selected = config.conf["WordBridge"]["settings"]["model_provider"]
+		self.modelList.SetSelection(model_index)
 
 		# For selecting language
 		languageLabelText = _("Language:")
@@ -61,53 +86,71 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			self.languageList.SetSelection(0)
 			config.conf["WordBridge"]["settings"]["language"] = language_values[0]
 
-		# For selecting GPT access method
-		accessMethodLabelText = _("GPT Access Method:")
+		# For selecting LLM access method
+		accessMethodLabelText = _("Large Language Model Access Method:")
 		self.methodList = settingsSizerHelper.addLabeledControl(
 			accessMethodLabelText,
 			wx.Choice,
-			choices=gpt_access_method_labels,
+			choices=llm_access_method_labels,
 		)
-		self.methodList.SetToolTip(wx.ToolTip(_("Choose the GPT access method")))
-		if config.conf["WordBridge"]["settings"]["gpt_access_method"] in gpt_access_method_values:
+		self.methodList.SetToolTip(wx.ToolTip(_("Choose the large language model access method")))
+		if config.conf["WordBridge"]["settings"]["llm_access_method"] in llm_access_method_values:
 			self.methodList.SetSelection(
-				gpt_access_method_values.index(config.conf["WordBridge"]["settings"]["gpt_access_method"])
+				llm_access_method_values.index(config.conf["WordBridge"]["settings"]["llm_access_method"])
 			)
 		else:
 			self.methodList.SetSelection(0)
-			config.conf["WordBridge"]["settings"]["gpt_access_method"] = gpt_access_method_values[0]
+			config.conf["WordBridge"]["settings"]["llm_access_method"] = llm_access_method_values[0]
 		self.methodList.Bind(wx.EVT_CHOICE, self.onChangeChoice)
 
 		# For setting account information
 		accessPanel = wx.Panel(self)
-		sizer = wx.GridBagSizer(5, 2)
+		sizer = wx.GridBagSizer(6, 2)
 
-		self.accessOpenAITextLabel = wx.StaticText(accessPanel, label=_("OpenAI Account"))
+		providerLabelText = info_dict[model_provider_selected]
+		self.accessOpenAITextLabel = wx.StaticText(accessPanel, label=providerLabelText + _(" Account"))
 		sizer.Add(self.accessOpenAITextLabel, pos=(0, 0), flag=wx.LEFT, border=0)
 
+		if model_provider_selected not in config.conf["WordBridge"]["settings"]["api_key"]:
+			config.conf["WordBridge"]["settings"]["api_key"][model_provider_selected] = ""
 		self.apikeyTextLabel = wx.StaticText(accessPanel, label=_("API Key:"))
 		sizer.Add(self.apikeyTextLabel, pos=(1, 0), flag=wx.LEFT, border=10)
 		self.apikeyTextCtrl = wx.TextCtrl(
 			accessPanel,
 			size=(self.scaleSize(375), -1),
-			value=config.conf["WordBridge"]["settings"]["openai_key"],
+			value=config.conf["WordBridge"]["settings"]["api_key"][model_provider_selected],
 		)
 		sizer.Add(self.apikeyTextCtrl, pos=(1, 1))
 
+		if model_provider_selected not in config.conf["WordBridge"]["settings"]["secret_key"]:
+			config.conf["WordBridge"]["settings"]["secret_key"][model_provider_selected] = ""
+		self.secretkeyTextLabel = wx.StaticText(accessPanel, label=_("Secret Key:"))
+		sizer.Add(self.secretkeyTextLabel, pos=(2, 0), flag=wx.LEFT, border=10)
+		self.secretkeyTextCtrl = wx.TextCtrl(
+			accessPanel,
+			size=(self.scaleSize(375), -1),
+			value=config.conf["WordBridge"]["settings"]["secret_key"][model_provider_selected],
+		)
+		sizer.Add(self.secretkeyTextCtrl, pos=(2, 1))
+		is_secret_key = "Secret Key" in llm_configs[model_index]["model"]["authorization"]
+		if not is_secret_key:
+			self.secretkeyTextLabel.Hide()
+			self.secretkeyTextCtrl.Hide()
+
 		self.accessCoseeingTextLabel = wx.StaticText(accessPanel, label=_("Coseeing Account"))
-		sizer.Add(self.accessCoseeingTextLabel, pos=(2, 0), flag=wx.LEFT, border=0)
+		sizer.Add(self.accessCoseeingTextLabel, pos=(3, 0), flag=wx.LEFT, border=0)
 
 		self.usernameTextLabel = wx.StaticText(accessPanel, label=_("Username:"))
-		sizer.Add(self.usernameTextLabel, pos=(3, 0), flag=wx.LEFT, border=10)
+		sizer.Add(self.usernameTextLabel, pos=(4, 0), flag=wx.LEFT, border=10)
 		self.usernameTextCtrl = wx.TextCtrl(
 			accessPanel,
 			size=(self.scaleSize(375), -1),
 			value=config.conf["WordBridge"]["settings"]["coseeing_username"],
 		)
-		sizer.Add(self.usernameTextCtrl, pos=(3, 1))
+		sizer.Add(self.usernameTextCtrl, pos=(4, 1))
 
 		self.passwordTextLabel = wx.StaticText(accessPanel, label=_("Password:"))
-		sizer.Add(self.passwordTextLabel, pos=(4, 0), flag=wx.LEFT, border=10)
+		sizer.Add(self.passwordTextLabel, pos=(5, 0), flag=wx.LEFT, border=10)
 
 		self.passwordTextCtrl = wx.TextCtrl(
 			accessPanel,
@@ -115,9 +158,9 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			value=config.conf["WordBridge"]["settings"]["coseeing_password"],
 			style=wx.TE_PASSWORD,
 		)
-		sizer.Add(self.passwordTextCtrl, pos=(4, 1))
+		sizer.Add(self.passwordTextCtrl, pos=(5, 1))
 
-		self._enableAccessElements(gpt_access_method_values[self.methodList.GetSelection()])
+		self._enableAccessElements(llm_access_method_values[self.methodList.GetSelection()])
 
 		accessPanel.SetSizer(sizer)
 		sizer.Fit(self)
@@ -157,10 +200,14 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		self.settingsSizer = settingsSizer
 
 	def onSave(self):
-		config.conf["WordBridge"]["settings"]["model"] = model_values[self.modelList.GetSelection()]
+		provider_tmp = model_config_values[self.modelList.GetSelection()][0]
+		config.conf["WordBridge"]["settings"]["model_provider"] = provider_tmp
+		config.conf["WordBridge"]["settings"]["model_name"] = model_config_values[self.modelList.GetSelection()][1]
+		config.conf["WordBridge"]["settings"]["typo_correction_mode"] = model_config_values[self.modelList.GetSelection()][2]
 		config.conf["WordBridge"]["settings"]["language"] = language_values[self.languageList.GetSelection()]
-		config.conf["WordBridge"]["settings"]["gpt_access_method"] = gpt_access_method_values[self.methodList.GetSelection()]
-		config.conf["WordBridge"]["settings"]["openai_key"] = self.apikeyTextCtrl.GetValue()
+		config.conf["WordBridge"]["settings"]["llm_access_method"] = llm_access_method_values[self.methodList.GetSelection()]
+		config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = self.apikeyTextCtrl.GetValue()
+		config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp] = self.secretkeyTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_username"] = self.usernameTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_password"] = self.passwordTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["max_char_count"] = self.maxCharCount.GetValue()
@@ -171,11 +218,11 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		# trigger a refresh of the settings
 		self.onPanelActivated()
 		self._sendLayoutUpdatedEvent()
-		self._enableAccessElements(gpt_access_method_values[self.methodList.GetSelection()])
+		self._enableAccessElements(llm_access_method_values[self.methodList.GetSelection()])
 		self.Thaw()
 
-	def _enableAccessElements(self, gpt_access_method):
-		if gpt_access_method == "openai_api_key":
+	def _enableAccessElements(self, llm_access_method):
+		if llm_access_method == "personal_api_key":
 			self.accessCoseeingTextLabel.Disable()
 			self.usernameTextLabel.Disable()
 			self.passwordTextLabel.Disable()
@@ -184,6 +231,8 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			self.accessOpenAITextLabel.Enable()
 			self.apikeyTextLabel.Enable()
 			self.apikeyTextCtrl.Enable()
+			self.secretkeyTextLabel.Enable()
+			self.secretkeyTextCtrl.Enable()
 		else:
 			self.accessCoseeingTextLabel.Enable()
 			self.usernameTextLabel.Enable()
@@ -193,6 +242,8 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			self.accessOpenAITextLabel.Disable()
 			self.apikeyTextLabel.Disable()
 			self.apikeyTextCtrl.Disable()
+			self.secretkeyTextLabel.Disable()
+			self.secretkeyTextCtrl.Disable()
 
 	def updateCurrentKey(self, key):
 		self.apikeyTextCtrl.SetValue(key)
