@@ -79,24 +79,21 @@ class BaseTypoCorrector():
 
 		response_history = []
 		response_text_history = []
+		output_text = None
 		for _ in range(self.max_correction_attempts):
-			corrected_text = None
 			response_json = self._chat_completion(input_prompt, response_text_history)
 
 			response_history.append(response_json)
 
 			response_text = self._parse_response(response_json)
-			corrected_text = self._correct_typos(response_text, text)
+			response_text_history.append(response_text)
 
-			if not self._has_error(corrected_text, text):
+			output_text = self._text_postprocess(response_text, input_text)
+			if not self._has_error(output_text, input_text):
 				break
-
-			response_text_history.append(corrected_text)
 
 		if len(response_text_history) > 1:
 			log.warning(f"Correction history: {response_text_history}")
-
-		output_text = self._text_postprocess(corrected_text, input_text) if corrected_text is not None else None
 
 		corrector_result = CorrectorResult(
 			original_text=input_text,
@@ -289,9 +286,6 @@ class BaseTypoCorrector():
 	def _has_error(self, response: Any, text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
-	def _correct_typos(self, response: Any, text: str):
-		raise NotImplementedError("Subclass must implement this method")
-
 	def _text_preprocess(self, input_text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
@@ -313,9 +307,6 @@ class ChineseTypoCorrectorLite(BaseTypoCorrector):
 
 	def _has_error(self, response: Any, text: str) -> bool:
 		return False
-
-	def _correct_typos(self, response: str, text: str):
-		return response
 
 	def _text_preprocess(self, input_text: str):
 		return input_text
@@ -385,9 +376,6 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 			if len(set(get_char_pinyin(text_list[i])) & set(get_char_pinyin(response_list[i]))) == 0:
 				return True
 		return False
-
-	def _correct_typos(self, response: str, text: str):
-		return response
 
 	def _text_preprocess(self, input_text: str):
 		return self.prefix + input_text + self.suffix
