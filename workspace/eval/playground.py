@@ -6,7 +6,7 @@ api_path = os.path.join(path, "..", "..", "addon", "globalPlugins", "WordBridge"
 sys.path.insert(0, api_path)
 
 from lib.proofreader import Proofreader
-from lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorSimple
+from lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorLite
 
 
 """
