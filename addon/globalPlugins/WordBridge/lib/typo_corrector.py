@@ -9,7 +9,7 @@ import requests
 import time
 
 from pypinyin import lazy_pinyin, Style
-from .template import COMMENT_TEMPLATE_DICT, MESSAGE_TEMPLATE_DICT
+from .template import COMMENT_TEMPLATE_DICT, MESSAGE_TEMPLATE_DICT, SYSTEM_TEMPLATE_DICT
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
 from .utils import SEPERATOR, is_chinese_character
 
@@ -165,7 +165,9 @@ class BaseTypoCorrector():
 		return api_url
 
 	def _get_request_data(self, messages):
+		system = SYSTEM_TEMPLATE_DICT[self.__class__.__name__][self.language]
 		if self.provider == "OpenAI":
+			messages = [{"role": "system", "content": system}] + messages
 			data = {
 				"model": self.model,
 				"messages": messages,
@@ -179,6 +181,7 @@ class BaseTypoCorrector():
 		elif self.provider == "Baidu":
 			data = {
 				"messages": messages,
+				"system": system,
 				"max_output_tokens": min(self.max_tokens, len(messages[-1]["content"])),
 				"temperature": max(self.temperature, 0.0001),
 				"top_p": self.top_p,
@@ -207,9 +210,6 @@ class BaseTypoCorrector():
 				comment = comment_template.replace("{{response_previous}}", response_previous)
 				messages.append({"role": "assistant", "content": response_previous})
 				messages.append({"role": "user", "content": comment})
-		elif self.provider == "Baidu":
-			msg_system = messages.pop(0)
-			messages[0]["content"] = msg_system["content"] + "\n" + messages[0]["content"]
 
 		request_data = self._get_request_data(messages)
 		api_url = self._get_api_url()
