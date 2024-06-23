@@ -23,7 +23,7 @@ import wx
 
 import requests
 
-from .dialogs import OpenAIGeneralSettingsPanel, FeedbackDialog
+from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .lib.coseeing import obtain_openai_key
 from .lib.proofreader import Proofreader
 from .lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorSimple
@@ -61,7 +61,7 @@ COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(OpenAIGeneralSettingsPanel)
+		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(LLMSettingsPanel)
 		self.latest_action = {
 			"request": None,
 			"response": None,
@@ -71,13 +71,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def terminate(self, *args, **kwargs):
 		super().terminate(*args, **kwargs)
-		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(OpenAIGeneralSettingsPanel)
+		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(LLMSettingsPanel)
 
 	def onSettings(self, evt):
 		wx.CallAfter(
 			gui.mainFrame._popupSettingsDialog,
 			gui.settingsDialogs.NVDASettingsDialog,
-			OpenAIGeneralSettingsPanel
+			LLMSettingsPanel
 		)
 
 	def OnPreview(self, file):
@@ -290,7 +290,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		wx.CallAfter(
 			gui.mainFrame._popupSettingsDialog,
 			gui.settingsDialogs.NVDASettingsDialog,
-			OpenAIGeneralSettingsPanel
+			LLMSettingsPanel
 		)
 
 	@script(
