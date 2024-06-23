@@ -36,7 +36,7 @@ llm_access_method_values = [
 language_labels = [_("Traditional Chinese"), _("Simplified Chinese")]
 language_values = ["zh_traditional_tw", "zh_simplified"]
 
-llm_config_paths = sorted(glob.glob(os.path.join(os.path.dirname(__file__), "model_config", "*.json")))
+llm_config_paths = sorted(glob.glob(os.path.join(os.path.dirname(__file__), "corrector_config", "*.json")))
 llm_configs = []
 for path in llm_config_paths:
 	with open(path, "r") as f:
