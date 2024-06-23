@@ -16,9 +16,11 @@ addonHandler.initTranslation()
 
 info_dict = {
 	"OpenAI": _("OpenAI"),
+	"Baidu": _("Baidu"),
 	"gpt-3.5-turbo": _("gpt-3.5-turbo"),
 	"gpt-4-turbo": _("gpt-4-turbo"),
 	"gpt-4o": _("gpt-4o"),
+	"ernie-4.0-8k-preview": _("ernie-4.0-8k-preview"),
 	"Default Mode": _("Default Mode"),
 	"Simple Mode": _("Simple Mode")
 }
@@ -75,6 +77,7 @@ class LLMSettingsPanel(SettingsPanel):
 		model_index = model_config_values.index(model_config_val)
 		model_provider_selected = config.conf["WordBridge"]["settings"]["model_provider"]
 		self.modelList.SetSelection(model_index)
+		self.modelList.Bind(wx.EVT_CHOICE, self.onChangeChoice)
 
 		# For selecting language
 		languageLabelText = _("Language:")
@@ -132,10 +135,6 @@ class LLMSettingsPanel(SettingsPanel):
 			value=config.conf["WordBridge"]["settings"]["secret_key"][model_provider_selected],
 		)
 		sizer.Add(self.secretkeyTextCtrl, pos=(2, 1))
-		is_secret_key = "Secret Key" in llm_configs[model_index]["model"]["authorization"]
-		if not is_secret_key:
-			self.secretkeyTextLabel.Hide()
-			self.secretkeyTextCtrl.Hide()
 
 		self.accessCoseeingTextLabel = wx.StaticText(accessPanel, label=_("Coseeing Account"))
 		sizer.Add(self.accessCoseeingTextLabel, pos=(3, 0), flag=wx.LEFT, border=0)
@@ -244,6 +243,16 @@ class LLMSettingsPanel(SettingsPanel):
 			self.apikeyTextCtrl.Disable()
 			self.secretkeyTextLabel.Disable()
 			self.secretkeyTextCtrl.Disable()
+
+		provider_tmp = model_config_values[self.modelList.GetSelection()][0]
+		self.apikeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["api_key"][provider_tmp])
+		if "Secret Key" in llm_configs[self.modelList.GetSelection()]["model"]["authorization"]:
+			self.secretkeyTextLabel.Show()
+			self.secretkeyTextCtrl.Show()
+			self.secretkeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp])
+		else:
+			self.secretkeyTextLabel.Hide()
+			self.secretkeyTextCtrl.Hide()
 
 	def updateCurrentKey(self, key):
 		self.apikeyTextCtrl.SetValue(key)
