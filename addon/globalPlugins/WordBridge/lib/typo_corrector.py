@@ -75,13 +75,13 @@ class BaseTypoCorrector():
 
 		template = deepcopy(MESSAGE_TEMPLATE_DICT[self.__class__.__name__][self.language])
 		text = self._text_preprocess(input_text)
-		input = self._create_input(template, text)
+		input_prompt = self._create_input(template, text)
 
 		response_history = []
 		response_text_history = []
 		for _ in range(self.max_correction_attempts):
 			corrected_text = None
-			response_json = self._chat_completion(input, response_text_history)
+			response_json = self._chat_completion(input_prompt, response_text_history)
 
 			response_history.append(response_json)
 
