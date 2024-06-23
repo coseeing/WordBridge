@@ -5,6 +5,6 @@
 		"authorization": ["API Key"]
 	},
 	"typo_corrector": {
-		"typo_correction_mode": "Default Mode"
+		"typo_correction_mode": "Standard Mode"
 	}
 }
