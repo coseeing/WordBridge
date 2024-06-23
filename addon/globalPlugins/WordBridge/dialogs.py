@@ -50,14 +50,14 @@ for llm_config in llm_configs:
 	model_config_values.append((provider, model_name, typo_correction_mode))
 
 
-class OpenAIGeneralSettingsPanel(SettingsPanel):
+class LLMSettingsPanel(SettingsPanel):
 	title = _("WordBridge")
 	helpId = "WordBridge Settings"
 
 	def makeSettings(self, settingsSizer):
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 
-		# For selecting OpenAI model
+		# For selecting LLM
 		modelLabelText = _("Large Language Model:")
 		self.modelList = settingsSizerHelper.addLabeledControl(modelLabelText, wx.Choice, choices=model_config_labels)
 		self.modelList.SetToolTip(wx.ToolTip(_("Choose the large language model for the Word Bridge")))
@@ -108,8 +108,8 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 		sizer = wx.GridBagSizer(6, 2)
 
 		providerLabelText = info_dict[model_provider_selected]
-		self.accessOpenAITextLabel = wx.StaticText(accessPanel, label=providerLabelText + _(" Account"))
-		sizer.Add(self.accessOpenAITextLabel, pos=(0, 0), flag=wx.LEFT, border=0)
+		self.accessLLMTextLabel = wx.StaticText(accessPanel, label=providerLabelText + _(" Account"))
+		sizer.Add(self.accessLLMTextLabel, pos=(0, 0), flag=wx.LEFT, border=0)
 
 		if model_provider_selected not in config.conf["WordBridge"]["settings"]["api_key"]:
 			config.conf["WordBridge"]["settings"]["api_key"][model_provider_selected] = ""
@@ -228,7 +228,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			self.passwordTextLabel.Disable()
 			self.usernameTextCtrl.Disable()
 			self.passwordTextCtrl.Disable()
-			self.accessOpenAITextLabel.Enable()
+			self.accessLLMTextLabel.Enable()
 			self.apikeyTextLabel.Enable()
 			self.apikeyTextCtrl.Enable()
 			self.secretkeyTextLabel.Enable()
@@ -239,7 +239,7 @@ class OpenAIGeneralSettingsPanel(SettingsPanel):
 			self.passwordTextLabel.Enable()
 			self.usernameTextCtrl.Enable()
 			self.passwordTextCtrl.Enable()
-			self.accessOpenAITextLabel.Disable()
+			self.accessLLMTextLabel.Disable()
 			self.apikeyTextLabel.Disable()
 			self.apikeyTextCtrl.Disable()
 			self.secretkeyTextLabel.Disable()

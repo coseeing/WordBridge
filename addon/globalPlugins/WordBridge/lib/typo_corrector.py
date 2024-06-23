@@ -237,9 +237,10 @@ class BaseTypoCorrector():
 			except Exception as e:
 				request_error = type(e).__name__
 				log.error(
-					_("Try = {try_index}, {request_error}, an error occurred when sending OpenAI request: {e}").format(
+					_("Try = {try_index}, {request_error}, an error occurred when sending {provider} request: {e}").format(
 						try_index=(r + 1),
 						request_error=request_error,
+						provider=self.provider,
 						e=e
 					)
 				)
@@ -255,7 +256,11 @@ class BaseTypoCorrector():
 
 		response_json = response.json()
 		if response.status_code == 401:
-			raise Exception(_("Authentication error. Please check if the OpenAI API Key is correct."))
+			raise Exception(
+				_("Authentication error. Please check if the {provider} API Key is correct.").format(
+					provider=self.provider
+				)
+			)
 		elif response.status_code == 404:
 			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
 		elif response.status_code != 200:
