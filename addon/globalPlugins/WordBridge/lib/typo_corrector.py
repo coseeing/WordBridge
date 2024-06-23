@@ -43,8 +43,8 @@ class BaseTypoCorrector():
 	def __init__(
 		self,
 		model: str,
-		access_token: str,
-		api_base_url: str,
+		provider: str,
+		credential: dict,
 		max_tokens: int = 2048,
 		seed: int = 0,
 		temperature: float = 0.0,
@@ -57,7 +57,7 @@ class BaseTypoCorrector():
 	):
 
 		self.model = model
-		self.api_base_url = api_base_url
+		self.provider = provider
 		self.max_tokens = max_tokens
 		self.seed = seed
 		self.temperature = temperature
@@ -66,7 +66,7 @@ class BaseTypoCorrector():
 		self.max_correction_attempts = max_correction_attempts
 		self.httppost_retries = httppost_retries
 		self.backoff = backoff
-		self.headers = {"Authorization": f"Bearer {access_token}"}
+		self.credential = credential
 		self.language = language
 
 	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
@@ -149,49 +149,98 @@ class BaseTypoCorrector():
 		except Exception as e:
 			exception_queue.put(e)
 
+	def _get_api_url(self):
+		if self.provider == "OpenAI":
+			api_url = "https://api.openai.com/v1/chat/completions"
+		elif self.provider == "Baidu":
+			api_key = self.credential["api_key"]
+			secret_key = self.credential["secret_key"]
+			url_get_access = "https://aip.baidubce.com/oauth/2.0/token" +\
+						f"?grant_type=client_credentials&client_id={api_key}&client_secret={secret_key}"
+			headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+			response = requests.request("POST", url_get_access, headers=headers, json={})
+			access_token = response.json().get("access_token")
+			api_url = "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/" +\
+						f"{self.model}?access_token=" + access_token
+		else:
+			raise NotImplementedError("Subclass must implement this method")
+
+		return api_url
+
+	def _get_request_data(self, messages):
+		if self.provider == "OpenAI":
+			data = {
+				"model": self.model,
+				"messages": messages,
+				"max_tokens": self.max_tokens,
+				"seed": self.seed,
+				"temperature": self.temperature,
+				"top_p": self.top_p,
+				"logprobs": self.logprobs,
+				"stop": [" =>"]
+			}
+		elif self.provider == "Baidu":
+			data = {
+				"messages": messages,
+				"max_output_tokens": min(self.max_tokens, len(messages[-1]["content"])),
+				"temperature": max(self.temperature, 0.0001),
+				"top_p": self.top_p,
+				"stop": ["\n"]
+			}
+		else:
+			raise NotImplementedError("Subclass must implement this method")
+
+		return data
+
+	def _get_headers(self):
+		if self.provider == "OpenAI":
+			headers = {"Authorization": f"Bearer {self.credential['api_key']}"}
+		elif self.provider == "Baidu":
+			headers = {'Content-Type': 'application/json'}
+		else:
+			raise NotImplementedError("Subclass must implement this method")
+
+		return headers
+
 	def _chat_completion(self, input: List, response_text_history: List) -> str:
 		messages = deepcopy(input)
-		comment_template = COMMENT_DICT[self.__class__.__name__][self.language]
-		for response_previous in response_text_history:
-			comment = comment_template.replace("{{response_previous}}", response_previous)
-			messages.append({"role": "assistant", "content": response_previous})
-			messages.append({"role": "user", "content": comment})
+		if self.provider == "OpenAI":
+			comment_template = COMMENT_DICT[self.__class__.__name__][self.language]
+			for response_previous in response_text_history:
+				comment = comment_template.replace("{{response_previous}}", response_previous)
+				messages.append({"role": "assistant", "content": response_previous})
+				messages.append({"role": "user", "content": comment})
+		elif self.provider == "Baidu":
+			msg_system = messages.pop(0)
+			messages[0]["content"] = msg_system["content"] + "\n" + messages[0]["content"]
 
-		data = {
-			"model": self.model,
-			"messages": messages,
-			"max_tokens": self.max_tokens,
-			"seed": self.seed,
-			"temperature": self.temperature,
-			"top_p": self.top_p,
-			"logprobs": self.logprobs,
-			"stop": [" =>"]
-		}
+		request_data = self._get_request_data(messages)
+		api_url = self._get_api_url()
+		headers = self._get_headers()
 
-		return self._openai_post_with_retries(data)
+		return self._post_with_retries(request_data, api_url, headers)
 
-	def _openai_post_with_retries(self, data):
+	def _post_with_retries(self, request_data, api_url, headers):
 		backoff = self.backoff
-		url = f"{self.api_base_url}/v1/chat/completions"
-
 		response_json = None
 		for r in range(self.httppost_retries):
 			request_error = None
 			response = None
 			try:
 				response = requests.post(
-					url,
-					headers=self.headers,
-					json=data,
+					api_url,
+					headers=headers,
+					json=request_data,
 					timeout=5,
 				)
 				break
 			except Exception as e:
 				request_error = type(e).__name__
 				log.error(
-					_("Try = {try_index}, {request_error}, an error occurred when sending OpenAI request: {e}").format(
+					_("Try = {try_index}, {request_error}, an error occurred when sending {provider} request: {e}").format(
 						try_index=(r + 1),
 						request_error=request_error,
+						provider=self.provider,
 						e=e
 					)
 				)
@@ -207,7 +256,11 @@ class BaseTypoCorrector():
 
 		response_json = response.json()
 		if response.status_code == 401:
-			raise Exception(_("Authentication error. Please check if the OpenAI API Key is correct."))
+			raise Exception(
+				_("Authentication error. Please check if the {provider} API Key is correct.").format(
+					provider=self.provider
+				)
+			)
 		elif response.status_code == 404:
 			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
 		elif response.status_code != 200:
@@ -215,8 +268,20 @@ class BaseTypoCorrector():
 
 		return response_json
 
-	def _parse_response(self, response: str):
-		raise NotImplementedError("Subclass must implement this method")
+	def _parse_response(self, response: str) -> str:
+		if self.provider == "OpenAI":
+			sentence = response["choices"][0]["message"]["content"]
+		elif self.provider == "Baidu":
+			sentence = response["result"]
+		else:
+			raise NotImplementedError("Subclass must implement this method")
+
+		if self.language == "zh_traditional_tw" and has_simplified_chinese_char(sentence):
+			sentence = chinese_converter.to_traditional(sentence)
+		if self.language == "zh_simplified" and has_traditional_chinese_char(sentence):
+			sentence = chinese_converter.to_simplified(sentence)
+
+		return sentence
 
 	def _create_input(self, template: str, text: str):
 		raise NotImplementedError("Subclass must implement this method")
@@ -241,16 +306,6 @@ class ChineseTypoCorrectorSimple(BaseTypoCorrector):
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-
-	def _parse_response(self, response: str) -> str:
-		sentence = response["choices"][0]["message"]["content"]
-
-		if self.language == "zh_traditional_tw" and has_simplified_chinese_char(sentence):
-			sentence = chinese_converter.to_traditional(sentence)
-		if self.language == "zh_simplified" and has_traditional_chinese_char(sentence):
-			sentence = chinese_converter.to_simplified(sentence)
-
-		return sentence
 
 	def _create_input(self, template: str, text: str):
 		template[-1]["content"] = template[-1]["content"].replace("{{text_input}}", text)
@@ -296,16 +351,6 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 		else:
 			raise NotImplementedError
 
-	def _parse_response(self, response: str) -> str:
-		sentence = response["choices"][0]["message"]["content"]
-
-		if self.language == "zh_traditional_tw" and has_simplified_chinese_char(sentence):
-			sentence = chinese_converter.to_traditional(sentence)
-		if self.language == "zh_simplified" and has_traditional_chinese_char(sentence):
-			sentence = chinese_converter.to_simplified(sentence)
-
-		return sentence
-
 	def _create_input(self, template: str, text: str):
 		phone = ' '.join(lazy_pinyin(text, style=Style.TONE3))
 
@@ -318,6 +363,9 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 		return template
 
 	def _has_error(self, response: str, text: str) -> bool:
+		if not self.provider == "OpenAI":
+			return False
+
 		response_text = response[len(self.answer_string):]
 
 		response_list = []

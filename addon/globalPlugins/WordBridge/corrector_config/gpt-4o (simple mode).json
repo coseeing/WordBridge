@@ -1,0 +1,10 @@
+{
+	"model": {
+		"model_name": "gpt-4o",
+		"provider": "OpenAI",
+		"authorization": ["API Key"]
+	},
+	"typo_corrector": {
+		"typo_correction_mode": "Simple Mode"
+	}
+}

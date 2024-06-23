@@ -23,7 +23,7 @@ import wx
 
 import requests
 
-from .dialogs import OpenAIGeneralSettingsPanel, FeedbackDialog
+from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .lib.coseeing import obtain_openai_key
 from .lib.proofreader import Proofreader
 from .lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorSimple
@@ -38,10 +38,15 @@ ADDON_SUMMARY = "WordBridge"
 
 config.conf.spec["WordBridge"] = {
 	"settings": {
-		"model": "string(default=gpt-3.5-turbo)",
+		"model_provider": "string(default=OpenAI)",
+		"model_name": "string(default=gpt-3.5-turbo)",
+		"typo_correction_mode": "string(default=Default\bMode)",
 		"language": "string(default=zh_traditional_tw)",
-		"gpt_access_method": "string(default=coseeing_account)",
-		"openai_key": "string(default=\0)",
+		"llm_access_method": "string(default=coseeing_account)",
+		"api_key": {
+		},
+		"secret_key": {
+		},
 		"coseeing_username": "string(default=\0)",
 		"coseeing_password": "string(default=\0)",
 		"max_char_count": "integer(default=50,min=2,max=64)",
@@ -56,7 +61,7 @@ COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(OpenAIGeneralSettingsPanel)
+		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(LLMSettingsPanel)
 		self.latest_action = {
 			"request": None,
 			"response": None,
@@ -66,13 +71,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def terminate(self, *args, **kwargs):
 		super().terminate(*args, **kwargs)
-		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(OpenAIGeneralSettingsPanel)
+		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(LLMSettingsPanel)
 
 	def onSettings(self, evt):
 		wx.CallAfter(
 			gui.mainFrame._popupSettingsDialog,
 			gui.settingsDialogs.NVDASettingsDialog,
-			OpenAIGeneralSettingsPanel
+			LLMSettingsPanel
 		)
 
 	def OnPreview(self, file):
@@ -159,20 +164,24 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, request):
-		model = config.conf["WordBridge"]["settings"]["model"]
+		provider = config.conf["WordBridge"]["settings"]["model_provider"]
+		model_name = config.conf["WordBridge"]["settings"]["model_name"]
 		language = config.conf["WordBridge"]["settings"]["language"]
-		if config.conf["WordBridge"]["settings"]["gpt_access_method"] == "openai_api_key":
-			access_token = config.conf["WordBridge"]["settings"]["openai_key"]
-			api_base_url = OPENAI_BASE_URL
-			model_name = model.split("|")[0].strip()
-			corrector_mode = "Normal"
-			if "Simple Mode" in config.conf["WordBridge"]["settings"]["model"]:
-				corrector_mode = "Simple Mode"
+		if config.conf["WordBridge"]["settings"]["llm_access_method"] == "personal_api_key":
+			corrector_mode = config.conf["WordBridge"]["settings"]["typo_correction_mode"]
+			if provider not in config.conf["WordBridge"]["settings"]["api_key"]:
+				config.conf["WordBridge"]["settings"]["api_key"][provider] = ""
+			if provider not in config.conf["WordBridge"]["settings"]["secret_key"]:
+				config.conf["WordBridge"]["settings"]["secret_key"][provider] = ""
+			credential = {
+				"api_key": config.conf["WordBridge"]["settings"]["api_key"][provider],
+				"secret_key": config.conf["WordBridge"]["settings"]["secret_key"][provider],
+			}
 			corrector_class = ChineseTypoCorrectorSimple if corrector_mode == "Simple Mode" else ChineseTypoCorrector
 			corrector = corrector_class(
 				model=model_name,
-				access_token=access_token,
-				api_base_url=api_base_url,
+				provider=provider,
+				credential=credential,
 				language=language,
 			)
 			proofreader = Proofreader(corrector)
@@ -200,7 +209,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 			data = {
 				"request": request,
-				"model": model,
+				"model": model_name,
 				"language": language,
 			}
 			headers = {
@@ -281,7 +290,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		wx.CallAfter(
 			gui.mainFrame._popupSettingsDialog,
 			gui.settingsDialogs.NVDASettingsDialog,
-			OpenAIGeneralSettingsPanel
+			LLMSettingsPanel
 		)
 
 	@script(
