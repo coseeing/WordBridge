@@ -26,7 +26,7 @@ import requests
 from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .lib.coseeing import obtain_openai_key
 from .lib.proofreader import Proofreader
-from .lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorSimple
+from .lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorLite
 from .lib.utils import strings_diff
 from .lib.viewHTML import text2template
 from hanzidentifier import has_chinese
@@ -40,7 +40,7 @@ config.conf.spec["WordBridge"] = {
 	"settings": {
 		"model_provider": "string(default=OpenAI)",
 		"model_name": "string(default=gpt-3.5-turbo)",
-		"typo_correction_mode": "string(default=Default\bMode)",
+		"typo_correction_mode": "string(default=Standard\bMode)",
 		"language": "string(default=zh_traditional_tw)",
 		"llm_access_method": "string(default=coseeing_account)",
 		"api_key": {
@@ -177,7 +177,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				"api_key": config.conf["WordBridge"]["settings"]["api_key"][provider],
 				"secret_key": config.conf["WordBridge"]["settings"]["secret_key"][provider],
 			}
-			corrector_class = ChineseTypoCorrectorSimple if corrector_mode == "Simple Mode" else ChineseTypoCorrector
+			corrector_class = ChineseTypoCorrectorLite if corrector_mode == "Lite Mode" else ChineseTypoCorrector
 			corrector = corrector_class(
 				model=model_name,
 				provider=provider,

@@ -21,8 +21,8 @@ info_dict = {
 	"gpt-4-turbo": _("gpt-4-turbo"),
 	"gpt-4o": _("gpt-4o"),
 	"ernie-4.0-8k-preview": _("ernie-4.0-8k-preview"),
-	"Default Mode": _("Default Mode"),
-	"Simple Mode": _("Simple Mode")
+	"Standard Mode": _("Standard Mode"),
+	"Lite Mode": _("Lite Mode")
 }
 
 llm_access_method_labels = [
@@ -69,10 +69,10 @@ class LLMSettingsPanel(SettingsPanel):
 			config.conf["WordBridge"]["settings"]["typo_correction_mode"],
 		)
 		if model_config_val not in model_config_values:
-			model_config_val = ("OpenAI", "gpt-3.5-turbo", "Default Mode")
+			model_config_val = ("OpenAI", "gpt-3.5-turbo", "Standard Mode")
 			config.conf["WordBridge"]["settings"]["model_provider"] = "OpenAI"
 			config.conf["WordBridge"]["settings"]["model_name"] = "gpt-3.5-turbo"
-			config.conf["WordBridge"]["settings"]["typo_correction_mode"] = "Default Mode"
+			config.conf["WordBridge"]["settings"]["typo_correction_mode"] = "Standard Mode"
 
 		model_index = model_config_values.index(model_config_val)
 		model_provider_selected = config.conf["WordBridge"]["settings"]["model_provider"]
