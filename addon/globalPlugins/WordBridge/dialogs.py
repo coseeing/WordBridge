@@ -36,7 +36,9 @@ llm_access_method_values = [
 language_labels = [_("Traditional Chinese"), _("Simplified Chinese")]
 language_values = ["zh_traditional_tw", "zh_simplified"]
 
-corrector_config_paths = sorted(glob.glob(os.path.join(os.path.dirname(__file__), "corrector_config", "*.json")))
+corrector_config_paths = sorted(
+	glob.glob(os.path.join(os.path.dirname(__file__), "corrector_config", "*.json"))
+)
 corrector_configs = []
 for path in corrector_config_paths:
 	with open(path, "r") as f:
@@ -64,7 +66,11 @@ class LLMSettingsPanel(SettingsPanel):
 
 		# For selecting LLM
 		modelLabelText = _("Large Language Model:")
-		self.modelList = settingsSizerHelper.addLabeledControl(modelLabelText, wx.Choice, choices=model_config_labels)
+		self.modelList = settingsSizerHelper.addLabeledControl(
+			modelLabelText,
+			wx.Choice,
+			choices=model_config_labels
+		)
 		self.modelList.SetToolTip(wx.ToolTip(_("Choose the large language model for the Word Bridge")))
 		model_config_val = (
 			config.conf["WordBridge"]["settings"]["model_provider"],
@@ -84,7 +90,11 @@ class LLMSettingsPanel(SettingsPanel):
 
 		# For selecting language
 		languageLabelText = _("Language:")
-		self.languageList = settingsSizerHelper.addLabeledControl(languageLabelText, wx.Choice, choices=language_labels)
+		self.languageList = settingsSizerHelper.addLabeledControl(
+			languageLabelText,
+			wx.Choice,
+			choices=language_labels
+		)
 		self.languageList.SetToolTip(wx.ToolTip(_("Choose the language for the Word Bridge")))
 		if config.conf["WordBridge"]["settings"]["language"] in language_values:
 			self.languageList.SetSelection(language_values.index(config.conf["WordBridge"]["settings"]["language"]))
@@ -202,12 +212,14 @@ class LLMSettingsPanel(SettingsPanel):
 		self.settingsSizer = settingsSizer
 
 	def onSave(self):
-		provider_tmp = model_config_values[self.modelList.GetSelection()][0]
+		model_index = self.modelList.GetSelection()
+		access_method_index = self.methodList.GetSelection()
+		provider_tmp = model_config_values[model_index][0]
 		config.conf["WordBridge"]["settings"]["model_provider"] = provider_tmp
-		config.conf["WordBridge"]["settings"]["model_name"] = model_config_values[self.modelList.GetSelection()][1]
-		config.conf["WordBridge"]["settings"]["typo_correction_mode"] = model_config_values[self.modelList.GetSelection()][2]
+		config.conf["WordBridge"]["settings"]["model_name"] = model_config_values[model_index][1]
+		config.conf["WordBridge"]["settings"]["typo_correction_mode"] = model_config_values[model_index][2]
 		config.conf["WordBridge"]["settings"]["language"] = language_values[self.languageList.GetSelection()]
-		config.conf["WordBridge"]["settings"]["llm_access_method"] = llm_access_method_values[self.methodList.GetSelection()]
+		config.conf["WordBridge"]["settings"]["llm_access_method"] = llm_access_method_values[access_method_index]
 		config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = self.apikeyTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp] = self.secretkeyTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_username"] = self.usernameTextCtrl.GetValue()

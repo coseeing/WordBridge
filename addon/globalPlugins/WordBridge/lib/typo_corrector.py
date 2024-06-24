@@ -19,7 +19,7 @@ import chinese_converter
 try:
 	import addonHandler
 	addonHandler.initTranslation()
-except:
+except ImportError:
 	pass
 
 
