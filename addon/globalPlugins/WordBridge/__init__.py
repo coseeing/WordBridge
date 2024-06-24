@@ -53,9 +53,7 @@ config.conf.spec["WordBridge"] = {
 		"auto_display_report": "boolean(default=False)",
 	}
 }
-OPENAI_BASE_URL = "https://api.openai.com"
 COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
-# COSEEING_BASE_URL = "http://localhost:8000"
 
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
