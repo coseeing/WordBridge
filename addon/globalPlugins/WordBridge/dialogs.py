@@ -14,7 +14,7 @@ from gui.settingsDialogs import SettingsPanel
 
 addonHandler.initTranslation()
 
-info_dict = {
+corrector_info_dict = {
 	"OpenAI": _("OpenAI"),
 	"Baidu": _("Baidu"),
 	"gpt-3.5-turbo": _("gpt-3.5-turbo"),
@@ -36,19 +36,22 @@ llm_access_method_values = [
 language_labels = [_("Traditional Chinese"), _("Simplified Chinese")]
 language_values = ["zh_traditional_tw", "zh_simplified"]
 
-llm_config_paths = sorted(glob.glob(os.path.join(os.path.dirname(__file__), "corrector_config", "*.json")))
-llm_configs = []
-for path in llm_config_paths:
+corrector_config_paths = sorted(glob.glob(os.path.join(os.path.dirname(__file__), "corrector_config", "*.json")))
+corrector_configs = []
+for path in corrector_config_paths:
 	with open(path, "r") as f:
-		llm_configs.append(json.loads(f.read()))
+		corrector_configs.append(json.loads(f.read()))
 
 model_config_labels = []
 model_config_values = []
-for llm_config in llm_configs:
+for llm_config in corrector_configs:
 	provider = llm_config['model']['provider']
 	model_name = llm_config['model']['model_name']
 	typo_correction_mode = llm_config["typo_corrector"]["typo_correction_mode"]
-	model_config_labels.append(f"{info_dict[provider]}: {info_dict[model_name]} | {info_dict[typo_correction_mode]}")
+	provider_text = corrector_info_dict[provider]
+	model_name_text = corrector_info_dict[model_name]
+	typo_correction_mode_text = corrector_info_dict[typo_correction_mode]
+	model_config_labels.append(f"{provider_text}: {model_name_text} | {typo_correction_mode_text}")
 	model_config_values.append((provider, model_name, typo_correction_mode))
 
 
@@ -110,7 +113,7 @@ class LLMSettingsPanel(SettingsPanel):
 		accessPanel = wx.Panel(self)
 		sizer = wx.GridBagSizer(6, 2)
 
-		providerLabelText = info_dict[model_provider_selected]
+		providerLabelText = corrector_info_dict[model_provider_selected]
 		self.accessLLMTextLabel = wx.StaticText(accessPanel, label=providerLabelText + _(" Account"))
 		sizer.Add(self.accessLLMTextLabel, pos=(0, 0), flag=wx.LEFT, border=0)
 
@@ -246,7 +249,7 @@ class LLMSettingsPanel(SettingsPanel):
 
 		provider_tmp = model_config_values[self.modelList.GetSelection()][0]
 		self.apikeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["api_key"][provider_tmp])
-		if "Secret Key" in llm_configs[self.modelList.GetSelection()]["model"]["authorization"]:
+		if "Secret Key" in corrector_configs[self.modelList.GetSelection()]["model"]["authorization"]:
 			self.secretkeyTextLabel.Show()
 			self.secretkeyTextCtrl.Show()
 			self.secretkeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp])
