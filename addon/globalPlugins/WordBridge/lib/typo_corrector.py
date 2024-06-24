@@ -9,7 +9,7 @@ import requests
 import time
 
 from pypinyin import lazy_pinyin, Style
-from .template import COMMENT_TEMPLATE_DICT, MESSAGE_TEMPLATE_DICT
+from .template import COMMENT_TEMPLATE_DICT, MESSAGE_TEMPLATE_DICT, SYSTEM_TEMPLATE_DICT
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
 from .utils import SEPERATOR, is_chinese_character
 
@@ -75,28 +75,25 @@ class BaseTypoCorrector():
 
 		template = deepcopy(MESSAGE_TEMPLATE_DICT[self.__class__.__name__][self.language])
 		text = self._text_preprocess(input_text)
-		input = self._create_input(template, text)
+		input_prompt = self._create_input(template, text)
 
 		response_history = []
 		response_text_history = []
+		output_text = None
 		for _ in range(self.max_correction_attempts):
-			corrected_text = None
-			response_json = self._chat_completion(input, response_text_history)
+			response_json = self._chat_completion(input_prompt, response_text_history)
 
 			response_history.append(response_json)
 
 			response_text = self._parse_response(response_json)
-			corrected_text = self._correct_typos(response_text, text)
+			response_text_history.append(response_text)
 
-			if not self._has_error(corrected_text, text):
+			output_text = self._text_postprocess(response_text, input_text)
+			if not self._has_error(output_text, input_text):
 				break
-
-			response_text_history.append(corrected_text)
 
 		if len(response_text_history) > 1:
 			log.warning(f"Correction history: {response_text_history}")
-
-		output_text = self._text_postprocess(corrected_text, input_text) if corrected_text is not None else None
 
 		corrector_result = CorrectorResult(
 			original_text=input_text,
@@ -168,7 +165,9 @@ class BaseTypoCorrector():
 		return api_url
 
 	def _get_request_data(self, messages):
+		system = SYSTEM_TEMPLATE_DICT[self.__class__.__name__][self.language]
 		if self.provider == "OpenAI":
+			messages = [{"role": "system", "content": system}] + messages
 			data = {
 				"model": self.model,
 				"messages": messages,
@@ -182,6 +181,7 @@ class BaseTypoCorrector():
 		elif self.provider == "Baidu":
 			data = {
 				"messages": messages,
+				"system": system,
 				"max_output_tokens": min(self.max_tokens, len(messages[-1]["content"])),
 				"temperature": max(self.temperature, 0.0001),
 				"top_p": self.top_p,
@@ -210,9 +210,6 @@ class BaseTypoCorrector():
 				comment = comment_template.replace("{{response_previous}}", response_previous)
 				messages.append({"role": "assistant", "content": response_previous})
 				messages.append({"role": "user", "content": comment})
-		elif self.provider == "Baidu":
-			msg_system = messages.pop(0)
-			messages[0]["content"] = msg_system["content"] + "\n" + messages[0]["content"]
 
 		request_data = self._get_request_data(messages)
 		api_url = self._get_api_url()
@@ -289,9 +286,6 @@ class BaseTypoCorrector():
 	def _has_error(self, response: Any, text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
-	def _correct_typos(self, response: Any, text: str):
-		raise NotImplementedError("Subclass must implement this method")
-
 	def _text_preprocess(self, input_text: str):
 		raise NotImplementedError("Subclass must implement this method")
 
@@ -313,9 +307,6 @@ class ChineseTypoCorrectorLite(BaseTypoCorrector):
 
 	def _has_error(self, response: Any, text: str) -> bool:
 		return False
-
-	def _correct_typos(self, response: str, text: str):
-		return response
 
 	def _text_preprocess(self, input_text: str):
 		return input_text
@@ -385,9 +376,6 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 			if len(set(get_char_pinyin(text_list[i])) & set(get_char_pinyin(response_list[i]))) == 0:
 				return True
 		return False
-
-	def _correct_typos(self, response: str, text: str):
-		return response
 
 	def _text_preprocess(self, input_text: str):
 		return self.prefix + input_text + self.suffix
