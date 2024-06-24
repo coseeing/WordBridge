@@ -234,7 +234,7 @@ class BaseTypoCorrector():
 			except Exception as e:
 				request_error = type(e).__name__
 				log.error(
-					_("Try = {try_index}, {request_error}, an error occurred when sending {provider} request: {e}").format(
+					"Try = {try_index}, {request_error}, an error occurred when sending {provider} request: {e}".format(
 						try_index=(r + 1),
 						request_error=request_error,
 						provider=self.provider,
