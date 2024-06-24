@@ -253,11 +253,7 @@ class BaseTypoCorrector():
 
 		response_json = response.json()
 		if response.status_code == 401:
-			raise Exception(
-				_("Authentication error. Please check if the {provider} API Key is correct.").format(
-					provider=self.provider
-				)
-			)
+			raise Exception(_("Authentication error. Please check if the large language model's key is correct."))
 		elif response.status_code == 404:
 			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
 		elif response.status_code != 200:
