@@ -35,33 +35,33 @@ system_zh_simplified = "输入为文字与其正确拼音，请修正错字并�
 system_lite_zh_simplified = "改错字(避免加减字，或取代原读音的字):"
 
 COMMENT_TEMPLATE_DICT = {
-	"ChineseTypoCorrectorLite":{
+	"ChineseTypoCorrectorLite": {
 		"zh_traditional_tw": comment_zh_traditional_tw,
 		"zh_simplified": comment_zh_simplified,
 	},
-	"ChineseTypoCorrector":{
+	"ChineseTypoCorrector": {
 		"zh_traditional_tw": comment_zh_traditional_tw,
 		"zh_simplified": comment_zh_simplified,
 	}
 }
 
 MESSAGE_TEMPLATE_DICT = {
-	"ChineseTypoCorrectorLite":{
+	"ChineseTypoCorrectorLite": {
 		"zh_traditional_tw": message_lite_zh_traditional_tw,
 		"zh_simplified": message_lite_zh_simplified,
 	},
-	"ChineseTypoCorrector":{
+	"ChineseTypoCorrector": {
 		"zh_traditional_tw": message_zh_traditional_tw,
 		"zh_simplified": message_zh_simplified,
 	}
 }
 
 SYSTEM_TEMPLATE_DICT = {
-	"ChineseTypoCorrectorLite":{
+	"ChineseTypoCorrectorLite": {
 		"zh_traditional_tw": system_lite_zh_traditional_tw,
 		"zh_simplified": system_lite_zh_simplified,
 	},
-	"ChineseTypoCorrector":{
+	"ChineseTypoCorrector": {
 		"zh_traditional_tw": system_zh_traditional_tw,
 		"zh_simplified": system_zh_simplified,
 	}

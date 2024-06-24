@@ -43,19 +43,15 @@ config.conf.spec["WordBridge"] = {
 		"typo_correction_mode": "string(default=Standard\bMode)",
 		"language": "string(default=zh_traditional_tw)",
 		"llm_access_method": "string(default=coseeing_account)",
-		"api_key": {
-		},
-		"secret_key": {
-		},
+		"api_key": {},
+		"secret_key": {},
 		"coseeing_username": "string(default=\0)",
 		"coseeing_password": "string(default=\0)",
 		"max_char_count": "integer(default=50,min=2,max=64)",
 		"auto_display_report": "boolean(default=False)",
 	}
 }
-OPENAI_BASE_URL = "https://api.openai.com"
 COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
-# COSEEING_BASE_URL = "http://localhost:8000"
 
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
@@ -187,7 +183,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			proofreader = Proofreader(corrector)
 
 			try:
-				batch_mode = not(DEBUG_MODE)
+				batch_mode = not DEBUG_MODE
 				response, _diff_ = proofreader.typo_analyzer(request, batch_mode=batch_mode)
 			except Exception as e:
 				ui.message(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
