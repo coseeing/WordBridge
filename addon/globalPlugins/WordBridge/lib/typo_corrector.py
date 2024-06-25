@@ -155,7 +155,29 @@ class BaseTypoCorrector():
 			url_get_access = "https://aip.baidubce.com/oauth/2.0/token" +\
 						f"?grant_type=client_credentials&client_id={api_key}&client_secret={secret_key}"
 			headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-			response = requests.request("POST", url_get_access, headers=headers, json={})
+			response = None
+			for r in range(2):
+				try:
+					response = requests.request("POST", url_get_access, headers=headers, json={}, timeout=5)
+				except Exception as e:
+					request_error = type(e).__name__
+					log.error(
+						"Try = {try_index}, {request_error}, an error occurred when sending {provider} request: {e}".format(
+							try_index=(r + 1),
+							request_error=request_error,
+							provider=self.provider,
+							e=e
+						)
+					)
+					time.sleep(0.5 + random.random())
+			if response is None:
+				raise Exception(
+					_("HTTP request error ({request_error}). Please check the network setting.").format(
+						request_error=request_error
+					)
+				)
+			elif "error" in response.json():
+				raise Exception(_("Authentication error. Please check if the large language model's key is correct."))
 			access_token = response.json().get("access_token")
 			api_url = "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/" +\
 						f"{self.model}?access_token=" + access_token
@@ -234,7 +256,7 @@ class BaseTypoCorrector():
 			except Exception as e:
 				request_error = type(e).__name__
 				log.error(
-					_("Try = {try_index}, {request_error}, an error occurred when sending {provider} request: {e}").format(
+					"Try = {try_index}, {request_error}, an error occurred when sending {provider} request: {e}".format(
 						try_index=(r + 1),
 						request_error=request_error,
 						provider=self.provider,
@@ -253,15 +275,17 @@ class BaseTypoCorrector():
 
 		response_json = response.json()
 		if response.status_code == 401:
-			raise Exception(
-				_("Authentication error. Please check if the {provider} API Key is correct.").format(
-					provider=self.provider
-				)
-			)
+			raise Exception(_("Authentication error. Please check if the large language model's key is correct."))
 		elif response.status_code == 404:
 			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
 		elif response.status_code != 200:
 			raise Exception(_("Unknown errors. Status code = {status_code}").format(status_code=response.status_code))
+
+		if self.provider == "Baidu" and "error_code" in response_json:
+			if response_json["error_code"] == 3:
+				raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
+			else:
+				raise Exception(response_json["error_msg"])
 
 		return response_json
 
