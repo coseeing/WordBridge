@@ -73,7 +73,10 @@ class BaseTypoCorrector():
 		if fake_operation or not self._has_target_language(input_text):
 			return CorrectorResult(input_text, input_text, [])
 
-		template = deepcopy(MESSAGE_TEMPLATE_DICT[self.__class__.__name__][self.language])
+		if self.provider == "Baidu":
+			template = deepcopy(MESSAGE_TEMPLATE_DICT[self.__class__.__name__ + "Baidu"][self.language])
+		else:
+			template = deepcopy(MESSAGE_TEMPLATE_DICT[self.__class__.__name__][self.language])
 		text = self._text_preprocess(input_text)
 		input_prompt = self._create_input(template, text)
 
