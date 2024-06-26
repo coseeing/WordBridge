@@ -4,12 +4,28 @@ message_zh_traditional_tw = [
 	{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "},
 ]
 
+message_zh_traditional_tw_baidu = [
+	{"role": "user", "content": "{{QUESTION}}天器真好&tian1 qi4 zhen1 hao3 => "},
+	{"role": "assistant", "content": "{{ANSWER}}天氣真好"},
+	{"role": "user", "content": "{{QUESTION}}出去玩&chu1 qv4 wan2 => "},
+	{"role": "assistant", "content": "{{ANSWER}}出去玩"},
+	{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "},
+]
+
 message_lite_zh_traditional_tw = [
 	{"role": "user", "content": "天器真好 => "},
 	{"role": "assistant", "content": "天氣真好"},
 	{"role": "user", "content": "出去玩 => "},
 	{"role": "assistant", "content": "出去玩"},
 	{"role": "user", "content": "{{text_input}} => "},
+]
+
+message_zh_simplified_baidu = [
+	{"role": "user", "content": "{{QUESTION}}今天天器&jin1 tian1 tian1 qi4 => "},
+	{"role": "assistant", "content": "{{ANSWER}}今天天气"},
+	{"role": "user", "content": "{{QUESTION}}真好&zhen1 hao3 => "},
+	{"role": "assistant", "content": "{{ANSWER}}真好"},
+	{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "},
 ]
 
 message_zh_simplified = [
@@ -53,6 +69,10 @@ MESSAGE_TEMPLATE_DICT = {
 	"ChineseTypoCorrector": {
 		"zh_traditional_tw": message_zh_traditional_tw,
 		"zh_simplified": message_zh_simplified,
+	},
+	"ChineseTypoCorrectorBaidu": {
+		"zh_traditional_tw": message_zh_traditional_tw_baidu,
+		"zh_simplified": message_zh_simplified_baidu,
 	}
 }
 
