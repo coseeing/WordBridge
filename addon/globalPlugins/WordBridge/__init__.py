@@ -161,6 +161,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		corrector_config = config.conf["WordBridge"]["settings"]["corrector_config"]
 		provider = corrector_config["model"]["provider"]
 		model_name = corrector_config["model"]["model_name"]
+		template_name = corrector_config["model"]["template_name"]
 		language = config.conf["WordBridge"]["settings"]["language"]
 		if config.conf["WordBridge"]["settings"]["llm_access_method"] == "personal_api_key":
 			corrector_mode = corrector_config["typo_corrector"]["typo_correction_mode"]
@@ -178,6 +179,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				provider=provider,
 				credential=credential,
 				language=language,
+				template_name=template_name,
 			)
 			proofreader = Proofreader(corrector)
 

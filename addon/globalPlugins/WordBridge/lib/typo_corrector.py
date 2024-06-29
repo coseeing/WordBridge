@@ -3,9 +3,12 @@ from queue import Queue
 from threading import Thread
 from typing import Any, List
 
+import json
 import logging
+import os
 import random
 import requests
+import sys
 import time
 
 from pypinyin import lazy_pinyin, Style
@@ -45,6 +48,7 @@ class BaseTypoCorrector():
 		model: str,
 		provider: str,
 		credential: dict,
+		template_name: str,
 		max_tokens: int = 2048,
 		seed: int = 0,
 		temperature: float = 0.0,
@@ -69,16 +73,20 @@ class BaseTypoCorrector():
 		self.credential = credential
 		self.language = language
 
+		file_dirpath = os.path.dirname(__file__)
+		template_path = os.path.join(file_dirpath, "..", "template", template_name)
+		with open(template_path, "r") as f:
+			self.template = json.loads(f.read())
+
 	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
 		if fake_operation or not self._has_target_language(input_text):
 			return CorrectorResult(input_text, input_text, [])
 
-		if self.provider == "Baidu":
-			template = deepcopy(MESSAGE_TEMPLATE_DICT[self.__class__.__name__ + "Baidu"][self.language])
-		else:
-			template = deepcopy(MESSAGE_TEMPLATE_DICT[self.__class__.__name__][self.language])
+		message_template = deepcopy(self.template[self.language]["message"])
+		for i in range(len(message_template)):
+			message_template[i]["content"] = message_template[i]["content"].replace("\\n", "\n")
 		text = self._text_preprocess(input_text)
-		input_prompt = self._create_input(template, text)
+		input_prompt = self._create_input(message_template, text)
 
 		response_history = []
 		response_text_history = []
@@ -190,9 +198,10 @@ class BaseTypoCorrector():
 		return api_url
 
 	def _get_request_data(self, messages):
-		system = SYSTEM_TEMPLATE_DICT[self.__class__.__name__][self.language]
+		system_template = deepcopy(self.template[self.language]["system"])
+		system_template= system_template.replace("\\n", "\n")
 		if self.provider == "OpenAI":
-			messages = [{"role": "system", "content": system}] + messages
+			messages = [{"role": "system", "content": system_template}] + messages
 			data = {
 				"model": self.model,
 				"messages": messages,
@@ -206,7 +215,7 @@ class BaseTypoCorrector():
 		elif self.provider == "Baidu":
 			data = {
 				"messages": messages,
-				"system": system,
+				"system": system_template,
 				"max_output_tokens": min(self.max_tokens, len(messages[-1]["content"])),
 				"temperature": max(self.temperature, 0.0001),
 				"top_p": self.top_p,
@@ -230,7 +239,8 @@ class BaseTypoCorrector():
 	def _chat_completion(self, input: List, response_text_history: List) -> str:
 		messages = deepcopy(input)
 		if self.provider == "OpenAI":
-			comment_template = COMMENT_TEMPLATE_DICT[self.__class__.__name__][self.language]
+			comment_template = deepcopy(self.template[self.language]["comment"])
+			comment_template= comment_template.replace("\\n", "\n")
 			for response_previous in response_text_history:
 				comment = comment_template.replace("{{response_previous}}", response_previous)
 				messages.append({"role": "assistant", "content": response_previous})

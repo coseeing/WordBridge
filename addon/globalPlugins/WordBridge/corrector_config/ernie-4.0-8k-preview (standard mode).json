@@ -2,7 +2,8 @@
 	"model": {
 		"model_name": "ernie-4.0-8k-preview",
 		"provider": "Baidu",
-		"authorization": ["API Key", "Secret Key"]
+		"authorization": ["API Key", "Secret Key"],
+		"template_name": "Standard_v2.json"
 	},
 	"typo_corrector": {
 		"typo_correction_mode": "Standard Mode"
