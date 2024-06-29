@@ -38,9 +38,7 @@ ADDON_SUMMARY = "WordBridge"
 
 config.conf.spec["WordBridge"] = {
 	"settings": {
-		"model_provider": "string(default=OpenAI)",
-		"model_name": "string(default=gpt-3.5-turbo)",
-		"typo_correction_mode": "string(default=Standard\bMode)",
+		"corrector_config": {},
 		"language": "string(default=zh_traditional_tw)",
 		"llm_access_method": "string(default=coseeing_account)",
 		"api_key": {},
@@ -160,11 +158,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, request):
-		provider = config.conf["WordBridge"]["settings"]["model_provider"]
-		model_name = config.conf["WordBridge"]["settings"]["model_name"]
+		corrector_config = config.conf["WordBridge"]["settings"]["corrector_config"]
+		provider = corrector_config["model"]["provider"]
+		model_name = corrector_config["model"]["model_name"]
 		language = config.conf["WordBridge"]["settings"]["language"]
 		if config.conf["WordBridge"]["settings"]["llm_access_method"] == "personal_api_key":
-			corrector_mode = config.conf["WordBridge"]["settings"]["typo_correction_mode"]
+			corrector_mode = corrector_config["typo_corrector"]["typo_correction_mode"]
 			if provider not in config.conf["WordBridge"]["settings"]["api_key"]:
 				config.conf["WordBridge"]["settings"]["api_key"][provider] = ""
 			if provider not in config.conf["WordBridge"]["settings"]["secret_key"]:
