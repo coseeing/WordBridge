@@ -38,7 +38,17 @@ ADDON_SUMMARY = "WordBridge"
 
 config.conf.spec["WordBridge"] = {
 	"settings": {
-		"corrector_config": {},
+		"corrector_config": {
+			"model": {
+				"model_name": "string(default=gpt-3.5-turbo)",
+				"provider": "string(default=OpenAI)",
+				"require_secret_key": "boolean(default=False)",
+				"template_name": "string(default=Standard_v1.json)"
+			},
+			"typo_corrector": {
+				"typo_correction_mode": "string(default=Standard Mode)"
+			}
+		},
 		"language": "string(default=zh_traditional_tw)",
 		"llm_access_method": "string(default=coseeing_account)",
 		"api_key": {},

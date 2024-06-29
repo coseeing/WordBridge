@@ -2,7 +2,7 @@
 	"model": {
 		"model_name": "gpt-4o",
 		"provider": "OpenAI",
-		"authorization": ["API Key"],
+		"require_secret_key": false,
 		"template_name": "Lite_v1.json"
 	},
 	"typo_corrector": {
