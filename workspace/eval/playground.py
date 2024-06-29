@@ -28,6 +28,7 @@ if __name__ == "__main__":
 	}
 	typo_corrector_class = ChineseTypoCorrector
 	language = "zh_traditional_tw"
+	template_name = "Standard_v1.json"
 
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
 	corrector = typo_corrector_class(
@@ -35,6 +36,7 @@ if __name__ == "__main__":
 		provider=provider,
 		credential=credential,
 		language=language,
+		template_name=template_name,
 	)
 
 	# Initialize the proofreader object using the typo corrector

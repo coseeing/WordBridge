@@ -2,7 +2,8 @@
 	"model": {
 		"model_name": "gpt-4-turbo",
 		"provider": "OpenAI",
-		"authorization": ["API Key"]
+		"require_secret_key": false,
+		"template_name": "Standard_v1.json"
 	},
 	"typo_corrector": {
 		"typo_correction_mode": "Standard Mode"

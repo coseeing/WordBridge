@@ -257,7 +257,8 @@ class LLMSettingsPanel(SettingsPanel):
 
 		provider_tmp = model_config_values[self.modelList.GetSelection()]["model"]["provider"]
 		self.apikeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["api_key"][provider_tmp])
-		if "Secret Key" in corrector_configs[self.modelList.GetSelection()]["model"]["authorization"]:
+
+		if corrector_configs[self.modelList.GetSelection()]["model"]["require_secret_key"]:
 			self.secretkeyTextLabel.Show()
 			self.secretkeyTextCtrl.Show()
 			self.secretkeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp])
