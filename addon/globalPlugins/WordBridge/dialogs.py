@@ -43,12 +43,10 @@ corrector_config_paths = sorted(
 	glob.glob(os.path.join(os.path.dirname(__file__), "corrector_config", "*.json"))
 )
 corrector_config_values = []
+corrector_config_labels = []
 for path in corrector_config_paths:
 	with open(path, "r") as f:
-		corrector_config_values.append(json.loads(f.read()))
-
-corrector_config_labels = []
-for llm_config in corrector_config_values:
+		llm_config = json.loads(f.read())
 	provider = llm_config['model']['provider']
 	model_name = llm_config['model']['model_name']
 	typo_correction_mode = llm_config["typo_corrector"]["typo_correction_mode"]
@@ -56,6 +54,7 @@ for llm_config in corrector_config_values:
 	model_name_text = corrector_info_dict[model_name]
 	typo_correction_mode_text = corrector_info_dict[typo_correction_mode]
 	corrector_config_labels.append(f"{provider_text}: {model_name_text} | {typo_correction_mode_text}")
+	corrector_config_values.append(llm_config)
 
 
 class LLMSettingsPanel(SettingsPanel):
