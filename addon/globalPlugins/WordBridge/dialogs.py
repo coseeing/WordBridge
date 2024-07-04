@@ -42,14 +42,13 @@ corrector_config_path_default = os.path.join(
 corrector_config_paths = sorted(
 	glob.glob(os.path.join(os.path.dirname(__file__), "corrector_config", "*.json"))
 )
-corrector_configs = []
+corrector_config_values = []
 for path in corrector_config_paths:
 	with open(path, "r") as f:
-		corrector_configs.append(json.loads(f.read()))
+		corrector_config_values.append(json.loads(f.read()))
 
 corrector_config_labels = []
-corrector_config_values = []
-for llm_config in corrector_configs:
+for llm_config in corrector_config_values:
 	provider = llm_config['model']['provider']
 	model_name = llm_config['model']['model_name']
 	typo_correction_mode = llm_config["typo_corrector"]["typo_correction_mode"]
@@ -57,7 +56,6 @@ for llm_config in corrector_configs:
 	model_name_text = corrector_info_dict[model_name]
 	typo_correction_mode_text = corrector_info_dict[typo_correction_mode]
 	corrector_config_labels.append(f"{provider_text}: {model_name_text} | {typo_correction_mode_text}")
-	corrector_config_values.append(llm_config)
 
 
 class LLMSettingsPanel(SettingsPanel):
@@ -258,7 +256,7 @@ class LLMSettingsPanel(SettingsPanel):
 		provider_tmp = corrector_config_values[self.modelList.GetSelection()]["model"]["provider"]
 		self.apikeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["api_key"][provider_tmp])
 
-		if corrector_configs[self.modelList.GetSelection()]["model"]["require_secret_key"]:
+		if corrector_config_values[self.modelList.GetSelection()]["model"]["require_secret_key"]:
 			self.secretkeyTextLabel.Show()
 			self.secretkeyTextCtrl.Show()
 			self.secretkeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp])
