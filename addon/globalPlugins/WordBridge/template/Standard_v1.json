@@ -6,7 +6,11 @@
 			{"role": "user", "content": "{{QUESTION}}今天天器真好&jin1 tian1 tian1 qi4 zhen1 hao3 => "},
 			{"role": "assistant", "content": "{{ANSWER}}今天天氣真好"},
 			{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "}
-		]
+		],
+		"optional_guidance": {
+			"keep_non_chinese_char": "勿將非漢字用漢字取代",
+			"no_explanation": "輸出答案即可，後面無須解釋"
+		}
 	},
 	"zh_simplified": {
 		"system": "输入为文字与其正确拼音，请修正错字并输出正确文字:\n(文字&拼音) => 文字",
@@ -15,6 +19,10 @@
 			{"role": "user", "content": "{{QUESTION}}今天天器真好&jin1 tian1 tian1 qi4 zhen1 hao3 => "},
 			{"role": "assistant", "content": "{{ANSWER}}今天天气真好"},
 			{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "}
-		]
+		],
+		"optional_guidance": {
+			"keep_non_chinese_char": "勿将非汉字用汉字取代",
+			"no_explanation": "输出答案即可，后面无须解释"
+		}
 	}
 }

@@ -33,6 +33,10 @@ if __name__ == "__main__":
 	typo_corrector_class = ChineseTypoCorrector
 	language = "zh_traditional_tw"
 	template_name = "Standard_v1.json"
+	optional_guidance_enable = {
+		"no_explanation": True,
+		"keep_non_chinese_char": False,
+	}
 	credential = {
 		"api_key": "<API_KEY>",
 		# "secret_key": "<SECRET_KEY>"
@@ -56,6 +60,7 @@ if __name__ == "__main__":
 		credential=credential,
 		language=language,
 		template_name=template_name,
+		optional_guidance_enable=optional_guidance_enable,
 	)
 
 	# Initialize the proofreader object using the typo corrector

@@ -13,7 +13,7 @@ import time
 
 from pypinyin import lazy_pinyin, Style
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
-from .utils import SEPERATOR, is_chinese_character
+from .utils import PUNCTUATION, SEPERATOR, is_chinese_character
 
 import chinese_converter
 
@@ -48,6 +48,7 @@ class BaseTypoCorrector():
 		provider: str,
 		credential: dict,
 		template_name: str,
+		optional_guidance_enable: dict,
 		max_tokens: int = 2048,
 		seed: int = 0,
 		temperature: float = 0.0,
@@ -71,6 +72,7 @@ class BaseTypoCorrector():
 		self.backoff = backoff
 		self.credential = credential
 		self.language = language
+		self.optional_guidance_enable = optional_guidance_enable
 
 		file_dirpath = os.path.dirname(__file__)
 		template_path = os.path.join(file_dirpath, "..", "template", template_name)
@@ -80,6 +82,8 @@ class BaseTypoCorrector():
 	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
 		if fake_operation or not self._has_target_language(input_text):
 			return CorrectorResult(input_text, input_text, [])
+
+		input_info = self._get_input_info(input_text)
 
 		message_template = deepcopy(self.template[self.language]["message"])
 		for i in range(len(message_template)):
@@ -91,7 +95,7 @@ class BaseTypoCorrector():
 		response_text_history = []
 		output_text = None
 		for _ in range(self.max_correction_attempts):
-			response_json = self._chat_completion(input_prompt, response_text_history)
+			response_json = self._chat_completion(input_prompt, response_text_history, input_info)
 
 			response_history.append(response_json)
 
@@ -196,9 +200,35 @@ class BaseTypoCorrector():
 
 		return api_url
 
-	def _get_request_data(self, messages):
+	def _get_input_info(self, input_text):
+		input_info = {
+			"contain_non_chinese": False,
+		}
+		for char in input_text:
+			if not is_chinese_character(char) and char not in PUNCTUATION:
+				input_info["contain_non_chinese"] = True
+				break
+
+		return input_info
+
+	def _system_add_guidance(self, system, input_info):
+		guidance_list = []
+		if self.optional_guidance_enable["no_explanation"]:
+			guidance_list.append(self.template[self.language]["optional_guidance"]["no_explanation"])
+
+		if self.optional_guidance_enable["keep_non_chinese_char"] and input_info["contain_non_chinese"]:
+			guidance_list.append(self.template[self.language]["optional_guidance"]["keep_non_chinese_char"])
+
+		if not guidance_list:
+			return system
+
+		system = system + f"\n須注意: " + "、".join(guidance_list)
+		return system
+
+	def _get_request_data(self, messages, input_info):
 		system_template = deepcopy(self.template[self.language]["system"])
-		system_template= system_template.replace("\\n", "\n")
+		system_template = system_template.replace("\\n", "\n")
+		system_template = self._system_add_guidance(system_template, input_info)
 		if self.provider == "OpenAI":
 			messages = [{"role": "system", "content": system_template}] + messages
 			data = {
@@ -235,7 +265,7 @@ class BaseTypoCorrector():
 
 		return headers
 
-	def _chat_completion(self, input: List, response_text_history: List) -> str:
+	def _chat_completion(self, input: List, response_text_history: List, input_info: dict) -> str:
 		messages = deepcopy(input)
 		if self.provider == "OpenAI":
 			comment_template = deepcopy(self.template[self.language]["comment"])
@@ -245,7 +275,7 @@ class BaseTypoCorrector():
 				messages.append({"role": "assistant", "content": response_previous})
 				messages.append({"role": "user", "content": comment})
 
-		request_data = self._get_request_data(messages)
+		request_data = self._get_request_data(messages, input_info)
 		api_url = self._get_api_url()
 		headers = self._get_headers()
 

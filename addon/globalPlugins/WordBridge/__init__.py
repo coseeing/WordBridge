@@ -44,6 +44,10 @@ config.conf.spec["WordBridge"] = {
 				"provider": "string(default=OpenAI)",
 				"require_secret_key": "boolean(default=False)",
 				"template_name": "string(default=Standard_v1.json)"
+				"optional_guidance_enable": {
+					"keep_non_chinese_char": "boolean(default=True)",
+					"no_explanation": "boolean(default=False)",
+				}
 			},
 			"typo_corrector": {
 				"typo_correction_mode": "string(default=Standard Mode)"
@@ -172,6 +176,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		provider = corrector_config["model"]["provider"]
 		model_name = corrector_config["model"]["model_name"]
 		template_name = corrector_config["model"]["template_name"]
+		optional_guidance_enable = corrector_config["model"]["optional_guidance"]
 		language = config.conf["WordBridge"]["settings"]["language"]
 		if config.conf["WordBridge"]["settings"]["llm_access_method"] == "personal_api_key":
 			corrector_mode = corrector_config["typo_corrector"]["typo_correction_mode"]
@@ -190,6 +195,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				credential=credential,
 				language=language,
 				template_name=template_name,
+				optional_guidance_enable=optional_guidance_enable,
 			)
 			proofreader = Proofreader(corrector)
 
