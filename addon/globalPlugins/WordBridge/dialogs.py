@@ -36,14 +36,14 @@ llm_access_method_values = [
 language_labels = [_("Traditional Chinese"), _("Simplified Chinese")]
 language_values = ["zh_traditional_tw", "zh_simplified"]
 
-corrector_config_path_default = os.path.join(
-	os.path.dirname(__file__), "corrector_config", "gpt-3.5-turbo (standard mode).json"
-)
+corrector_config_filename_default = "gpt-3.5-turbo (standard mode).json"
+corrector_config_folder_path = os.path.join(os.path.dirname(__file__), "corrector_config")
 corrector_config_paths = sorted(
-	glob.glob(os.path.join(os.path.dirname(__file__), "corrector_config", "*.json"))
+	glob.glob(os.path.join(corrector_config_folder_path, "*.json"))
 )
 corrector_config_values = []
 corrector_config_labels = []
+corrector_config_filenames = []
 for path in corrector_config_paths:
 	with open(path, "r") as f:
 		llm_config = json.loads(f.read())
@@ -55,7 +55,7 @@ for path in corrector_config_paths:
 	typo_correction_mode_text = corrector_info_dict[typo_correction_mode]
 	corrector_config_labels.append(f"{provider_text}: {model_name_text} | {typo_correction_mode_text}")
 	corrector_config_values.append(llm_config)
-
+	corrector_config_filenames.append(os.path.basename(path))
 
 class LLMSettingsPanel(SettingsPanel):
 	title = _("WordBridge")
@@ -72,14 +72,13 @@ class LLMSettingsPanel(SettingsPanel):
 			choices=corrector_config_labels
 		)
 		self.modelList.SetToolTip(wx.ToolTip(_("Choose the large language model for the Word Bridge")))
-		corrector_config_val = config.conf["WordBridge"]["settings"]["corrector_config"].dict()
+		config_filename = config.conf["WordBridge"]["settings"]["corrector_config_filename"]
 
-		if corrector_config_val not in corrector_config_values:
-			model_index = corrector_config_paths.index(corrector_config_path_default)
-			config.conf["WordBridge"]["settings"]["corrector_config"] = corrector_config_values[model_index]
+		if config_filename not in corrector_config_filenames:
+			model_index = corrector_config_filenames.index(corrector_config_filename_default)
 		else:
-			model_index = corrector_config_values.index(corrector_config_val)
-		model_provider_selected = config.conf["WordBridge"]["settings"]["corrector_config"]["model"]["provider"]
+			model_index = corrector_config_filenames.index(config_filename)
+		model_provider_selected = corrector_config_values[model_index]["model"]["provider"]
 		self.modelList.SetSelection(model_index)
 		self.modelList.Bind(wx.EVT_CHOICE, self.onChangeChoice)
 
@@ -210,7 +209,7 @@ class LLMSettingsPanel(SettingsPanel):
 		model_index = self.modelList.GetSelection()
 		access_method_index = self.methodList.GetSelection()
 		provider_tmp = corrector_config_values[model_index]["model"]["provider"]
-		config.conf["WordBridge"]["settings"]["corrector_config"] = corrector_config_values[model_index]
+		config.conf["WordBridge"]["settings"]["corrector_config_filename"] = corrector_config_filenames[model_index]
 		config.conf["WordBridge"]["settings"]["language"] = language_values[self.languageList.GetSelection()]
 		config.conf["WordBridge"]["settings"]["llm_access_method"] = llm_access_method_values[access_method_index]
 		config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = self.apikeyTextCtrl.GetValue()

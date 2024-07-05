@@ -23,6 +23,7 @@ import wx
 
 import requests
 
+from .dialogs import corrector_config_filename_default, corrector_config_folder_path
 from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .lib.coseeing import obtain_openai_key
 from .lib.proofreader import Proofreader
@@ -38,21 +39,7 @@ ADDON_SUMMARY = "WordBridge"
 
 config.conf.spec["WordBridge"] = {
 	"settings": {
-		"corrector_config": {
-			"model": {
-				"model_name": "string(default=gpt-3.5-turbo)",
-				"provider": "string(default=OpenAI)",
-				"require_secret_key": "boolean(default=False)",
-				"template_name": "string(default=Standard_v1.json)"
-				"optional_guidance_enable": {
-					"keep_non_chinese_char": "boolean(default=True)",
-					"no_explanation": "boolean(default=False)",
-				}
-			},
-			"typo_corrector": {
-				"typo_correction_mode": "string(default=Standard Mode)"
-			}
-		},
+		"corrector_config_filename": f"string(default={corrector_config_filename_default})",
 		"language": "string(default=zh_traditional_tw)",
 		"llm_access_method": "string(default=coseeing_account)",
 		"api_key": {},
@@ -172,11 +159,21 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, request):
-		corrector_config = config.conf["WordBridge"]["settings"]["corrector_config"]
+		corrector_config_file_path = os.path.join(
+			corrector_config_folder_path,
+			config.conf["WordBridge"]["settings"]["corrector_config_filename"]
+		)
+		if not os.path.exists(corrector_config_file_path):
+			corrector_config_file_path = os.path.join(
+				corrector_config_folder_path,
+				corrector_config_filename_default
+			)
+		with open(corrector_config_file_path, "r") as f:
+			corrector_config = json.loads(f.read())
 		provider = corrector_config["model"]["provider"]
 		model_name = corrector_config["model"]["model_name"]
 		template_name = corrector_config["model"]["template_name"]
-		optional_guidance_enable = corrector_config["model"]["optional_guidance"]
+		optional_guidance_enable = corrector_config["model"]["optional_guidance_enable"]
 		language = config.conf["WordBridge"]["settings"]["language"]
 		if config.conf["WordBridge"]["settings"]["llm_access_method"] == "personal_api_key":
 			corrector_mode = corrector_config["typo_corrector"]["typo_correction_mode"]
