@@ -14,7 +14,7 @@ from gui.settingsDialogs import SettingsPanel
 
 addonHandler.initTranslation()
 
-corrector_info_dict = {
+LABEL_DICT = {
 	"OpenAI": _("OpenAI"),
 	"Baidu": _("Baidu"),
 	"gpt-3.5-turbo": _("gpt-3.5-turbo"),
@@ -22,25 +22,21 @@ corrector_info_dict = {
 	"gpt-4o": _("gpt-4o"),
 	"ernie-4.0-8k-preview": _("ernie-4.0-8k-preview"),
 	"Standard Mode": _("Standard Mode"),
-	"Lite Mode": _("Lite Mode")
+	"Lite Mode": _("Lite Mode"),
+	"personal_api_key": _("Personal API Key"),
+	"coseeing_account": _("Coseeing Account"),
+	"zh_traditional_tw": _("Traditional Chinese (Taiwan)"),
+	"zh_simplified": _("Simplified Chinese"),
 }
 
-llm_access_method_labels = [
-	_("Personal API Key"),
-	_("Coseeing Account"),
-]
-llm_access_method_values = [
-	"personal_api_key",
-	"coseeing_account",
-]
-language_labels = [_("Traditional Chinese"), _("Simplified Chinese")]
+llm_access_method_values = ["personal_api_key", "coseeing_account"]
+llm_access_method_labels = [LABEL_DICT[val] for val in llm_access_method_values]
 language_values = ["zh_traditional_tw", "zh_simplified"]
+language_labels = [LABEL_DICT[val] for val in language_values]
 
 corrector_config_filename_default = "gpt-3.5-turbo (standard mode).json"
 corrector_config_folder_path = os.path.join(os.path.dirname(__file__), "corrector_config")
-corrector_config_paths = sorted(
-	glob.glob(os.path.join(corrector_config_folder_path, "*.json"))
-)
+corrector_config_paths = sorted(glob.glob(os.path.join(corrector_config_folder_path, "*.json")))
 corrector_config_values = []
 corrector_config_labels = []
 corrector_config_filenames = []
@@ -50,9 +46,9 @@ for path in corrector_config_paths:
 	provider = llm_config['model']['provider']
 	model_name = llm_config['model']['model_name']
 	typo_correction_mode = llm_config["typo_corrector"]["typo_correction_mode"]
-	provider_text = corrector_info_dict[provider]
-	model_name_text = corrector_info_dict[model_name]
-	typo_correction_mode_text = corrector_info_dict[typo_correction_mode]
+	provider_text = LABEL_DICT[provider]
+	model_name_text = LABEL_DICT[model_name]
+	typo_correction_mode_text = LABEL_DICT[typo_correction_mode]
 	corrector_config_labels.append(f"{provider_text}: {model_name_text} | {typo_correction_mode_text}")
 	corrector_config_values.append(llm_config)
 	corrector_config_filenames.append(os.path.basename(path))
@@ -117,7 +113,7 @@ class LLMSettingsPanel(SettingsPanel):
 		accessPanel = wx.Panel(self)
 		sizer = wx.GridBagSizer(6, 2)
 
-		providerLabelText = corrector_info_dict[model_provider_selected]
+		providerLabelText = LABEL_DICT[model_provider_selected]
 		self.accessLLMTextLabel = wx.StaticText(accessPanel, label=providerLabelText + _(" Account"))
 		sizer.Add(self.accessLLMTextLabel, pos=(0, 0), flag=wx.LEFT, border=0)
 
