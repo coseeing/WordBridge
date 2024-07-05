@@ -30,17 +30,18 @@ LABEL_DICT = {
 	"zh_simplified": _("Simplified Chinese"),
 }
 
-llm_access_method_values = ["personal_api_key", "coseeing_account"]
-llm_access_method_labels = [LABEL_DICT[val] for val in llm_access_method_values]
 if locale.getdefaultlocale()[0] in ["zh_TW", "zh_MO", "zh_HK"]:
 	language_default = "zh_traditional"
 else:
 	language_default = "zh_simplified"
-language_values = ["zh_traditional", "zh_simplified"]
-language_labels = [LABEL_DICT[val] for val in language_values]
-
 corrector_config_filename_default = "gpt-3.5-turbo (standard mode).json"
 corrector_config_folder_path = os.path.join(os.path.dirname(__file__), "corrector_config")
+
+llm_access_method_values = ["personal_api_key", "coseeing_account"]
+language_values = ["zh_traditional", "zh_simplified"]
+llm_access_method_labels = [LABEL_DICT[val] for val in llm_access_method_values]
+language_labels = [LABEL_DICT[val] for val in language_values]
+
 corrector_config_paths = sorted(glob.glob(os.path.join(corrector_config_folder_path, "*.json")))
 corrector_config_values = []
 corrector_config_labels = []
@@ -54,6 +55,7 @@ for path in corrector_config_paths:
 	corrector_config_labels.append(f"{provider_text}: {model_name_text} | {typo_correction_mode_text}")
 	corrector_config_values.append(corrector_config)
 	corrector_config_filenames.append(os.path.basename(path))
+
 
 class LLMSettingsPanel(SettingsPanel):
 	title = _("WordBridge")
