@@ -3,6 +3,7 @@ from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
 import config
 import glob
 import json
+import locale
 import os
 import wx
 import addonHandler
@@ -25,13 +26,17 @@ LABEL_DICT = {
 	"Lite Mode": _("Lite Mode"),
 	"personal_api_key": _("Personal API Key"),
 	"coseeing_account": _("Coseeing Account"),
-	"zh_traditional_tw": _("Traditional Chinese (Taiwan)"),
+	"zh_traditional": _("Traditional Chinese"),
 	"zh_simplified": _("Simplified Chinese"),
 }
 
 llm_access_method_values = ["personal_api_key", "coseeing_account"]
 llm_access_method_labels = [LABEL_DICT[val] for val in llm_access_method_values]
-language_values = ["zh_traditional_tw", "zh_simplified"]
+if locale.getdefaultlocale()[0] in ["zh_TW", "zh_MO", "zh_HK"]:
+	language_default = "zh_traditional"
+else:
+	language_default = "zh_simplified"
+language_values = ["zh_traditional", "zh_simplified"]
 language_labels = [LABEL_DICT[val] for val in language_values]
 
 corrector_config_filename_default = "gpt-3.5-turbo (standard mode).json"
@@ -89,8 +94,8 @@ class LLMSettingsPanel(SettingsPanel):
 		if config.conf["WordBridge"]["settings"]["language"] in language_values:
 			self.languageList.SetSelection(language_values.index(config.conf["WordBridge"]["settings"]["language"]))
 		else:
-			self.languageList.SetSelection(0)
-			config.conf["WordBridge"]["settings"]["language"] = language_values[0]
+			config.conf["WordBridge"]["settings"]["language"] = language_default
+			self.languageList.SetSelection(language_values.index(config.conf["WordBridge"]["settings"]["language"]))
 
 		# For selecting LLM access method
 		accessMethodLabelText = _("Large Language Model Access Method:")

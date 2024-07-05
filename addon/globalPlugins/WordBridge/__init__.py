@@ -23,7 +23,7 @@ import wx
 
 import requests
 
-from .dialogs import corrector_config_filename_default, corrector_config_folder_path
+from .dialogs import corrector_config_filename_default, corrector_config_folder_path, language_default
 from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .lib.coseeing import obtain_openai_key
 from .lib.proofreader import Proofreader
@@ -40,7 +40,7 @@ ADDON_SUMMARY = "WordBridge"
 config.conf.spec["WordBridge"] = {
 	"settings": {
 		"corrector_config_filename": f"string(default={corrector_config_filename_default})",
-		"language": "string(default=zh_traditional_tw)",
+		"language": f"string(default={language_default})",
 		"llm_access_method": "string(default=coseeing_account)",
 		"api_key": {},
 		"secret_key": {},

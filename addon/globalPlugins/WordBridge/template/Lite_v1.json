@@ -1,5 +1,5 @@
 {
-	"zh_traditional_tw": {
+	"zh_traditional": {
 		"system": "改錯字(避免加減字，或取代原讀音的字):",
 		"comment": "'{{response_previous}}'是錯誤答案，請修正重新輸出文字",
 		"message": [
