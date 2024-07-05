@@ -48,12 +48,9 @@ corrector_config_filenames = []
 for path in corrector_config_paths:
 	with open(path, "r") as f:
 		corrector_config = json.loads(f.read())
-	provider = corrector_config['model']['provider']
-	model_name = corrector_config['model']['model_name']
-	typo_correction_mode = corrector_config["typo_corrector"]["typo_correction_mode"]
-	provider_text = LABEL_DICT[provider]
-	model_name_text = LABEL_DICT[model_name]
-	typo_correction_mode_text = LABEL_DICT[typo_correction_mode]
+	provider_text = LABEL_DICT[corrector_config['model']['provider']]
+	model_name_text = LABEL_DICT[corrector_config['model']['model_name']]
+	typo_correction_mode_text = LABEL_DICT[corrector_config["typo_corrector"]["typo_correction_mode"]]
 	corrector_config_labels.append(f"{provider_text}: {model_name_text} | {typo_correction_mode_text}")
 	corrector_config_values.append(corrector_config)
 	corrector_config_filenames.append(os.path.basename(path))
