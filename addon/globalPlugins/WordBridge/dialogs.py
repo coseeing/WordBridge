@@ -47,15 +47,15 @@ corrector_config_labels = []
 corrector_config_filenames = []
 for path in corrector_config_paths:
 	with open(path, "r") as f:
-		llm_config = json.loads(f.read())
-	provider = llm_config['model']['provider']
-	model_name = llm_config['model']['model_name']
-	typo_correction_mode = llm_config["typo_corrector"]["typo_correction_mode"]
+		corrector_config = json.loads(f.read())
+	provider = corrector_config['model']['provider']
+	model_name = corrector_config['model']['model_name']
+	typo_correction_mode = corrector_config["typo_corrector"]["typo_correction_mode"]
 	provider_text = LABEL_DICT[provider]
 	model_name_text = LABEL_DICT[model_name]
 	typo_correction_mode_text = LABEL_DICT[typo_correction_mode]
 	corrector_config_labels.append(f"{provider_text}: {model_name_text} | {typo_correction_mode_text}")
-	corrector_config_values.append(llm_config)
+	corrector_config_values.append(corrector_config)
 	corrector_config_filenames.append(os.path.basename(path))
 
 class LLMSettingsPanel(SettingsPanel):
