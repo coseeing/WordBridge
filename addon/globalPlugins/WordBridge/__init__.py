@@ -23,7 +23,7 @@ import wx
 
 import requests
 
-from .dialogs import corrector_config_filename_default, corrector_config_folder_path, language_default
+from .dialogs import CORRECTOR_CONFIG_FILENAME_DEFAULT, CORRECTOR_CONFIG_FOLDER_PATH, LANGUAGE_DEFAULT
 from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .lib.coseeing import obtain_openai_key
 from .lib.proofreader import Proofreader
@@ -39,8 +39,8 @@ ADDON_SUMMARY = "WordBridge"
 
 config.conf.spec["WordBridge"] = {
 	"settings": {
-		"corrector_config_filename": f"string(default={corrector_config_filename_default})",
-		"language": f"string(default={language_default})",
+		"corrector_config_filename": f"string(default={CORRECTOR_CONFIG_FILENAME_DEFAULT})",
+		"language": f"string(default={LANGUAGE_DEFAULT})",
 		"llm_access_method": "string(default=coseeing_account)",
 		"api_key": {},
 		"secret_key": {},
@@ -160,13 +160,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def correctTypo(self, request):
 		corrector_config_file_path = os.path.join(
-			corrector_config_folder_path,
+			CORRECTOR_CONFIG_FOLDER_PATH,
 			config.conf["WordBridge"]["settings"]["corrector_config_filename"]
 		)
 		if not os.path.exists(corrector_config_file_path):
 			corrector_config_file_path = os.path.join(
-				corrector_config_folder_path,
-				corrector_config_filename_default
+				CORRECTOR_CONFIG_FOLDER_PATH,
+				CORRECTOR_CONFIG_FILENAME_DEFAULT
 			)
 		with open(corrector_config_file_path, "r") as f:
 			corrector_config = json.loads(f.read())
