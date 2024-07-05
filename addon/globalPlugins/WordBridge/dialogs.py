@@ -14,7 +14,7 @@ from gui.settingsDialogs import SettingsPanel
 
 addonHandler.initTranslation()
 
-corrector_info_dict = {
+LABEL_DICT = {
 	"OpenAI": _("OpenAI"),
 	"Baidu": _("Baidu"),
 	"gpt-3.5-turbo": _("gpt-3.5-turbo"),
@@ -22,43 +22,36 @@ corrector_info_dict = {
 	"gpt-4o": _("gpt-4o"),
 	"ernie-4.0-8k-preview": _("ernie-4.0-8k-preview"),
 	"Standard Mode": _("Standard Mode"),
-	"Lite Mode": _("Lite Mode")
+	"Lite Mode": _("Lite Mode"),
+	"personal_api_key": _("Personal API Key"),
+	"coseeing_account": _("Coseeing Account"),
+	"zh_traditional_tw": _("Traditional Chinese (Taiwan)"),
+	"zh_simplified": _("Simplified Chinese"),
 }
 
-llm_access_method_labels = [
-	_("Personal API Key"),
-	_("Coseeing Account"),
-]
-llm_access_method_values = [
-	"personal_api_key",
-	"coseeing_account",
-]
-language_labels = [_("Traditional Chinese"), _("Simplified Chinese")]
+llm_access_method_values = ["personal_api_key", "coseeing_account"]
+llm_access_method_labels = [LABEL_DICT[val] for val in llm_access_method_values]
 language_values = ["zh_traditional_tw", "zh_simplified"]
+language_labels = [LABEL_DICT[val] for val in language_values]
 
-corrector_config_path_default = os.path.join(
-	os.path.dirname(__file__), "corrector_config", "gpt-3.5-turbo (standard mode).json"
-)
-corrector_config_paths = sorted(
-	glob.glob(os.path.join(os.path.dirname(__file__), "corrector_config", "*.json"))
-)
-corrector_configs = []
+corrector_config_filename_default = "gpt-3.5-turbo (standard mode).json"
+corrector_config_folder_path = os.path.join(os.path.dirname(__file__), "corrector_config")
+corrector_config_paths = sorted(glob.glob(os.path.join(corrector_config_folder_path, "*.json")))
+corrector_config_values = []
+corrector_config_labels = []
+corrector_config_filenames = []
 for path in corrector_config_paths:
 	with open(path, "r") as f:
-		corrector_configs.append(json.loads(f.read()))
-
-corrector_config_labels = []
-corrector_config_values = []
-for llm_config in corrector_configs:
+		llm_config = json.loads(f.read())
 	provider = llm_config['model']['provider']
 	model_name = llm_config['model']['model_name']
 	typo_correction_mode = llm_config["typo_corrector"]["typo_correction_mode"]
-	provider_text = corrector_info_dict[provider]
-	model_name_text = corrector_info_dict[model_name]
-	typo_correction_mode_text = corrector_info_dict[typo_correction_mode]
+	provider_text = LABEL_DICT[provider]
+	model_name_text = LABEL_DICT[model_name]
+	typo_correction_mode_text = LABEL_DICT[typo_correction_mode]
 	corrector_config_labels.append(f"{provider_text}: {model_name_text} | {typo_correction_mode_text}")
 	corrector_config_values.append(llm_config)
-
+	corrector_config_filenames.append(os.path.basename(path))
 
 class LLMSettingsPanel(SettingsPanel):
 	title = _("WordBridge")
@@ -75,14 +68,13 @@ class LLMSettingsPanel(SettingsPanel):
 			choices=corrector_config_labels
 		)
 		self.modelList.SetToolTip(wx.ToolTip(_("Choose the large language model for the Word Bridge")))
-		corrector_config_val = config.conf["WordBridge"]["settings"]["corrector_config"].dict()
+		config_filename = config.conf["WordBridge"]["settings"]["corrector_config_filename"]
 
-		if corrector_config_val not in corrector_config_values:
-			model_index = corrector_config_paths.index(corrector_config_path_default)
-			config.conf["WordBridge"]["settings"]["corrector_config"] = corrector_config_values[model_index]
+		if config_filename not in corrector_config_filenames:
+			model_index = corrector_config_filenames.index(corrector_config_filename_default)
 		else:
-			model_index = corrector_config_values.index(corrector_config_val)
-		model_provider_selected = config.conf["WordBridge"]["settings"]["corrector_config"]["model"]["provider"]
+			model_index = corrector_config_filenames.index(config_filename)
+		model_provider_selected = corrector_config_values[model_index]["model"]["provider"]
 		self.modelList.SetSelection(model_index)
 		self.modelList.Bind(wx.EVT_CHOICE, self.onChangeChoice)
 
@@ -121,7 +113,7 @@ class LLMSettingsPanel(SettingsPanel):
 		accessPanel = wx.Panel(self)
 		sizer = wx.GridBagSizer(6, 2)
 
-		providerLabelText = corrector_info_dict[model_provider_selected]
+		providerLabelText = LABEL_DICT[model_provider_selected]
 		self.accessLLMTextLabel = wx.StaticText(accessPanel, label=providerLabelText + _(" Account"))
 		sizer.Add(self.accessLLMTextLabel, pos=(0, 0), flag=wx.LEFT, border=0)
 
@@ -213,7 +205,7 @@ class LLMSettingsPanel(SettingsPanel):
 		model_index = self.modelList.GetSelection()
 		access_method_index = self.methodList.GetSelection()
 		provider_tmp = corrector_config_values[model_index]["model"]["provider"]
-		config.conf["WordBridge"]["settings"]["corrector_config"] = corrector_config_values[model_index]
+		config.conf["WordBridge"]["settings"]["corrector_config_filename"] = corrector_config_filenames[model_index]
 		config.conf["WordBridge"]["settings"]["language"] = language_values[self.languageList.GetSelection()]
 		config.conf["WordBridge"]["settings"]["llm_access_method"] = llm_access_method_values[access_method_index]
 		config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = self.apikeyTextCtrl.GetValue()
@@ -258,7 +250,7 @@ class LLMSettingsPanel(SettingsPanel):
 		provider_tmp = corrector_config_values[self.modelList.GetSelection()]["model"]["provider"]
 		self.apikeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["api_key"][provider_tmp])
 
-		if corrector_configs[self.modelList.GetSelection()]["model"]["require_secret_key"]:
+		if corrector_config_values[self.modelList.GetSelection()]["model"]["require_secret_key"]:
 			self.secretkeyTextLabel.Show()
 			self.secretkeyTextCtrl.Show()
 			self.secretkeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp])
