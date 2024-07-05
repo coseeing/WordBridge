@@ -30,33 +30,33 @@ LABEL_DICT = {
 	"zh_simplified": _("Simplified Chinese"),
 }
 
-llm_access_method_values = ["personal_api_key", "coseeing_account"]
-llm_access_method_labels = [LABEL_DICT[val] for val in llm_access_method_values]
 if locale.getdefaultlocale()[0] in ["zh_TW", "zh_MO", "zh_HK"]:
-	language_default = "zh_traditional"
+	LANGUAGE_DEFAULT = "zh_traditional"
 else:
-	language_default = "zh_simplified"
-language_values = ["zh_traditional", "zh_simplified"]
-language_labels = [LABEL_DICT[val] for val in language_values]
+	LANGUAGE_DEFAULT = "zh_simplified"
+CORRECTOR_CONFIG_FILENAME_DEFAULT = "gpt-3.5-turbo (standard mode).json"
+CORRECTOR_CONFIG_FOLDER_PATH = os.path.join(os.path.dirname(__file__), "corrector_config")
 
-corrector_config_filename_default = "gpt-3.5-turbo (standard mode).json"
-corrector_config_folder_path = os.path.join(os.path.dirname(__file__), "corrector_config")
-corrector_config_paths = sorted(glob.glob(os.path.join(corrector_config_folder_path, "*.json")))
-corrector_config_values = []
-corrector_config_labels = []
-corrector_config_filenames = []
-for path in corrector_config_paths:
+LLM_ACCESS_METHOD_VALUES = ["personal_api_key", "coseeing_account"]
+LANGUAGE_VALUES = ["zh_traditional", "zh_simplified"]
+LLM_ACCESS_METHOD_LABELS = [LABEL_DICT[val] for val in LLM_ACCESS_METHOD_VALUES]
+LANGUAGE_LABELS = [LABEL_DICT[val] for val in LANGUAGE_VALUES]
+
+CORRECTOR_CONFIG_PATHS = sorted(glob.glob(os.path.join(CORRECTOR_CONFIG_FOLDER_PATH, "*.json")))
+CORRECTOR_CONFIG_VALUES = []
+CORRECTOR_CONFIG_LABELS = []
+CORRECTOR_CONFIG_FILENAMES = []
+for path in CORRECTOR_CONFIG_PATHS:
 	with open(path, "r") as f:
-		llm_config = json.loads(f.read())
-	provider = llm_config['model']['provider']
-	model_name = llm_config['model']['model_name']
-	typo_correction_mode = llm_config["typo_corrector"]["typo_correction_mode"]
-	provider_text = LABEL_DICT[provider]
-	model_name_text = LABEL_DICT[model_name]
-	typo_correction_mode_text = LABEL_DICT[typo_correction_mode]
-	corrector_config_labels.append(f"{provider_text}: {model_name_text} | {typo_correction_mode_text}")
-	corrector_config_values.append(llm_config)
-	corrector_config_filenames.append(os.path.basename(path))
+		corrector_config = json.loads(f.read())
+	provider_text = LABEL_DICT[corrector_config['model']['provider']]
+	model_name_text = LABEL_DICT[corrector_config['model']['model_name']]
+	typo_correction_mode_text = LABEL_DICT[corrector_config["typo_corrector"]["typo_correction_mode"]]
+
+	CORRECTOR_CONFIG_LABELS.append(f"{provider_text}: {model_name_text} | {typo_correction_mode_text}")
+	CORRECTOR_CONFIG_VALUES.append(corrector_config)
+	CORRECTOR_CONFIG_FILENAMES.append(os.path.basename(path))
+
 
 class LLMSettingsPanel(SettingsPanel):
 	title = _("WordBridge")
@@ -70,16 +70,16 @@ class LLMSettingsPanel(SettingsPanel):
 		self.modelList = settingsSizerHelper.addLabeledControl(
 			modelLabelText,
 			wx.Choice,
-			choices=corrector_config_labels
+			choices=CORRECTOR_CONFIG_LABELS
 		)
 		self.modelList.SetToolTip(wx.ToolTip(_("Choose the large language model for the Word Bridge")))
 		config_filename = config.conf["WordBridge"]["settings"]["corrector_config_filename"]
 
-		if config_filename not in corrector_config_filenames:
-			model_index = corrector_config_filenames.index(corrector_config_filename_default)
+		if config_filename not in CORRECTOR_CONFIG_FILENAMES:
+			model_index = CORRECTOR_CONFIG_FILENAMES.index(CORRECTOR_CONFIG_FILENAME_DEFAULT)
 		else:
-			model_index = corrector_config_filenames.index(config_filename)
-		model_provider_selected = corrector_config_values[model_index]["model"]["provider"]
+			model_index = CORRECTOR_CONFIG_FILENAMES.index(config_filename)
+		model_provider_selected = CORRECTOR_CONFIG_VALUES[model_index]["model"]["provider"]
 		self.modelList.SetSelection(model_index)
 		self.modelList.Bind(wx.EVT_CHOICE, self.onChangeChoice)
 
@@ -88,30 +88,30 @@ class LLMSettingsPanel(SettingsPanel):
 		self.languageList = settingsSizerHelper.addLabeledControl(
 			languageLabelText,
 			wx.Choice,
-			choices=language_labels
+			choices=LANGUAGE_LABELS
 		)
 		self.languageList.SetToolTip(wx.ToolTip(_("Choose the language for the Word Bridge")))
-		if config.conf["WordBridge"]["settings"]["language"] in language_values:
-			self.languageList.SetSelection(language_values.index(config.conf["WordBridge"]["settings"]["language"]))
+		if config.conf["WordBridge"]["settings"]["language"] in LANGUAGE_VALUES:
+			self.languageList.SetSelection(LANGUAGE_VALUES.index(config.conf["WordBridge"]["settings"]["language"]))
 		else:
-			config.conf["WordBridge"]["settings"]["language"] = language_default
-			self.languageList.SetSelection(language_values.index(config.conf["WordBridge"]["settings"]["language"]))
+			config.conf["WordBridge"]["settings"]["language"] = LANGUAGE_DEFAULT
+			self.languageList.SetSelection(LANGUAGE_VALUES.index(config.conf["WordBridge"]["settings"]["language"]))
 
 		# For selecting LLM access method
 		accessMethodLabelText = _("Large Language Model Access Method:")
 		self.methodList = settingsSizerHelper.addLabeledControl(
 			accessMethodLabelText,
 			wx.Choice,
-			choices=llm_access_method_labels,
+			choices=LLM_ACCESS_METHOD_LABELS,
 		)
 		self.methodList.SetToolTip(wx.ToolTip(_("Choose the large language model access method")))
-		if config.conf["WordBridge"]["settings"]["llm_access_method"] in llm_access_method_values:
+		if config.conf["WordBridge"]["settings"]["llm_access_method"] in LLM_ACCESS_METHOD_VALUES:
 			self.methodList.SetSelection(
-				llm_access_method_values.index(config.conf["WordBridge"]["settings"]["llm_access_method"])
+				LLM_ACCESS_METHOD_VALUES.index(config.conf["WordBridge"]["settings"]["llm_access_method"])
 			)
 		else:
 			self.methodList.SetSelection(0)
-			config.conf["WordBridge"]["settings"]["llm_access_method"] = llm_access_method_values[0]
+			config.conf["WordBridge"]["settings"]["llm_access_method"] = LLM_ACCESS_METHOD_VALUES[0]
 		self.methodList.Bind(wx.EVT_CHOICE, self.onChangeChoice)
 
 		# For setting account information
@@ -167,7 +167,7 @@ class LLMSettingsPanel(SettingsPanel):
 		)
 		sizer.Add(self.passwordTextCtrl, pos=(5, 1))
 
-		self._enableAccessElements(llm_access_method_values[self.methodList.GetSelection()])
+		self._enableAccessElements(LLM_ACCESS_METHOD_VALUES[self.methodList.GetSelection()])
 
 		accessPanel.SetSizer(sizer)
 		sizer.Fit(self)
@@ -209,10 +209,10 @@ class LLMSettingsPanel(SettingsPanel):
 	def onSave(self):
 		model_index = self.modelList.GetSelection()
 		access_method_index = self.methodList.GetSelection()
-		provider_tmp = corrector_config_values[model_index]["model"]["provider"]
-		config.conf["WordBridge"]["settings"]["corrector_config_filename"] = corrector_config_filenames[model_index]
-		config.conf["WordBridge"]["settings"]["language"] = language_values[self.languageList.GetSelection()]
-		config.conf["WordBridge"]["settings"]["llm_access_method"] = llm_access_method_values[access_method_index]
+		provider_tmp = CORRECTOR_CONFIG_VALUES[model_index]["model"]["provider"]
+		config.conf["WordBridge"]["settings"]["corrector_config_filename"] = CORRECTOR_CONFIG_FILENAMES[model_index]
+		config.conf["WordBridge"]["settings"]["language"] = LANGUAGE_VALUES[self.languageList.GetSelection()]
+		config.conf["WordBridge"]["settings"]["llm_access_method"] = LLM_ACCESS_METHOD_VALUES[access_method_index]
 		config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = self.apikeyTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp] = self.secretkeyTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_username"] = self.usernameTextCtrl.GetValue()
@@ -225,7 +225,7 @@ class LLMSettingsPanel(SettingsPanel):
 		# trigger a refresh of the settings
 		self.onPanelActivated()
 		self._sendLayoutUpdatedEvent()
-		self._enableAccessElements(llm_access_method_values[self.methodList.GetSelection()])
+		self._enableAccessElements(LLM_ACCESS_METHOD_VALUES[self.methodList.GetSelection()])
 		self.Thaw()
 
 	def _enableAccessElements(self, llm_access_method):
@@ -252,10 +252,10 @@ class LLMSettingsPanel(SettingsPanel):
 			self.secretkeyTextLabel.Disable()
 			self.secretkeyTextCtrl.Disable()
 
-		provider_tmp = corrector_config_values[self.modelList.GetSelection()]["model"]["provider"]
+		provider_tmp = CORRECTOR_CONFIG_VALUES[self.modelList.GetSelection()]["model"]["provider"]
 		self.apikeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["api_key"][provider_tmp])
 
-		if corrector_config_values[self.modelList.GetSelection()]["model"]["require_secret_key"]:
+		if CORRECTOR_CONFIG_VALUES[self.modelList.GetSelection()]["model"]["require_secret_key"]:
 			self.secretkeyTextLabel.Show()
 			self.secretkeyTextCtrl.Show()
 			self.secretkeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp])
