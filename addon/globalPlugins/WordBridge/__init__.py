@@ -40,7 +40,7 @@ ADDON_SUMMARY = "WordBridge"
 config.conf.spec["WordBridge"] = {
 	"settings": {
 		"corrector_config_filename": f"string(default={corrector_config_filename_default})",
-		"language": "string(default=zh_traditional_tw)",
+		"language": "string(default=zh_traditional)",
 		"llm_access_method": "string(default=coseeing_account)",
 		"api_key": {},
 		"secret_key": {},

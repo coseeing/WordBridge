@@ -57,7 +57,7 @@ class BaseTypoCorrector():
 		max_correction_attempts: int = 3,
 		httppost_retries: int = 2,
 		backoff: int = 1,
-		language: str = "zh_traditional_tw",
+		language: str = "zh_traditional",
 	):
 
 		self.model = model
@@ -339,7 +339,7 @@ class BaseTypoCorrector():
 		else:
 			raise NotImplementedError("Subclass must implement this method")
 
-		if self.language == "zh_traditional_tw" and has_simplified_chinese_char(sentence):
+		if self.language == "zh_traditional" and has_simplified_chinese_char(sentence):
 			sentence = chinese_converter.to_traditional(sentence)
 		if self.language == "zh_simplified" and has_traditional_chinese_char(sentence):
 			sentence = chinese_converter.to_simplified(sentence)
@@ -395,7 +395,7 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
-		if self.language == "zh_traditional_tw":
+		if self.language == "zh_traditional":
 			self.prefix = "我說"
 			self.suffix = ""
 			self.question_string: str = ""

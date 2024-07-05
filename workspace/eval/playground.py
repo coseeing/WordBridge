@@ -27,7 +27,7 @@ if __name__ == "__main__":
 		# "secret_key": "<SECRET_KEY>"
 	}
 	typo_corrector_class = ChineseTypoCorrector
-	language = "zh_traditional_tw"
+	language = "zh_traditional"
 	template_name = "Standard_v1.json"
 	optional_guidance_enable = {
 		"no_explanation": True,

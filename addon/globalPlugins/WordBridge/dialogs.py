@@ -25,13 +25,13 @@ LABEL_DICT = {
 	"Lite Mode": _("Lite Mode"),
 	"personal_api_key": _("Personal API Key"),
 	"coseeing_account": _("Coseeing Account"),
-	"zh_traditional_tw": _("Traditional Chinese (Taiwan)"),
+	"zh_traditional": _("Traditional Chinese"),
 	"zh_simplified": _("Simplified Chinese"),
 }
 
 llm_access_method_values = ["personal_api_key", "coseeing_account"]
 llm_access_method_labels = [LABEL_DICT[val] for val in llm_access_method_values]
-language_values = ["zh_traditional_tw", "zh_simplified"]
+language_values = ["zh_traditional", "zh_simplified"]
 language_labels = [LABEL_DICT[val] for val in language_values]
 
 corrector_config_filename_default = "gpt-3.5-turbo (standard mode).json"
