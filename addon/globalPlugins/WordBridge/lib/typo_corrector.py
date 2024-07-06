@@ -76,7 +76,7 @@ class BaseTypoCorrector():
 
 		file_dirpath = os.path.dirname(__file__)
 		template_path = os.path.join(file_dirpath, "..", "template", template_name)
-		with open(template_path, "r") as f:
+		with open(template_path, "r", encoding="utf8") as f:
 			self.template = json.loads(f.read())
 
 	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
