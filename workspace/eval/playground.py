@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 
@@ -22,10 +23,6 @@ if __name__ == "__main__":
 	# Settings
 	model = "gpt-3.5-turbo"
 	provider = "OpenAI"
-	credential = {
-		"api_key": "<API_KEY>",
-		# "secret_key": "<SECRET_KEY>"
-	}
 	typo_corrector_class = ChineseTypoCorrector
 	language = "zh_traditional"
 	template_name = "Standard_v1.json"
@@ -33,6 +30,8 @@ if __name__ == "__main__":
 		"no_explanation": True,
 		"keep_non_chinese_char": False,
 	}
+	with open(os.path.join(path, "config.json"), "r") as f:
+		credential = json.loads(f.read())[provider]
 
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
 	corrector = typo_corrector_class(
