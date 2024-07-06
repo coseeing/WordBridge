@@ -168,7 +168,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				CORRECTOR_CONFIG_FOLDER_PATH,
 				CORRECTOR_CONFIG_FILENAME_DEFAULT
 			)
-		with open(corrector_config_file_path, "r") as f:
+		with open(corrector_config_file_path, "r", encoding="utf8") as f:
 			corrector_config = json.loads(f.read())
 		provider = corrector_config["model"]["provider"]
 		model_name = corrector_config["model"]["model_name"]

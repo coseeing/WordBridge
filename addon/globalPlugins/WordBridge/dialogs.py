@@ -47,7 +47,7 @@ CORRECTOR_CONFIG_VALUES = []
 CORRECTOR_CONFIG_LABELS = []
 CORRECTOR_CONFIG_FILENAMES = []
 for path in CORRECTOR_CONFIG_PATHS:
-	with open(path, "r") as f:
+	with open(path, "r", encoding="utf8") as f:
 		corrector_config = json.loads(f.read())
 	provider_text = LABEL_DICT[corrector_config['model']['provider']]
 	model_name_text = LABEL_DICT[corrector_config['model']['model_name']]
