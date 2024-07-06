@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 
@@ -37,10 +38,8 @@ if __name__ == "__main__":
 		"no_explanation": True,
 		"keep_non_chinese_char": False,
 	}
-	credential = {
-		"api_key": "<API_KEY>",
-		# "secret_key": "<SECRET_KEY>"
-	}
+	with open(os.path.join(path, "config.json"), "r") as f:
+		credential = json.loads(f.read())[provider]
 	data_name = "gpt4_250_sentence_aug_err_0.1_41PJSO2KRV6SK1WJ6936.txt"
 	groundtruth_name = "gpt4_250_sentence_gt.txt"
 	tag = "2024-06-14-gpt-3.5-turbo-new"
