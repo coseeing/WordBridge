@@ -35,10 +35,10 @@ if __name__ == "__main__":
 	language = "zh_traditional"
 	template_name = "Standard_v1.json"
 	optional_guidance_enable = {
-		"no_explanation": True,
-		"keep_non_chinese_char": False,
+		"no_explanation": False,
+		"keep_non_chinese_char": True,
 	}
-	with open(os.path.join(path, "config.json"), "r") as f:
+	with open(os.path.join(path, "config.json"), "r", encoding="utf8") as f:
 		credential = json.loads(f.read())[provider]
 	data_name = "gpt4_250_sentence_aug_err_0.1_41PJSO2KRV6SK1WJ6936.txt"
 	groundtruth_name = "gpt4_250_sentence_gt.txt"
