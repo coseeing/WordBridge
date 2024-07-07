@@ -171,8 +171,9 @@ class BaseTypoCorrector():
 			headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
 			response = None
 			for r in range(2):
+				timeout = min(5 * (r + 1), 15)
 				try:
-					response = requests.request("POST", url_get_access, headers=headers, json={}, timeout=5)
+					response = requests.request("POST", url_get_access, headers=headers, json={}, timeout=timeout)
 				except Exception as e:
 					request_error = type(e).__name__
 					log.error(
@@ -285,6 +286,7 @@ class BaseTypoCorrector():
 		backoff = self.backoff
 		response_json = None
 		for r in range(self.httppost_retries):
+			timeout = min(5 * (r + 1), 15)
 			request_error = None
 			response = None
 			try:
@@ -292,7 +294,7 @@ class BaseTypoCorrector():
 					api_url,
 					headers=headers,
 					json=request_data,
-					timeout=5,
+					timeout=timeout,
 				)
 				break
 			except Exception as e:
