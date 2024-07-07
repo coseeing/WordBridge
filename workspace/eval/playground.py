@@ -30,7 +30,7 @@ if __name__ == "__main__":
 		"no_explanation": True,
 		"keep_non_chinese_char": False,
 	}
-	with open(os.path.join(path, "config.json"), "r") as f:
+	with open(os.path.join(path, "config.json"), "r", encoding="utf8") as f:
 		credential = json.loads(f.read())[provider]
 
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
