@@ -162,7 +162,8 @@ def analyze_diff(char_original: str, char_corrected: str) -> List:
 		A list of tags that describe the differences between the two input characters.
 	"""
 	if len(char_original) != 1 or len(char_corrected) != 1:
-		return []  # workaround
+		return ["Correction for non-Chinese case"]
+
 	tags = []
 
 	# char_simplified = to_simplified(char_original)
