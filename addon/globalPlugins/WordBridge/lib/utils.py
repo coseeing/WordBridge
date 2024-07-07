@@ -77,6 +77,43 @@ def typo_augmentation(text: str, is_traditional: bool, error_rate: float = 0.125
 	return text_aug
 
 
+def tokenizer(text):
+	tokens = []
+	token = ""
+	for char in text:
+		if not (char in PUNCTUATION or is_chinese_character(char)):
+			token += char
+			continue
+
+		if token:
+			tokens.append(token)
+			token = ""
+		tokens.append(char)
+
+	if token:
+		tokens.append(token)
+
+	return tokens
+
+
+def create_single_char_mapping(tokens):
+	assert len(tokens) <= 20000
+
+	mapping = {}
+	chinese_char = 19968  # map each token to a Chinese character
+	for t in set(tokens):
+		if t in mapping:
+			continue
+		mapping[t] = chr(chinese_char)
+		chinese_char += 1
+
+	return mapping
+
+
+def create_encode_string(tokens, mapping):
+	return "".join([mapping[t] for t in tokens])
+
+
 def text_segmentation(text: str, max_length: int = 30) -> tuple:
 	"""
 	This function can be used to split a string into substrings based on a set of specified separators or
@@ -124,7 +161,8 @@ def analyze_diff(char_original: str, char_corrected: str) -> List:
 	Returns:
 		A list of tags that describe the differences between the two input characters.
 	"""
-	assert len(char_original) == len(char_corrected) == 1, "Length of char_original, char_corrected should be 1."
+	if len(char_original) != 1 or len(char_corrected) != 1:
+		return []  # workaround
 	tags = []
 
 	# char_simplified = to_simplified(char_original)
@@ -156,14 +194,22 @@ def get_descs(text: str) -> str:
 	if not text or getLanguage is None or getCharDescListFromText is None:
 		return ""
 
+	if len(text) > 1:  # For non-Chinese character or word
+		return [[text, [" ".join(list(text))]]]
+
 	return getCharDescListFromText(text, getLanguage())
 
 
 def strings_diff(string_before: str, string_after: str) -> Dict:
 
-	# operation (op) is replace or insert or delete
+	tokens_before = tokenizer(string_before)
+	tokens_after = tokenizer(string_after)
 
-	matcher = SequenceMatcher(None, string_before, string_after)
+	mapping = create_single_char_mapping(tokens_before + tokens_after)
+	string_before_encode = create_encode_string(tokens_before, mapping)
+	string_after_encode = create_encode_string(tokens_after, mapping)
+
+	matcher = SequenceMatcher(None, string_before_encode, string_after_encode)
 
 	# Postprocess the op codes
 	matcher_ops = []
@@ -179,17 +225,18 @@ def strings_diff(string_before: str, string_after: str) -> Dict:
 			matcher_ops.append(("replace", index_start_before, index_middle, index_start_after, index_end_after))
 			matcher_ops.append(("delete", index_middle, index_end_before, index_end_after, index_end_after))
 
+	# operation (op) is replace or insert or delete
 	diff = []
 	for op, index_start_before, index_end_before, index_start_after, index_end_after in matcher_ops:
 		if op == "equal":
 			operation_dict = {
 				"operation": op,
-				"before_text": string_before[index_start_before:index_end_before],
-				"after_text": string_after[index_start_after:index_end_after],
-				"index_start_before": index_start_before,
-				"index_end_before": index_end_before,
-				"index_start_after": index_start_after,
-				"index_end_after": index_end_after,
+				"before_text": "".join(tokens_before[index_start_before:index_end_before]),
+				"after_text": "".join(tokens_after[index_start_after:index_end_after]),
+				#"index_start_before": index_start_before,
+				#"index_end_before": index_end_before,
+				#"index_start_after": index_start_after,
+				#"index_end_after": index_end_after,
 				"before_descs": "",
 				"after_descs": "",
 				"tags": None,
@@ -199,14 +246,14 @@ def strings_diff(string_before: str, string_after: str) -> Dict:
 		elif op != "replace":
 			operation_dict = {
 				"operation": op,
-				"before_text": string_before[index_start_before:index_end_before],
-				"after_text": string_after[index_start_after:index_end_after],
-				"index_start_before": index_start_before,
-				"index_end_before": index_end_before,
-				"index_start_after": index_start_after,
-				"index_end_after": index_end_after,
-				"before_descs": get_descs(string_before[index_start_before:index_end_before]),
-				"after_descs": get_descs(string_after[index_start_after:index_end_after]),
+				"before_text": "".join(tokens_before[index_start_before:index_end_before]),
+				"after_text": "".join(tokens_after[index_start_after:index_end_after]),
+				#"index_start_before": index_start_before,
+				#"index_end_before": index_end_before,
+				#"index_start_after": index_start_after,
+				#"index_end_after": index_end_after,
+				"before_descs": get_descs("".join(tokens_before[index_start_before:index_end_before])),
+				"after_descs": get_descs("".join(tokens_after[index_start_after:index_end_after])),
 				"tags": None,
 			}
 			diff.append(operation_dict)
@@ -215,19 +262,19 @@ def strings_diff(string_before: str, string_after: str) -> Dict:
 		for i in range(index_end_before - index_start_before):
 			operation_dict = {
 				"operation": op,
-				"before_text": string_before[(index_start_before + i):(index_start_before + i + 1)],
-				"after_text": string_after[(index_start_after + i):(index_start_after + i + 1)],
-				"index_start_before": index_start_before + i,
-				"index_end_before": index_start_before + i + 1,
-				"index_start_after": index_start_after + i,
-				"index_end_after": index_start_after + i + 1,
-				"before_descs": get_descs(string_before[(index_start_before + i):(index_start_before + i + 1)]),
-				"after_descs": get_descs(string_after[(index_start_after + i):(index_start_after + i + 1)]),
+				"before_text": "".join(tokens_before[(index_start_before + i):(index_start_before + i + 1)]),
+				"after_text": "".join(tokens_after[(index_start_after + i):(index_start_after + i + 1)]),
+				#"index_start_before": index_start_before + i,
+				#"index_end_before": index_start_before + i + 1,
+				#"index_start_after": index_start_after + i,
+				#"index_end_after": index_start_after + i + 1,
+				"before_descs": get_descs("".join(tokens_before[(index_start_before + i):(index_start_before + i + 1)])),
+				"after_descs": get_descs("".join(tokens_after[(index_start_after + i):(index_start_after + i + 1)])),
 				"tags": None,
 			}
 			operation_dict["tags"] = analyze_diff(
-				string_before[index_start_before + i],
-				string_after[index_start_after + i],
+				"".join(tokens_before[index_start_before + i]),
+				"".join(tokens_after[index_start_after + i]),
 			)
 
 			diff.append(operation_dict)
