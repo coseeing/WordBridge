@@ -427,21 +427,30 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 
 		response_text = response[len(self.answer_string):]
 
-		response_list = []
+		response_zh_list = []
+		response_non_zh_list = []
 		for char in response_text:
 			if is_chinese_character(char):
-				response_list.append(char)
+				response_zh_list.append(char)
+			else:
+				response_non_zh_list.append(char)
 
-		text_list = []
+		text_zh_list = []
+		text_non_zh_list = []
 		for char in text:
 			if is_chinese_character(char):
-				text_list.append(char)
+				text_zh_list.append(char)
+			else:
+				text_non_zh_list.append(char)
 
-		if len(response_list) != len(text_list):
-			return True
+		if len(response_zh_list) != len(text_zh_list):
+			if len(response_non_zh_list) == len(text_non_zh_list):
+				return True
+			else:
+				return False  # Some non-Chinese chars may become Chinese chars. Skip the case.
 
-		for i in range(len(text_list)):
-			if len(set(get_char_pinyin(text_list[i])) & set(get_char_pinyin(response_list[i]))) == 0:
+		for i in range(len(text_zh_list)):
+			if len(set(get_char_pinyin(text_zh_list[i])) & set(get_char_pinyin(response_zh_list[i]))) == 0:
 				return True
 		return False
 
