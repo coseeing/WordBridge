@@ -177,6 +177,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		template_name = corrector_config["model"]["template_name"]
 		optional_guidance_enable = corrector_config["model"]["optional_guidance_enable"]
 		language = config.conf["WordBridge"]["settings"]["language"]
+		if config.conf["WordBridge"]["settings"]["customized_dict_enable"]:
+			customized_dictionary = [word.strip() for word in config.conf["WordBridge"]["settings"]["customized_dict"].split("\n")]
+		else:
+			customized_dictionary = []
 		if config.conf["WordBridge"]["settings"]["llm_access_method"] == "personal_api_key":
 			corrector_mode = corrector_config["typo_corrector"]["typo_correction_mode"]
 			if provider not in config.conf["WordBridge"]["settings"]["api_key"]:
@@ -195,6 +199,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				language=language,
 				template_name=template_name,
 				optional_guidance_enable=optional_guidance_enable,
+				customized_dictionary=customized_dictionary,
 			)
 			proofreader = Proofreader(corrector)
 

@@ -9,7 +9,8 @@
 		],
 		"optional_guidance": {
 			"keep_non_chinese_char": "勿將非漢字用漢字取代",
-			"no_explanation": "輸出答案即可，後面無須解釋"
+			"no_explanation": "輸出答案即可，後面無須解釋",
+			"customized_dictionary": "參考詞彙: "
 		}
 	},
 	"zh_simplified": {
@@ -22,7 +23,8 @@
 		],
 		"optional_guidance": {
 			"keep_non_chinese_char": "勿将非汉字用汉字取代",
-			"no_explanation": "输出答案即可，后面无须解释"
+			"no_explanation": "输出答案即可，后面无须解释",
+			"customized_dictionary": "参考词汇: "
 		}
 	}
 }
