@@ -204,7 +204,33 @@ class LLMSettingsPanel(SettingsPanel):
 		self.autoDisplayReport = settingsSizerHelper.addItem(wx.CheckBox(self, label=_("Auto display typo report")))
 		self.autoDisplayReport.SetValue(config.conf["WordBridge"]["settings"]["auto_display_report"])
 
+		# For setting custom dictionary
+		self.customizedDictionaryEnable = settingsSizerHelper.addItem(
+			wx.CheckBox(self, label=_("Apply customized dictionary"))
+		)
+		self.customizedDictionaryEnable.SetValue(config.conf["WordBridge"]["settings"]["customized_dict_enable"])
+		self.dictionaryTextCtrl = settingsSizerHelper.addItem(
+			wx.TextCtrl(
+				self,
+				size=(self.scaleSize(375), self.scaleSize(100)),
+				value=config.conf["WordBridge"]["settings"]["customized_dict"],
+				style=wx.TE_MULTILINE,
+			)
+		)
+		self.customizedDictionaryEnable.Bind(wx.EVT_CHECKBOX, self.onChangeChoice)
+		self.dictionaryTextCtrl.Bind(wx.EVT_CHAR_HOOK, self.onKeyPress)
+		self._enableDictTextctrl()
+
 		self.settingsSizer = settingsSizer
+
+	def onKeyPress(self, event):
+		keycode = event.GetKeyCode()
+		if keycode == wx.WXK_TAB:
+			self.Navigate()
+		elif keycode == wx.WXK_RETURN:
+			self.dictionaryTextCtrl.WriteText('\n')
+		else:
+			event.Skip()
 
 	def onSave(self):
 		model_index = self.modelList.GetSelection()
@@ -219,6 +245,8 @@ class LLMSettingsPanel(SettingsPanel):
 		config.conf["WordBridge"]["settings"]["coseeing_password"] = self.passwordTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["max_char_count"] = self.maxCharCount.GetValue()
 		config.conf["WordBridge"]["settings"]["auto_display_report"] = self.autoDisplayReport.GetValue()
+		config.conf["WordBridge"]["settings"]["customized_dict_enable"] = self.customizedDictionaryEnable.GetValue()
+		config.conf["WordBridge"]["settings"]["customized_dict"] = self.dictionaryTextCtrl.GetValue()
 
 	def onChangeChoice(self, evt):
 		self.Freeze()
@@ -226,7 +254,14 @@ class LLMSettingsPanel(SettingsPanel):
 		self.onPanelActivated()
 		self._sendLayoutUpdatedEvent()
 		self._enableAccessElements(LLM_ACCESS_METHOD_VALUES[self.methodList.GetSelection()])
+		self._enableDictTextctrl()
 		self.Thaw()
+
+	def _enableDictTextctrl(self):
+		if self.customizedDictionaryEnable.GetValue():
+			self.dictionaryTextCtrl.Enable()
+		else:
+			self.dictionaryTextCtrl.Disable()
 
 	def _enableAccessElements(self, llm_access_method):
 		if llm_access_method == "personal_api_key":

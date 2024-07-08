@@ -48,6 +48,8 @@ config.conf.spec["WordBridge"] = {
 		"coseeing_password": "string(default=\0)",
 		"max_char_count": "integer(default=128,min=2,max=1024)",
 		"auto_display_report": "boolean(default=False)",
+		"customized_dict_enable": "boolean(default=True)",
+		"customized_dict": "string(default=\0)",
 	}
 }
 COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
