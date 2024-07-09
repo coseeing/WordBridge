@@ -49,7 +49,7 @@ class BaseTypoCorrector():
 		credential: dict,
 		template_name: str,
 		optional_guidance_enable: dict,
-		customized_dictionary: list,
+		customized_words: list,
 		max_tokens: int = 2048,
 		seed: int = 0,
 		temperature: float = 0.0,
@@ -74,7 +74,7 @@ class BaseTypoCorrector():
 		self.credential = credential
 		self.language = language
 		self.optional_guidance_enable = optional_guidance_enable
-		self.customized_dictionary = customized_dictionary
+		self.customized_words = customized_words
 
 		file_dirpath = os.path.dirname(__file__)
 		template_path = os.path.join(file_dirpath, "..", "template", template_name)
@@ -215,9 +215,9 @@ class BaseTypoCorrector():
 
 		return input_info
 
-	def _find_word_candidate(self, input_text, customized_dictionary):
+	def _find_word_candidate(self, input_text, customized_words):
 		candidates = []
-		for word in customized_dictionary:
+		for word in customized_words:
 			if len(word) > len(input_text):
 				continue
 			for i in range(len(input_text) - len(word) + 1):
@@ -239,9 +239,9 @@ class BaseTypoCorrector():
 		if self.optional_guidance_enable["keep_non_chinese_char"] and input_info["contain_non_chinese"]:
 			guidance_list.append(self.template[self.language]["optional_guidance"]["keep_non_chinese_char"])
 
-		word_candidate = self._find_word_candidate(input_info["input_text"], self.customized_dictionary)
+		word_candidate = self._find_word_candidate(input_info["input_text"], self.customized_words)
 		if word_candidate:
-			customized_word_guidance = self.template[self.language]["optional_guidance"]["customized_dictionary"]
+			customized_word_guidance = self.template[self.language]["optional_guidance"]["customized_words"]
 			system = system + "\n" + customized_word_guidance + "、".join(word_candidate)
 
 		if not guidance_list:

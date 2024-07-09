@@ -48,8 +48,8 @@ config.conf.spec["WordBridge"] = {
 		"coseeing_password": "string(default=\0)",
 		"max_char_count": "integer(default=128,min=2,max=1024)",
 		"auto_display_report": "boolean(default=False)",
-		"customized_dict_enable": "boolean(default=True)",
-		"customized_dict": "string(default=\0)",
+		"customized_words_enable": "boolean(default=True)",
+		"customized_words": "string(default=\0)",
 	}
 }
 COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
@@ -177,10 +177,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		template_name = corrector_config["model"]["template_name"]
 		optional_guidance_enable = corrector_config["model"]["optional_guidance_enable"]
 		language = config.conf["WordBridge"]["settings"]["language"]
-		if config.conf["WordBridge"]["settings"]["customized_dict_enable"]:
-			customized_dictionary = [word.strip() for word in config.conf["WordBridge"]["settings"]["customized_dict"].split("\n")]
+		if config.conf["WordBridge"]["settings"]["customized_words_enable"]:
+			customized_words = [word.strip() for word in config.conf["WordBridge"]["settings"]["customized_words"].split("\n")]
 		else:
-			customized_dictionary = []
+			customized_words = []
 		if config.conf["WordBridge"]["settings"]["llm_access_method"] == "personal_api_key":
 			corrector_mode = corrector_config["typo_corrector"]["typo_correction_mode"]
 			if provider not in config.conf["WordBridge"]["settings"]["api_key"]:
@@ -199,7 +199,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				language=language,
 				template_name=template_name,
 				optional_guidance_enable=optional_guidance_enable,
-				customized_dictionary=customized_dictionary,
+				customized_words=customized_words,
 			)
 			proofreader = Proofreader(corrector)
 

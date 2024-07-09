@@ -205,21 +205,21 @@ class LLMSettingsPanel(SettingsPanel):
 		self.autoDisplayReport.SetValue(config.conf["WordBridge"]["settings"]["auto_display_report"])
 
 		# For setting custom dictionary
-		self.customizedDictionaryEnable = settingsSizerHelper.addItem(
+		self.customizedWordEnable = settingsSizerHelper.addItem(
 			wx.CheckBox(self, label=_("Apply customized dictionary"))
 		)
-		self.customizedDictionaryEnable.SetValue(config.conf["WordBridge"]["settings"]["customized_dict_enable"])
-		self.dictionaryTextCtrl = settingsSizerHelper.addItem(
+		self.customizedWordEnable.SetValue(config.conf["WordBridge"]["settings"]["customized_words_enable"])
+		self.wordTextCtrl = settingsSizerHelper.addItem(
 			wx.TextCtrl(
 				self,
 				size=(self.scaleSize(375), self.scaleSize(100)),
-				value=config.conf["WordBridge"]["settings"]["customized_dict"],
+				value=config.conf["WordBridge"]["settings"]["customized_words"],
 				style=wx.TE_MULTILINE,
 			)
 		)
-		self.customizedDictionaryEnable.Bind(wx.EVT_CHECKBOX, self.onChangeChoice)
-		self.dictionaryTextCtrl.Bind(wx.EVT_CHAR_HOOK, self.onKeyPress)
-		self._enableDictTextctrl()
+		self.customizedWordEnable.Bind(wx.EVT_CHECKBOX, self.onChangeChoice)
+		self.wordTextCtrl.Bind(wx.EVT_CHAR_HOOK, self.onKeyPress)
+		self._enableWordTextctrl()
 
 		self.settingsSizer = settingsSizer
 
@@ -228,7 +228,7 @@ class LLMSettingsPanel(SettingsPanel):
 		if keycode == wx.WXK_TAB:
 			self.Navigate()
 		elif keycode == wx.WXK_RETURN:
-			self.dictionaryTextCtrl.WriteText('\n')
+			self.wordTextCtrl.WriteText('\n')
 		else:
 			event.Skip()
 
@@ -245,8 +245,8 @@ class LLMSettingsPanel(SettingsPanel):
 		config.conf["WordBridge"]["settings"]["coseeing_password"] = self.passwordTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["max_char_count"] = self.maxCharCount.GetValue()
 		config.conf["WordBridge"]["settings"]["auto_display_report"] = self.autoDisplayReport.GetValue()
-		config.conf["WordBridge"]["settings"]["customized_dict_enable"] = self.customizedDictionaryEnable.GetValue()
-		config.conf["WordBridge"]["settings"]["customized_dict"] = self.dictionaryTextCtrl.GetValue()
+		config.conf["WordBridge"]["settings"]["customized_words_enable"] = self.customizedWordEnable.GetValue()
+		config.conf["WordBridge"]["settings"]["customized_words"] = self.wordTextCtrl.GetValue()
 
 	def onChangeChoice(self, evt):
 		self.Freeze()
@@ -254,14 +254,14 @@ class LLMSettingsPanel(SettingsPanel):
 		self.onPanelActivated()
 		self._sendLayoutUpdatedEvent()
 		self._enableAccessElements(LLM_ACCESS_METHOD_VALUES[self.methodList.GetSelection()])
-		self._enableDictTextctrl()
+		self._enableWordTextctrl()
 		self.Thaw()
 
-	def _enableDictTextctrl(self):
-		if self.customizedDictionaryEnable.GetValue():
-			self.dictionaryTextCtrl.Enable()
+	def _enableWordTextctrl(self):
+		if self.customizedWordEnable.GetValue():
+			self.wordTextCtrl.Enable()
 		else:
-			self.dictionaryTextCtrl.Disable()
+			self.wordTextCtrl.Disable()
 
 	def _enableAccessElements(self, llm_access_method):
 		if llm_access_method == "personal_api_key":

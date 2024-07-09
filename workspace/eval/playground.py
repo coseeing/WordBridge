@@ -30,7 +30,7 @@ if __name__ == "__main__":
 		"no_explanation": False,
 		"keep_non_chinese_char": True,
 	}
-	customized_dictionary = []
+	customized_words = []
 	with open(os.path.join(path, "config.json"), "r", encoding="utf8") as f:
 		credential = json.loads(f.read())[provider]
 
@@ -42,7 +42,7 @@ if __name__ == "__main__":
 		language=language,
 		template_name=template_name,
 		optional_guidance_enable=optional_guidance_enable,
-		customized_dictionary=customized_dictionary,
+		customized_words=customized_words,
 	)
 
 	# Initialize the proofreader object using the typo corrector
