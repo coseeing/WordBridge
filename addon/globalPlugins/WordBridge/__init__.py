@@ -25,6 +25,7 @@ import requests
 
 from .dialogs import CORRECTOR_CONFIG_FILENAME_DEFAULT, CORRECTOR_CONFIG_FOLDER_PATH, LANGUAGE_DEFAULT
 from .dialogs import LLMSettingsPanel, FeedbackDialog
+from .dictionary.dialog import DictionaryEntryDialog
 from .lib.coseeing import obtain_openai_key
 from .lib.proofreader import Proofreader
 from .lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorLite
@@ -276,6 +277,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		while correct_typo_thread.is_alive():
 			beep(261.6, 300)
 			time.sleep(0.5)
+
+	@script(
+		gesture="kb:NVDA+alt+d",
+		description=_("Popup"),
+		category=ADDON_SUMMARY,
+	)
+	def script_dictionary(self, gesture):
+		gui.mainFrame.popupSettingsDialog(DictionaryEntryDialog)
+
 
 	@script(
 		gesture="kb:NVDA+alt+o",

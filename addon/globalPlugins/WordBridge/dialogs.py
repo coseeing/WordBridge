@@ -6,12 +6,15 @@ import json
 import locale
 import os
 import wx
+
 import addonHandler
 
+import gui
 from gui import guiHelper, nvdaControls
 from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
 
+from .dictionary.dialog import DictionaryEntryDialog
 
 addonHandler.initTranslation()
 
@@ -221,7 +224,18 @@ class LLMSettingsPanel(SettingsPanel):
 		self.wordTextCtrl.Bind(wx.EVT_CHAR_HOOK, self.onKeyPress)
 		self._enableWordTextctrl()
 
+		self.wordDictionaryCtrl = settingsSizerHelper.addItem(
+			wx.Button(
+				self,
+				label=_("edit dictionary"),
+			)
+		)
+		self.wordDictionaryCtrl.Bind(wx.EVT_BUTTON, self.onEditDictionary)
+
 		self.settingsSizer = settingsSizer
+
+	def onEditDictionary(self, event):
+		gui.mainFrame.popupSettingsDialog(DictionaryEntryDialog)
 
 	def onKeyPress(self, event):
 		keycode = event.GetKeyCode()
