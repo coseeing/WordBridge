@@ -352,8 +352,16 @@ class BaseTypoCorrector():
 		if self.provider == "Baidu" and "error_code" in response_json:
 			if response_json["error_code"] == 3:
 				raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
+			elif response_json["error_code"] in [336000, 336100]:
+				raise Exception(_("Service internal error, please try again later."))
+			elif response_json["error_code"] in [18, 336501, 336502]:
+				raise Exception(_("Usage limit exceeded, please try again later."))
+			elif response_json["error_code"] == 17:
+				raise Exception(_("Please check if the API has been activated or the current account has enough money"))
 			else:
 				raise Exception(response_json["error_msg"])
+		elif self.provider == "Baidu" and not response_json["result"]:
+			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
 
 		return response_json
 
