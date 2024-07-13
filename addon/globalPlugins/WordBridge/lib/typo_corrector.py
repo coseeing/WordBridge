@@ -22,7 +22,8 @@ try:
 	import addonHandler
 	addonHandler.initTranslation()
 except ImportError:
-	pass
+	def _(s):
+		return s
 
 
 log = logging.getLogger(__name__)
