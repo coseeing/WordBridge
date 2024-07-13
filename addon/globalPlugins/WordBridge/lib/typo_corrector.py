@@ -343,12 +343,25 @@ class BaseTypoCorrector():
 			)
 
 		response_json = response.json()
-		if response.status_code == 401:
-			raise Exception(_("Authentication error. Please check if the large language model's key is correct."))
-		elif response.status_code == 404:
-			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
-		elif response.status_code != 200:
-			raise Exception(_("Unknown errors. Status code = {status_code}").format(status_code=response.status_code))
+
+		if self.provider == "OpenAI" and response.status_code != 200:
+			if response.status_code == 401:
+				raise Exception(_("Authentication error. Please check if the large language model's key is correct."))
+			elif response.status_code == 403:
+				raise Exception(_("Country, region, or territory not supported."))
+			elif response.status_code == 404:
+				raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
+			elif response.status_code == 429:
+				raise Exception(
+					_("Rate limit reached for requests or you exceeded your current quota. ") +\
+					_("Please reduce the frequency of sending requests or check your account balance.")
+				)
+			elif response.status_code == 500:
+				raise Exception(_("The server had an error while processing your request, please try again later."))
+			elif response.status_code == 503:
+				raise Exception(_("The engine is currently overloaded, please try again later."))
+			else:
+				raise Exception(_("Unknown errors. Status code = {status_code}").format(status_code=response.status_code))
 
 		if self.provider == "Baidu" and "error_code" in response_json:
 			if response_json["error_code"] == 3:
