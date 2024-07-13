@@ -404,13 +404,13 @@ class ChineseTypoCorrectorLite(BaseTypoCorrector):
 		return input_text
 
 	def _text_postprocess(self, text: str, input_text: str):
-		if input_text[-1] in SEPERATOR:
-			return text
-
 		# Remove automatically added punctuations since there is no punctuation at the end of input
-		while text and text[-1] in SEPERATOR:
+		while input_text[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
 			text = text[:-1]
-		return text
+
+		# Remove automatically added punctuations since there is no punctuation at the begin of input
+		while input_text[0] not in SEPERATOR and text and text[0] in SEPERATOR:
+			text = text[1:]
 
 	def _has_target_language(self, text: str):
 		return has_chinese(text)
