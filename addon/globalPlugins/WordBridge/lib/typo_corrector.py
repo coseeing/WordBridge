@@ -273,7 +273,7 @@ class BaseTypoCorrector():
 				"max_output_tokens": min(self.max_tokens, len(messages[-1]["content"])),
 				"temperature": max(self.temperature, 0.0001),
 				"top_p": self.top_p,
-				"stop": ["\n"]
+				"stop": ["\n", "&"]
 			}
 		else:
 			raise NotImplementedError("Subclass must implement this method")
