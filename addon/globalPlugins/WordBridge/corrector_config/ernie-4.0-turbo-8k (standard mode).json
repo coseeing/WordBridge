@@ -1,9 +1,9 @@
 {
 	"model": {
-		"model_name": "ernie-4.0-8k-preview",
+		"model_name": "ernie-4.0-turbo-8k",
 		"provider": "Baidu",
 		"require_secret_key": true,
-		"template_name": "Standard_v2.json",
+		"template_name": "Standard_v1.json",
 		"optional_guidance_enable": {
 			"keep_non_chinese_char": false,
 			"no_explanation": true
