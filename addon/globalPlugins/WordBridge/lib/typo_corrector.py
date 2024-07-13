@@ -273,7 +273,7 @@ class BaseTypoCorrector():
 				"max_output_tokens": min(self.max_tokens, len(messages[-1]["content"])),
 				"temperature": max(self.temperature, 0.0001),
 				"top_p": self.top_p,
-				"stop": ["\n"]
+				"stop": ["\n", "&"]
 			}
 		else:
 			raise NotImplementedError("Subclass must implement this method")
@@ -352,8 +352,16 @@ class BaseTypoCorrector():
 		if self.provider == "Baidu" and "error_code" in response_json:
 			if response_json["error_code"] == 3:
 				raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
+			elif response_json["error_code"] in [336000, 336100]:
+				raise Exception(_("Service internal error, please try again later."))
+			elif response_json["error_code"] in [18, 336501, 336502]:
+				raise Exception(_("Usage limit exceeded, please try again later."))
+			elif response_json["error_code"] == 17:
+				raise Exception(_("Please check if the API has been activated or the current account has enough money"))
 			else:
 				raise Exception(response_json["error_msg"])
+		elif self.provider == "Baidu" and not response_json["result"]:
+			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
 
 		return response_json
 
@@ -404,13 +412,13 @@ class ChineseTypoCorrectorLite(BaseTypoCorrector):
 		return input_text
 
 	def _text_postprocess(self, text: str, input_text: str):
-		if input_text[-1] in SEPERATOR:
-			return text
-
 		# Remove automatically added punctuations since there is no punctuation at the end of input
-		while text and text[-1] in SEPERATOR:
+		while input_text[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
 			text = text[:-1]
-		return text
+
+		# Remove automatically added punctuations since there is no punctuation at the begin of input
+		while input_text[0] not in SEPERATOR and text and text[0] in SEPERATOR:
+			text = text[1:]
 
 	def _has_target_language(self, text: str):
 		return has_chinese(text)
@@ -483,12 +491,15 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 
 	def _text_postprocess(self, text: str, input_text: str):
 		text = text[(len(self.prefix) + len(self.answer_string)):(len(text) - len(self.suffix))]
-		if input_text[-1] in SEPERATOR:
-			return text
 
 		# Remove automatically added punctuations since there is no punctuation at the end of input
-		while text and text[-1] in SEPERATOR:
+		while input_text[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
 			text = text[:-1]
+
+		# Remove automatically added punctuations since there is no punctuation at the begin of input
+		while input_text[0] not in SEPERATOR and text and text[0] in SEPERATOR:
+			text = text[1:]
+
 		return text
 
 	def _has_target_language(self, text: str):
