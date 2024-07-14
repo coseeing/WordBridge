@@ -177,7 +177,7 @@ class LLMSettingsPanel(SettingsPanel):
 		settingsSizerHelper.addItem(accessPanel)
 
 		# For setting upper bound of correction character count
-		maxTokensLabelText = _("Max Character Count")
+		maxTokensLabelText = _("Max character count")
 		try:
 			maxCharCount = config.conf["WordBridge"]["settings"]["max_char_count"]
 		except VdtValueTooBigError:
@@ -227,7 +227,7 @@ class LLMSettingsPanel(SettingsPanel):
 		self.wordDictionaryCtrl = settingsSizerHelper.addItem(
 			wx.Button(
 				self,
-				label=_("edit dictionary"),
+				label=_("Edit dictionary"),
 			)
 		)
 		self.wordDictionaryCtrl.Bind(wx.EVT_BUTTON, self.onEditDictionary)
