@@ -24,7 +24,7 @@ LABEL_DICT = {
 	"gpt-3.5-turbo": _("gpt-3.5-turbo"),
 	"gpt-4-turbo": _("gpt-4-turbo"),
 	"gpt-4o": _("gpt-4o"),
-	"ernie-4.0-8k-preview": _("ernie-4.0-8k-preview"),
+	"ernie-4.0-turbo-8k": _("ernie-4.0-turbo-8k"),
 	"Standard Mode": _("Standard Mode"),
 	"Lite Mode": _("Lite Mode"),
 	"personal_api_key": _("Personal API Key"),
