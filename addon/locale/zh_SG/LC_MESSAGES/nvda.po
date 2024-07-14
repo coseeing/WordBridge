@@ -1,0 +1,339 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the 'WordBridge' package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: 'WordBridge' '0.1'\n"
+"Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
+"POT-Creation-Date: 2024-07-14 01:54+0800\n"
+"PO-Revision-Date: 2024-07-14 20:02+0800\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: zh_TW\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.4\n"
+
+#: addon\globalPlugins\WordBridge\__init__.py:134
+#: addon\globalPlugins\WordBridge\__init__.py:140
+#, python-brace-format
+msgid ""
+"The number of characters is {len_text}, which exceeds the maximum, "
+"{max_char_count}."
+msgstr "原文字符数为{len_text}，超过上限{max_char_count}。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:147
+#: addon\globalPlugins\WordBridge\__init__.py:148
+msgid "No text is selected, unable to analyze."
+msgstr "未选择任何文字，无法分析。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:151
+#: addon\globalPlugins\WordBridge\__init__.py:152
+msgid ""
+"The selected text does not contain Chinese characters, unable to analyze."
+msgstr "选择范围不含汉字，无法分析。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:211
+#: addon\globalPlugins\WordBridge\__init__.py:212
+#: addon\globalPlugins\WordBridge\__init__.py:387
+#, python-brace-format
+msgid ""
+"Sorry, an error occurred during the program execution, the details are: {e}"
+msgstr "抱歉，程序运行中遇到了一些问题，错误详情是: {e}"
+
+#: addon\globalPlugins\WordBridge\__init__.py:224
+#: addon\globalPlugins\WordBridge\__init__.py:225
+#: addon\globalPlugins\WordBridge\__init__.py:372
+#: addon\globalPlugins\WordBridge\__init__.py:373
+#, python-brace-format
+msgid ""
+"Sorry, an error occurred while logging into Coseeing, the details are: {e}"
+msgstr "抱歉，登录 Coseeing 时遇到了一些问题，错误详情是: {e}"
+
+#: addon\globalPlugins\WordBridge\__init__.py:240
+#, python-brace-format
+msgid ""
+"Sorry, an error occurred while decode Coseeing response, the details are: {e}"
+msgstr "抱歉，解析回复时遇到了一些问题，错误详情是: {e}"
+
+#: addon\globalPlugins\WordBridge\__init__.py:243
+#, python-brace-format
+msgid "Sorry, http 403 forbidden, the details are: {e}"
+msgstr "抱歉，HTTP 403 禁止访问，错误详情是:{e}"
+
+#: addon\globalPlugins\WordBridge\__init__.py:258
+#: addon\globalPlugins\WordBridge\__init__.py:259
+msgid "No errors in the selected text."
+msgstr "选择范围未检测出错误。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:263
+#: addon\globalPlugins\WordBridge\__init__.py:264
+msgid "The corrected text has been copied to the clipboard."
+msgstr "结果已复制到剪贴板。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:283
+msgid "Popup"
+msgstr "Popup"
+
+#: addon\globalPlugins\WordBridge\__init__.py:292
+msgid "Execute GPT typo correction for Chinese character"
+msgstr "执行GPT中文改错字"
+
+#: addon\globalPlugins\WordBridge\__init__.py:298
+#: addon\globalPlugins\WordBridge\__init__.py:301
+msgid ""
+"The function cannot be executed. Please finish the configuration and close "
+"the setting window."
+msgstr "改错字无法运行，请先结束NVDA设置窗口。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:313
+msgid "Show settings dialog of WordBridge"
+msgstr "显示Word Bridge设置对话框"
+
+#: addon\globalPlugins\WordBridge\__init__.py:325
+msgid "Show report of typos"
+msgstr "显示错字报告"
+
+#: addon\globalPlugins\WordBridge\__init__.py:330
+#: addon\globalPlugins\WordBridge\__init__.py:331
+#: addon\globalPlugins\WordBridge\__init__.py:349
+#: addon\globalPlugins\WordBridge\__init__.py:350
+msgid "No report has been generated yet."
+msgstr "尚未生成报告。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:338
+msgid "Feedback of typos"
+msgstr "反馈错字"
+
+#: addon\globalPlugins\WordBridge\__init__.py:386
+#, python-brace-format
+msgid ""
+"Sorry, an error occurred during the feedback request, the details are: {e}"
+msgstr "抱歉，反馈错字时遇到了一些问题，错误详情是: {e}"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:22
+msgid "OpenAI"
+msgstr "OpenAI"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:23
+msgid "Baidu"
+msgstr "百度"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:24
+msgid "gpt-3.5-turbo"
+msgstr "gpt-3.5-turbo"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:25
+msgid "gpt-4-turbo"
+msgstr "gpt-4-turbo"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:26
+msgid "gpt-4o"
+msgstr "gpt-4o"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:27
+msgid "ernie-4.0-8k-preview"
+msgstr "文心-4.0-8k-preview"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:28
+msgid "Standard Mode"
+msgstr "标准模式"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:29
+msgid "Lite Mode"
+msgstr "轻量模式"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:30
+msgid "Personal API Key"
+msgstr "个人API Key"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:31
+#: addon\globalPlugins\WordBridge\dialogs.py:150
+msgid "Coseeing Account"
+msgstr "Coseeing账号"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:32
+msgid "Traditional Chinese"
+msgstr "繁体中文"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:33
+msgid "Simplified Chinese"
+msgstr "简体中文"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:65
+msgid "WordBridge"
+msgstr "WordBridge"
+
+#. For selecting LLM
+#: addon\globalPlugins\WordBridge\dialogs.py:72
+msgid "Large Language Model:"
+msgstr "大语言模型:"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:78
+msgid "Choose the large language model for the Word Bridge"
+msgstr "选择Word Bridge所使用的大语言模型"
+
+#. For selecting language
+#: addon\globalPlugins\WordBridge\dialogs.py:90
+msgid "Language:"
+msgstr "语言:"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:96
+msgid "Choose the language for the Word Bridge"
+msgstr "选择Word Bridge所使用的语言"
+
+#. For selecting LLM access method
+#: addon\globalPlugins\WordBridge\dialogs.py:104
+msgid "Large Language Model Access Method:"
+msgstr "大语言模型的访问方式:"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:110
+msgid "Choose the large language model access method"
+msgstr "选择大语言模型的访问方式"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:125
+msgid " Account"
+msgstr "账号"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:130
+msgid "API Key:"
+msgstr "API Key:"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:141
+msgid "Secret Key:"
+msgstr "Secret Key:"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:153
+msgid "Username:"
+msgstr "用户名:"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:162
+msgid "Password:"
+msgstr "密码:"
+
+#. For setting upper bound of correction character count
+#: addon\globalPlugins\WordBridge\dialogs.py:180
+msgid "Max character count"
+msgstr "最大字符数"
+
+#. For setting auto display typo report
+#: addon\globalPlugins\WordBridge\dialogs.py:207
+msgid "Auto display typo report"
+msgstr "自动显示改错字报告"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:212
+msgid "Apply customized dictionary"
+msgstr "使用自定义词典"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:230
+msgid "Edit dictionary"
+msgstr "编辑词典"
+
+#. This is the label for the feedback dialog for Coseeing.
+#: addon\globalPlugins\WordBridge\dialogs.py:331
+msgid "Feedback Coseeing"
+msgstr "Coseeing意见反馈"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:337
+msgid "Request:"
+msgstr "请求:"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:344
+msgid "Response:"
+msgstr "回复:"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:351
+msgid "Feedback:"
+msgstr "意见反馈:"
+
+#: addon\globalPlugins\WordBridge\lib\coseeing.py:31
+#, python-brace-format
+msgid ""
+"Try = {try_index}, {request_error}, an error occurred when sending request to "
+"Coseeing: {e}"
+msgstr "Try = {try_index}, {request_error}, 向 Coseeing 发送请求时发生错误: {e}"
+
+#: addon\globalPlugins\WordBridge\lib\coseeing.py:41
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:193
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:340
+#, python-brace-format
+msgid "HTTP request error ({request_error}). Please check the network setting."
+msgstr "HTTP请求错误 ({request_error})，请检查网络设置。"
+
+#: addon\globalPlugins\WordBridge\lib\coseeing.py:48
+msgid "The username or password for the Coseeing account is incorrect."
+msgstr "Coseeing 账户的用户名或密码不正确。"
+
+#: addon\globalPlugins\WordBridge\lib\coseeing.py:50
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:364
+#, python-brace-format
+msgid "Unknown errors. Status code = {status_code}"
+msgstr "未知错误。状态码 = {status_code}"
+
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:198
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:349
+msgid ""
+"Authentication error. Please check if the large language model's key is "
+"correct."
+msgstr "认证错误。请检查大模型的key是否正确。"
+
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:351
+msgid "Country, region, or territory not supported."
+msgstr "该国家、区域或领土不支持该服务。"
+
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:353
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:368
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:378
+msgid ""
+"Service does not exist. Please check if the model does not exist or has "
+"expired."
+msgstr "服务不存在。请检查模型是否已到期或不存在。"
+
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:356
+msgid "Rate limit reached for requests or you exceeded your current quota. "
+msgstr "请求速率已达到上限，或您使用的次数已超过了您的配额。"
+
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:357
+msgid ""
+"Please reduce the frequency of sending requests or check your account balance."
+msgstr "请降低您发送请求的频率或检查您的账户余额。"
+
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:360
+msgid ""
+"The server had an error while processing your request, please try again later."
+msgstr "服务器在处理您的请求时发生错误，请稍后再试。"
+
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:362
+msgid "The server is currently overloaded, please try again later."
+msgstr "当前服务器超载，请稍后再试。"
+
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:370
+msgid "Service internal error, please try again later."
+msgstr "服务发生内部错误，请稍后再试。"
+
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:372
+msgid "Usage limit exceeded, please try again later."
+msgstr "使用超出限制，请稍后再试。"
+
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:374
+msgid ""
+"Please check if the API has been activated and the current account has enough "
+"money"
+msgstr "请确认模型API已启用且当前账户有足够的余额"
+
+#. Add-on summary, usually the user visible name of the addon.
+#. Translators: Summary for this add-on
+#. to be shown on installation and add-on information found in Add-ons Manager.
+#: buildVars.py:23
+msgid "Word Bridge"
+msgstr "Word Bridge"
+
+#. Add-on description
+#. Translators: Long description to be shown for this add-on on add-on information from add-ons manager
+#: buildVars.py:26
+msgid "Help fix Chinese typos to ensure the words are correct."
+msgstr "帮助改正中文错字以确保文字正确。"
