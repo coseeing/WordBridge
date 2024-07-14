@@ -9,7 +9,7 @@ msgstr ""
 "Project-Id-Version: 'WordBridge' '0.1'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
 "POT-Creation-Date: 2024-07-14 01:54+0800\n"
-"PO-Revision-Date: 2024-07-14 17:39+0800\n"
+"PO-Revision-Date: 2024-07-14 18:49+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -24,7 +24,7 @@ msgstr ""
 msgid ""
 "The number of characters is {len_text}, which exceeds the maximum, "
 "{max_char_count}."
-msgstr "原文字符數為{len_text}，超過上限{max_char_count}。"
+msgstr "原文字元數為{len_text}，超過上限{max_char_count}。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:147
 #: addon\globalPlugins\WordBridge\__init__.py:148
@@ -113,7 +113,7 @@ msgstr "回報錯字"
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred during the feedback request, the details are: {e}"
-msgstr "抱歉，回饋請求時遇到了一些問題，錯誤詳情是: {e}"
+msgstr "抱歉，回報錯字時遇到了一些問題，錯誤詳情是: {e}"
 
 #: addon\globalPlugins\WordBridge\dialogs.py:22
 msgid "OpenAI"
