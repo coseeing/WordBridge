@@ -359,7 +359,7 @@ class BaseTypoCorrector():
 			elif response.status_code == 500:
 				raise Exception(_("The server had an error while processing your request, please try again later."))
 			elif response.status_code == 503:
-				raise Exception(_("The engine is currently overloaded, please try again later."))
+				raise Exception(_("The server is currently overloaded, please try again later."))
 			else:
 				raise Exception(_("Unknown errors. Status code = {status_code}").format(status_code=response.status_code))
 
@@ -371,7 +371,7 @@ class BaseTypoCorrector():
 			elif response_json["error_code"] in [18, 336501, 336502]:
 				raise Exception(_("Usage limit exceeded, please try again later."))
 			elif response_json["error_code"] == 17:
-				raise Exception(_("Please check if the API has been activated or the current account has enough money"))
+				raise Exception(_("Please check if the API has been activated and the current account has enough money"))
 			else:
 				raise Exception(response_json["error_msg"])
 		elif self.provider == "Baidu" and not response_json["result"]:
