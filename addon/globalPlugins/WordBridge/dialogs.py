@@ -1,6 +1,7 @@
 from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
 
 import config
+import ctypes
 import glob
 import json
 import locale
@@ -36,7 +37,8 @@ LABEL_DICT = {
 	"ernie-4.0-8k-preview": _("ernie-4.0-8k-preview"),
 }
 
-if locale.getdefaultlocale()[0] in ["zh_TW", "zh_MO", "zh_HK"]:
+os_language_code = locale.windows_locale[ctypes.windll.kernel32.GetUserDefaultUILanguage()]
+if os_language_code in ["zh_TW", "zh_MO", "zh_HK"]:
 	LANGUAGE_DEFAULT = "zh_traditional"
 else:
 	LANGUAGE_DEFAULT = "zh_simplified"
