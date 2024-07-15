@@ -31,6 +31,9 @@ LABEL_DICT = {
 	"coseeing_account": _("Coseeing Account"),
 	"zh_traditional": _("Traditional Chinese"),
 	"zh_simplified": _("Simplified Chinese"),
+
+	# legacy
+	"ernie-4.0-8k-preview": _("ernie-4.0-8k-preview"),
 }
 
 if locale.getdefaultlocale()[0] in ["zh_TW", "zh_MO", "zh_HK"]:
