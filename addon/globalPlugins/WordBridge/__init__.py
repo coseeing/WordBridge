@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import shutil
@@ -154,6 +155,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		return True
 
+	def readDictionary(self):
+		with open(os.path.join(PATH, "dictionary", "data.csv"), newline='') as csvfile:
+			reader = csv.DictReader(csvfile)
+			word_list = list(reader)
+		return word_list
+
 	def isNVDASettingsDialogCreate(self):
 		create_state = gui.settingsDialogs.NVDASettingsDialog.DialogState.CREATED
 		for dlg, state in gui.settingsDialogs.NVDASettingsDialog._instances.items():
@@ -179,7 +186,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		optional_guidance_enable = corrector_config["model"]["optional_guidance_enable"]
 		language = config.conf["WordBridge"]["settings"]["language"]
 		if config.conf["WordBridge"]["settings"]["customized_words_enable"]:
-			customized_words = [word.strip() for word in config.conf["WordBridge"]["settings"]["customized_words"].split("\n")]
+			customized_words = [row["text"] for row in self.readDictionary()]
 		else:
 			customized_words = []
 		if config.conf["WordBridge"]["settings"]["llm_access_method"] == "personal_api_key":
