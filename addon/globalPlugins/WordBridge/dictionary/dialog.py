@@ -144,9 +144,9 @@ class DictionaryEntryDialog(SettingsDialog):
 			# Do case-insensitive matching by lowering both filterText and each symbols's text.
 			filterText = filterText.lower()
 			self.filteredWords = [
-				symbol
-				for symbol in self.words
-				if filterText in symbol.displayName.lower() or filterText in symbol.replacement.lower()
+				word
+				for word in self.words
+				if filterText in word.text.lower() or filterText in word.pronunciation.lower()
 			]
 		self.wordsList.ItemCount = len(self.filteredWords)
 
@@ -155,7 +155,6 @@ class DictionaryEntryDialog(SettingsDialog):
 			self.editingItem = None
 			# disable the "change symbol" controls, since there are no items in the list.
 			self.pronunciationEdit.Disable()
-			self.preserveList.Disable()
 			self.removeButton.Disable()
 			return  # exit early, no need to select an item.
 
