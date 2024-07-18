@@ -106,6 +106,14 @@ class DictionaryEntryDialog(SettingsDialog):
 			return wrapWithEventSkip
 
 		# Translators: The label for the edit field in dialog to change the pronunciation text of a word.
+		wordText = _("&Word")
+		self.wordEdit = changeWordHelper.addLabeledControl(
+			labelText=wordText,
+			wxCtrlClass=wx.TextCtrl,
+			size=(self.scaleSize(300), -1),
+		)
+		self.wordEdit.Bind(wx.EVT_TEXT, skipEventAndCall(self.onWordEdited))
+
 		pronunciationText = _("&Pronunciation")
 		self.pronunciationEdit = changeWordHelper.addLabeledControl(
 			labelText=pronunciationText,
@@ -186,6 +194,7 @@ class DictionaryEntryDialog(SettingsDialog):
 			# Update the symbol the user was just editing.
 			item = self.editingItem
 			word = self.filteredWords[item]
+			word.text = self.wordEdit.Value
 			word.pronunciation = self.pronunciationEdit.Value
 
 	def onListItemFocused(self, evt):
@@ -194,6 +203,7 @@ class DictionaryEntryDialog(SettingsDialog):
 		word = self.filteredWords[item]
 		self.editingItem = item
 		# ChangeValue and Selection property used because they do not cause EVNT_CHANGED to be fired.
+		self.wordEdit.ChangeValue(word.text)
 		self.pronunciationEdit.ChangeValue(word.pronunciation)
 
 		self.removeButton.Enabled = True
