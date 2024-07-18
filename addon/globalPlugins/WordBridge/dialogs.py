@@ -252,7 +252,6 @@ class LLMSettingsPanel(SettingsPanel):
 		self.onPanelActivated()
 		self._sendLayoutUpdatedEvent()
 		self._enableAccessElements(LLM_ACCESS_METHOD_VALUES[self.methodList.GetSelection()])
-		self._enableWordTextctrl()
 		self.Thaw()
 
 	def _enableAccessElements(self, llm_access_method):
