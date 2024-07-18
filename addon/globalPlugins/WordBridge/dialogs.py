@@ -217,17 +217,6 @@ class LLMSettingsPanel(SettingsPanel):
 			wx.CheckBox(self, label=_("Apply customized dictionary"))
 		)
 		self.customizedWordEnable.SetValue(config.conf["WordBridge"]["settings"]["customized_words_enable"])
-		self.wordTextCtrl = settingsSizerHelper.addItem(
-			wx.TextCtrl(
-				self,
-				size=(self.scaleSize(375), self.scaleSize(100)),
-				value=config.conf["WordBridge"]["settings"]["customized_words"],
-				style=wx.TE_MULTILINE,
-			)
-		)
-		self.customizedWordEnable.Bind(wx.EVT_CHECKBOX, self.onChangeChoice)
-		self.wordTextCtrl.Bind(wx.EVT_CHAR_HOOK, self.onKeyPress)
-		self._enableWordTextctrl()
 
 		self.wordDictionaryCtrl = settingsSizerHelper.addItem(
 			wx.Button(
@@ -241,15 +230,6 @@ class LLMSettingsPanel(SettingsPanel):
 
 	def onEditDictionary(self, event):
 		gui.mainFrame.popupSettingsDialog(DictionaryEntryDialog)
-
-	def onKeyPress(self, event):
-		keycode = event.GetKeyCode()
-		if keycode == wx.WXK_TAB:
-			self.Navigate()
-		elif keycode == wx.WXK_RETURN:
-			self.wordTextCtrl.WriteText('\n')
-		else:
-			event.Skip()
 
 	def onSave(self):
 		model_index = self.modelList.GetSelection()
@@ -265,7 +245,6 @@ class LLMSettingsPanel(SettingsPanel):
 		config.conf["WordBridge"]["settings"]["max_char_count"] = self.maxCharCount.GetValue()
 		config.conf["WordBridge"]["settings"]["auto_display_report"] = self.autoDisplayReport.GetValue()
 		config.conf["WordBridge"]["settings"]["customized_words_enable"] = self.customizedWordEnable.GetValue()
-		config.conf["WordBridge"]["settings"]["customized_words"] = self.wordTextCtrl.GetValue()
 
 	def onChangeChoice(self, evt):
 		self.Freeze()
@@ -275,12 +254,6 @@ class LLMSettingsPanel(SettingsPanel):
 		self._enableAccessElements(LLM_ACCESS_METHOD_VALUES[self.methodList.GetSelection()])
 		self._enableWordTextctrl()
 		self.Thaw()
-
-	def _enableWordTextctrl(self):
-		if self.customizedWordEnable.GetValue():
-			self.wordTextCtrl.Enable()
-		else:
-			self.wordTextCtrl.Disable()
 
 	def _enableAccessElements(self, llm_access_method):
 		if llm_access_method == "personal_api_key":
