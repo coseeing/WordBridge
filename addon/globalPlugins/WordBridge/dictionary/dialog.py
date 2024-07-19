@@ -131,16 +131,16 @@ class DictionaryEntryDialog(SettingsDialog):
 		sizer.Add(self.wordTextLabel, pos=(0, 0), flag=wx.LEFT, border=10)
 		self.wordEdit = wx.TextCtrl(
 			modifyPanel,
-			size=(self.scaleSize(300), -1),
+			size=(self.scaleSize(250), -1),
 		)
 		self.wordEdit.Bind(wx.EVT_TEXT, skipEventAndCall(self.onWordEdited))
 		sizer.Add(self.wordEdit, pos=(0, 1))
 
-		self.pronunciationTextxtLabel = wx.StaticText(modifyPanel, label=_("&Pronunciation (Pinyin or Zhuyin):"))
+		self.pronunciationTextxtLabel = wx.StaticText(modifyPanel, label=_("&Pronunciation (Pinyin or Zhuyin): "))
 		sizer.Add(self.pronunciationTextxtLabel, pos=(1, 0), flag=wx.LEFT, border=10)
 		self.pronunciationEdit = wx.TextCtrl(
 			modifyPanel,
-			size=(self.scaleSize(300), -1),
+			size=(self.scaleSize(250), -1),
 		)
 		self.pronunciationEdit.Bind(wx.EVT_TEXT, skipEventAndCall(self.onWordEdited))
 		sizer.Add(self.pronunciationEdit, pos=(1, 1))
