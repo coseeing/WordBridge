@@ -26,15 +26,33 @@ class AddDictionaryEntryDialog(
 		sHelper = guiHelper.BoxSizerHelper(self, orientation=wx.VERTICAL)
 
 		# Translators: This is the label for the edit field in the add symbol dialog.
-		symbolText = _("&Word:")
-		self.identifierTextCtrl = sHelper.addLabeledControl(symbolText, wx.TextCtrl)
+		addPanel = wx.Panel(self)
+		sizer = wx.GridBagSizer(2, 2)
+
+		addWordTextLabel = wx.StaticText(addPanel, label=_("Selected &Word:"))
+		sizer.Add(addWordTextLabel, pos=(0, 0), flag=wx.LEFT, border=10)
+		self.addWordEdit = wx.TextCtrl(
+			addPanel,
+		)
+		sizer.Add(self.addWordEdit, pos=(0, 1))
+
+		self.pronunciationTextxtLabel = wx.StaticText(addPanel, label=_("&Pronunciation (Pinyin or Zhuyin):"))
+		sizer.Add(self.pronunciationTextxtLabel, pos=(1, 0), flag=wx.LEFT, border=10)
+		self.addPronunciationEdit = wx.TextCtrl(
+			addPanel,
+		)
+		sizer.Add(self.addPronunciationEdit, pos=(1, 1))
+
+		addPanel.SetSizer(sizer)
+		sizer.Fit(self)
+		sHelper.addItem(addPanel)
 
 		sHelper.addDialogDismissButtons(self.CreateButtonSizer(wx.OK | wx.CANCEL))
 
 		mainSizer.Add(sHelper.sizer, border=guiHelper.BORDER_FOR_DIALOGS, flag=wx.ALL)
 		mainSizer.Fit(self)
 		self.SetSizer(mainSizer)
-		self.identifierTextCtrl.SetFocus()
+		self.addWordEdit.SetFocus()
 		self.CentreOnScreen()
 
 
@@ -223,7 +241,8 @@ class DictionaryEntryDialog(SettingsDialog):
 		with AddDictionaryEntryDialog(self) as entryDialog:
 			if entryDialog.ShowModal() != wx.ID_OK:
 				return
-			text = entryDialog.identifierTextCtrl.GetValue()
+			text = entryDialog.addWordEdit.GetValue()
+			pronunciation = entryDialog.addPronunciationEdit.GetValue()
 			if not text:
 				return
 		# Clean the filter, so we can select the new entry.
@@ -243,12 +262,11 @@ class DictionaryEntryDialog(SettingsDialog):
 				self.wordsList.Focus(index)
 				self.wordsList.SetFocus()
 				return
-		addedWord = Word(text)
+		addedWord = Word(text, pronunciation)
 		try:
 			del self.pendingRemovals[text]
 		except KeyError:
 			pass
-		addedWord.pronunciation = ""
 		self.words.append(addedWord)
 		self.wordsList.ItemCount = len(self.words)
 		index = self.wordsList.ItemCount - 1
