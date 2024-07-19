@@ -101,7 +101,7 @@ class DictionaryEntryDialog(SettingsDialog):
 		# Translators: The label for a column in symbols list used to identify a word.
 		self.wordsList.AppendColumn(_("Word"), width=self.scaleSize(150))
 		# Translators: The label for a column in symbols list used to identify a pronunciation.
-		self.wordsList.AppendColumn(_("Pronunciation"))
+		self.wordsList.AppendColumn(_("Pronunciation (Pinyin or Zhuyin)"))
 
 		self.wordsList.Bind(wx.EVT_LIST_ITEM_FOCUSED, self.onListItemFocused)
 
