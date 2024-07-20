@@ -7,6 +7,27 @@ import csv
 import os
 
 
+GUIDELINE_TEXT = _(
+"""Guideline:
+Users can add words to improve the accuracy of added terms. It is recommended to add specialized terms that may not be present in the model's training data or terms that the model frequently make mistakes. The zhuyin or pinyin of an added word is optional, but providing it can help improve correctness. 
+
+For the format of pinyin and zhuyin, please see the following rules and examples
+1. Please insert a space between words
+2. Please use v instead of ü for pinyin
+3. Please use number for pinyin's tone (no number for neutral tone)
+
+Example1:
+Word: 爸爸
+Pinyin: ba4 ba
+Zhuyin: ㄅㄚˋ ㄅㄚ˙
+
+Example2:
+Word: 旅遊
+Pinyin: lv3 you2
+Zhuyin: ㄌㄩˇ ㄧㄡˊ"""
+)
+
+
 class Word:
 	def __init__(self, text, pronunciation=""):
 		self.text = text
@@ -88,6 +109,14 @@ class DictionaryEntryDialog(SettingsDialog):
 		)
 		self.filterEdit.Bind(wx.EVT_TEXT, self.onFilterEditTextChange)
 
+		sHelper.addItem(
+			wx.StaticText(
+				self,
+				label=_("User can add words to improve the accuracy of these terms.\n") +\
+						_("Please press Help button for more details.")
+			)
+		)
+
 		# Translators: The label for symbols list in symbol pronunciation dialog.
 		wordsText = _("&Words")
 		self.wordsList = sHelper.addLabeledControl(
@@ -157,8 +186,11 @@ class DictionaryEntryDialog(SettingsDialog):
 		self.removeButton = bHelper.addButton(self, label=_("Re&move"))
 		self.removeButton.Disable()
 
+		self.helpButton = bHelper.addButton(self, label=_("&Help"))
+
 		addButton.Bind(wx.EVT_BUTTON, self.OnAddClick)
 		self.removeButton.Bind(wx.EVT_BUTTON, self.OnRemoveClick)
+		self.helpButton.Bind(wx.EVT_BUTTON, self.OnHelpClick)
 
 		# Populate the unfiltered list with symbols.
 		self.filter()
@@ -297,6 +329,22 @@ class DictionaryEntryDialog(SettingsDialog):
 			# We don't get a new focus event with the new index.
 			self.wordsList.sendListItemFocusedEvent(index)
 		self.wordsList.SetFocus()
+
+	def OnHelpClick(self, evt):
+		dialog = wx.Dialog(self, title="Guideline for Adding Words", size=(1200, 900))
+		dialogSizer = wx.BoxSizer(wx.VERTICAL)
+
+		textctrl = wx.TextCtrl(dialog, value=GUIDELINE_TEXT, style=wx.TE_MULTILINE | wx.TE_READONLY)
+
+		dialogSizer.Add(textctrl, 1, wx.ALL | wx.EXPAND, 10)
+		dialog.SetSizer(dialogSizer)
+
+		closeButton = wx.Button(dialog, label=_("Close"))
+		closeButton.Bind(wx.EVT_BUTTON, lambda event: dialog.EndModal(wx.ID_OK))
+		dialogSizer.Add(closeButton, 0, wx.ALL | wx.CENTER, 10)
+
+		dialog.ShowModal()
+		dialog.SetFocus()
 
 	def onOk(self, evt):
 		self.onWordEdited()
