@@ -1,0 +1,15 @@
+{
+	"model": {
+		"model_name": "gpt-4o-mini",
+		"provider": "OpenAI",
+		"require_secret_key": false,
+		"template_name": "Standard_v1.json",
+		"optional_guidance_enable": {
+			"keep_non_chinese_char": true,
+			"no_explanation": false
+		}
+	},
+	"typo_corrector": {
+		"typo_correction_mode": "Standard Mode"
+	}
+}
