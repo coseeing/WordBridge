@@ -11,10 +11,10 @@ addonHandler.initTranslation()
 
 GUIDELINE_TEXT = _(
 """Guideline:
-Users can add words to improve the accuracy of added terms. It is recommended to add specialized terms that may not be present in the model's training data or terms that the model frequently make mistakes. The zhuyin or pinyin of an added word is optional, but providing it can help improve correctness. 
+Users can add words to improve the accuracy of added terms. It is recommended to add specialized terms that may not be present in the model's training data or terms that the model frequently make mistakes. The pronunciation (pinyin or zhuyin) of an added word is optional, but providing it can help improve correctness.
 
-For the format of pinyin and zhuyin, please see the following rules and examples
-1. Please insert a space between words
+For the format of pronunciation (pinyin or zhuyin), please see the following rules and examples
+1. Please insert a space between pronunciation of characters
 2. Please use v instead of ü for pinyin
 3. Please use number for pinyin's tone (no number for neutral tone)
 
@@ -44,7 +44,7 @@ class AddDictionaryEntryDialog(
 
 	def __init__(self, parent):
 		# Translators: This is the label for the add symbol dialog.
-		super().__init__(parent, title=_("Add Entry"))
+		super().__init__(parent, title=_("Add a New Word"))
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
 		sHelper = guiHelper.BoxSizerHelper(self, orientation=wx.VERTICAL)
 
@@ -137,7 +137,7 @@ class DictionaryEntryDialog(SettingsDialog):
 		self.wordsList.Bind(wx.EVT_LIST_ITEM_FOCUSED, self.onListItemFocused)
 
 		# Translators: The label for the group of controls in symbol pronunciation dialog to change the pronunciation of a word.
-		changeWordText = _("Change selected word")
+		changeWordText = _("Edit selected word and its pronunciation (pinyin or zhuyin)")
 		changeWordSizer = wx.StaticBoxSizer(wx.VERTICAL, self, label=changeWordText)
 		changeWordGroup = guiHelper.BoxSizerHelper(self, sizer=changeWordSizer)
 		changeWordHelper = sHelper.addItem(changeWordGroup)
