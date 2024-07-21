@@ -9,7 +9,7 @@ msgstr ""
 "Project-Id-Version: 'WordBridge' '0.1'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
 "POT-Creation-Date: 2024-07-14 01:54+0800\n"
-"PO-Revision-Date: 2024-07-14 20:41+0800\n"
+"PO-Revision-Date: 2024-07-21 23:05+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -22,8 +22,7 @@ msgstr ""
 #: addon\globalPlugins\WordBridge\__init__.py:140
 #, python-brace-format
 msgid ""
-"The number of characters is {len_text}, which exceeds the maximum, "
-"{max_char_count}."
+"The number of characters is {len_text}, which exceeds the maximum, {max_char_count}."
 msgstr "原文字符数为{len_text}，超过上限{max_char_count}。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:147
@@ -33,16 +32,14 @@ msgstr "未选择任何文字，无法分析。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:151
 #: addon\globalPlugins\WordBridge\__init__.py:152
-msgid ""
-"The selected text does not contain Chinese characters, unable to analyze."
+msgid "The selected text does not contain Chinese characters, unable to analyze."
 msgstr "选择范围不含汉字，无法分析。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:211
 #: addon\globalPlugins\WordBridge\__init__.py:212
 #: addon\globalPlugins\WordBridge\__init__.py:387
 #, python-brace-format
-msgid ""
-"Sorry, an error occurred during the program execution, the details are: {e}"
+msgid "Sorry, an error occurred during the program execution, the details are: {e}"
 msgstr "抱歉，程序运行中遇到了一些问题，错误详情是: {e}"
 
 #: addon\globalPlugins\WordBridge\__init__.py:224
@@ -50,14 +47,12 @@ msgstr "抱歉，程序运行中遇到了一些问题，错误详情是: {e}"
 #: addon\globalPlugins\WordBridge\__init__.py:372
 #: addon\globalPlugins\WordBridge\__init__.py:373
 #, python-brace-format
-msgid ""
-"Sorry, an error occurred while logging into Coseeing, the details are: {e}"
+msgid "Sorry, an error occurred while logging into Coseeing, the details are: {e}"
 msgstr "抱歉，登录 Coseeing 时遇到了一些问题，错误详情是: {e}"
 
 #: addon\globalPlugins\WordBridge\__init__.py:240
 #, python-brace-format
-msgid ""
-"Sorry, an error occurred while decode Coseeing response, the details are: {e}"
+msgid "Sorry, an error occurred while decode Coseeing response, the details are: {e}"
 msgstr "抱歉，解析回复时遇到了一些问题，错误详情是: {e}"
 
 #: addon\globalPlugins\WordBridge\__init__.py:243
@@ -86,8 +81,8 @@ msgstr "执行GPT中文改错字"
 #: addon\globalPlugins\WordBridge\__init__.py:298
 #: addon\globalPlugins\WordBridge\__init__.py:301
 msgid ""
-"The function cannot be executed. Please finish the configuration and close "
-"the setting window."
+"The function cannot be executed. Please finish the configuration and close the setting "
+"window."
 msgstr "改错字无法运行，请先结束NVDA设置窗口。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:313
@@ -111,8 +106,7 @@ msgstr "反馈错字"
 
 #: addon\globalPlugins\WordBridge\__init__.py:386
 #, python-brace-format
-msgid ""
-"Sorry, an error occurred during the feedback request, the details are: {e}"
+msgid "Sorry, an error occurred during the feedback request, the details are: {e}"
 msgstr "抱歉，反馈错字时遇到了一些问题，错误详情是: {e}"
 
 #: addon\globalPlugins\WordBridge\dialogs.py:22
@@ -276,9 +270,7 @@ msgstr "未知错误。状态码 = {status_code}"
 
 #: addon\globalPlugins\WordBridge\lib\typo_corrector.py:198
 #: addon\globalPlugins\WordBridge\lib\typo_corrector.py:349
-msgid ""
-"Authentication error. Please check if the large language model's key is "
-"correct."
+msgid "Authentication error. Please check if the large language model's key is correct."
 msgstr "认证错误。请检查大模型的key是否正确。"
 
 #: addon\globalPlugins\WordBridge\lib\typo_corrector.py:351
@@ -288,9 +280,7 @@ msgstr "该国家、区域或领土不支持该服务。"
 #: addon\globalPlugins\WordBridge\lib\typo_corrector.py:353
 #: addon\globalPlugins\WordBridge\lib\typo_corrector.py:368
 #: addon\globalPlugins\WordBridge\lib\typo_corrector.py:378
-msgid ""
-"Service does not exist. Please check if the model does not exist or has "
-"expired."
+msgid "Service does not exist. Please check if the model does not exist or has expired."
 msgstr "服务不存在。请检查模型是否已到期或不存在。"
 
 #: addon\globalPlugins\WordBridge\lib\typo_corrector.py:356
@@ -298,13 +288,11 @@ msgid "Rate limit reached for requests or you exceeded your current quota. "
 msgstr "请求速率已达到上限，或您使用的次数已超过了您的配额。"
 
 #: addon\globalPlugins\WordBridge\lib\typo_corrector.py:357
-msgid ""
-"Please reduce the frequency of sending requests or check your account balance."
+msgid "Please reduce the frequency of sending requests or check your account balance."
 msgstr "请降低您发送请求的频率或检查您的账户余额。"
 
 #: addon\globalPlugins\WordBridge\lib\typo_corrector.py:360
-msgid ""
-"The server had an error while processing your request, please try again later."
+msgid "The server had an error while processing your request, please try again later."
 msgstr "服务器在处理您的请求时发生错误，请稍后再试。"
 
 #: addon\globalPlugins\WordBridge\lib\typo_corrector.py:362
@@ -321,9 +309,139 @@ msgstr "使用超出限制，请稍后再试。"
 
 #: addon\globalPlugins\WordBridge\lib\typo_corrector.py:374
 msgid ""
-"Please check if the API has been activated and the current account has enough "
-"money"
+"Please check if the API has been activated and the current account has enough money"
 msgstr "请确认模型API已启用且当前账户有足够的余额"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:13
+msgid ""
+"Guideline:\n"
+"Users can add words to improve the accuracy of added terms. It is recommended to add "
+"specialized terms that may not be present in the model's training data or terms that "
+"the model frequently make mistakes. The pronunciation (pinyin or zhuyin) of an added "
+"word is optional, but providing it can help improve correctness.\n"
+"\n"
+"For the format of pronunciation (pinyin or zhuyin), please see the following rules and "
+"examples\n"
+"1. Please insert a space between pronunciation of characters\n"
+"2. Please use v instead of ü for pinyin\n"
+"3. Please use number for pinyin's tone (no number for neutral tone)\n"
+"\n"
+"Example1:\n"
+"Word: 爸爸\n"
+"Pinyin: ba4 ba\n"
+"Zhuyin: ㄅㄚˋ ㄅㄚ˙\n"
+"\n"
+"Example2:\n"
+"Word: 旅遊\n"
+"Pinyin: lv3 you2\n"
+"Zhuyin: ㄌㄩˇ ㄧㄡˊ"
+msgstr ""
+"说明：\n"
+"用户可以添加词汇来提高这些词汇的准确性。建议添加可能不在模型训练数据中的专有名词或模型"
+"经常出错的词汇。词汇的发音（拼音或注音）可填可不填，但提供它可以帮助提高正确性。\n"
+"\n"
+"关于发音（拼音或注音）的格式，请参见以下规则和范例：\n"
+"1. 请在每个字的发音（拼音或注音）之间插入空格\n"
+"2. 拼音中的ü请用v代替\n"
+"3. 拼音的声调请使用数字（轻声不标数字）\n"
+"\n"
+"范例1：\n"
+"词汇：爸爸\n"
+"拼音：ba4 ba\n"
+"注音：ㄅㄚˋ ㄅㄚ˙\n"
+"\n"
+"范例2：\n"
+"词汇：旅游\n"
+"拼音：lv3 you2\n"
+"注音：ㄌㄩˇ ㄧㄡˊ"
+
+#. Translators: This is the label for the add symbol dialog.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:47
+msgid "Add a New Word"
+msgstr "新增词汇"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:55
+msgid "&Word:"
+msgstr "词汇:"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:161
+msgid "Selected &Word:"
+msgstr "选取的词汇:"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:62
+msgid "&Pronunciation (Pinyin or Zhuyin):"
+msgstr "发音(拼音或注音):"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:94
+msgid "WordBridge Dictionary"
+msgstr "WordBridge 词典"
+
+#. Translators: The label of a text field to search for symbols in the speech symbols dialog.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:106
+msgid "&Filter by:"
+msgstr "筛选词汇:"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:117
+msgid "User can add words to improve the accuracy of these terms.\n"
+msgstr "用户可通过添加词汇来提高这些词汇的准确性。\n"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:118
+msgid "Please press Help button for more details."
+msgstr "请按下面说明键以了解详细信息。"
+
+#. Translators: The label for symbols list in symbol pronunciation dialog.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:123
+msgid "&Words"
+msgstr "词汇"
+
+#. Translators: The label for a column in symbols list used to identify a word.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:133
+msgid "Word"
+msgstr "词汇"
+
+#. Translators: The label for a column in symbols list used to identify a pronunciation.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:135
+msgid "Pronunciation (Pinyin or Zhuyin)"
+msgstr "拼音或注音"
+
+#. Translators: The label for the group of controls in symbol pronunciation dialog to change the pronunciation of a word.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:140
+msgid "Edit selected word and its pronunciation (pinyin or zhuyin)"
+msgstr "编辑选取词汇与其发音(拼音或注音)"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:170
+msgid "&Pronunciation (Pinyin or Zhuyin): "
+msgstr "发音(拼音或注音):"
+
+#. Translators: The label for a button in the Symbol Pronunciation dialog to add a new symbol.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:185
+msgid "&Add"
+msgstr ""
+
+#. Translators: The label for a button in the Symbol Pronunciation dialog to remove a symbol.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:188
+msgid "Re&move"
+msgstr ""
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:191
+msgid "&Help"
+msgstr ""
+
+#. Translators: An error reported in the Symbol Pronunciation dialog
+#. when adding a symbol that is already present.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:290
+#, python-format
+msgid "Word \"%s\" is already present."
+msgstr "词汇 \"%s\" 已经存在。"
+
+#. Translators: title of an error message
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:292
+msgid "Error"
+msgstr "错误"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:344
+msgid "Close"
+msgstr ""
 
 #. Add-on summary, usually the user visible name of the addon.
 #. Translators: Summary for this add-on

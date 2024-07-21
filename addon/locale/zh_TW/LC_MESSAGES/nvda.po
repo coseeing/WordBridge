@@ -9,7 +9,7 @@ msgstr ""
 "Project-Id-Version: 'WordBridge' '0.1'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
 "POT-Creation-Date: 2024-07-14 01:54+0800\n"
-"PO-Revision-Date: 2024-07-21 22:35+0800\n"
+"PO-Revision-Date: 2024-07-21 23:05+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -338,10 +338,10 @@ msgid ""
 msgstr ""
 "說明：\n"
 "用戶可以添加詞彙來提高這些詞彙的準確性。建議添加可能不在模型訓練數據中的專有名詞或模型"
-"經常出錯的詞彙。詞彙的發音(拼音和注音)可填可不填，但提供它可以幫助提高正確性。\n"
+"經常出錯的詞彙。詞彙的發音(拼音或注音)可填可不填，但提供它可以幫助提高正確性。\n"
 "\n"
-"關於發音(拼音和注音)的格式，請參見以下規則和範例：\n"
-"1. 請在每個字的發音(拼音和注音)之間插入空格\n"
+"關於發音(拼音或注音)的格式，請參見以下規則和範例：\n"
+"1. 請在每個字的發音(拼音或注音)之間插入空格\n"
 "2. 拼音中的ü請用v代替\n"
 "3. 拼音的聲調請使用數字(輕聲不標數字)\n"
 "\n"
@@ -383,7 +383,7 @@ msgstr "篩選詞彙:"
 
 #: addon\globalPlugins\WordBridge\dictionary\dialog.py:117
 msgid "User can add words to improve the accuracy of these terms.\n"
-msgstr "使用者可藉由添加詞彙以提高這些詞彙的準確性\n"
+msgstr "使用者可藉由添加詞彙以提高這些詞彙的準確性。\n"
 
 #: addon\globalPlugins\WordBridge\dictionary\dialog.py:118
 msgid "Please press Help button for more details."
@@ -407,7 +407,7 @@ msgstr "拼音或注音"
 #. Translators: The label for the group of controls in symbol pronunciation dialog to change the pronunciation of a word.
 #: addon\globalPlugins\WordBridge\dictionary\dialog.py:140
 msgid "Edit selected word and its pronunciation (pinyin or zhuyin)"
-msgstr "編輯選取詞彙與發音(拼音和注音)"
+msgstr "編輯選取詞彙與其發音(拼音或注音)"
 
 #: addon\globalPlugins\WordBridge\dictionary\dialog.py:170
 msgid "&Pronunciation (Pinyin or Zhuyin): "
