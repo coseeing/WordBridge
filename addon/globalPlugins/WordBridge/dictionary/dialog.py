@@ -2,9 +2,32 @@ import gui
 from gui import guiHelper, nvdaControls
 from gui.settingsDialogs import SettingsDialog
 import wx
-
+import addonHandler
 import csv
 import os
+
+
+addonHandler.initTranslation()
+
+GUIDELINE_TEXT = _(
+"""Guideline:
+Users can add words to improve the accuracy of added terms. It is recommended to add specialized terms that may not be present in the model's training data or terms that the model frequently make mistakes. The pronunciation (pinyin or zhuyin) of an added word is optional, but providing it can help improve correctness.
+
+For the format of pronunciation (pinyin or zhuyin), please see the following rules and examples
+1. Please insert a space between pronunciation of characters
+2. Please use v instead of ü for pinyin
+3. Please use number for pinyin's tone (no number for neutral tone)
+
+Example1:
+Word: 爸爸
+Pinyin: ba4 ba
+Zhuyin: ㄅㄚˋ ㄅㄚ˙
+
+Example2:
+Word: 旅遊
+Pinyin: lv3 you2
+Zhuyin: ㄌㄩˇ ㄧㄡˊ"""
+)
 
 
 class Word:
@@ -21,20 +44,38 @@ class AddDictionaryEntryDialog(
 
 	def __init__(self, parent):
 		# Translators: This is the label for the add symbol dialog.
-		super().__init__(parent, title=_("Add Entry"))
+		super().__init__(parent, title=_("Add a New Word"))
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
 		sHelper = guiHelper.BoxSizerHelper(self, orientation=wx.VERTICAL)
 
 		# Translators: This is the label for the edit field in the add symbol dialog.
-		symbolText = _("&Word:")
-		self.identifierTextCtrl = sHelper.addLabeledControl(symbolText, wx.TextCtrl)
+		addPanel = wx.Panel(self)
+		sizer = wx.GridBagSizer(2, 2)
+
+		addWordTextLabel = wx.StaticText(addPanel, label=_("&Word:"))
+		sizer.Add(addWordTextLabel, pos=(0, 0), flag=wx.LEFT, border=10)
+		self.addWordEdit = wx.TextCtrl(
+			addPanel,
+		)
+		sizer.Add(self.addWordEdit, pos=(0, 1))
+
+		self.pronunciationTextxtLabel = wx.StaticText(addPanel, label=_("&Pronunciation (Pinyin or Zhuyin):"))
+		sizer.Add(self.pronunciationTextxtLabel, pos=(1, 0), flag=wx.LEFT, border=10)
+		self.addPronunciationEdit = wx.TextCtrl(
+			addPanel,
+		)
+		sizer.Add(self.addPronunciationEdit, pos=(1, 1))
+
+		addPanel.SetSizer(sizer)
+		sizer.Fit(self)
+		sHelper.addItem(addPanel)
 
 		sHelper.addDialogDismissButtons(self.CreateButtonSizer(wx.OK | wx.CANCEL))
 
 		mainSizer.Add(sHelper.sizer, border=guiHelper.BORDER_FOR_DIALOGS, flag=wx.ALL)
 		mainSizer.Fit(self)
 		self.SetSizer(mainSizer)
-		self.identifierTextCtrl.SetFocus()
+		self.addWordEdit.SetFocus()
 		self.CentreOnScreen()
 
 
@@ -70,6 +111,14 @@ class DictionaryEntryDialog(SettingsDialog):
 		)
 		self.filterEdit.Bind(wx.EVT_TEXT, self.onFilterEditTextChange)
 
+		sHelper.addItem(
+			wx.StaticText(
+				self,
+				label=_("User can add words to improve the accuracy of these terms.\n") +\
+						_("Please press Help button for more details.")
+			)
+		)
+
 		# Translators: The label for symbols list in symbol pronunciation dialog.
 		wordsText = _("&Words")
 		self.wordsList = sHelper.addLabeledControl(
@@ -83,12 +132,12 @@ class DictionaryEntryDialog(SettingsDialog):
 		# Translators: The label for a column in symbols list used to identify a word.
 		self.wordsList.AppendColumn(_("Word"), width=self.scaleSize(150))
 		# Translators: The label for a column in symbols list used to identify a pronunciation.
-		self.wordsList.AppendColumn(_("Pronunciation"))
+		self.wordsList.AppendColumn(_("Pronunciation (Pinyin or Zhuyin)"))
 
 		self.wordsList.Bind(wx.EVT_LIST_ITEM_FOCUSED, self.onListItemFocused)
 
 		# Translators: The label for the group of controls in symbol pronunciation dialog to change the pronunciation of a word.
-		changeWordText = _("Change selected word")
+		changeWordText = _("Edit selected word and its pronunciation (pinyin or zhuyin)")
 		changeWordSizer = wx.StaticBoxSizer(wx.VERTICAL, self, label=changeWordText)
 		changeWordGroup = guiHelper.BoxSizerHelper(self, sizer=changeWordSizer)
 		changeWordHelper = sHelper.addItem(changeWordGroup)
@@ -106,13 +155,30 @@ class DictionaryEntryDialog(SettingsDialog):
 			return wrapWithEventSkip
 
 		# Translators: The label for the edit field in dialog to change the pronunciation text of a word.
-		pronunciationText = _("&Pronunciation")
-		self.pronunciationEdit = changeWordHelper.addLabeledControl(
-			labelText=pronunciationText,
-			wxCtrlClass=wx.TextCtrl,
-			size=(self.scaleSize(300), -1),
+		modifyPanel = wx.Panel(self)
+		sizer = wx.GridBagSizer(2, 2)
+
+		self.wordTextLabel = wx.StaticText(modifyPanel, label=_("Selected &Word:"))
+		sizer.Add(self.wordTextLabel, pos=(0, 0), flag=wx.LEFT, border=10)
+		self.wordEdit = wx.TextCtrl(
+			modifyPanel,
+			size=(self.scaleSize(250), -1),
+		)
+		self.wordEdit.Bind(wx.EVT_TEXT, skipEventAndCall(self.onWordEdited))
+		sizer.Add(self.wordEdit, pos=(0, 1))
+
+		self.pronunciationTextxtLabel = wx.StaticText(modifyPanel, label=_("&Pronunciation (Pinyin or Zhuyin): "))
+		sizer.Add(self.pronunciationTextxtLabel, pos=(1, 0), flag=wx.LEFT, border=10)
+		self.pronunciationEdit = wx.TextCtrl(
+			modifyPanel,
+			size=(self.scaleSize(250), -1),
 		)
 		self.pronunciationEdit.Bind(wx.EVT_TEXT, skipEventAndCall(self.onWordEdited))
+		sizer.Add(self.pronunciationEdit, pos=(1, 1))
+
+		modifyPanel.SetSizer(sizer)
+		sizer.Fit(self)
+		changeWordHelper.addItem(modifyPanel)
 
 		bHelper = sHelper.addItem(guiHelper.ButtonHelper(orientation=wx.HORIZONTAL))
 		# Translators: The label for a button in the Symbol Pronunciation dialog to add a new symbol.
@@ -122,8 +188,11 @@ class DictionaryEntryDialog(SettingsDialog):
 		self.removeButton = bHelper.addButton(self, label=_("Re&move"))
 		self.removeButton.Disable()
 
+		self.helpButton = bHelper.addButton(self, label=_("&Help"))
+
 		addButton.Bind(wx.EVT_BUTTON, self.OnAddClick)
 		self.removeButton.Bind(wx.EVT_BUTTON, self.OnRemoveClick)
+		self.helpButton.Bind(wx.EVT_BUTTON, self.OnHelpClick)
 
 		# Populate the unfiltered list with symbols.
 		self.filter()
@@ -186,6 +255,7 @@ class DictionaryEntryDialog(SettingsDialog):
 			# Update the symbol the user was just editing.
 			item = self.editingItem
 			word = self.filteredWords[item]
+			word.text = self.wordEdit.Value
 			word.pronunciation = self.pronunciationEdit.Value
 
 	def onListItemFocused(self, evt):
@@ -194,6 +264,7 @@ class DictionaryEntryDialog(SettingsDialog):
 		word = self.filteredWords[item]
 		self.editingItem = item
 		# ChangeValue and Selection property used because they do not cause EVNT_CHANGED to be fired.
+		self.wordEdit.ChangeValue(word.text)
 		self.pronunciationEdit.ChangeValue(word.pronunciation)
 
 		self.removeButton.Enabled = True
@@ -204,7 +275,8 @@ class DictionaryEntryDialog(SettingsDialog):
 		with AddDictionaryEntryDialog(self) as entryDialog:
 			if entryDialog.ShowModal() != wx.ID_OK:
 				return
-			text = entryDialog.identifierTextCtrl.GetValue()
+			text = entryDialog.addWordEdit.GetValue()
+			pronunciation = entryDialog.addPronunciationEdit.GetValue()
 			if not text:
 				return
 		# Clean the filter, so we can select the new entry.
@@ -224,12 +296,11 @@ class DictionaryEntryDialog(SettingsDialog):
 				self.wordsList.Focus(index)
 				self.wordsList.SetFocus()
 				return
-		addedWord = Word(text)
+		addedWord = Word(text, pronunciation)
 		try:
 			del self.pendingRemovals[text]
 		except KeyError:
 			pass
-		addedWord.pronunciation = ""
 		self.words.append(addedWord)
 		self.wordsList.ItemCount = len(self.words)
 		index = self.wordsList.ItemCount - 1
@@ -260,6 +331,22 @@ class DictionaryEntryDialog(SettingsDialog):
 			# We don't get a new focus event with the new index.
 			self.wordsList.sendListItemFocusedEvent(index)
 		self.wordsList.SetFocus()
+
+	def OnHelpClick(self, evt):
+		dialog = wx.Dialog(self, title="Guideline for Adding Words", size=(1200, 900))
+		dialogSizer = wx.BoxSizer(wx.VERTICAL)
+
+		textctrl = wx.TextCtrl(dialog, value=GUIDELINE_TEXT, style=wx.TE_MULTILINE | wx.TE_READONLY)
+		dialogSizer.Add(textctrl, 1, wx.ALL | wx.EXPAND, 10)
+		dialog.SetSizer(dialogSizer)
+		textctrl.SetFocus()
+
+		closeButton = wx.Button(dialog, label=_("Close"))
+		closeButton.Bind(wx.EVT_BUTTON, lambda event: dialog.EndModal(wx.ID_OK))
+		dialogSizer.Add(closeButton, 0, wx.ALL | wx.CENTER, 10)
+
+		dialog.ShowModal()
+		dialog.Destroy()
 
 	def onOk(self, evt):
 		self.onWordEdited()
