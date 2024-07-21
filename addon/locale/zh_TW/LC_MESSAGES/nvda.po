@@ -361,6 +361,9 @@ msgid "Add a New Word"
 msgstr "新增詞彙"
 
 #: addon\globalPlugins\WordBridge\dictionary\dialog.py:55
+msgid "&Word:"
+msgstr "詞彙:"
+
 #: addon\globalPlugins\WordBridge\dictionary\dialog.py:161
 msgid "Selected &Word:"
 msgstr "選取的詞彙:"

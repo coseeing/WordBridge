@@ -52,7 +52,7 @@ class AddDictionaryEntryDialog(
 		addPanel = wx.Panel(self)
 		sizer = wx.GridBagSizer(2, 2)
 
-		addWordTextLabel = wx.StaticText(addPanel, label=_("Selected &Word:"))
+		addWordTextLabel = wx.StaticText(addPanel, label=_("&Word:"))
 		sizer.Add(addWordTextLabel, pos=(0, 0), flag=wx.LEFT, border=10)
 		self.addWordEdit = wx.TextCtrl(
 			addPanel,
