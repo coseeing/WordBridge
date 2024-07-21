@@ -2,10 +2,12 @@ import gui
 from gui import guiHelper, nvdaControls
 from gui.settingsDialogs import SettingsDialog
 import wx
-
+import addonHandler
 import csv
 import os
 
+
+addonHandler.initTranslation()
 
 GUIDELINE_TEXT = _(
 """Guideline:
@@ -335,16 +337,16 @@ class DictionaryEntryDialog(SettingsDialog):
 		dialogSizer = wx.BoxSizer(wx.VERTICAL)
 
 		textctrl = wx.TextCtrl(dialog, value=GUIDELINE_TEXT, style=wx.TE_MULTILINE | wx.TE_READONLY)
-
 		dialogSizer.Add(textctrl, 1, wx.ALL | wx.EXPAND, 10)
 		dialog.SetSizer(dialogSizer)
+		textctrl.SetFocus()
 
 		closeButton = wx.Button(dialog, label=_("Close"))
 		closeButton.Bind(wx.EVT_BUTTON, lambda event: dialog.EndModal(wx.ID_OK))
 		dialogSizer.Add(closeButton, 0, wx.ALL | wx.CENTER, 10)
 
 		dialog.ShowModal()
-		dialog.SetFocus()
+		dialog.Destroy()
 
 	def onOk(self, evt):
 		self.onWordEdited()

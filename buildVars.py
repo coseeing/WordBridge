@@ -59,6 +59,7 @@ addon_info = {
 pythonSources = [
 		'addon/globalPlugins/WordBridge/*.py',
 		'addon/globalPlugins/WordBridge/lib/*.py',
+		'addon/globalPlugins/WordBridge/dictionary/*.py',
 ]
 
 # Files that contain strings for translation. Usually your python sources

@@ -9,7 +9,7 @@ msgstr ""
 "Project-Id-Version: 'WordBridge' '0.1'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
 "POT-Creation-Date: 2024-07-14 01:54+0800\n"
-"PO-Revision-Date: 2024-07-14 20:42+0800\n"
+"PO-Revision-Date: 2024-07-21 21:57+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -324,6 +324,138 @@ msgid ""
 "Please check if the API has been activated and the current account has enough "
 "money"
 msgstr "請確認模型API已啟用且當前帳戶有足夠的餘額"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:13
+#, fuzzy
+msgid ""
+"Guideline:\n"
+"Users can add words to improve the accuracy of added terms. It is recommended "
+"to add specialized terms that may not be present in the model's training data "
+"or terms that the model frequently make mistakes. The zhuyin or pinyin of an "
+"added word is optional, but providing it can help improve correctness. \n"
+"\n"
+"For the format of pinyin and zhuyin, please see the following rules and "
+"examples\n"
+"1. Please insert a space between words\n"
+"2. Please use v instead of ü for pinyin\n"
+"3. Please use number for pinyin's tone (no number for neutral tone)\n"
+"\n"
+"Example1:\n"
+"Word: 爸爸\n"
+"Pinyin: ba4 ba\n"
+"Zhuyin: ㄅㄚˋ ㄅㄚ˙\n"
+"\n"
+"Example2:\n"
+"Word: 旅遊\n"
+"Pinyin: lv3 you2\n"
+"Zhuyin: ㄌㄩˇ ㄧㄡˊ"
+msgstr ""
+"說明：\n"
+"用戶可以添加詞彙來提高這些詞彙的準確性。建議添加可能不在模型訓練數據中的專有名"
+"詞或模型經常出錯的詞彙。詞彙的發音(拼音和注音)可填可不填，但提供它可以幫助提高"
+"正確性。\n"
+"\n"
+"關於發音(拼音和注音)的格式，請參見以下規則和範例：\n"
+"1. 請在每個字的發音(拼音和注音)之間插入空格\n"
+"2. 拼音中的ü請用v代替\n"
+"3. 拼音的聲調請使用數字(輕聲不標數字)\n"
+"\n"
+"範例1：\n"
+"詞彙：爸爸\n"
+"拼音：ba4 ba\n"
+"注音：ㄅㄚˋ ㄅㄚ˙\n"
+"\n"
+"範例2：\n"
+"詞彙：旅遊\n"
+"拼音：lv3 you2\n"
+"注音：ㄌㄩˇ ㄧㄡˊ"
+
+#. Translators: This is the label for the add symbol dialog.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:47
+#, fuzzy
+msgid "Add Entry"
+msgstr "新增詞彙"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:55
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:161
+msgid "Selected &Word:"
+msgstr "選取的詞彙:"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:62
+msgid "&Pronunciation (Pinyin or Zhuyin):"
+msgstr "發音(拼音或注音):"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:94
+msgid "WordBridge Dictionary"
+msgstr "WordBridge 辭典"
+
+#. Translators: The label of a text field to search for symbols in the speech symbols dialog.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:106
+msgid "&Filter by:"
+msgstr "篩選詞彙:"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:117
+msgid "User can add words to improve the accuracy of these terms.\n"
+msgstr "使用者可藉由添加詞彙以提高這些詞彙的準確性\n"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:118
+msgid "Please press Help button for more details."
+msgstr "請按底下說明鍵以了解詳細資訊。"
+
+#. Translators: The label for symbols list in symbol pronunciation dialog.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:123
+msgid "&Words"
+msgstr "詞彙"
+
+#. Translators: The label for a column in symbols list used to identify a word.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:133
+msgid "Word"
+msgstr "詞彙"
+
+#. Translators: The label for a column in symbols list used to identify a pronunciation.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:135
+msgid "Pronunciation (Pinyin or Zhuyin)"
+msgstr "拼音或注音"
+
+#. Translators: The label for the group of controls in symbol pronunciation dialog to change the pronunciation of a word.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:140
+#, fuzzy
+msgid "Change selected word"
+msgstr "編輯選取詞彙與發音(拼音和注音)"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:170
+msgid "&Pronunciation (Pinyin or Zhuyin): "
+msgstr "發音(拼音或注音):"
+
+#. Translators: The label for a button in the Symbol Pronunciation dialog to add a new symbol.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:185
+msgid "&Add"
+msgstr ""
+
+#. Translators: The label for a button in the Symbol Pronunciation dialog to remove a symbol.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:188
+msgid "Re&move"
+msgstr ""
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:191
+msgid "&Help"
+msgstr ""
+
+#. Translators: An error reported in the Symbol Pronunciation dialog
+#. when adding a symbol that is already present.
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:290
+#, python-format
+msgid "Word \"%s\" is already present."
+msgstr "詞彙 \"%s\" 已經存在。"
+
+#. Translators: title of an error message
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:292
+msgid "Error"
+msgstr "錯誤"
+
+#: addon\globalPlugins\WordBridge\dictionary\dialog.py:344
+msgid "Close"
+msgstr ""
 
 #. Add-on summary, usually the user visible name of the addon.
 #. Translators: Summary for this add-on
