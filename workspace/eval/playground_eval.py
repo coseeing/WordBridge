@@ -22,14 +22,14 @@ def generate_results(text, groundtruth, proofreader):
 		text_corrected.append(output)
 
 		# For debugging
-		if text_corrected[i] != groundtruth[i]:
-			print(f"{text[i]} => {text_corrected[i]}, ans: {groundtruth[i]}")
+		if text_corrected[i] not in groundtruth[i]:
+			print(f"{text[i]} => {text_corrected[i]}, ans: {' or '.join(groundtruth[i])}")
 
 	return text_corrected
 
 if __name__ == "__main__":
 
-	model = "gpt-3.5-turbo"
+	model = "gpt-4o-mini"
 	provider = "OpenAI"
 	typo_corrector_class = ChineseTypoCorrector
 	language = "zh_traditional"
@@ -43,7 +43,7 @@ if __name__ == "__main__":
 		credential = json.loads(f.read())[provider]
 	data_name = "gpt4_250_sentence_aug_err_0.1_41PJSO2KRV6SK1WJ6936.txt"
 	groundtruth_name = "gpt4_250_sentence_gt.txt"
-	tag = "2024-06-14-gpt-3.5-turbo-new"
+	tag = "2024-07-28-gpt-4o-mini"
 
 	data_path = os.path.join(".", "data", data_name)
 	groundtruth_path = os.path.join(".", "data", groundtruth_name)
@@ -75,7 +75,7 @@ if __name__ == "__main__":
 	# Read ground truth
 	with open(groundtruth_path, 'r') as f:
 		groundtruth = f.readlines()
-		groundtruth = [sentence.replace('\n', '') for sentence in groundtruth]
+		groundtruth = [sentence.replace('\n', '').split('#') for sentence in groundtruth]
 
 	assert len(text) == len(groundtruth)
 
@@ -104,7 +104,7 @@ if __name__ == "__main__":
 	# Calculate accuracy
 	correct_count = 0
 	for i in range(len(text)):
-		if text_corrected[i] == groundtruth[i]:
+		if text_corrected[i] in groundtruth[i]:
 			correct_count += 1
 			continue
 
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 	# Calculate character error rate
 	cer_sum = 0
 	for i in range(len(text)):
-		cer = jiwer.cer(groundtruth[i], text_corrected[i])
+		cer = min([jiwer.cer(gt, text_corrected[i]) for gt in groundtruth[i]])
 		cer_sum += cer
 
 	eval_file.write(f"\n\nAccuracy = {correct_count / len(text) * 100}%\n")

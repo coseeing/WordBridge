@@ -21,7 +21,7 @@ if __name__ == "__main__":
 	text = "天器真好，想出去完"
 
 	# Settings
-	model = "gpt-3.5-turbo"
+	model = "gpt-4o-mini"
 	provider = "OpenAI"
 	typo_corrector_class = ChineseTypoCorrector
 	language = "zh_traditional"
