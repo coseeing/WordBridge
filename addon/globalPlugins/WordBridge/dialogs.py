@@ -66,11 +66,6 @@ for path in CORRECTOR_CONFIG_PATHS:
 	CORRECTOR_CONFIG_VALUES.append(corrector_config)
 	CORRECTOR_CONFIG_FILENAMES.append(os.path.basename(path))
 
-	# Initialize a provider's key
-	if corrector_config['model']['provider'] not in config.conf["WordBridge"]["settings"]["api_key"]:
-		config.conf["WordBridge"]["settings"]["api_key"][corrector_config['model']['provider']] = ""
-	if corrector_config['model']['provider'] not in config.conf["WordBridge"]["settings"]["secret_key"]:
-		config.conf["WordBridge"]["settings"]["secret_key"][corrector_config['model']['provider']] = ""
 
 class LLMSettingsPanel(SettingsPanel):
 	title = _("WordBridge")
@@ -285,11 +280,15 @@ class LLMSettingsPanel(SettingsPanel):
 			self.secretkeyTextCtrl.Disable()
 
 		provider_tmp = CORRECTOR_CONFIG_VALUES[self.modelList.GetSelection()]["model"]["provider"]
+		if provider_tmp not in config.conf["WordBridge"]["settings"]["api_key"]:
+			config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = ""
 		self.apikeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["api_key"][provider_tmp])
 
 		if CORRECTOR_CONFIG_VALUES[self.modelList.GetSelection()]["model"]["require_secret_key"]:
 			self.secretkeyTextLabel.Show()
 			self.secretkeyTextCtrl.Show()
+			if provider_tmp not in config.conf["WordBridge"]["settings"]["secret_key"]:
+				config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp] = ""
 			self.secretkeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp])
 		else:
 			self.secretkeyTextLabel.Hide()
