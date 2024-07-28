@@ -66,6 +66,11 @@ for path in CORRECTOR_CONFIG_PATHS:
 	CORRECTOR_CONFIG_VALUES.append(corrector_config)
 	CORRECTOR_CONFIG_FILENAMES.append(os.path.basename(path))
 
+	# Initialize a provider's key
+	if corrector_config['model']['provider'] not in config.conf["WordBridge"]["settings"]["api_key"]:
+		config.conf["WordBridge"]["settings"]["api_key"][corrector_config['model']['provider']] = ""
+	if corrector_config['model']['provider'] not in config.conf["WordBridge"]["settings"]["secret_key"]:
+		config.conf["WordBridge"]["settings"]["secret_key"][corrector_config['model']['provider']] = ""
 
 class LLMSettingsPanel(SettingsPanel):
 	title = _("WordBridge")
