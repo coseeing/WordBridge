@@ -29,7 +29,7 @@ def generate_results(text, groundtruth, proofreader):
 
 if __name__ == "__main__":
 
-	model = "gpt-3.5-turbo"
+	model = "gpt-4o-mini"
 	provider = "OpenAI"
 	typo_corrector_class = ChineseTypoCorrector
 	language = "zh_traditional"
@@ -43,7 +43,7 @@ if __name__ == "__main__":
 		credential = json.loads(f.read())[provider]
 	data_name = "gpt4_250_sentence_aug_err_0.1_41PJSO2KRV6SK1WJ6936.txt"
 	groundtruth_name = "gpt4_250_sentence_gt.txt"
-	tag = "2024-06-14-gpt-3.5-turbo-new"
+	tag = "2024-07-28-gpt-4o-mini"
 
 	data_path = os.path.join(".", "data", data_name)
 	groundtruth_path = os.path.join(".", "data", groundtruth_name)
