@@ -344,39 +344,45 @@ class BaseTypoCorrector():
 		response_json = response.json()
 
 		if self.provider == "OpenAI" and response.status_code != 200:
-			if response.status_code == 401:
-				raise Exception(_("Authentication error. Please check if the large language model's key is correct."))
-			elif response.status_code == 403:
-				raise Exception(_("Country, region, or territory not supported."))
-			elif response.status_code == 404:
-				raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
-			elif response.status_code == 429:
-				raise Exception(
-					_("Rate limit reached for requests or you exceeded your current quota. ") +\
-					_("Please reduce the frequency of sending requests or check your account balance.")
-				)
-			elif response.status_code == 500:
-				raise Exception(_("The server had an error while processing your request, please try again later."))
-			elif response.status_code == 503:
-				raise Exception(_("The server is currently overloaded, please try again later."))
-			else:
-				raise Exception(_("Unknown errors. Status code = {status_code}").format(status_code=response.status_code))
+			self._handle_openai_errors(response)
 
-		if self.provider == "Baidu" and "error_code" in response_json:
-			if response_json["error_code"] == 3:
-				raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
-			elif response_json["error_code"] in [336000, 336100]:
-				raise Exception(_("Service internal error, please try again later."))
-			elif response_json["error_code"] in [18, 336501, 336502]:
-				raise Exception(_("Usage limit exceeded, please try again later."))
-			elif response_json["error_code"] == 17:
-				raise Exception(_("Please check if the API has been activated and the current account has enough money"))
-			else:
-				raise Exception(response_json["error_msg"])
-		elif self.provider == "Baidu" and not response_json["result"]:
-			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
+		if self.provider == "Baidu" and ("error_code" in response_json or not response_json["result"]):
+			self._handle_baidu_errors(response_json)
 
 		return response_json
+
+	def _handle_openai_errors(self, response):
+		if response.status_code == 401:
+			raise Exception(_("Authentication error. Please check if the large language model's key is correct."))
+		elif response.status_code == 403:
+			raise Exception(_("Country, region, or territory not supported."))
+		elif response.status_code == 404:
+			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
+		elif response.status_code == 429:
+			raise Exception(
+				_("Rate limit reached for requests or you exceeded your current quota. ") +\
+				_("Please reduce the frequency of sending requests or check your account balance.")
+			)
+		elif response.status_code == 500:
+			raise Exception(_("The server had an error while processing your request, please try again later."))
+		elif response.status_code == 503:
+			raise Exception(_("The server is currently overloaded, please try again later."))
+		else:
+			raise Exception(_("Unknown errors. Status code = {status_code}").format(status_code=response.status_code))
+
+	def _handle_baidu_errors(self, response_json):
+		if response_json["error_code"] == 3:
+			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
+		elif response_json["error_code"] in [336000, 336100]:
+			raise Exception(_("Service internal error, please try again later."))
+		elif response_json["error_code"] in [18, 336501, 336502]:
+			raise Exception(_("Usage limit exceeded, please try again later."))
+		elif response_json["error_code"] == 17:
+			raise Exception(_("Please check if the API has been activated and the current account has enough money"))
+		elif not response_json["result"]:
+			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
+		else:
+			raise Exception(response_json["error_msg"])
 
 	def _parse_response(self, response: str) -> str:
 		if self.provider == "OpenAI":
