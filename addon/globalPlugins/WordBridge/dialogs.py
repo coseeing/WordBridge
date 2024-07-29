@@ -280,11 +280,15 @@ class LLMSettingsPanel(SettingsPanel):
 			self.secretkeyTextCtrl.Disable()
 
 		provider_tmp = CORRECTOR_CONFIG_VALUES[self.modelList.GetSelection()]["model"]["provider"]
+		if provider_tmp not in config.conf["WordBridge"]["settings"]["api_key"]:
+			config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = ""
 		self.apikeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["api_key"][provider_tmp])
 
 		if CORRECTOR_CONFIG_VALUES[self.modelList.GetSelection()]["model"]["require_secret_key"]:
 			self.secretkeyTextLabel.Show()
 			self.secretkeyTextCtrl.Show()
+			if provider_tmp not in config.conf["WordBridge"]["settings"]["secret_key"]:
+				config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp] = ""
 			self.secretkeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp])
 		else:
 			self.secretkeyTextLabel.Hide()
