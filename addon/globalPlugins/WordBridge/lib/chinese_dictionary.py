@@ -18,4 +18,5 @@ def load_pinyin_mapping():
 
 	return string_to_pinyin, pinyin_to_string
 
+
 string_to_pinyin, pinyin_to_string = load_pinyin_mapping()

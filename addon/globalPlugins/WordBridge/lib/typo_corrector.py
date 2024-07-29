@@ -8,7 +8,6 @@ import logging
 import os
 import random
 import requests
-import sys
 import time
 
 from pypinyin import lazy_pinyin, Style
@@ -248,7 +247,7 @@ class BaseTypoCorrector():
 		if not guidance_list:
 			return system
 
-		system = system + f"\n須注意: " + "、".join(guidance_list)
+		system = system + "\n須注意: " + "、".join(guidance_list)
 		return system
 
 	def _get_request_data(self, messages, input_info):
@@ -295,7 +294,7 @@ class BaseTypoCorrector():
 		messages = deepcopy(input)
 		if self.provider == "OpenAI":
 			comment_template = deepcopy(self.template[self.language]["comment"])
-			comment_template= comment_template.replace("\\n", "\n")
+			comment_template = comment_template.replace("\\n", "\n")
 			for response_previous in response_text_history:
 				comment = comment_template.replace("{{response_previous}}", response_previous)
 				messages.append({"role": "assistant", "content": response_previous})

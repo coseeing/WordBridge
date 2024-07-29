@@ -210,7 +210,9 @@ class LLMSettingsPanel(SettingsPanel):
 		)
 
 		# For setting auto display typo report
-		self.autoDisplayReportEnable = settingsSizerHelper.addItem(wx.CheckBox(self, label=_("Auto display typo report")))
+		self.autoDisplayReportEnable = settingsSizerHelper.addItem(
+			wx.CheckBox(self, label=_("Auto display typo report"))
+		)
 		self.autoDisplayReportEnable.SetValue(config.conf["WordBridge"]["settings"]["auto_display_report"])
 
 		# For setting custom dictionary
