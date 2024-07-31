@@ -17,6 +17,7 @@ import globalPluginHandler
 import gui
 from logHandler import log
 from scriptHandler import script
+from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
 import textInfos
 from tones import beep
 import ui
@@ -128,7 +129,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return text
 
 	def isTextValid(self, text):
-		max_char_count = config.conf["WordBridge"]["settings"]["max_char_count"]
+		try:
+			max_char_count = config.conf["WordBridge"]["settings"]["max_char_count"]
+		except VdtValueTooBigError:
+			max_char_count = int(config.conf.getConfigValidation(
+				("WordBridge", "settings", "max_char_count")
+			).kwargs["max"])
+		except VdtValueTooSmallError:
+			max_char_count = int(config.conf.getConfigValidation(
+				("WordBridge", "settings", "max_char_count")
+			).kwargs["min"])
 		if len(text) > max_char_count:
 			ui.message(
 				_("The number of characters is {len_text}, which exceeds the maximum, {max_char_count}.").format(
