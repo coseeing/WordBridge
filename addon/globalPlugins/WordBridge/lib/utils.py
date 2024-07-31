@@ -6,7 +6,7 @@ from chinese_converter import to_simplified, to_traditional
 from .chinese_dictionary import string_to_pinyin, pinyin_to_string
 from hanzidentifier import identify
 from hanzidentifier import MIXED, SIMPLIFIED, TRADITIONAL
-from pypinyin import pinyin, Style
+from pypinyin import pinyin
 
 try:
 	from languageHandler import getLanguage
@@ -43,6 +43,7 @@ def is_chinese_character(char: str) -> bool:
 			return True
 
 	return False
+
 
 def has_chinese(text: str):
 	for char in text:

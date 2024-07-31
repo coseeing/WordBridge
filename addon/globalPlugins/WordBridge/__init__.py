@@ -292,7 +292,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def script_dictionary(self, gesture):
 		gui.mainFrame.popupSettingsDialog(DictionaryEntryDialog)
 
-
 	@script(
 		gesture="kb:NVDA+alt+o",
 		description=_("Execute GPT typo correction for Chinese character"),

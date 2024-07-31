@@ -201,7 +201,7 @@ class LLMSettingsPanel(SettingsPanel):
 		maxCharCountUpperBound = int(config.conf.getConfigValidation(
 			("WordBridge", "settings", "max_char_count")
 		).kwargs["max"])
-		self.maxCharCount = settingsSizerHelper.addLabeledControl(
+		self.maxCharCountSpinCtrl = settingsSizerHelper.addLabeledControl(
 			maxTokensLabelText,
 			nvdaControls.SelectOnFocusSpinCtrl,
 			min=maxCharCountlowerBound,
@@ -210,8 +210,10 @@ class LLMSettingsPanel(SettingsPanel):
 		)
 
 		# For setting auto display typo report
-		self.autoDisplayReport = settingsSizerHelper.addItem(wx.CheckBox(self, label=_("Auto display typo report")))
-		self.autoDisplayReport.SetValue(config.conf["WordBridge"]["settings"]["auto_display_report"])
+		self.autoDisplayReportEnable = settingsSizerHelper.addItem(
+			wx.CheckBox(self, label=_("Auto display typo report"))
+		)
+		self.autoDisplayReportEnable.SetValue(config.conf["WordBridge"]["settings"]["auto_display_report"])
 
 		# For setting custom dictionary
 		self.customizedWordEnable = settingsSizerHelper.addItem(
@@ -243,8 +245,8 @@ class LLMSettingsPanel(SettingsPanel):
 		config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp] = self.secretkeyTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_username"] = self.usernameTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_password"] = self.passwordTextCtrl.GetValue()
-		config.conf["WordBridge"]["settings"]["max_char_count"] = self.maxCharCount.GetValue()
-		config.conf["WordBridge"]["settings"]["auto_display_report"] = self.autoDisplayReport.GetValue()
+		config.conf["WordBridge"]["settings"]["max_char_count"] = self.maxCharCountSpinCtrl.GetValue()
+		config.conf["WordBridge"]["settings"]["auto_display_report"] = self.autoDisplayReportEnable.GetValue()
 		config.conf["WordBridge"]["settings"]["customized_words_enable"] = self.customizedWordEnable.GetValue()
 
 	def onChangeChoice(self, evt):

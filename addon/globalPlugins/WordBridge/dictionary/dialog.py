@@ -115,7 +115,7 @@ class DictionaryEntryDialog(SettingsDialog):
 			wx.StaticText(
 				self,
 				label=_("User can add words to improve the accuracy of these terms.\n") +\
-						_("Please press Help button for more details.")
+				_("Please press Help button for more details.")
 			)
 		)
 
@@ -354,8 +354,6 @@ class DictionaryEntryDialog(SettingsDialog):
 
 		data = []
 		for word in self.words:
-			# if not word.pronunciation:
-				# continue
 			data.append({
 				"text": word.text,
 				"pronunciation": word.pronunciation,
