@@ -1,7 +1,8 @@
+from collections import defaultdict
 from copy import deepcopy
 from queue import Queue
 from threading import Thread
-from typing import Any, List
+from typing import Any, Dict, List, Tuple
 
 import json
 import logging
@@ -12,7 +13,7 @@ import time
 
 from pypinyin import lazy_pinyin, Style
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
-from .utils import PUNCTUATION, SEPERATOR, is_chinese_character
+from .utils import PUNCTUATION, SEPERATOR, is_chinese_character, strings_diff, text_segmentation
 
 import chinese_converter
 
@@ -75,11 +76,43 @@ class BaseTypoCorrector():
 		self.language = language
 		self.optional_guidance_enable = optional_guidance_enable
 		self.customized_words = customized_words
+		self.response_history = []
 
 		file_dirpath = os.path.dirname(__file__)
 		template_path = os.path.join(file_dirpath, "..", "template", template_name)
 		with open(template_path, "r", encoding="utf8") as f:
 			self.template = json.loads(f.read())
+
+	def correct_text(self, text: str, batch_mode: bool = True, fake_corrected_text: str = None) -> Tuple:
+		"""
+		Analyze typos of text using self.segment_corrector. It also analyzes the difference between the original
+		text and corrected text.
+
+		Parameters:
+			text (str): The text to be analyzed for typos.
+			batch_mode (bool): If specified, enable multithread for typo correction
+			fake_corrected_text (str, optional): If specified, return input text without correction steps.
+
+		Returns:
+			A tuple containing the corrected text and a list of differences between the original and corrected text.
+		"""
+		if fake_corrected_text is not None:
+			return fake_corrected_text, strings_diff(text, fake_corrected_text)
+
+		text_corrected = ""
+		segments = text_segmentation(text)
+
+		if batch_mode:
+			corrector_result_list = self.correct_segment_batch(segments)
+		else:
+			corrector_result_list = [self.correct_segment(segment) for segment in segments]
+		for corrector_result in corrector_result_list:
+			text_corrected += corrector_result.corrected_text
+			self.response_history.extend(corrector_result.response_history)
+		diff = strings_diff(text, text_corrected)
+
+		return text_corrected, diff
+
 
 	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
 		if fake_operation or not self._has_target_language(input_text):
@@ -148,6 +181,19 @@ class BaseTypoCorrector():
 			raise Exception(", ".join(list(exception_set)))
 
 		return output_text_list
+
+	def get_total_usage(self) -> Dict:
+		"""
+		Get the total usage of OpenAI model (in tokens)
+
+		Returns:
+			The total usage of OpenAI model (in tokens)
+		"""
+		total_usage = defaultdict(int)
+		for response in self.response_history:
+			for usage_type in response["usage"].keys():
+				total_usage[usage_type] += response["usage"][usage_type]
+		return total_usage
 
 	def _correct_segment_task(
 		self,

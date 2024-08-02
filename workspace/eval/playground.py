@@ -6,12 +6,11 @@ path = os.path.dirname(__file__)
 api_path = os.path.join(path, "..", "..", "addon", "globalPlugins", "WordBridge")
 sys.path.insert(0, api_path)
 
-from lib.proofreader import Proofreader
 from lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorLite
 
 
 """
-This is a quick example program that demonstrates how to use the Proofreader and ChineseTypoCorrector classes to
+This is a quick example program that demonstrates how to use the ChineseTypoCorrector classes to
 1. Correct typos in a sample text string
 2. Analyze the differences between original and corrected texts
 """
@@ -45,14 +44,12 @@ if __name__ == "__main__":
 		customized_words=customized_words,
 	)
 
-	# Initialize the proofreader object using the typo corrector
-	proofreader = Proofreader(corrector)
 
-	text_corrected, diff = proofreader.typo_analyzer(text)
+	text_corrected, diff = corrector.correct_text(text)
 	print(f"text = {text}, text_corrected = {text_corrected}, diff = {diff}")
 
 	print("Token Usage:")
-	usage = proofreader.get_total_usage()
+	usage = corrector.get_total_usage()
 	for k in usage:
 		print(f"{k} = {usage[k]}")
 
