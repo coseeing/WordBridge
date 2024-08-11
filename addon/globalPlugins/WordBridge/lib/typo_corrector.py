@@ -192,25 +192,13 @@ class BaseTypoCorrector():
 		for i in range(len(message_template)):
 			message_template[i]["content"] = message_template[i]["content"].replace("\\n", "\n")
 		text = self._text_preprocess(input_text)
-		input_prompt = self._create_input(message_template, text)
+		input_prompt = self._create_input(message_template, text, input_info)
 
 		response_history = []
-		response_text_history = []
-		output_text = None
-		for _ in range(self.max_correction_attempts):
-			response_json = self._chat_completion(input_prompt, response_text_history, input_info)
-
-			response_history.append(response_json)
-
-			response_text = self._parse_response(response_json)
-			response_text_history.append(response_text)
-
-			output_text = self._text_postprocess(response_text, input_text)
-			if not self._has_error(output_text, input_text):
-				break
-
-		if len(response_text_history) > 1:
-			log.warning(f"Correction history: {response_text_history}")
+		response_json = self._chat_completion(input_prompt, [], input_info)
+		response_history.append(response_json)
+		response_text = self._parse_response(response_json)
+		output_text = self._text_postprocess(response_text, input_text)
 
 		corrector_result = CorrectorResult(
 			original_text=input_text,
@@ -321,7 +309,7 @@ class BaseTypoCorrector():
 		input_info = {
 			"input_text": input_text,
 			"contain_non_chinese": False,
-			"focus_typo": True if "[[" in messages[0]["content"] and "]]" in messages[0]["content"] else False:
+			"focus_typo": True if "[[" in input_text and "]]" in input_text else False
 		}
 		for char in input_text:
 			if not is_chinese_character(char) and char not in PUNCTUATION:
@@ -519,10 +507,7 @@ class BaseTypoCorrector():
 
 		return sentence
 
-	def _create_input(self, template: str, text: str):
-		raise NotImplementedError("Subclass must implement this method")
-
-	def _has_error(self, response: Any, text: str):
+	def _create_input(self, template: str, text: str, input_info: dict):
 		raise NotImplementedError("Subclass must implement this method")
 
 	def _text_preprocess(self, input_text: str):
@@ -540,12 +525,9 @@ class ChineseTypoCorrectorLite(BaseTypoCorrector):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
-	def _create_input(self, template: str, text: str):
+	def _create_input(self, template: str, text: str, input_info: dict):
 		template[-1]["content"] = template[-1]["content"].replace("{{text_input}}", text)
 		return template
-
-	def _has_error(self, response: Any, text: str) -> bool:
-		return False
 
 	def _text_preprocess(self, input_text: str):
 		return input_text
@@ -581,9 +563,10 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 		else:
 			raise NotImplementedError
 
-	def _create_input(self, template: str, text: str):
+	def _create_input(self, template: str, text: str, input_info: dict):
 		phone = ' '.join(lazy_pinyin(text, style=Style.TONE3))
-		phone = phone.replace("[[ ", "[[").replace(" ]]", "]]").replace("]][[", "]] [[")
+		if input_info["focus_typo"]:
+			phone = phone.replace("[[ ", "[[").replace(" ]]", "]]").replace("]][[", "]] [[")
 
 		for i in range(len(template)):
 			template[i]["content"] = template[i]["content"].replace("{{text_input}}", text)
@@ -592,40 +575,6 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 			template[i]["content"] = template[i]["content"].replace("{{ANSWER}}", self.answer_string)
 
 		return template
-
-	def _has_error(self, response: str, text: str) -> bool:
-		return False
-		if not self.provider == "OpenAI":
-			return False
-
-		response_text = response[len(self.answer_string):]
-
-		response_zh_list = []
-		response_non_zh_list = []
-		for char in response_text:
-			if is_chinese_character(char):
-				response_zh_list.append(char)
-			else:
-				response_non_zh_list.append(char)
-
-		text_zh_list = []
-		text_non_zh_list = []
-		for char in text:
-			if is_chinese_character(char):
-				text_zh_list.append(char)
-			else:
-				text_non_zh_list.append(char)
-
-		if len(response_zh_list) != len(text_zh_list):
-			if len(response_non_zh_list) == len(text_non_zh_list):
-				return True
-			else:
-				return False  # Some non-Chinese chars may become Chinese chars. Skip the case.
-
-		for i in range(len(text_zh_list)):
-			if len(set(get_char_pinyin(text_zh_list[i])) & set(get_char_pinyin(response_zh_list[i]))) == 0:
-				return True
-		return False
 
 	def _text_preprocess(self, input_text: str):
 		return self.prefix + input_text + self.suffix
