@@ -100,8 +100,9 @@ class BaseTypoCorrector():
 			return fake_corrected_text, strings_diff(text, fake_corrected_text)
 
 		text_corrected = ""
-		segments = text_segmentation(text)
+		segments = text_segmentation(text, 1000)
 
+		# Typo correction
 		if batch_mode:
 			corrector_result_list = self.correct_segment_batch(segments)
 		else:
@@ -109,6 +110,70 @@ class BaseTypoCorrector():
 		for corrector_result in corrector_result_list:
 			text_corrected += corrector_result.corrected_text
 			self.response_history.extend(corrector_result.response_history)
+
+		# Find typo and keep correcting
+		for i in range(self.max_correction_attempts - 1):
+			# Find typo
+			differences = strings_diff(text, text_corrected)
+			text_fixed = ""
+			typo_indices = []
+			for diff in differences:
+				if diff["operation"] in ["insert", "delete"]:  # Insert or delete
+					text_fixed += diff["before_text"]
+					typo_indices.append(max(len(text_fixed) - 1, 0))
+					continue
+
+				share_common_pinyin = True
+				for before_char, after_char in zip(diff["before_text"], diff["after_text"]):
+					if len(set(get_char_pinyin(before_char)) & set(get_char_pinyin(after_char))) == 0:
+						share_common_pinyin = False
+						break
+
+				if share_common_pinyin:
+					text_fixed += diff["after_text"]
+				else:
+					text_fixed += diff["before_text"]
+					typo_indices.extend(list(range(len(text_fixed) - len(diff["after_text"]), len(text_fixed))))
+
+			# No typo, stop correction
+			if text_fixed == text_corrected:
+				break
+
+			# Keep correction
+			text_corrected = ""
+			segments_fixed = text_segmentation(text_fixed, 20)
+			segments_with_errors = []
+			index_start = 0
+			index_end = 0
+			for k in range(len(segments_fixed)):
+				is_error = False
+				index_end += len(segments_fixed[k])
+				text_with_tag = ""
+				for j in range(index_start, index_end):
+					if j in typo_indices:
+						is_error = True
+						text_with_tag += ("[[" + text_fixed[j] + "]]")
+					else:
+						text_with_tag += text_fixed[j]
+				if is_error:
+					print(f"iter = {i}, text segment = {text_with_tag} is not correction")
+					segments_with_errors.append(text_with_tag)
+				else:
+					segments_with_errors.append("")
+				index_start = index_end
+
+			if batch_mode:
+				corrector_result_list = self.correct_segment_batch(segments_with_errors)
+			else:
+				corrector_result_list = [self.correct_segment(segment) for segment in segments_with_errors]
+
+			for j in range(len(segments_fixed)):
+				if corrector_result_list[j].corrected_text:
+					text_corrected += corrector_result_list[j].corrected_text
+					self.response_history.extend(corrector_result_list[j].response_history)
+				else:
+					text_corrected += segments_fixed[j]
+
 		diff = strings_diff(text, text_corrected)
 
 		return text_corrected, diff
@@ -120,7 +185,10 @@ class BaseTypoCorrector():
 
 		input_info = self._get_input_info(input_text)
 
-		message_template = deepcopy(self.template[self.language]["message"])
+		if input_info["focus_typo"]:
+			message_template = deepcopy(self.template[self.language]["message_tag"])
+		else:
+			message_template = deepcopy(self.template[self.language]["message"])
 		for i in range(len(message_template)):
 			message_template[i]["content"] = message_template[i]["content"].replace("\\n", "\n")
 		text = self._text_preprocess(input_text)
@@ -253,6 +321,7 @@ class BaseTypoCorrector():
 		input_info = {
 			"input_text": input_text,
 			"contain_non_chinese": False,
+			"focus_typo": True if "[[" in messages[0]["content"] and "]]" in messages[0]["content"] else False:
 		}
 		for char in input_text:
 			if not is_chinese_character(char) and char not in PUNCTUATION:
@@ -297,9 +366,14 @@ class BaseTypoCorrector():
 		return system
 
 	def _get_request_data(self, messages, input_info):
-		system_template = deepcopy(self.template[self.language]["system"])
-		system_template = system_template.replace("\\n", "\n")
-		system_template = self._system_add_guidance(system_template, input_info)
+		if input_info["focus_typo"]:
+			system_template = deepcopy(self.template[self.language]["system_tag"])
+			system_template = system_template.replace("\\n", "\n")
+			system_template = self._system_add_guidance(system_template, input_info)
+		else:
+			system_template = deepcopy(self.template[self.language]["system"])
+			system_template = system_template.replace("\\n", "\n")
+			system_template = self._system_add_guidance(system_template, input_info)
 		if self.provider == "OpenAI":
 			messages = [{"role": "system", "content": system_template}] + messages
 			data = {
@@ -509,6 +583,7 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 
 	def _create_input(self, template: str, text: str):
 		phone = ' '.join(lazy_pinyin(text, style=Style.TONE3))
+		phone = phone.replace("[[ ", "[[").replace(" ]]", "]]").replace("]][[", "]] [[")
 
 		for i in range(len(template)):
 			template[i]["content"] = template[i]["content"].replace("{{text_input}}", text)
@@ -519,6 +594,7 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 		return template
 
 	def _has_error(self, response: str, text: str) -> bool:
+		return False
 		if not self.provider == "OpenAI":
 			return False
 
