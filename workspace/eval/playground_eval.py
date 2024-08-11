@@ -71,7 +71,7 @@ if __name__ == "__main__":
 	# Read ground truth
 	with open(groundtruth_path, 'r') as f:
 		groundtruth = f.readlines()
-		groundtruth = [sentence.replace('\n', '').split('#') for sentence in groundtruth]
+		groundtruth = [sentence.replace('\n', '').split('|') for sentence in groundtruth]
 
 	assert len(text) == len(groundtruth)
 
