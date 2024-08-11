@@ -35,11 +35,11 @@ class CorrectorResult():
 		self,
 		original_text: str,
 		corrected_text: str,
-		response_history: List,
+		response_json: Dict,
 	):
 		self.original_text = original_text
 		self.corrected_text = corrected_text
-		self.response_history = response_history
+		self.response_json = response_json
 
 
 class BaseTypoCorrector():
@@ -110,7 +110,7 @@ class BaseTypoCorrector():
 			corrector_result_list = [self.correct_segment(segment) for segment in segments]
 		for corrector_result in corrector_result_list:
 			text_corrected += corrector_result.corrected_text
-			self.response_history.extend(corrector_result.response_history)
+			self.response_history.append(corrector_result.response_json)
 
 		# Find typo and keep correcting
 		for i in range(self.max_correction_attempts - 1):
@@ -137,7 +137,7 @@ class BaseTypoCorrector():
 			for j in range(len(segments_revised)):
 				if corrector_result_list[j].corrected_text:
 					text_corrected += corrector_result_list[j].corrected_text
-					self.response_history.extend(corrector_result_list[j].response_history)
+					self.response_history.append(corrector_result_list[j].response_json)
 				else:
 					text_corrected += segments_revised[j]
 
@@ -161,16 +161,14 @@ class BaseTypoCorrector():
 		text = self._text_preprocess(input_text)
 		input_prompt = self._create_input(message_template, text, input_info)
 
-		response_history = []
 		response_json = self._chat_completion(input_prompt, [], input_info)
-		response_history.append(response_json)
 		response_text = self._parse_response(response_json)
 		output_text = self._text_postprocess(response_text, input_text)
 
 		corrector_result = CorrectorResult(
 			original_text=input_text,
 			corrected_text=output_text,
-			response_history=response_history,
+			response_json=response_json,
 		)
 
 		return corrector_result
