@@ -1,7 +1,8 @@
+from collections import defaultdict
 from copy import deepcopy
 from queue import Queue
 from threading import Thread
-from typing import Any, List
+from typing import Any, Dict, List, Tuple
 
 import json
 import logging
@@ -12,7 +13,7 @@ import time
 
 from pypinyin import lazy_pinyin, Style
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
-from .utils import PUNCTUATION, SEPERATOR, is_chinese_character
+from .utils import PUNCTUATION, SEPERATOR, is_chinese_character, strings_diff, text_segmentation
 
 import chinese_converter
 
@@ -75,11 +76,108 @@ class BaseTypoCorrector():
 		self.language = language
 		self.optional_guidance_enable = optional_guidance_enable
 		self.customized_words = customized_words
+		self.response_history = []
 
 		file_dirpath = os.path.dirname(__file__)
 		template_path = os.path.join(file_dirpath, "..", "template", template_name)
 		with open(template_path, "r", encoding="utf8") as f:
 			self.template = json.loads(f.read())
+
+	def correct_text(self, text: str, batch_mode: bool = True, fake_corrected_text: str = None) -> Tuple:
+		"""
+		Analyze typos of text using self.segment_corrector. It also analyzes the difference between the original
+		text and corrected text.
+
+		Parameters:
+			text (str): The text to be analyzed for typos.
+			batch_mode (bool): If specified, enable multithread for typo correction
+			fake_corrected_text (str, optional): If specified, return input text without correction steps.
+
+		Returns:
+			A tuple containing the corrected text and a list of differences between the original and corrected text.
+		"""
+		if fake_corrected_text is not None:
+			return fake_corrected_text, strings_diff(text, fake_corrected_text)
+
+		text_corrected = ""
+		segments = text_segmentation(text, 1000)
+
+		# Typo correction
+		if batch_mode:
+			corrector_result_list = self.correct_segment_batch(segments)
+		else:
+			corrector_result_list = [self.correct_segment(segment) for segment in segments]
+		for corrector_result in corrector_result_list:
+			text_corrected += corrector_result.corrected_text
+			self.response_history.extend(corrector_result.response_history)
+
+		# Find typo and keep correcting
+		for i in range(self.max_correction_attempts - 1):
+			# Find typo
+			differences = strings_diff(text, text_corrected)
+			text_fixed = ""
+			typo_indices = []
+			for diff in differences:
+				if diff["operation"] in ["insert", "delete"]:  # Insert or delete
+					text_fixed += diff["before_text"]
+					typo_indices.append(max(len(text_fixed) - 1, 0))
+					continue
+
+				share_common_pinyin = True
+				for before_char, after_char in zip(diff["before_text"], diff["after_text"]):
+					if len(set(get_char_pinyin(before_char)) & set(get_char_pinyin(after_char))) == 0:
+						share_common_pinyin = False
+						break
+
+				if share_common_pinyin:
+					text_fixed += diff["after_text"]
+				else:
+					text_fixed += diff["before_text"]
+					typo_indices.extend(list(range(len(text_fixed) - len(diff["after_text"]), len(text_fixed))))
+
+			# No typo, stop correction
+			if text_fixed == text_corrected:
+				break
+
+			# Keep correction
+			text_corrected = ""
+			segments_fixed = text_segmentation(text_fixed, 20)
+			segments_with_errors = []
+			index_start = 0
+			index_end = 0
+			for k in range(len(segments_fixed)):
+				is_error = False
+				index_end += len(segments_fixed[k])
+				text_with_tag = ""
+				for j in range(index_start, index_end):
+					if j in typo_indices:
+						is_error = True
+						text_with_tag += ("[[" + text_fixed[j] + "]]")
+					else:
+						text_with_tag += text_fixed[j]
+				if is_error:
+					print(f"iter = {i}, text segment = {text_with_tag} is not correction")
+					segments_with_errors.append(text_with_tag)
+				else:
+					segments_with_errors.append("")
+				index_start = index_end
+
+			if batch_mode:
+				corrector_result_list = self.correct_segment_batch(segments_with_errors)
+			else:
+				corrector_result_list = [self.correct_segment(segment) for segment in segments_with_errors]
+
+			for j in range(len(segments_fixed)):
+				if corrector_result_list[j].corrected_text:
+					text_corrected += corrector_result_list[j].corrected_text
+					self.response_history.extend(corrector_result_list[j].response_history)
+				else:
+					text_corrected += segments_fixed[j]
+
+		diff = strings_diff(text, text_corrected)
+
+		return text_corrected, diff
+
 
 	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
 		if fake_operation or not self._has_target_language(input_text):
@@ -87,29 +185,20 @@ class BaseTypoCorrector():
 
 		input_info = self._get_input_info(input_text)
 
-		message_template = deepcopy(self.template[self.language]["message"])
+		if input_info["focus_typo"]:
+			message_template = deepcopy(self.template[self.language]["message_tag"])
+		else:
+			message_template = deepcopy(self.template[self.language]["message"])
 		for i in range(len(message_template)):
 			message_template[i]["content"] = message_template[i]["content"].replace("\\n", "\n")
 		text = self._text_preprocess(input_text)
-		input_prompt = self._create_input(message_template, text)
+		input_prompt = self._create_input(message_template, text, input_info)
 
 		response_history = []
-		response_text_history = []
-		output_text = None
-		for _ in range(self.max_correction_attempts):
-			response_json = self._chat_completion(input_prompt, response_text_history, input_info)
-
-			response_history.append(response_json)
-
-			response_text = self._parse_response(response_json)
-			response_text_history.append(response_text)
-
-			output_text = self._text_postprocess(response_text, input_text)
-			if not self._has_error(output_text, input_text):
-				break
-
-		if len(response_text_history) > 1:
-			log.warning(f"Correction history: {response_text_history}")
+		response_json = self._chat_completion(input_prompt, [], input_info)
+		response_history.append(response_json)
+		response_text = self._parse_response(response_json)
+		output_text = self._text_postprocess(response_text, input_text)
 
 		corrector_result = CorrectorResult(
 			original_text=input_text,
@@ -148,6 +237,19 @@ class BaseTypoCorrector():
 			raise Exception(", ".join(list(exception_set)))
 
 		return output_text_list
+
+	def get_total_usage(self) -> Dict:
+		"""
+		Get the total usage of OpenAI model (in tokens)
+
+		Returns:
+			The total usage of OpenAI model (in tokens)
+		"""
+		total_usage = defaultdict(int)
+		for response in self.response_history:
+			for usage_type in response["usage"].keys():
+				total_usage[usage_type] += response["usage"][usage_type]
+		return total_usage
 
 	def _correct_segment_task(
 		self,
@@ -207,6 +309,7 @@ class BaseTypoCorrector():
 		input_info = {
 			"input_text": input_text,
 			"contain_non_chinese": False,
+			"focus_typo": True if "[[" in input_text and "]]" in input_text else False
 		}
 		for char in input_text:
 			if not is_chinese_character(char) and char not in PUNCTUATION:
@@ -251,9 +354,14 @@ class BaseTypoCorrector():
 		return system
 
 	def _get_request_data(self, messages, input_info):
-		system_template = deepcopy(self.template[self.language]["system"])
-		system_template = system_template.replace("\\n", "\n")
-		system_template = self._system_add_guidance(system_template, input_info)
+		if input_info["focus_typo"]:
+			system_template = deepcopy(self.template[self.language]["system_tag"])
+			system_template = system_template.replace("\\n", "\n")
+			system_template = self._system_add_guidance(system_template, input_info)
+		else:
+			system_template = deepcopy(self.template[self.language]["system"])
+			system_template = system_template.replace("\\n", "\n")
+			system_template = self._system_add_guidance(system_template, input_info)
 		if self.provider == "OpenAI":
 			messages = [{"role": "system", "content": system_template}] + messages
 			data = {
@@ -399,10 +507,7 @@ class BaseTypoCorrector():
 
 		return sentence
 
-	def _create_input(self, template: str, text: str):
-		raise NotImplementedError("Subclass must implement this method")
-
-	def _has_error(self, response: Any, text: str):
+	def _create_input(self, template: str, text: str, input_info: dict):
 		raise NotImplementedError("Subclass must implement this method")
 
 	def _text_preprocess(self, input_text: str):
@@ -420,12 +525,9 @@ class ChineseTypoCorrectorLite(BaseTypoCorrector):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
-	def _create_input(self, template: str, text: str):
+	def _create_input(self, template: str, text: str, input_info: dict):
 		template[-1]["content"] = template[-1]["content"].replace("{{text_input}}", text)
 		return template
-
-	def _has_error(self, response: Any, text: str) -> bool:
-		return False
 
 	def _text_preprocess(self, input_text: str):
 		return input_text
@@ -461,8 +563,10 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 		else:
 			raise NotImplementedError
 
-	def _create_input(self, template: str, text: str):
+	def _create_input(self, template: str, text: str, input_info: dict):
 		phone = ' '.join(lazy_pinyin(text, style=Style.TONE3))
+		if input_info["focus_typo"]:
+			phone = phone.replace("[[ ", "[[").replace(" ]]", "]]").replace("]][[", "]] [[")
 
 		for i in range(len(template)):
 			template[i]["content"] = template[i]["content"].replace("{{text_input}}", text)
@@ -471,39 +575,6 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 			template[i]["content"] = template[i]["content"].replace("{{ANSWER}}", self.answer_string)
 
 		return template
-
-	def _has_error(self, response: str, text: str) -> bool:
-		if not self.provider == "OpenAI":
-			return False
-
-		response_text = response[len(self.answer_string):]
-
-		response_zh_list = []
-		response_non_zh_list = []
-		for char in response_text:
-			if is_chinese_character(char):
-				response_zh_list.append(char)
-			else:
-				response_non_zh_list.append(char)
-
-		text_zh_list = []
-		text_non_zh_list = []
-		for char in text:
-			if is_chinese_character(char):
-				text_zh_list.append(char)
-			else:
-				text_non_zh_list.append(char)
-
-		if len(response_zh_list) != len(text_zh_list):
-			if len(response_non_zh_list) == len(text_non_zh_list):
-				return True
-			else:
-				return False  # Some non-Chinese chars may become Chinese chars. Skip the case.
-
-		for i in range(len(text_zh_list)):
-			if len(set(get_char_pinyin(text_zh_list[i])) & set(get_char_pinyin(response_zh_list[i]))) == 0:
-				return True
-		return False
 
 	def _text_preprocess(self, input_text: str):
 		return self.prefix + input_text + self.suffix

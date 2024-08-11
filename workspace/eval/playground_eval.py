@@ -11,14 +11,13 @@ path = os.path.dirname(__file__)
 api_path = os.path.join(path, "..", "..", "addon", "globalPlugins", "WordBridge")
 sys.path.insert(0, api_path)
 
-from lib.proofreader import Proofreader
 from lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorLite
 
 
-def generate_results(text, groundtruth, proofreader):
+def generate_results(text, groundtruth, corrector):
 	text_corrected = []
 	for i in tqdm(range(len(text))):
-		output, _ = proofreader.typo_analyzer(text[i], batch_mode=False)
+		output, _ = corrector.correct_text(text[i], batch_mode=False)
 		text_corrected.append(output)
 
 		# For debugging
@@ -43,7 +42,7 @@ if __name__ == "__main__":
 		credential = json.loads(f.read())[provider]
 	data_name = "gpt4_250_sentence_aug_err_0.1_41PJSO2KRV6SK1WJ6936.txt"
 	groundtruth_name = "gpt4_250_sentence_gt.txt"
-	tag = "2024-07-28-gpt-4o-mini"
+	tag = "2024-08-03-gpt-4o-mini"
 
 	data_path = os.path.join(".", "data", data_name)
 	groundtruth_path = os.path.join(".", "data", groundtruth_name)
@@ -64,9 +63,6 @@ if __name__ == "__main__":
 		customized_words=customized_words,
 	)
 
-	# Initialize the proofreader object using the typo corrector
-	proofreader = Proofreader(corrector)
-
 	# Read testing data
 	with open(data_path, 'r') as f:
 		text = f.readlines()
@@ -85,12 +81,12 @@ if __name__ == "__main__":
 			results = f.readlines()
 			text_corrected = [sentence.replace('\n', '') for sentence in results[:len(groundtruth)]]
 	else:
-		text_corrected = generate_results(text, groundtruth, proofreader)
+		text_corrected = generate_results(text, groundtruth, corrector)
 		result_file = open(result_file_path, 'w')
 		for i in range(len(text_corrected)):
 			result_file.write(f"{text_corrected[i]}\n")
 
-		usage = proofreader.get_total_usage()
+		usage = corrector.get_total_usage()
 		result_file.write(f"\n\nToken Usage:\n")
 		print("Token Usage:")
 		for k in usage:
