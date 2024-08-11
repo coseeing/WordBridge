@@ -14,6 +14,7 @@ import time
 from pypinyin import lazy_pinyin, Style
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
 from .utils import PUNCTUATION, SEPERATOR, is_chinese_character, strings_diff, text_segmentation
+from .utils import find_correction_errors, get_segments_to_recorrect
 
 import chinese_converter
 
@@ -100,7 +101,7 @@ class BaseTypoCorrector():
 			return fake_corrected_text, strings_diff(text, fake_corrected_text)
 
 		text_corrected = ""
-		segments = text_segmentation(text, 1000)
+		segments = text_segmentation(text, max_length=1000)
 
 		# Typo correction
 		if batch_mode:
@@ -114,65 +115,31 @@ class BaseTypoCorrector():
 		# Find typo and keep correcting
 		for i in range(self.max_correction_attempts - 1):
 			# Find typo
-			differences = strings_diff(text, text_corrected)
-			text_fixed = ""
-			typo_indices = []
-			for diff in differences:
-				if diff["operation"] in ["insert", "delete"]:  # Insert or delete
-					text_fixed += diff["before_text"]
-					typo_indices.append(max(len(text_fixed) - 1, 0))
-					continue
-
-				share_common_pinyin = True
-				for before_char, after_char in zip(diff["before_text"], diff["after_text"]):
-					if len(set(get_char_pinyin(before_char)) & set(get_char_pinyin(after_char))) == 0:
-						share_common_pinyin = False
-						break
-
-				if share_common_pinyin:
-					text_fixed += diff["after_text"]
-				else:
-					text_fixed += diff["before_text"]
-					typo_indices.extend(list(range(len(text_fixed) - len(diff["after_text"]), len(text_fixed))))
+			text_corrected_revised, typo_indices = find_correction_errors(text, text_corrected)
 
 			# No typo, stop correction
-			if text_fixed == text_corrected:
+			if text_corrected_revised == text_corrected:
 				break
 
 			# Keep correction
 			text_corrected = ""
-			segments_fixed = text_segmentation(text_fixed, 20)
-			segments_with_errors = []
-			index_start = 0
-			index_end = 0
-			for k in range(len(segments_fixed)):
-				is_error = False
-				index_end += len(segments_fixed[k])
-				text_with_tag = ""
-				for j in range(index_start, index_end):
-					if j in typo_indices:
-						is_error = True
-						text_with_tag += ("[[" + text_fixed[j] + "]]")
-					else:
-						text_with_tag += text_fixed[j]
-				if is_error:
-					print(f"iter = {i}, text segment = {text_with_tag} is not correction")
-					segments_with_errors.append(text_with_tag)
-				else:
-					segments_with_errors.append("")
-				index_start = index_end
+			segments_revised = text_segmentation(text_corrected_revised, max_length=20)
+			segments_to_recorrect = get_segments_to_recorrect(segments_revised, typo_indices)
+			for j in range(len(segments_to_recorrect)):
+				if segments_to_recorrect[j]:
+					print(f"iter = {i}, segment = {segments_revised[j]} isn't correct => {segments_to_recorrect[j]}")
 
 			if batch_mode:
-				corrector_result_list = self.correct_segment_batch(segments_with_errors)
+				corrector_result_list = self.correct_segment_batch(segments_to_recorrect)
 			else:
-				corrector_result_list = [self.correct_segment(segment) for segment in segments_with_errors]
+				corrector_result_list = [self.correct_segment(segment) for segment in segments_to_recorrect]
 
-			for j in range(len(segments_fixed)):
+			for j in range(len(segments_revised)):
 				if corrector_result_list[j].corrected_text:
 					text_corrected += corrector_result_list[j].corrected_text
 					self.response_history.extend(corrector_result_list[j].response_history)
 				else:
-					text_corrected += segments_fixed[j]
+					text_corrected += segments_revised[j]
 
 		diff = strings_diff(text, text_corrected)
 
