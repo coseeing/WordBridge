@@ -113,6 +113,7 @@ class BaseTypoCorrector():
 			self.response_history.append(corrector_result.response_json)
 
 		# Find typo and keep correcting
+		recorrection_history = None
 		for i in range(self.max_correction_attempts - 1):
 			# Find typo
 			text_corrected_revised, typo_indices = find_correction_errors(text, text_corrected)
@@ -124,19 +125,22 @@ class BaseTypoCorrector():
 			# Keep correction
 			text_corrected = ""
 			segments_revised = text_segmentation(text_corrected_revised, max_length=20)
+			if recorrection_history is None:
+				recorrection_history = [[] for _ in range(len(segments_revised))]
 			segments_to_recorrect = get_segments_to_recorrect(segments_revised, typo_indices)
 			for j in range(len(segments_to_recorrect)):
 				if segments_to_recorrect[j]:
 					print(f"iter = {i}, segment = {segments_revised[j]} isn't correct => {segments_to_recorrect[j]}")
 
 			if batch_mode:
-				corrector_result_list = self.correct_segment_batch(segments_to_recorrect)
+				corrector_result_list = self.correct_segment_batch(segments_to_recorrect, recorrection_history)
 			else:
-				corrector_result_list = [self.correct_segment(segment) for segment in segments_to_recorrect]
+				corrector_result_list = [self.correct_segment(segment, segment_previous) for segment, segment_previous in zip(segments_to_recorrect, recorrection_history)]
 
 			for j in range(len(segments_revised)):
 				if corrector_result_list[j].corrected_text:
 					text_corrected += corrector_result_list[j].corrected_text
+					recorrection_history[j].append(corrector_result_list[j].corrected_text)
 					self.response_history.append(corrector_result_list[j].response_json)
 				else:
 					text_corrected += segments_revised[j]
@@ -146,7 +150,7 @@ class BaseTypoCorrector():
 		return text_corrected, diff
 
 
-	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
+	def correct_segment(self, input_text: str, previous_results: list = [], fake_operation: bool = False) -> str:
 		if fake_operation or not self._has_target_language(input_text):
 			return CorrectorResult(input_text, input_text, [])
 
@@ -161,7 +165,7 @@ class BaseTypoCorrector():
 		text = self._text_preprocess(input_text)
 		input_prompt = self._create_input(message_template, text, input_info)
 
-		response_json = self._chat_completion(input_prompt, [], input_info)
+		response_json = self._chat_completion(input_prompt, previous_results, input_info)
 		response_text = self._parse_response(response_json)
 		output_text = self._text_postprocess(response_text, input_text)
 
@@ -173,8 +177,11 @@ class BaseTypoCorrector():
 
 		return corrector_result
 
-	def correct_segment_batch(self, input_text_list: list) -> list:
+	def correct_segment_batch(self, input_text_list: list, previous_results_list: list = []) -> list:
 		assert isinstance(input_text_list, list)
+
+		if not previous_results_list:
+			previous_results_list = [[] for _ in range(len(input_text_list))]
 
 		exception_queue = Queue()
 
@@ -187,7 +194,7 @@ class BaseTypoCorrector():
 		for index, input_text in enumerate(input_text_list):
 			thread = Thread(
 				target=self._correct_segment_task,
-				args=(input_text, output_text_list, index, exception_queue)
+				args=(input_text, previous_results_list[index], output_text_list, index, exception_queue)
 			)
 			thread.start()
 			threads.append(thread)
@@ -219,12 +226,13 @@ class BaseTypoCorrector():
 	def _correct_segment_task(
 		self,
 		input_text: str,
+		previous_results: list,
 		output_text_list: list,
 		index: int,
 		exception_queue: Queue
 	) -> str:
 		try:
-			text = self.correct_segment(input_text)
+			text = self.correct_segment(input_text, previous_results)
 			output_text_list[index] = text
 		except Exception as e:
 			exception_queue.put(e)
