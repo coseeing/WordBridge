@@ -1,7 +1,7 @@
 from collections import defaultdict
 from copy import deepcopy
-from queue import Queue
 from threading import Thread
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Tuple
 
 import json
@@ -52,7 +52,7 @@ class BaseTypoCorrector():
 		template_name: str,
 		optional_guidance_enable: dict,
 		customized_words: list,
-		max_tokens: int = 2048,
+		max_tokens: int = 4096,
 		seed: int = 0,
 		temperature: float = 0.0,
 		top_p: float = 0.0,
@@ -101,7 +101,8 @@ class BaseTypoCorrector():
 			return fake_corrected_text, strings_diff(text, fake_corrected_text)
 
 		text_corrected = ""
-		segments = text_segmentation(text, max_length=1000)
+		segments = text_segmentation(text, max_length=100)
+		print(f"segments = {len(segments)}")
 
 		# Typo correction
 		if batch_mode:
@@ -183,30 +184,28 @@ class BaseTypoCorrector():
 		if not previous_results_list:
 			previous_results_list = [[] for _ in range(len(input_text_list))]
 
-		exception_queue = Queue()
-
 		if not input_text_list:
 			return input_text_list
 
 		output_text_list = [None] * len(input_text_list)
 
-		threads = []
-		for index, input_text in enumerate(input_text_list):
-			thread = Thread(
-				target=self._correct_segment_task,
-				args=(input_text, previous_results_list[index], output_text_list, index, exception_queue)
-			)
-			thread.start()
-			threads.append(thread)
-
-		for thread in threads:
-			thread.join()
-
-		exception_set = set()
-		while not exception_queue.empty():
-			exception_set.add(str(exception_queue.get()))
-		if exception_set:
-			raise Exception(", ".join(list(exception_set)))
+		futures = []
+		with ThreadPoolExecutor(max_workers=20) as executor:
+			future_to_index = {
+				executor.submit(
+					self._correct_segment_task,
+					input_text_list[index],
+					previous_results_list[index],
+					output_text_list,
+					index,
+				): index for index in range(len(input_text_list))
+			}
+			try:
+				for future in as_completed(future_to_index):
+					future.result()
+			except Exception as e:
+				executor.shutdown(wait=False)
+				raise e
 
 		return output_text_list
 
@@ -229,13 +228,9 @@ class BaseTypoCorrector():
 		previous_results: list,
 		output_text_list: list,
 		index: int,
-		exception_queue: Queue
 	) -> str:
-		try:
-			text = self.correct_segment(input_text, previous_results)
-			output_text_list[index] = text
-		except Exception as e:
-			exception_queue.put(e)
+		text = self.correct_segment(input_text, previous_results)
+		output_text_list[index] = text
 
 	def _get_api_url(self):
 		if self.provider == "OpenAI":
