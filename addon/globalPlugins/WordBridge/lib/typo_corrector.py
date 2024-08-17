@@ -29,6 +29,11 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+BASE_API_URLS = {
+	"OpenAI": "https://api.openai.com",
+	"Baidu": "https://aip.baidubce.com",
+}
+
 
 class CorrectorResult():
 	def __init__(
@@ -99,6 +104,9 @@ class BaseTypoCorrector():
 		"""
 		if fake_corrected_text is not None:
 			return fake_corrected_text, strings_diff(text, fake_corrected_text)
+
+		if self.provider in ["OpenAI", "Baidu"]:
+			self._try_internet_connection(BASE_API_URLS[self.provider])
 
 		text_corrected = ""
 		segments = text_segmentation(text, max_length=100)
@@ -232,13 +240,34 @@ class BaseTypoCorrector():
 		text = self.correct_segment(input_text, previous_results)
 		output_text_list[index] = text
 
+	def _try_internet_connection(self, url, timeout=10, try_count=1):
+		for r in range(try_count):
+			try:
+				response = requests.get(url, timeout=timeout)
+				return
+			except Exception as e:
+				request_error = type(e).__name__
+				log.error(
+					"Try = {try_index}, {request_error}, an error occurred when sending request: {e}".format(
+						try_index=(r + 1),
+						request_error=request_error,
+						e=e,
+					)
+				)
+
+		raise Exception(
+			_("HTTP request error ({request_error}). Please check the network setting.").format(
+				request_error=request_error
+			)
+		)
+
 	def _get_api_url(self):
 		if self.provider == "OpenAI":
-			api_url = "https://api.openai.com/v1/chat/completions"
+			api_url = BASE_API_URLS[self.provider] + "/v1/chat/completions"
 		elif self.provider == "Baidu":
 			api_key = self.credential["api_key"]
 			secret_key = self.credential["secret_key"]
-			url_get_access = "https://aip.baidubce.com/oauth/2.0/token" +\
+			url_get_access = BASE_API_URLS[self.provider] + "/oauth/2.0/token" +\
 						f"?grant_type=client_credentials&client_id={api_key}&client_secret={secret_key}"
 			headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
 			response = None
@@ -266,7 +295,7 @@ class BaseTypoCorrector():
 			elif "error" in response.json():
 				raise Exception(_("Authentication error. Please check if the large language model's key is correct."))
 			access_token = response.json().get("access_token")
-			api_url = "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/" +\
+			api_url = BASE_API_URLS[self.provider] + "/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/" +\
 						f"{self.model}?access_token=" + access_token
 		else:
 			raise NotImplementedError("Subclass must implement this method")
