@@ -54,7 +54,7 @@ class BaseTypoCorrector():
 		model: str,
 		provider: str,
 		credential: dict,
-		template_name: str,
+		template_name: str = "Standard_v1.json",
 		optional_guidance_enable: dict,
 		customized_words: list,
 		max_tokens: int = 4096,
