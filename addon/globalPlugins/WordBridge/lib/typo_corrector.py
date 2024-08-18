@@ -1,7 +1,7 @@
 from collections import defaultdict
 from copy import deepcopy
-from queue import Queue
 from threading import Thread
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Tuple
 
 import json
@@ -14,6 +14,7 @@ import time
 from pypinyin import lazy_pinyin, Style
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
 from .utils import PUNCTUATION, SEPERATOR, is_chinese_character, strings_diff, text_segmentation
+from .utils import find_correction_errors, get_segments_to_recorrect
 
 import chinese_converter
 
@@ -28,17 +29,22 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+BASE_API_URLS = {
+	"OpenAI": "https://api.openai.com",
+	"Baidu": "https://aip.baidubce.com",
+}
+
 
 class CorrectorResult():
 	def __init__(
 		self,
 		original_text: str,
 		corrected_text: str,
-		response_history: List,
+		response_json: Dict,
 	):
 		self.original_text = original_text
 		self.corrected_text = corrected_text
-		self.response_history = response_history
+		self.response_json = response_json
 
 
 class BaseTypoCorrector():
@@ -51,7 +57,7 @@ class BaseTypoCorrector():
 		template_name: str,
 		optional_guidance_enable: dict,
 		customized_words: list,
-		max_tokens: int = 2048,
+		max_tokens: int = 4096,
 		seed: int = 0,
 		temperature: float = 0.0,
 		top_p: float = 0.0,
@@ -99,8 +105,12 @@ class BaseTypoCorrector():
 		if fake_corrected_text is not None:
 			return fake_corrected_text, strings_diff(text, fake_corrected_text)
 
+		if self.provider in ["OpenAI", "Baidu"]:
+			self._try_internet_connection(BASE_API_URLS[self.provider])
+
 		text_corrected = ""
-		segments = text_segmentation(text, 1000)
+		segments = text_segmentation(text, max_length=100)
+		print(f"segments = {len(segments)}")
 
 		# Typo correction
 		if batch_mode:
@@ -109,77 +119,47 @@ class BaseTypoCorrector():
 			corrector_result_list = [self.correct_segment(segment) for segment in segments]
 		for corrector_result in corrector_result_list:
 			text_corrected += corrector_result.corrected_text
-			self.response_history.extend(corrector_result.response_history)
+			self.response_history.append(corrector_result.response_json)
 
 		# Find typo and keep correcting
+		recorrection_history = None
 		for i in range(self.max_correction_attempts - 1):
 			# Find typo
-			differences = strings_diff(text, text_corrected)
-			text_fixed = ""
-			typo_indices = []
-			for diff in differences:
-				if diff["operation"] in ["insert", "delete"]:  # Insert or delete
-					text_fixed += diff["before_text"]
-					typo_indices.append(max(len(text_fixed) - 1, 0))
-					continue
-
-				share_common_pinyin = True
-				for before_char, after_char in zip(diff["before_text"], diff["after_text"]):
-					if len(set(get_char_pinyin(before_char)) & set(get_char_pinyin(after_char))) == 0:
-						share_common_pinyin = False
-						break
-
-				if share_common_pinyin:
-					text_fixed += diff["after_text"]
-				else:
-					text_fixed += diff["before_text"]
-					typo_indices.extend(list(range(len(text_fixed) - len(diff["after_text"]), len(text_fixed))))
+			text_corrected_revised, typo_indices = find_correction_errors(text, text_corrected)
 
 			# No typo, stop correction
-			if text_fixed == text_corrected:
+			if text_corrected_revised == text_corrected:
 				break
 
 			# Keep correction
 			text_corrected = ""
-			segments_fixed = text_segmentation(text_fixed, 20)
-			segments_with_errors = []
-			index_start = 0
-			index_end = 0
-			for k in range(len(segments_fixed)):
-				is_error = False
-				index_end += len(segments_fixed[k])
-				text_with_tag = ""
-				for j in range(index_start, index_end):
-					if j in typo_indices:
-						is_error = True
-						text_with_tag += ("[[" + text_fixed[j] + "]]")
-					else:
-						text_with_tag += text_fixed[j]
-				if is_error:
-					print(f"iter = {i}, text segment = {text_with_tag} is not correction")
-					segments_with_errors.append(text_with_tag)
-				else:
-					segments_with_errors.append("")
-				index_start = index_end
+			segments_revised = text_segmentation(text_corrected_revised, max_length=20)
+			if recorrection_history is None:
+				recorrection_history = [[] for _ in range(len(segments_revised))]
+			segments_to_recorrect = get_segments_to_recorrect(segments_revised, typo_indices)
+			for j in range(len(segments_to_recorrect)):
+				if segments_to_recorrect[j]:
+					print(f"iter = {i}, segment = {segments_revised[j]} isn't correct => {segments_to_recorrect[j]}")
 
 			if batch_mode:
-				corrector_result_list = self.correct_segment_batch(segments_with_errors)
+				corrector_result_list = self.correct_segment_batch(segments_to_recorrect, recorrection_history)
 			else:
-				corrector_result_list = [self.correct_segment(segment) for segment in segments_with_errors]
+				corrector_result_list = [self.correct_segment(segment, segment_previous) for segment, segment_previous in zip(segments_to_recorrect, recorrection_history)]
 
-			for j in range(len(segments_fixed)):
+			for j in range(len(segments_revised)):
 				if corrector_result_list[j].corrected_text:
 					text_corrected += corrector_result_list[j].corrected_text
-					self.response_history.extend(corrector_result_list[j].response_history)
+					recorrection_history[j].append(corrector_result_list[j].corrected_text)
+					self.response_history.append(corrector_result_list[j].response_json)
 				else:
-					text_corrected += segments_fixed[j]
+					text_corrected += segments_revised[j]
 
 		diff = strings_diff(text, text_corrected)
 
 		return text_corrected, diff
 
 
-	def correct_segment(self, input_text: str, fake_operation: bool = False) -> str:
+	def correct_segment(self, input_text: str, previous_results: list = [], fake_operation: bool = False) -> str:
 		if fake_operation or not self._has_target_language(input_text):
 			return CorrectorResult(input_text, input_text, [])
 
@@ -194,47 +174,46 @@ class BaseTypoCorrector():
 		text = self._text_preprocess(input_text)
 		input_prompt = self._create_input(message_template, text, input_info)
 
-		response_history = []
-		response_json = self._chat_completion(input_prompt, [], input_info)
-		response_history.append(response_json)
+		response_json = self._chat_completion(input_prompt, previous_results, input_info)
 		response_text = self._parse_response(response_json)
 		output_text = self._text_postprocess(response_text, input_text)
 
 		corrector_result = CorrectorResult(
 			original_text=input_text,
 			corrected_text=output_text,
-			response_history=response_history,
+			response_json=response_json,
 		)
 
 		return corrector_result
 
-	def correct_segment_batch(self, input_text_list: list) -> list:
+	def correct_segment_batch(self, input_text_list: list, previous_results_list: list = []) -> list:
 		assert isinstance(input_text_list, list)
 
-		exception_queue = Queue()
+		if not previous_results_list:
+			previous_results_list = [[] for _ in range(len(input_text_list))]
 
 		if not input_text_list:
 			return input_text_list
 
 		output_text_list = [None] * len(input_text_list)
 
-		threads = []
-		for index, input_text in enumerate(input_text_list):
-			thread = Thread(
-				target=self._correct_segment_task,
-				args=(input_text, output_text_list, index, exception_queue)
-			)
-			thread.start()
-			threads.append(thread)
-
-		for thread in threads:
-			thread.join()
-
-		exception_set = set()
-		while not exception_queue.empty():
-			exception_set.add(str(exception_queue.get()))
-		if exception_set:
-			raise Exception(", ".join(list(exception_set)))
+		futures = []
+		with ThreadPoolExecutor(max_workers=20) as executor:
+			future_to_index = {
+				executor.submit(
+					self._correct_segment_task,
+					input_text_list[index],
+					previous_results_list[index],
+					output_text_list,
+					index,
+				): index for index in range(len(input_text_list))
+			}
+			try:
+				for future in as_completed(future_to_index):
+					future.result()
+			except Exception as e:
+				executor.shutdown(wait=False)
+				raise e
 
 		return output_text_list
 
@@ -254,23 +233,41 @@ class BaseTypoCorrector():
 	def _correct_segment_task(
 		self,
 		input_text: str,
+		previous_results: list,
 		output_text_list: list,
 		index: int,
-		exception_queue: Queue
 	) -> str:
-		try:
-			text = self.correct_segment(input_text)
-			output_text_list[index] = text
-		except Exception as e:
-			exception_queue.put(e)
+		text = self.correct_segment(input_text, previous_results)
+		output_text_list[index] = text
+
+	def _try_internet_connection(self, url, timeout=10, try_count=1):
+		for r in range(try_count):
+			try:
+				response = requests.get(url, timeout=timeout)
+				return
+			except Exception as e:
+				request_error = type(e).__name__
+				log.error(
+					"Try = {try_index}, {request_error}, an error occurred when sending request: {e}".format(
+						try_index=(r + 1),
+						request_error=request_error,
+						e=e,
+					)
+				)
+
+		raise Exception(
+			_("HTTP request error ({request_error}). Please check the network setting.").format(
+				request_error=request_error
+			)
+		)
 
 	def _get_api_url(self):
 		if self.provider == "OpenAI":
-			api_url = "https://api.openai.com/v1/chat/completions"
+			api_url = BASE_API_URLS[self.provider] + "/v1/chat/completions"
 		elif self.provider == "Baidu":
 			api_key = self.credential["api_key"]
 			secret_key = self.credential["secret_key"]
-			url_get_access = "https://aip.baidubce.com/oauth/2.0/token" +\
+			url_get_access = BASE_API_URLS[self.provider] + "/oauth/2.0/token" +\
 						f"?grant_type=client_credentials&client_id={api_key}&client_secret={secret_key}"
 			headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
 			response = None
@@ -298,7 +295,7 @@ class BaseTypoCorrector():
 			elif "error" in response.json():
 				raise Exception(_("Authentication error. Please check if the large language model's key is correct."))
 			access_token = response.json().get("access_token")
-			api_url = "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/" +\
+			api_url = BASE_API_URLS[self.provider] + "/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/" +\
 						f"{self.model}?access_token=" + access_token
 		else:
 			raise NotImplementedError("Subclass must implement this method")

@@ -192,6 +192,57 @@ def has_traditional_chinese_char(text: str):
 	return identify(text) in [TRADITIONAL, MIXED]
 
 
+def find_correction_errors(text, text_corrected):
+	differences = strings_diff(text, text_corrected)
+	text_corrected_fixed = ""
+	typo_indices = []
+	for diff in differences:
+		if diff["operation"] in ["insert", "delete"]:  # Insert or delete
+			text_corrected_fixed += diff["before_text"]
+			typo_indices.append(max(len(text_corrected_fixed) - 1, 0))
+			continue
+
+		share_common_pinyin = True
+		for before_char, after_char in zip(diff["before_text"], diff["after_text"]):
+			if len(set(get_char_pinyin(before_char)) & set(get_char_pinyin(after_char))) == 0:
+				share_common_pinyin = False
+				break
+
+		if share_common_pinyin:
+			text_corrected_fixed += diff["after_text"]
+		else:
+			text_corrected_fixed += diff["before_text"]
+			typo_indices.extend(
+				list(range(len(text_corrected_fixed) - len(diff["after_text"]), len(text_corrected_fixed)))
+			)
+
+	return text_corrected_fixed, typo_indices
+
+
+def get_segments_to_recorrect(segments: list, typo_indices: list, max_length: int = 30) -> tuple:
+	text = "".join(segments)
+	segments_to_correct = []
+	index_start = 0
+	index_end = 0
+	for k in range(len(segments)):
+		is_error = False
+		index_end += len(segments[k])
+		text_with_tag = ""
+		for j in range(index_start, index_end):
+			if j in typo_indices:
+				is_error = True
+				text_with_tag += ("[[" + text[j] + "]]")
+			else:
+				text_with_tag += text[j]
+		if is_error:
+			segments_to_correct.append(text_with_tag)
+		else:
+			segments_to_correct.append("")
+		index_start = index_end
+
+	return segments_to_correct
+
+
 def get_descs(text: str) -> str:
 	if not text or getLanguage is None or getCharDescListFromText is None:
 		return ""
