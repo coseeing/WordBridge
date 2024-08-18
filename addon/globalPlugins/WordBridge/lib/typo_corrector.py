@@ -54,6 +54,7 @@ class BaseTypoCorrector():
 		model: str,
 		provider: str,
 		credential: dict,
+		language: str,
 		template_name: str = "Standard_v1.json",
 		optional_guidance_enable: dict = None,
 		customized_words: list = [],
@@ -65,7 +66,6 @@ class BaseTypoCorrector():
 		max_correction_attempts: int = 3,
 		httppost_retries: int = 2,
 		backoff: int = 1,
-		language: str = "zh_traditional",
 	):
 
 		self.model = model
