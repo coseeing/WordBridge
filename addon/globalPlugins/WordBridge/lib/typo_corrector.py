@@ -30,8 +30,8 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 BASE_API_URLS = {
-	"OpenAI": "https://api.openai.com",
-	"Baidu": "https://aip.baidubce.com",
+	"openai": "https://api.openai.com",
+	"baidu": "https://aip.baidubce.com",
 }
 
 
@@ -69,7 +69,7 @@ class BaseTypoCorrector():
 	):
 
 		self.model = model
-		self.provider = provider
+		self.provider = provider.lower()
 		self.max_tokens = max_tokens
 		self.seed = seed
 		self.temperature = temperature
@@ -82,12 +82,12 @@ class BaseTypoCorrector():
 		self.language = language
 		self.optional_guidance_enable = optional_guidance_enable
 		if self.optional_guidance_enable is None:
-			if self.provider == "OpenAI":
+			if self.provider == "openai":
 				self.optional_guidance_enable = {
 					"no_explanation": False,
 					"keep_non_chinese_char": True,
 				}
-			elif self.provider == "Baidu":
+			elif self.provider == "baidu":
 				self.optional_guidance_enable = {
 					"no_explanation": True,
 					"keep_non_chinese_char": False,
@@ -122,7 +122,7 @@ class BaseTypoCorrector():
 		if fake_corrected_text is not None:
 			return fake_corrected_text, strings_diff(text, fake_corrected_text)
 
-		if self.provider in ["OpenAI", "Baidu"]:
+		if self.provider in ["openai", "baidu"]:
 			self._try_internet_connection(BASE_API_URLS[self.provider])
 
 		text_corrected = ""
@@ -279,9 +279,9 @@ class BaseTypoCorrector():
 		)
 
 	def _get_api_url(self):
-		if self.provider == "OpenAI":
+		if self.provider == "openai":
 			api_url = BASE_API_URLS[self.provider] + "/v1/chat/completions"
-		elif self.provider == "Baidu":
+		elif self.provider == "baidu":
 			api_key = self.credential["api_key"]
 			secret_key = self.credential["secret_key"]
 			url_get_access = BASE_API_URLS[self.provider] + "/oauth/2.0/token" +\
@@ -376,7 +376,7 @@ class BaseTypoCorrector():
 			system_template = deepcopy(self.template[self.language]["system"])
 			system_template = system_template.replace("\\n", "\n")
 			system_template = self._system_add_guidance(system_template, input_info)
-		if self.provider == "OpenAI":
+		if self.provider == "openai":
 			messages = [{"role": "system", "content": system_template}] + messages
 			data = {
 				"model": self.model,
@@ -388,7 +388,7 @@ class BaseTypoCorrector():
 				"logprobs": self.logprobs,
 				"stop": [" =>"]
 			}
-		elif self.provider == "Baidu":
+		elif self.provider == "baidu":
 			data = {
 				"messages": messages,
 				"system": system_template,
@@ -403,9 +403,9 @@ class BaseTypoCorrector():
 		return data
 
 	def _get_headers(self):
-		if self.provider == "OpenAI":
+		if self.provider == "openai":
 			headers = {"Authorization": f"Bearer {self.credential['api_key']}"}
-		elif self.provider == "Baidu":
+		elif self.provider == "baidu":
 			headers = {'Content-Type': 'application/json'}
 		else:
 			raise NotImplementedError("Subclass must implement this method")
@@ -414,7 +414,7 @@ class BaseTypoCorrector():
 
 	def _chat_completion(self, input: List, response_text_history: List, input_info: dict) -> str:
 		messages = deepcopy(input)
-		if self.provider == "OpenAI":
+		if self.provider == "openai":
 			comment_template = deepcopy(self.template[self.language]["comment"])
 			comment_template = comment_template.replace("\\n", "\n")
 			for response_previous in response_text_history:
@@ -465,10 +465,10 @@ class BaseTypoCorrector():
 
 		response_json = response.json()
 
-		if self.provider == "OpenAI" and response.status_code != 200:
+		if self.provider == "openai" and response.status_code != 200:
 			self._handle_openai_errors(response)
 
-		if self.provider == "Baidu" and ("error_code" in response_json or not response_json["result"]):
+		if self.provider == "baidu" and ("error_code" in response_json or not response_json["result"]):
 			self._handle_baidu_errors(response_json)
 
 		return response_json
@@ -507,9 +507,9 @@ class BaseTypoCorrector():
 			raise Exception(response_json["error_msg"])
 
 	def _parse_response(self, response: str) -> str:
-		if self.provider == "OpenAI":
+		if self.provider == "openai":
 			sentence = response["choices"][0]["message"]["content"]
-		elif self.provider == "Baidu":
+		elif self.provider == "baidu":
 			sentence = response["result"]
 		else:
 			raise NotImplementedError("Subclass must implement this method")
