@@ -55,8 +55,8 @@ class BaseTypoCorrector():
 		provider: str,
 		credential: dict,
 		template_name: str = "Standard_v1.json",
-		optional_guidance_enable: dict,
-		customized_words: list,
+		optional_guidance_enable: dict = None,
+		customized_words: list = [],
 		max_tokens: int = 4096,
 		seed: int = 0,
 		temperature: float = 0.0,
@@ -81,6 +81,23 @@ class BaseTypoCorrector():
 		self.credential = credential
 		self.language = language
 		self.optional_guidance_enable = optional_guidance_enable
+		if self.optional_guidance_enable is None:
+			if self.provider == "OpenAI":
+				self.optional_guidance_enable = {
+					"no_explanation": False,
+					"keep_non_chinese_char": True,
+				}
+			elif self.provider == "Baidu":
+				self.optional_guidance_enable = {
+					"no_explanation": True,
+					"keep_non_chinese_char": False,
+				}
+			else:
+				self.optional_guidance_enable = {
+					"no_explanation": False,
+					"keep_non_chinese_char": False,
+				}
+
 		self.customized_words = customized_words
 		self.response_history = []
 
