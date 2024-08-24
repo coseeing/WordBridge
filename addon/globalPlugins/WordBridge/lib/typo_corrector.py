@@ -119,7 +119,6 @@ class BaseTypoCorrector():
 
 		text_corrected = ""
 		segments = text_segmentation(text, max_length=100)
-		print(f"segments = {len(segments)}")
 
 		# Typo correction
 		if batch_mode:
