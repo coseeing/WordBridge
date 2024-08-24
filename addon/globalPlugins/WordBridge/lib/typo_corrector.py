@@ -387,7 +387,7 @@ class BaseTypoCorrector():
 			if "temperature" in setting:
 				setting["temperature"] = max(setting["temperature"], 0.0001)
 			if "max_output_tokens" in setting:
-				setting["max_output_tokens"] = min(self.max_tokens, len(messages[-1]["content"]))
+				setting["max_output_tokens"] = min(setting["max_output_tokens"], len(messages[-1]["content"]))
 			data = {
 				"messages": messages,
 				"system": system_template,
