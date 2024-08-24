@@ -58,11 +58,7 @@ class BaseTypoCorrector():
 		template_name: str = "Standard_v1.json",
 		optional_guidance_enable: dict = None,
 		customized_words: list = [],
-		max_tokens: int = 4096,
-		seed: int = 0,
-		temperature: float = 0.0,
-		top_p: float = 0.0,
-		logprobs: bool = True,
+		llm_settings: dict = {},
 		max_correction_attempts: int = 3,
 		httppost_retries: int = 2,
 		backoff: int = 1,
@@ -70,11 +66,6 @@ class BaseTypoCorrector():
 
 		self.model = model
 		self.provider = provider.lower()
-		self.max_tokens = max_tokens
-		self.seed = seed
-		self.temperature = temperature
-		self.top_p = top_p
-		self.logprobs = logprobs
 		self.max_correction_attempts = max_correction_attempts
 		self.httppost_retries = httppost_retries
 		self.backoff = backoff
@@ -99,6 +90,7 @@ class BaseTypoCorrector():
 				}
 
 		self.customized_words = customized_words
+		self.llm_settings = llm_settings
 		self.response_history = []
 
 		file_dirpath = os.path.dirname(__file__)
@@ -368,6 +360,14 @@ class BaseTypoCorrector():
 		return system
 
 	def _get_request_data(self, messages, input_info):
+		# Load default setting
+		setting_path = os.path.join(os.path.dirname(__file__), "..", "llm_setting", self.provider + ".json")
+		with open(setting_path, "r", encoding="utf8") as f:
+			setting = json.loads(f.read())
+
+		for k in self.llm_settings:
+			setting[k] = self.llm_settings[k]
+
 		if input_info["focus_typo"]:
 			system_template = deepcopy(self.template[self.language]["system_tag"])
 			system_template = system_template.replace("\\n", "\n")
@@ -381,21 +381,17 @@ class BaseTypoCorrector():
 			data = {
 				"model": self.model,
 				"messages": messages,
-				"max_tokens": self.max_tokens,
-				"seed": self.seed,
-				"temperature": self.temperature,
-				"top_p": self.top_p,
-				"logprobs": self.logprobs,
-				"stop": [" =>"]
+				**setting,
 			}
 		elif self.provider == "baidu":
+			if "temperature" in setting:
+				setting["temperature"] = max(setting["temperature"], 0.0001)
+			if "max_output_tokens" in setting:
+				setting["max_output_tokens"] = min(self.max_tokens, len(messages[-1]["content"]))
 			data = {
 				"messages": messages,
 				"system": system_template,
-				"max_output_tokens": min(self.max_tokens, len(messages[-1]["content"])),
-				"temperature": max(self.temperature, 0.0001),
-				"top_p": self.top_p,
-				"stop": ["\n", "&"]
+				**setting,
 			}
 		else:
 			raise NotImplementedError("Subclass must implement this method")
