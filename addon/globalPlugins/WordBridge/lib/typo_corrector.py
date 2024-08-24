@@ -30,8 +30,8 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 BASE_API_URLS = {
-	"OpenAI": "https://api.openai.com",
-	"Baidu": "https://aip.baidubce.com",
+	"openai": "https://api.openai.com",
+	"baidu": "https://aip.baidubce.com",
 }
 
 
@@ -54,34 +54,43 @@ class BaseTypoCorrector():
 		model: str,
 		provider: str,
 		credential: dict,
-		template_name: str,
-		optional_guidance_enable: dict,
-		customized_words: list,
-		max_tokens: int = 4096,
-		seed: int = 0,
-		temperature: float = 0.0,
-		top_p: float = 0.0,
-		logprobs: bool = True,
+		language: str,
+		template_name: str = "Standard_v1.json",
+		optional_guidance_enable: dict = None,
+		customized_words: list = [],
+		llm_settings: dict = {},
 		max_correction_attempts: int = 3,
 		httppost_retries: int = 2,
 		backoff: int = 1,
-		language: str = "zh_traditional",
 	):
 
 		self.model = model
-		self.provider = provider
-		self.max_tokens = max_tokens
-		self.seed = seed
-		self.temperature = temperature
-		self.top_p = top_p
-		self.logprobs = logprobs
+		self.provider = provider.lower()
 		self.max_correction_attempts = max_correction_attempts
 		self.httppost_retries = httppost_retries
 		self.backoff = backoff
 		self.credential = credential
 		self.language = language
 		self.optional_guidance_enable = optional_guidance_enable
+		if self.optional_guidance_enable is None:
+			if self.provider == "openai":
+				self.optional_guidance_enable = {
+					"no_explanation": False,
+					"keep_non_chinese_char": True,
+				}
+			elif self.provider == "baidu":
+				self.optional_guidance_enable = {
+					"no_explanation": True,
+					"keep_non_chinese_char": False,
+				}
+			else:
+				self.optional_guidance_enable = {
+					"no_explanation": False,
+					"keep_non_chinese_char": False,
+				}
+
 		self.customized_words = customized_words
+		self.llm_settings = llm_settings
 		self.response_history = []
 
 		file_dirpath = os.path.dirname(__file__)
@@ -105,12 +114,11 @@ class BaseTypoCorrector():
 		if fake_corrected_text is not None:
 			return fake_corrected_text, strings_diff(text, fake_corrected_text)
 
-		if self.provider in ["OpenAI", "Baidu"]:
+		if self.provider in ["openai", "baidu"]:
 			self._try_internet_connection(BASE_API_URLS[self.provider])
 
 		text_corrected = ""
 		segments = text_segmentation(text, max_length=100)
-		print(f"segments = {len(segments)}")
 
 		# Typo correction
 		if batch_mode:
@@ -262,9 +270,9 @@ class BaseTypoCorrector():
 		)
 
 	def _get_api_url(self):
-		if self.provider == "OpenAI":
+		if self.provider == "openai":
 			api_url = BASE_API_URLS[self.provider] + "/v1/chat/completions"
-		elif self.provider == "Baidu":
+		elif self.provider == "baidu":
 			api_key = self.credential["api_key"]
 			secret_key = self.credential["secret_key"]
 			url_get_access = BASE_API_URLS[self.provider] + "/oauth/2.0/token" +\
@@ -351,6 +359,14 @@ class BaseTypoCorrector():
 		return system
 
 	def _get_request_data(self, messages, input_info):
+		# Load default setting
+		setting_path = os.path.join(os.path.dirname(__file__), "..", "llm_setting", self.provider + ".json")
+		with open(setting_path, "r", encoding="utf8") as f:
+			setting = json.loads(f.read())
+
+		for k in self.llm_settings:
+			setting[k] = self.llm_settings[k]
+
 		if input_info["focus_typo"]:
 			system_template = deepcopy(self.template[self.language]["system_tag"])
 			system_template = system_template.replace("\\n", "\n")
@@ -359,26 +375,22 @@ class BaseTypoCorrector():
 			system_template = deepcopy(self.template[self.language]["system"])
 			system_template = system_template.replace("\\n", "\n")
 			system_template = self._system_add_guidance(system_template, input_info)
-		if self.provider == "OpenAI":
+		if self.provider == "openai":
 			messages = [{"role": "system", "content": system_template}] + messages
 			data = {
 				"model": self.model,
 				"messages": messages,
-				"max_tokens": self.max_tokens,
-				"seed": self.seed,
-				"temperature": self.temperature,
-				"top_p": self.top_p,
-				"logprobs": self.logprobs,
-				"stop": [" =>"]
+				**setting,
 			}
-		elif self.provider == "Baidu":
+		elif self.provider == "baidu":
+			if "temperature" in setting:
+				setting["temperature"] = max(setting["temperature"], 0.0001)
+			if "max_output_tokens" in setting:
+				setting["max_output_tokens"] = min(setting["max_output_tokens"], len(messages[-1]["content"]))
 			data = {
 				"messages": messages,
 				"system": system_template,
-				"max_output_tokens": min(self.max_tokens, len(messages[-1]["content"])),
-				"temperature": max(self.temperature, 0.0001),
-				"top_p": self.top_p,
-				"stop": ["\n", "&"]
+				**setting,
 			}
 		else:
 			raise NotImplementedError("Subclass must implement this method")
@@ -386,9 +398,9 @@ class BaseTypoCorrector():
 		return data
 
 	def _get_headers(self):
-		if self.provider == "OpenAI":
+		if self.provider == "openai":
 			headers = {"Authorization": f"Bearer {self.credential['api_key']}"}
-		elif self.provider == "Baidu":
+		elif self.provider == "baidu":
 			headers = {'Content-Type': 'application/json'}
 		else:
 			raise NotImplementedError("Subclass must implement this method")
@@ -397,7 +409,7 @@ class BaseTypoCorrector():
 
 	def _chat_completion(self, input: List, response_text_history: List, input_info: dict) -> str:
 		messages = deepcopy(input)
-		if self.provider == "OpenAI":
+		if self.provider == "openai":
 			comment_template = deepcopy(self.template[self.language]["comment"])
 			comment_template = comment_template.replace("\\n", "\n")
 			for response_previous in response_text_history:
@@ -448,10 +460,10 @@ class BaseTypoCorrector():
 
 		response_json = response.json()
 
-		if self.provider == "OpenAI" and response.status_code != 200:
+		if self.provider == "openai" and response.status_code != 200:
 			self._handle_openai_errors(response)
 
-		if self.provider == "Baidu" and ("error_code" in response_json or not response_json["result"]):
+		if self.provider == "baidu" and ("error_code" in response_json or not response_json["result"]):
 			self._handle_baidu_errors(response_json)
 
 		return response_json
@@ -490,9 +502,9 @@ class BaseTypoCorrector():
 			raise Exception(response_json["error_msg"])
 
 	def _parse_response(self, response: str) -> str:
-		if self.provider == "OpenAI":
+		if self.provider == "openai":
 			sentence = response["choices"][0]["message"]["content"]
-		elif self.provider == "Baidu":
+		elif self.provider == "baidu":
 			sentence = response["result"]
 		else:
 			raise NotImplementedError("Subclass must implement this method")
