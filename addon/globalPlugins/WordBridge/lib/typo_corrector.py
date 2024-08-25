@@ -98,6 +98,11 @@ class BaseTypoCorrector():
 		with open(template_path, "r", encoding="utf8") as f:
 			self.template = json.loads(f.read())
 
+		self.prefix = ""
+		self.suffix = ""
+		self.question_string = ""
+		self.answer_string = ""
+
 	def correct_text(self, text: str, batch_mode: bool = True, fake_corrected_text: str = None) -> Tuple:
 		"""
 		Analyze typos of text using self.segment_corrector. It also analyzes the difference between the original
@@ -542,13 +547,24 @@ class ChineseTypoCorrectorLite(BaseTypoCorrector):
 		return input_text
 
 	def _text_postprocess(self, text: str, input_text: str):
+		input_text_tmp = self.prefix + input_text + self.suffix
+
 		# Remove automatically added punctuations since there is no punctuation at the end of input
-		while input_text[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
+		while input_text_tmp[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
 			text = text[:-1]
 
+		if text[-1] not in SEPERATOR:
+			for i in range(len(input_text_tmp)):
+				if input_text_tmp[-1 - i] not in SEPERATOR:
+					text += input_text_tmp[-i:]
+					break
+
 		# Remove automatically added punctuations since there is no punctuation at the begin of input
-		while input_text[0] not in SEPERATOR and text and text[0] in SEPERATOR:
+		while input_text_tmp[0] not in SEPERATOR and text and text[0] in SEPERATOR:
 			text = text[1:]
+
+		text = text[(len(self.prefix) + len(self.answer_string)):(len(text) - len(self.suffix))]
+		return text
 
 	def _has_target_language(self, text: str):
 		return has_chinese(text)
@@ -589,16 +605,23 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 		return self.prefix + input_text + self.suffix
 
 	def _text_postprocess(self, text: str, input_text: str):
-		text = text[(len(self.prefix) + len(self.answer_string)):(len(text) - len(self.suffix))]
+		input_text_tmp = self.prefix + input_text + self.suffix
 
 		# Remove automatically added punctuations since there is no punctuation at the end of input
-		while input_text[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
+		while input_text_tmp[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
 			text = text[:-1]
 
+		if text[-1] not in SEPERATOR:
+			for i in range(len(input_text_tmp)):
+				if input_text_tmp[-1 - i] not in SEPERATOR:
+					text += input_text_tmp[-i:]
+					break
+
 		# Remove automatically added punctuations since there is no punctuation at the begin of input
-		while input_text[0] not in SEPERATOR and text and text[0] in SEPERATOR:
+		while input_text_tmp[0] not in SEPERATOR and text and text[0] in SEPERATOR:
 			text = text[1:]
 
+		text = text[(len(self.prefix) + len(self.answer_string)):(len(text) - len(self.suffix))]
 		return text
 
 	def _has_target_language(self, text: str):
