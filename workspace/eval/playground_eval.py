@@ -46,13 +46,13 @@ if __name__ == "__main__":
 	groundtruth_name = "gpt4_250_sentence_gt.txt"
 	tag = "2024-08-26-ollama"
 
-	data_path = os.path.join(".", "data", data_name)
-	groundtruth_path = os.path.join(".", "data", groundtruth_name)
+	data_path = os.path.join(path, "data", data_name)
+	groundtruth_path = os.path.join(path, "data", groundtruth_name)
 
 	eval_file_name = f"eval_{model}_{tag}_{os.path.basename(data_path)}"
 	result_file_name = f"result_{model}_{tag}_{os.path.basename(data_path)}"
-	eval_file_path = os.path.join(".", "eval", eval_file_name)
-	result_file_path = os.path.join(".", "result", result_file_name)
+	eval_file_path = os.path.join(path, "eval", eval_file_name)
+	result_file_path = os.path.join(path, "result", result_file_name)
 
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
 	corrector = typo_corrector_class(
