@@ -44,7 +44,7 @@ if __name__ == "__main__":
 			credential = json.loads(f.read())[provider]
 	data_name = "gpt4_250_sentence_aug_err_0.1_41PJSO2KRV6SK1WJ6936.txt"
 	groundtruth_name = "gpt4_250_sentence_gt.txt"
-	tag = "2024-08-26-gpt-4o-mini"
+	tag = "2024-08-26-ollama"
 
 	data_path = os.path.join(".", "data", data_name)
 	groundtruth_path = os.path.join(".", "data", groundtruth_name)
