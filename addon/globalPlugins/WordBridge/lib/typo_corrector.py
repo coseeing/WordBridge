@@ -447,7 +447,7 @@ class BaseTypoCorrector():
 		backoff = self.backoff
 		response_json = None
 		for r in range(self.httppost_retries):
-			timeout = min(5 * (r + 1), 15) if self.provider != "ollama": else 90
+			timeout = min(5 * (r + 1), 15) if self.provider != "ollama" else 90
 			request_error = None
 			response = None
 			try:
