@@ -414,13 +414,13 @@ class BaseTypoCorrector():
 
 	def _chat_completion(self, input: List, response_text_history: List, input_info: dict) -> str:
 		messages = deepcopy(input)
-		if self.provider == "openai":
-			comment_template = deepcopy(self.template[self.language]["comment"])
-			comment_template = comment_template.replace("\\n", "\n")
-			for response_previous in response_text_history:
-				comment = comment_template.replace("{{response_previous}}", response_previous)
-				messages.append({"role": "assistant", "content": response_previous})
-				messages.append({"role": "user", "content": comment})
+		comment_template = deepcopy(self.template[self.language]["comment"])
+		comment_template = comment_template.replace("\\n", "\n")
+		for response_previous in response_text_history:
+			response_previous = self.prefix + response_previous + self.suffix
+			comment = comment_template.replace("{{response_previous}}", response_previous)
+			messages.append({"role": "assistant", "content": response_previous})
+			messages.append({"role": "user", "content": comment})
 
 		request_data = self._get_request_data(messages, input_info)
 		api_url = self._get_api_url()
