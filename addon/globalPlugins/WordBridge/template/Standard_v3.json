@@ -1,0 +1,42 @@
+{
+	"zh_traditional": {
+		"system": "輸入為繁體文字與其正確拼音，請修正錯字並輸出正確繁體文字\n1. 不要加字刪字，也不要刪除句尾標點符號\n2. 請不要在句尾加換行或空格\n3. 輸出須為繁體字\n4. 不要用同意詞代換原文字\n範例:\n(文字&拼音) => 文字",
+		"system_tag": "輸入為文字與其正確拼音，請修正[[]]中的錯字並輸出正確文字:\n(文字&拼音) => 文字",
+		"comment": "錯誤答案，請修正重新輸出文字",
+		"message": [
+			{"role": "user", "content": "{{QUESTION}}我說今天天器真好。&jin1 tian1 tian1 qi4 zhen1 hao3 。 => "},
+			{"role": "assistant", "content": "{{ANSWER}}我說今天天氣真好。"},
+			{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "}
+		],
+		"message_tag": [
+			{"role": "user", "content": "{{QUESTION}}今天天[[器]]真好。&jin1 tian1 tian1 [[qi4]] zhen1 hao3 。 => "},
+			{"role": "assistant", "content": "{{ANSWER}}今天天氣真好。"},
+			{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "}
+		],
+		"optional_guidance": {
+			"keep_non_chinese_char": "勿將非漢字用漢字取代",
+			"no_explanation": "輸出答案即可，後面無須解釋",
+			"customized_words": "參考詞彙: "
+		}
+	},
+	"zh_simplified": {
+		"system": "输入为文字与其正确拼音，请修正错字并输出正确文字:\n(文字&拼音) => 文字",
+		"system_tag": "输入为文字与其正确拼音，请修正[[]]中的错字并输出正确文字:\n(文字&拼音) => 文字",
+		"comment": "'{{response_previous}}'是错误答案，请修正重新输出文字",
+		"message": [
+			{"role": "user", "content": "{{QUESTION}}今天天器真好&jin1 tian1 tian1 qi4 zhen1 hao3 => "},
+			{"role": "assistant", "content": "{{ANSWER}}今天天气真好"},
+			{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "}
+		],
+		"message_tag": [
+			{"role": "user", "content": "{{QUESTION}}今天天[[器]]真好&jin1 tian1 tian1 [[qi4]] zhen1 hao3 => "},
+			{"role": "assistant", "content": "{{ANSWER}}今天天气真好"},
+			{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "}
+		],
+		"optional_guidance": {
+			"keep_non_chinese_char": "勿将非汉字用汉字取代",
+			"no_explanation": "输出答案即可，后面无须解释",
+			"customized_words": "参考词汇: "
+		}
+	}
+}
