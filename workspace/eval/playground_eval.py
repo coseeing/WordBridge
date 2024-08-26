@@ -63,6 +63,7 @@ if __name__ == "__main__":
 		template_name=template_name,
 		optional_guidance_enable=optional_guidance_enable,
 		customized_words=customized_words,
+		max_correction_attempts=1,
 	)
 
 	# Read testing data
