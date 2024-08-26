@@ -16,7 +16,7 @@ except ImportError:
 	getCharDescListFromText = None
 
 # Characters used for text segmentation
-SEPERATOR = "﹐，,.。﹒．｡!ǃⵑ︕！;;︔﹔；?︖﹖？⋯"
+SEPERATOR = "﹐，,.。﹒．｡!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ "
 PUNCTUATION = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t\"\'#$%&()*+-/<=>@[\]^_`{|}~"
 
 ZH_UNICODE_INTERVALS = [

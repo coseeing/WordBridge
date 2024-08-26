@@ -98,6 +98,11 @@ class BaseTypoCorrector():
 		with open(template_path, "r", encoding="utf8") as f:
 			self.template = json.loads(f.read())
 
+		self.prefix = ""
+		self.suffix = ""
+		self.question_string = ""
+		self.answer_string = ""
+
 	def correct_text(self, text: str, batch_mode: bool = True, fake_corrected_text: str = None) -> Tuple:
 		"""
 		Analyze typos of text using self.segment_corrector. It also analyzes the difference between the original
@@ -409,13 +414,13 @@ class BaseTypoCorrector():
 
 	def _chat_completion(self, input: List, response_text_history: List, input_info: dict) -> str:
 		messages = deepcopy(input)
-		if self.provider == "openai":
-			comment_template = deepcopy(self.template[self.language]["comment"])
-			comment_template = comment_template.replace("\\n", "\n")
-			for response_previous in response_text_history:
-				comment = comment_template.replace("{{response_previous}}", response_previous)
-				messages.append({"role": "assistant", "content": response_previous})
-				messages.append({"role": "user", "content": comment})
+		comment_template = deepcopy(self.template[self.language]["comment"])
+		comment_template = comment_template.replace("\\n", "\n")
+		for response_previous in response_text_history:
+			response_previous = self.prefix + response_previous + self.suffix
+			comment = comment_template.replace("{{response_previous}}", response_previous)
+			messages.append({"role": "assistant", "content": response_previous})
+			messages.append({"role": "user", "content": comment})
 
 		request_data = self._get_request_data(messages, input_info)
 		api_url = self._get_api_url()
@@ -520,10 +525,27 @@ class BaseTypoCorrector():
 		raise NotImplementedError("Subclass must implement this method")
 
 	def _text_preprocess(self, input_text: str):
-		raise NotImplementedError("Subclass must implement this method")
+		return self.prefix + input_text + self.suffix
 
 	def _text_postprocess(self, text: str, input_text: str):
-		raise NotImplementedError("Subclass must implement this method")
+		input_text_tmp = self.prefix + input_text + self.suffix
+
+		# Remove automatically added punctuations since there is no punctuation at the end of input
+		while input_text_tmp[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
+			text = text[:-1]
+
+		if text[-1] not in SEPERATOR:
+			for i in range(len(input_text_tmp)):
+				if input_text_tmp[-1 - i] not in SEPERATOR:
+					text += input_text_tmp[-i:]
+					break
+
+		# Remove automatically added punctuations since there is no punctuation at the begin of input
+		while input_text_tmp[0] not in SEPERATOR and text and text[0] in SEPERATOR:
+			text = text[1:]
+
+		text = text[(len(self.prefix) + len(self.answer_string)):(len(text) - len(self.suffix))]
+		return text
 
 	def _has_target_language(self, text: str):
 		raise NotImplementedError("Subclass must implement this method")
@@ -537,18 +559,6 @@ class ChineseTypoCorrectorLite(BaseTypoCorrector):
 	def _create_input(self, template: str, text: str, input_info: dict):
 		template[-1]["content"] = template[-1]["content"].replace("{{text_input}}", text)
 		return template
-
-	def _text_preprocess(self, input_text: str):
-		return input_text
-
-	def _text_postprocess(self, text: str, input_text: str):
-		# Remove automatically added punctuations since there is no punctuation at the end of input
-		while input_text[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
-			text = text[:-1]
-
-		# Remove automatically added punctuations since there is no punctuation at the begin of input
-		while input_text[0] not in SEPERATOR and text and text[0] in SEPERATOR:
-			text = text[1:]
 
 	def _has_target_language(self, text: str):
 		return has_chinese(text)
@@ -584,22 +594,6 @@ class ChineseTypoCorrector(BaseTypoCorrector):
 			template[i]["content"] = template[i]["content"].replace("{{ANSWER}}", self.answer_string)
 
 		return template
-
-	def _text_preprocess(self, input_text: str):
-		return self.prefix + input_text + self.suffix
-
-	def _text_postprocess(self, text: str, input_text: str):
-		text = text[(len(self.prefix) + len(self.answer_string)):(len(text) - len(self.suffix))]
-
-		# Remove automatically added punctuations since there is no punctuation at the end of input
-		while input_text[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
-			text = text[:-1]
-
-		# Remove automatically added punctuations since there is no punctuation at the begin of input
-		while input_text[0] not in SEPERATOR and text and text[0] in SEPERATOR:
-			text = text[1:]
-
-		return text
 
 	def _has_target_language(self, text: str):
 		return has_chinese(text)
