@@ -49,8 +49,8 @@ if __name__ == "__main__":
 	data_path = os.path.join(path, "data", data_name)
 	groundtruth_path = os.path.join(path, "data", groundtruth_name)
 
-	eval_file_name = f"eval_{model.replace(":", "_")}_{tag}_{os.path.basename(data_path)}"
-	result_file_name = f"result_{model.replace(":", "_")}_{tag}_{os.path.basename(data_path)}"
+	eval_file_name = f"eval_{model.replace(':', '_')}_{tag}_{os.path.basename(data_path)}"
+	result_file_name = f"result_{model.replace(':', '_')}_{tag}_{os.path.basename(data_path)}"
 	eval_file_path = os.path.join(path, "eval", eval_file_name)
 	result_file_path = os.path.join(path, "result", result_file_name)
 
