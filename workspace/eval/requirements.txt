@@ -1,3 +1,4 @@
 chinese_converter
 hanzidentifier
 jiwer
+pypinyin

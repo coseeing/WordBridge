@@ -551,7 +551,7 @@ class BaseTypoCorrector():
 		while input_text_tmp[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
 			text = text[:-1]
 
-		if text[-1] not in SEPERATOR:
+		if text[-1] not in SEPERATOR and input_text[-1] in SEPERATOR:
 			for i in range(len(input_text_tmp)):
 				if input_text_tmp[-1 - i] not in SEPERATOR:
 					text += input_text_tmp[-i:]
