@@ -139,6 +139,7 @@ class BaseTypoCorrector():
 		recorrection_history = None
 		for i in range(self.max_correction_attempts - 1):
 			# Find typo
+			text_corrected_previous = text_corrected
 			text_corrected_revised, typo_indices = find_correction_errors(text, text_corrected)
 
 			# No typo, stop correction
@@ -153,7 +154,7 @@ class BaseTypoCorrector():
 			segments_to_recorrect = get_segments_to_recorrect(segments_revised, typo_indices)
 			for j in range(len(segments_to_recorrect)):
 				if segments_to_recorrect[j]:
-					print(f"iter = {i}, segment = {segments_revised[j]} isn't correct => {segments_to_recorrect[j]}")
+					print(f"iter = {i}, segment = {segments_revised[j]} isn't correct => {segments_to_recorrect[j]}, text_corrected_previous = {text_corrected_previous}")
 
 			if batch_mode:
 				corrector_result_list = self.correct_segment_batch(segments_to_recorrect, recorrection_history)
