@@ -22,7 +22,7 @@ if __name__ == "__main__":
 	text = "天器真好，想出去完"
 
 	# Settings
-	model = "mistral-nemo"
+	model = "qwen2"
 	provider = "Ollama"
 	typo_corrector_class = ChineseTypoCorrector
 	language = "zh_traditional"
@@ -31,6 +31,7 @@ if __name__ == "__main__":
 		"no_explanation": True,
 		"keep_non_chinese_char": False,
 	}
+	max_correction_attempts = 15
 	customized_words = []
 	credential = None
 	if provider.lower() != "ollama":
@@ -47,6 +48,7 @@ if __name__ == "__main__":
 		template_name=template_name,
 		optional_guidance_enable=optional_guidance_enable,
 		customized_words=customized_words,
+		max_correction_attempts=max_correction_attempts,
 	)
 
 
