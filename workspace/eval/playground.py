@@ -1,6 +1,8 @@
 import json
 import os
 import sys
+import time
+
 
 path = os.path.dirname(__file__)
 api_path = os.path.join(path, "..", "..", "addon", "globalPlugins", "WordBridge")
@@ -20,20 +22,24 @@ if __name__ == "__main__":
 	text = "天器真好，想出去完"
 
 	# Settings
-	model = "gpt-4o-mini"
-	provider = "OpenAI"
+	model = "qwen2"
+	provider = "Ollama"
 	typo_corrector_class = ChineseTypoCorrector
 	language = "zh_traditional"
-	template_name = "Standard_v1.json"
+	template_name = "Standard_v3.json"
 	optional_guidance_enable = {
-		"no_explanation": False,
-		"keep_non_chinese_char": True,
+		"no_explanation": True,
+		"keep_non_chinese_char": False,
 	}
+	max_correction_attempts = 15
 	customized_words = []
-	with open(os.path.join(path, "config.json"), "r", encoding="utf8") as f:
-		credential = json.loads(f.read())[provider]
+	credential = None
+	if provider.lower() != "ollama":
+		with open(os.path.join(path, "config.json"), "r", encoding="utf8") as f:
+			credential = json.loads(f.read())[provider]
 
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
+	start_time = time.time()
 	corrector = typo_corrector_class(
 		model=model,
 		provider=provider,
@@ -42,12 +48,13 @@ if __name__ == "__main__":
 		template_name=template_name,
 		optional_guidance_enable=optional_guidance_enable,
 		customized_words=customized_words,
+		max_correction_attempts=max_correction_attempts,
 	)
 
 
 	text_corrected, diff = corrector.correct_text(text)
 	print(f"text = {text}, text_corrected = {text_corrected}, diff = {diff}")
-
+	print(f"time elapses = {time.time() - start_time} s")
 	print("Token Usage:")
 	usage = corrector.get_total_usage()
 	for k in usage:

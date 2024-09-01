@@ -28,29 +28,32 @@ def generate_results(text, groundtruth, corrector):
 
 if __name__ == "__main__":
 
-	model = "gpt-4o-mini"
-	provider = "OpenAI"
+	model = "qwen2"
+	provider = "Ollama"
 	typo_corrector_class = ChineseTypoCorrector
 	language = "zh_traditional"
-	template_name = "Standard_v1.json"
+	template_name = "Standard_v3.json"
 	optional_guidance_enable = {
-		"no_explanation": False,
-		"keep_non_chinese_char": True,
+		"no_explanation": True,
+		"keep_non_chinese_char": False,
 	}
+	max_correction_attempts = 15
 	customized_words = []
-	with open(os.path.join(path, "config.json"), "r", encoding="utf8") as f:
-		credential = json.loads(f.read())[provider]
+	credential = None
+	if provider.lower() != "ollama":
+		with open(os.path.join(path, "config.json"), "r", encoding="utf8") as f:
+			credential = json.loads(f.read())[provider]
 	data_name = "gpt4_250_sentence_aug_err_0.1_41PJSO2KRV6SK1WJ6936.txt"
 	groundtruth_name = "gpt4_250_sentence_gt.txt"
-	tag = "2024-08-03-gpt-4o-mini"
+	tag = "2024-08-26-ollama"
 
-	data_path = os.path.join(".", "data", data_name)
-	groundtruth_path = os.path.join(".", "data", groundtruth_name)
+	data_path = os.path.join(path, "data", data_name)
+	groundtruth_path = os.path.join(path, "data", groundtruth_name)
 
-	eval_file_name = f"eval_{model}_{tag}_{os.path.basename(data_path)}"
-	result_file_name = f"result_{model}_{tag}_{os.path.basename(data_path)}"
-	eval_file_path = os.path.join(".", "eval", eval_file_name)
-	result_file_path = os.path.join(".", "result", result_file_name)
+	eval_file_name = f"eval_{model.replace(':', '_')}_{tag}_{os.path.basename(data_path)}"
+	result_file_name = f"result_{model.replace(':', '_')}_{tag}_{os.path.basename(data_path)}"
+	eval_file_path = os.path.join(path, "eval", eval_file_name)
+	result_file_path = os.path.join(path, "result", result_file_name)
 
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
 	corrector = typo_corrector_class(
@@ -61,6 +64,7 @@ if __name__ == "__main__":
 		template_name=template_name,
 		optional_guidance_enable=optional_guidance_enable,
 		customized_words=customized_words,
+		max_correction_attempts=max_correction_attempts,
 	)
 
 	# Read testing data

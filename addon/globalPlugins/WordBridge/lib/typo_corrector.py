@@ -32,6 +32,7 @@ log = logging.getLogger(__name__)
 BASE_API_URLS = {
 	"openai": "https://api.openai.com",
 	"baidu": "https://aip.baidubce.com",
+	"ollama": "http://localhost:11434",
 }
 
 
@@ -136,8 +137,9 @@ class BaseTypoCorrector():
 
 		# Find typo and keep correcting
 		recorrection_history = None
-		for i in range(self.max_correction_attempts - 1):
+		for i in range(self.max_correction_attempts):
 			# Find typo
+			text_corrected_previous = text_corrected
 			text_corrected_revised, typo_indices = find_correction_errors(text, text_corrected)
 
 			# No typo, stop correction
@@ -152,17 +154,21 @@ class BaseTypoCorrector():
 			segments_to_recorrect = get_segments_to_recorrect(segments_revised, typo_indices)
 			for j in range(len(segments_to_recorrect)):
 				if segments_to_recorrect[j]:
-					print(f"iter = {i}, segment = {segments_revised[j]} isn't correct => {segments_to_recorrect[j]}")
+					print(f"iter = {i}, segment = {segments_revised[j]} isn't correct => {segments_to_recorrect[j]}, text_corrected_previous = {text_corrected_previous}")
+
+			history_for_correction = recorrection_history if i >= self.max_correction_attempts / 3 else [[] for _ in range(len(segments_revised))]
 
 			if batch_mode:
-				corrector_result_list = self.correct_segment_batch(segments_to_recorrect, recorrection_history)
+				corrector_result_list = self.correct_segment_batch(segments_to_recorrect, history_for_correction)
 			else:
-				corrector_result_list = [self.correct_segment(segment, segment_previous) for segment, segment_previous in zip(segments_to_recorrect, recorrection_history)]
+				corrector_result_list = [self.correct_segment(segment, segment_previous) for segment, segment_previous in zip(segments_to_recorrect, history_for_correction)]
 
 			for j in range(len(segments_revised)):
 				if corrector_result_list[j].corrected_text:
 					text_corrected += corrector_result_list[j].corrected_text
-					recorrection_history[j].append(corrector_result_list[j].corrected_text)
+					if corrector_result_list[j].corrected_text not in recorrection_history[j] and\
+						len(corrector_result_list[j].corrected_text) < len(text) * 2:
+						recorrection_history[j].append(corrector_result_list[j].corrected_text)
 					self.response_history.append(corrector_result_list[j].response_json)
 				else:
 					text_corrected += segments_revised[j]
@@ -237,6 +243,8 @@ class BaseTypoCorrector():
 		Returns:
 			The total usage of OpenAI model (in tokens)
 		"""
+		if self.provider == "ollama":
+			return {}
 		total_usage = defaultdict(int)
 		for response in self.response_history:
 			for usage_type in response["usage"].keys():
@@ -277,6 +285,8 @@ class BaseTypoCorrector():
 	def _get_api_url(self):
 		if self.provider == "openai":
 			api_url = BASE_API_URLS[self.provider] + "/v1/chat/completions"
+		elif self.provider == "ollama":
+			api_url = BASE_API_URLS[self.provider] + "/api/chat"
 		elif self.provider == "baidu":
 			api_key = self.credential["api_key"]
 			secret_key = self.credential["secret_key"]
@@ -397,6 +407,16 @@ class BaseTypoCorrector():
 				"system": system_template,
 				**setting,
 			}
+		elif self.provider == "ollama":
+			messages = [{"role": "system", "content": system_template}] + messages
+			data = {
+				"model": self.model,
+				"messages": messages,
+				"stream": False,
+				"options":{
+					**setting,
+				}
+			}
 		else:
 			raise NotImplementedError("Subclass must implement this method")
 
@@ -406,6 +426,8 @@ class BaseTypoCorrector():
 		if self.provider == "openai":
 			headers = {"Authorization": f"Bearer {self.credential['api_key']}"}
 		elif self.provider == "baidu":
+			headers = {'Content-Type': 'application/json'}
+		elif self.provider == "ollama":
 			headers = {'Content-Type': 'application/json'}
 		else:
 			raise NotImplementedError("Subclass must implement this method")
@@ -432,7 +454,7 @@ class BaseTypoCorrector():
 		backoff = self.backoff
 		response_json = None
 		for r in range(self.httppost_retries):
-			timeout = min(5 * (r + 1), 15)
+			timeout = min(5 * (r + 1), 15) if self.provider != "ollama" else 300
 			request_error = None
 			response = None
 			try:
@@ -511,6 +533,8 @@ class BaseTypoCorrector():
 			sentence = response["choices"][0]["message"]["content"]
 		elif self.provider == "baidu":
 			sentence = response["result"]
+		elif self.provider == "ollama":
+			sentence = response["message"]["content"]
 		else:
 			raise NotImplementedError("Subclass must implement this method")
 
