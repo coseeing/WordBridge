@@ -413,7 +413,9 @@ class BaseTypoCorrector():
 				"model": self.model,
 				"messages": messages,
 				"stream": False,
-				**setting,
+				"options":{
+					**setting,
+				}
 			}
 		else:
 			raise NotImplementedError("Subclass must implement this method")
