@@ -4,13 +4,13 @@
 		"system_tag": "輸入為文字與其正確拼音，請修正[[]]中的錯字並輸出正確文字\n1. 不要加字刪字，也不要刪除句尾標點符號\n2. 請不要在句尾加換行或空格\n3. 輸出須為繁體字\n4. 不要用同意詞代換原文字\n範例:\n(文字&拼音) => 文字",
 		"comment": "錯誤答案，請修正重新輸出文字",
 		"message": [
-			{"role": "user", "content": "{{QUESTION}}我說今天天器真好。&jin1 tian1 tian1 qi4 zhen1 hao3 。 => "},
+			{"role": "user", "content": "{{QUESTION}}我說今天天器真好。&wo3 shuo1 jin1 tian1 tian1 qi4 zhen1 hao3 。 => "},
 			{"role": "assistant", "content": "{{ANSWER}}我說今天天氣真好。"},
 			{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "}
 		],
 		"message_tag": [
-			{"role": "user", "content": "{{QUESTION}}今天天[[器]]真好。&jin1 tian1 tian1 [[qi4]] zhen1 hao3 。 => "},
-			{"role": "assistant", "content": "{{ANSWER}}今天天氣真好。"},
+			{"role": "user", "content": "{{QUESTION}}我說今天天[[器]]真好。&wo3 shuo1 jin1 tian1 tian1 [[qi4]] zhen1 hao3 。 => "},
+			{"role": "assistant", "content": "{{ANSWER}}我說今天天氣真好。"},
 			{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "}
 		],
 		"optional_guidance": {
@@ -20,17 +20,17 @@
 		}
 	},
 	"zh_simplified": {
-		"system": "输入为繁体文字与其正确拼音，请修正错字并输出正确繁体文字\n1. 不要加字删字，也不要删除句尾标点符号\n2. 请不要在句尾加换行或空格\n3. 输出须为簡体字\n4. 不要用同义词代换原文字\n范例:\n(文字&拼音) => 文字",
+		"system": "输入为簡体文字与其正确拼音，请修正错字并输出正确簡体文字\n1. 不要加字删字，也不要删除句尾标点符号\n2. 请不要在句尾加换行或空格\n3. 输出须为簡体字\n4. 不要用同义词代换原文字\n范例:\n(文字&拼音) => 文字",
 		"system_tag": "输入为文字与其正确拼音，请修正[[]]中的错字并输出正确文字\n1. 不要加字删字，也不要删除句尾标点符号\n2. 请不要在句尾加换行或空格\n3. 输出须为簡体字\n4. 不要用同义词代换原文字\n(文字&拼音) => 文字",
-		"comment": "'{{response_previous}}'是错误答案，请修正重新输出文字",
+		"comment": "错误答案，请修正重新输出文字",
 		"message": [
-			{"role": "user", "content": "{{QUESTION}}今天天器真好&jin1 tian1 tian1 qi4 zhen1 hao3 => "},
-			{"role": "assistant", "content": "{{ANSWER}}今天天气真好"},
+			{"role": "user", "content": "{{QUESTION}}我说今天天器真好&wo3 shuo1 jin1 tian1 tian1 qi4 zhen1 hao3 => "},
+			{"role": "assistant", "content": "{{ANSWER}}我说今天天气真好"},
 			{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "}
 		],
 		"message_tag": [
-			{"role": "user", "content": "{{QUESTION}}今天天[[器]]真好&jin1 tian1 tian1 [[qi4]] zhen1 hao3 => "},
-			{"role": "assistant", "content": "{{ANSWER}}今天天气真好"},
+			{"role": "user", "content": "{{QUESTION}}我说今天天[[器]]真好&wo3 shuo1 jin1 tian1 tian1 [[qi4]] zhen1 hao3 => "},
+			{"role": "assistant", "content": "{{ANSWER}}我说今天天气真好"},
 			{"role": "user", "content": "{{QUESTION}}{{text_input}}&{{phone_input}} => "}
 		],
 		"optional_guidance": {
