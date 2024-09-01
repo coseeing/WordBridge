@@ -231,7 +231,7 @@ def get_segments_to_recorrect(segments: list, typo_indices: list, max_length: in
 		for j in range(index_start, index_end):
 			if j in typo_indices:
 				is_error = True
-				text_with_tag += text[j]  # ("[[" + text[j] + "]]")
+				text_with_tag += ("[[" + text[j] + "]]")
 			else:
 				text_with_tag += text[j]
 		if is_error:
