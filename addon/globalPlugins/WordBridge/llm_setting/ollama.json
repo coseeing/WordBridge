@@ -1,6 +1,4 @@
 {
 	"max_tokens": 4096,
 	"stop": [" =>"],
-	"temperature": 0.001,
-	"top_p": 0.001
 }
