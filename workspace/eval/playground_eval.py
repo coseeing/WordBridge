@@ -68,12 +68,12 @@ if __name__ == "__main__":
 	)
 
 	# Read testing data
-	with open(data_path, 'r') as f:
+	with open(data_path, 'r', encoding="utf8") as f:
 		text = f.readlines()
 		text = [sentence.replace('\n', '') for sentence in text]
 
 	# Read ground truth
-	with open(groundtruth_path, 'r') as f:
+	with open(groundtruth_path, 'r', encoding="utf8") as f:
 		groundtruth = f.readlines()
 		groundtruth = [sentence.replace('\n', '').split('|') for sentence in groundtruth]
 
@@ -81,12 +81,12 @@ if __name__ == "__main__":
 
 	# Text correction
 	if os.path.exists(result_file_path):
-		with open(result_file_path, 'r') as f:
+		with open(result_file_path, 'r', encoding="utf8") as f:
 			results = f.readlines()
 			text_corrected = [sentence.replace('\n', '') for sentence in results[:len(groundtruth)]]
 	else:
 		text_corrected = generate_results(text, groundtruth, corrector)
-		result_file = open(result_file_path, 'w')
+		result_file = open(result_file_path, 'w', encoding="utf8")
 		for i in range(len(text_corrected)):
 			result_file.write(f"{text_corrected[i]}\n")
 
@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
 		result_file.close()
 
-	eval_file = open(eval_file_path, 'w')
+	eval_file = open(eval_file_path, 'w', encoding="utf8")
 
 	# Calculate accuracy
 	correct_count = 0
