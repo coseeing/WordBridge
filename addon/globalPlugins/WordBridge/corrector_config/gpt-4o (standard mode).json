@@ -2,6 +2,7 @@
 	"model": {
 		"model_name": "gpt-4o",
 		"provider": "OpenAI",
+		"coseeing_relay": false,
 		"require_secret_key": false,
 		"template_name": "Standard_v1.json",
 		"optional_guidance_enable": {

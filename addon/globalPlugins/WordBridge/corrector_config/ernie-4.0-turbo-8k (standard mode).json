@@ -2,6 +2,7 @@
 	"model": {
 		"model_name": "ernie-4.0-turbo-8k",
 		"provider": "Baidu",
+		"coseeing_relay": false,
 		"require_secret_key": true,
 		"template_name": "Standard_v1.json",
 		"optional_guidance_enable": {

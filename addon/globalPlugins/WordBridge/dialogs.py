@@ -22,6 +22,7 @@ addonHandler.initTranslation()
 LABEL_DICT = {
 	"OpenAI": _("OpenAI"),
 	"Baidu": _("Baidu"),
+	"Coseeing": _("Coseeing"),
 	"gpt-3.5-turbo": _("gpt-3.5-turbo"),
 	"gpt-4-turbo": _("gpt-4-turbo"),
 	"gpt-4o": _("gpt-4o"),
@@ -29,13 +30,13 @@ LABEL_DICT = {
 	"ernie-4.0-turbo-8k": _("ernie-4.0-turbo-8k"),
 	"Standard Mode": _("Standard Mode"),
 	"Lite Mode": _("Lite Mode"),
-	"personal_api_key": _("Personal API Key"),
-	"coseeing_account": _("Coseeing Account"),
 	"zh_traditional": _("Traditional Chinese"),
 	"zh_simplified": _("Simplified Chinese"),
 
 	# legacy
 	"ernie-4.0-8k-preview": _("ernie-4.0-8k-preview"),
+	"personal_api_key": _("Personal API Key"),
+	"coseeing_account": _("Coseeing Account"),
 }
 
 os_language_code = locale.windows_locale[ctypes.windll.kernel32.GetUserDefaultUILanguage()]
@@ -43,12 +44,10 @@ if os_language_code in ["zh_TW", "zh_MO", "zh_HK"]:
 	LANGUAGE_DEFAULT = "zh_traditional"
 else:
 	LANGUAGE_DEFAULT = "zh_simplified"
-CORRECTOR_CONFIG_FILENAME_DEFAULT = "gpt-3.5-turbo (standard mode).json"
+CORRECTOR_CONFIG_FILENAME_DEFAULT = "coseeing-gpt-4o-mini (standard mode)"
 CORRECTOR_CONFIG_FOLDER_PATH = os.path.join(os.path.dirname(__file__), "corrector_config")
 
-LLM_ACCESS_METHOD_VALUES = ["personal_api_key", "coseeing_account"]
 LANGUAGE_VALUES = ["zh_traditional", "zh_simplified"]
-LLM_ACCESS_METHOD_LABELS = [LABEL_DICT[val] for val in LLM_ACCESS_METHOD_VALUES]
 LANGUAGE_LABELS = [LABEL_DICT[val] for val in LANGUAGE_VALUES]
 
 CORRECTOR_CONFIG_PATHS = sorted(glob.glob(os.path.join(CORRECTOR_CONFIG_FOLDER_PATH, "*.json")))
@@ -58,11 +57,14 @@ CORRECTOR_CONFIG_FILENAMES = []
 for path in CORRECTOR_CONFIG_PATHS:
 	with open(path, "r", encoding="utf8") as f:
 		corrector_config = json.loads(f.read())
-	provider_text = LABEL_DICT[corrector_config['model']['provider']]
+	if not corrector_config['model']['coseeing_relay']:
+		endpoint_text = LABEL_DICT[corrector_config['model']['provider']]
+	else:
+		endpoint_text = LABEL_DICT["Coseeing"]
 	model_name_text = LABEL_DICT[corrector_config['model']['model_name']]
 	typo_correction_mode_text = LABEL_DICT[corrector_config["typo_corrector"]["typo_correction_mode"]]
 
-	CORRECTOR_CONFIG_LABELS.append(f"{provider_text}: {model_name_text} | {typo_correction_mode_text}")
+	CORRECTOR_CONFIG_LABELS.append(f"{endpoint_text}: {model_name_text} | {typo_correction_mode_text}")
 	CORRECTOR_CONFIG_VALUES.append(corrector_config)
 	CORRECTOR_CONFIG_FILENAMES.append(os.path.basename(path))
 
@@ -105,23 +107,6 @@ class LLMSettingsPanel(SettingsPanel):
 		else:
 			config.conf["WordBridge"]["settings"]["language"] = LANGUAGE_DEFAULT
 			self.languageList.SetSelection(LANGUAGE_VALUES.index(config.conf["WordBridge"]["settings"]["language"]))
-
-		# For selecting LLM access method
-		accessMethodLabelText = _("Large Language Model Access Method:")
-		self.methodList = settingsSizerHelper.addLabeledControl(
-			accessMethodLabelText,
-			wx.Choice,
-			choices=LLM_ACCESS_METHOD_LABELS,
-		)
-		self.methodList.SetToolTip(wx.ToolTip(_("Choose the large language model access method")))
-		if config.conf["WordBridge"]["settings"]["llm_access_method"] in LLM_ACCESS_METHOD_VALUES:
-			self.methodList.SetSelection(
-				LLM_ACCESS_METHOD_VALUES.index(config.conf["WordBridge"]["settings"]["llm_access_method"])
-			)
-		else:
-			self.methodList.SetSelection(0)
-			config.conf["WordBridge"]["settings"]["llm_access_method"] = LLM_ACCESS_METHOD_VALUES[0]
-		self.methodList.Bind(wx.EVT_CHOICE, self.onChangeChoice)
 
 		# For setting account information
 		accessPanel = wx.Panel(self)
@@ -176,7 +161,7 @@ class LLMSettingsPanel(SettingsPanel):
 		)
 		sizer.Add(self.passwordTextCtrl, pos=(5, 1))
 
-		self._enableAccessElements(LLM_ACCESS_METHOD_VALUES[self.methodList.GetSelection()])
+		self._enableAccessElements()
 
 		accessPanel.SetSizer(sizer)
 		sizer.Fit(self)
@@ -236,11 +221,9 @@ class LLMSettingsPanel(SettingsPanel):
 
 	def onSave(self):
 		model_index = self.modelList.GetSelection()
-		access_method_index = self.methodList.GetSelection()
 		provider_tmp = CORRECTOR_CONFIG_VALUES[model_index]["model"]["provider"]
 		config.conf["WordBridge"]["settings"]["corrector_config_filename"] = CORRECTOR_CONFIG_FILENAMES[model_index]
 		config.conf["WordBridge"]["settings"]["language"] = LANGUAGE_VALUES[self.languageList.GetSelection()]
-		config.conf["WordBridge"]["settings"]["llm_access_method"] = LLM_ACCESS_METHOD_VALUES[access_method_index]
 		config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = self.apikeyTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp] = self.secretkeyTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_username"] = self.usernameTextCtrl.GetValue()
@@ -254,11 +237,11 @@ class LLMSettingsPanel(SettingsPanel):
 		# trigger a refresh of the settings
 		self.onPanelActivated()
 		self._sendLayoutUpdatedEvent()
-		self._enableAccessElements(LLM_ACCESS_METHOD_VALUES[self.methodList.GetSelection()])
+		self._enableAccessElements()
 		self.Thaw()
 
-	def _enableAccessElements(self, llm_access_method):
-		if llm_access_method == "personal_api_key":
+	def _enableAccessElements(self):
+		if not CORRECTOR_CONFIG_VALUES[self.modelList.GetSelection()]["model"]['coseeing_relay']:
 			self.accessCoseeingTextLabel.Disable()
 			self.usernameTextLabel.Disable()
 			self.passwordTextLabel.Disable()

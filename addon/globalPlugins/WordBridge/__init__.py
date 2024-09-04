@@ -43,7 +43,6 @@ config.conf.spec["WordBridge"] = {
 	"settings": {
 		"corrector_config_filename": f"string(default={CORRECTOR_CONFIG_FILENAME_DEFAULT})",
 		"language": f"string(default={LANGUAGE_DEFAULT})",
-		"llm_access_method": "string(default=coseeing_account)",
 		"api_key": {},
 		"secret_key": {},
 		"coseeing_username": "string(default=\0)",
@@ -197,7 +196,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			customized_words = [row["text"] for row in self.readDictionary()]
 		else:
 			customized_words = []
-		if config.conf["WordBridge"]["settings"]["llm_access_method"] == "personal_api_key":
+		if not corrector_config['model']['coseeing_relay']:
 			corrector_mode = corrector_config["typo_corrector"]["typo_correction_mode"]
 			if provider not in config.conf["WordBridge"]["settings"]["api_key"]:
 				config.conf["WordBridge"]["settings"]["api_key"][provider] = ""

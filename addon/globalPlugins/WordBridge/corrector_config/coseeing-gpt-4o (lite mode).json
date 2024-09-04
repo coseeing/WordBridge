@@ -1,16 +1,16 @@
 {
 	"model": {
-		"model_name": "gpt-3.5-turbo",
+		"model_name": "gpt-4o",
 		"provider": "OpenAI",
+		"coseeing_relay": true,
 		"require_secret_key": false,
-		"coseeing_relay": false,
-		"template_name": "Standard_v1.json",
+		"template_name": "Lite_v1.json",
 		"optional_guidance_enable": {
 			"keep_non_chinese_char": true,
 			"no_explanation": false
 		}
 	},
 	"typo_corrector": {
-		"typo_correction_mode": "Standard Mode"
+		"typo_correction_mode": "Lite Mode"
 	}
 }

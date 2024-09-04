@@ -1,9 +1,9 @@
 {
 	"model": {
-		"model_name": "gpt-3.5-turbo",
+		"model_name": "gpt-4o",
 		"provider": "OpenAI",
+		"coseeing_relay": true,
 		"require_secret_key": false,
-		"coseeing_relay": false,
 		"template_name": "Standard_v1.json",
 		"optional_guidance_enable": {
 			"keep_non_chinese_char": true,
