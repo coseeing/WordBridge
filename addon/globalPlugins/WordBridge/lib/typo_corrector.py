@@ -581,7 +581,10 @@ class ChineseTypoCorrectorLite(BaseTypoCorrector):
 		super().__init__(*args, **kwargs)
 
 	def _create_input(self, template: str, text: str, input_info: dict):
-		template[-1]["content"] = template[-1]["content"].replace("{{text_input}}", text)
+		for i in range(len(template)):
+			template[i]["content"] = template[i]["content"].replace("{{text_input}}", text)
+			template[i]["content"] = template[i]["content"].replace("{{QUESTION}}", self.question_string)
+			template[i]["content"] = template[i]["content"].replace("{{ANSWER}}", self.answer_string)
 		return template
 
 	def _has_target_language(self, text: str):
