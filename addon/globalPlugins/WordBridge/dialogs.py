@@ -57,7 +57,7 @@ CORRECTOR_CONFIG_FILENAMES = []
 for path in CORRECTOR_CONFIG_PATHS:
 	with open(path, "r", encoding="utf8") as f:
 		corrector_config = json.loads(f.read())
-	if not corrector_config['model']['coseeing_relay']:
+	if corrector_config['model']['llm_access_method'] == "personal_api_key":
 		endpoint_text = LABEL_DICT[corrector_config['model']['provider']]
 	else:
 		endpoint_text = LABEL_DICT["Coseeing"]
@@ -113,7 +113,7 @@ class LLMSettingsPanel(SettingsPanel):
 		# For setting account information
 		accessPanel = wx.Panel(self)
 		sizer = wx.GridBagSizer(3, 2)
-		if not CORRECTOR_CONFIG_VALUES[model_index]["model"]['coseeing_relay']:
+		if corrector_config['model']['llm_access_method'] == "personal_api_key":
 			providerLabelText = LABEL_DICT[model_provider_selected]
 			self.accessLLMTextLabel = wx.StaticText(accessPanel, label=providerLabelText + _(" Account"))
 			sizer.Add(self.accessLLMTextLabel, pos=(0, 0), flag=wx.LEFT, border=0)
@@ -141,7 +141,7 @@ class LLMSettingsPanel(SettingsPanel):
 					value=config.conf["WordBridge"]["settings"]["secret_key"][model_provider_selected],
 				)
 				sizer.Add(self.secretkeyTextCtrl, pos=(2, 1))
-		else:
+		elif corrector_config['model']['llm_access_method'] == "coseeing":
 			self.accessCoseeingTextLabel = wx.StaticText(accessPanel, label=_("Coseeing Account"))
 			sizer.Add(self.accessCoseeingTextLabel, pos=(0, 0), flag=wx.LEFT, border=0)
 
@@ -164,7 +164,8 @@ class LLMSettingsPanel(SettingsPanel):
 				style=wx.TE_PASSWORD,
 			)
 			sizer.Add(self.passwordTextCtrl, pos=(2, 1))
-
+		else:  # open LLM
+			pass
 		accessPanel.SetSizer(sizer)
 		sizer.Fit(self)
 		settingsSizerHelper.addItem(accessPanel)
