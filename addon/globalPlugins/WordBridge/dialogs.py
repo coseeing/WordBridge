@@ -54,13 +54,16 @@ CORRECTOR_CONFIG_PATHS = sorted(glob.glob(os.path.join(CORRECTOR_CONFIG_FOLDER_P
 CORRECTOR_CONFIG_VALUES = []
 CORRECTOR_CONFIG_LABELS = []
 CORRECTOR_CONFIG_FILENAMES = []
+endpoint_set = set()
 for path in CORRECTOR_CONFIG_PATHS:
 	with open(path, "r", encoding="utf8") as f:
 		corrector_config = json.loads(f.read())
 	if not corrector_config['model']['coseeing_relay']:
 		endpoint_text = LABEL_DICT[corrector_config['model']['provider']]
+		endpoint_set.add(corrector_config['model']['provider'])
 	else:
 		endpoint_text = LABEL_DICT["Coseeing"]
+		endpoint_set.add("Coseeing")
 	model_name_text = LABEL_DICT[corrector_config['model']['model_name']]
 	typo_correction_mode_text = LABEL_DICT[corrector_config["typo_corrector"]["typo_correction_mode"]]
 
@@ -110,62 +113,59 @@ class LLMSettingsPanel(SettingsPanel):
 
 		# For setting account information
 		accessPanel = wx.Panel(self)
-		sizer = wx.GridBagSizer(6, 2)
+		self.accessPanelSizer = wx.GridBagSizer(3, 2)
+		accessPanel.SetSizer(self.accessPanelSizer)
+		self.accessPanelSizer.Fit(self)
+		settingsSizerHelper.addItem(accessPanel)
 
-		providerLabelText = LABEL_DICT[model_provider_selected]
-		self.accessLLMTextLabel = wx.StaticText(accessPanel, label=providerLabelText + _(" Account"))
-		sizer.Add(self.accessLLMTextLabel, pos=(0, 0), flag=wx.LEFT, border=0)
+		self.accessLLMTextLabel = wx.StaticText(accessPanel, label="")
+		self.accountInfoLabel1 = wx.StaticText(accessPanel, label="")
+		self.accountInfoLabel2 = wx.StaticText(accessPanel, label="")
+		self.accessPanelSizer.Add(self.accessLLMTextLabel, pos=(0, 0), flag=wx.LEFT, border=0)
+		self.accessPanelSizer.Add(self.accountInfoLabel1, pos=(1, 0), flag=wx.LEFT, border=0)
+		self.accessPanelSizer.Add(self.accountInfoLabel2, pos=(2, 0), flag=wx.LEFT, border=0)
 
-		if model_provider_selected not in config.conf["WordBridge"]["settings"]["api_key"]:
-			config.conf["WordBridge"]["settings"]["api_key"][model_provider_selected] = ""
-		self.apikeyTextLabel = wx.StaticText(accessPanel, label=_("API Key:"))
-		sizer.Add(self.apikeyTextLabel, pos=(1, 0), flag=wx.LEFT, border=10)
-		self.apikeyTextCtrl = wx.TextCtrl(
-			accessPanel,
-			size=(self.scaleSize(375), -1),
-			value=config.conf["WordBridge"]["settings"]["api_key"][model_provider_selected],
-		)
-		sizer.Add(self.apikeyTextCtrl, pos=(1, 1))
-
-		if model_provider_selected not in config.conf["WordBridge"]["settings"]["secret_key"]:
-			config.conf["WordBridge"]["settings"]["secret_key"][model_provider_selected] = ""
-		self.secretkeyTextLabel = wx.StaticText(accessPanel, label=_("Secret Key:"))
-		sizer.Add(self.secretkeyTextLabel, pos=(2, 0), flag=wx.LEFT, border=10)
-		self.secretkeyTextCtrl = wx.TextCtrl(
-			accessPanel,
-			size=(self.scaleSize(375), -1),
-			value=config.conf["WordBridge"]["settings"]["secret_key"][model_provider_selected],
-		)
-		sizer.Add(self.secretkeyTextCtrl, pos=(2, 1))
-
-		self.accessCoseeingTextLabel = wx.StaticText(accessPanel, label=_("Coseeing Account"))
-		sizer.Add(self.accessCoseeingTextLabel, pos=(3, 0), flag=wx.LEFT, border=0)
-
-		self.usernameTextLabel = wx.StaticText(accessPanel, label=_("Username:"))
-		sizer.Add(self.usernameTextLabel, pos=(4, 0), flag=wx.LEFT, border=10)
 		self.usernameTextCtrl = wx.TextCtrl(
 			accessPanel,
 			size=(self.scaleSize(375), -1),
 			value=config.conf["WordBridge"]["settings"]["coseeing_username"],
 		)
-		sizer.Add(self.usernameTextCtrl, pos=(4, 1))
-
-		self.passwordTextLabel = wx.StaticText(accessPanel, label=_("Password:"))
-		sizer.Add(self.passwordTextLabel, pos=(5, 0), flag=wx.LEFT, border=10)
-
 		self.passwordTextCtrl = wx.TextCtrl(
 			accessPanel,
 			size=(self.scaleSize(375), -1),
 			value=config.conf["WordBridge"]["settings"]["coseeing_password"],
 			style=wx.TE_PASSWORD,
 		)
-		sizer.Add(self.passwordTextCtrl, pos=(5, 1))
+		self.accessPanelSizer.Add(self.usernameTextCtrl, pos=(1, 1), flag=wx.LEFT, border=0)
+		self.accessPanelSizer.Add(self.passwordTextCtrl, pos=(2, 1), flag=wx.LEFT, border=0)
+		self.usernameTextCtrl.Hide()
+		self.passwordTextCtrl.Hide()
 
-		self._enableAccessElements()
+		self.apikeyTextCtrlMap = {}
+		self.secretkeyTextCtrlMap = {}
+		for endpoint in endpoint_set:
+			if endpoint == "Coseeing":
+				continue
 
-		accessPanel.SetSizer(sizer)
-		sizer.Fit(self)
-		settingsSizerHelper.addItem(accessPanel)
+			if endpoint not in config.conf["WordBridge"]["settings"]["api_key"]:
+				config.conf["WordBridge"]["settings"]["api_key"][endpoint] = ""
+			if endpoint not in config.conf["WordBridge"]["settings"]["secret_key"]:
+				config.conf["WordBridge"]["settings"]["secret_key"][endpoint] = ""
+
+			self.apikeyTextCtrlMap[endpoint] = wx.TextCtrl(
+				accessPanel,
+				size=(self.scaleSize(375), -1),
+				value=config.conf["WordBridge"]["settings"]["api_key"][endpoint],
+			)
+			self.secretkeyTextCtrlMap[endpoint] = wx.TextCtrl(
+				accessPanel,
+				size=(self.scaleSize(375), -1),
+				value=config.conf["WordBridge"]["settings"]["secret_key"][endpoint],
+			)
+			self.apikeyTextCtrlMap[endpoint].Hide()
+			self.secretkeyTextCtrlMap[endpoint].Hide()
+
+		self._refreshAccountInfo()
 
 		# For setting upper bound of correction character count
 		maxTokensLabelText = _("Max character count")
@@ -216,68 +216,75 @@ class LLMSettingsPanel(SettingsPanel):
 
 		self.settingsSizer = settingsSizer
 
+	def _refreshAccountInfo(self):
+		model_index = self.modelList.GetSelection()
+		provider_tmp = CORRECTOR_CONFIG_VALUES[model_index]["model"]["provider"]
+		coseeing_relay_tmp = CORRECTOR_CONFIG_VALUES[model_index]["model"]['coseeing_relay']
+		textctrl1 = self.accessPanelSizer.FindItemAtPosition((1, 1)).GetWindow()
+		textctrl2 = self.accessPanelSizer.FindItemAtPosition((2, 1)).GetWindow()
+
+		if coseeing_relay_tmp:
+			self.accessLLMTextLabel.SetLabel(_("Coseeing Account"))
+			self.accountInfoLabel1.SetLabel(_("Username:"))
+			self.accountInfoLabel2.SetLabel(_("Password:"))
+			if textctrl1 != self.usernameTextCtrl:
+				self.accessPanelSizer.Detach(textctrl1)
+				textctrl1.Hide()
+				self.accessPanelSizer.Add(self.usernameTextCtrl, pos=(1, 1))
+			if textctrl2 != self.passwordTextCtrl:
+				self.accessPanelSizer.Detach(textctrl2)
+				textctrl2.Hide()
+				self.accessPanelSizer.Add(self.passwordTextCtrl, pos=(2, 1))
+			self.accountInfoLabel2.Show()
+			self.usernameTextCtrl.Show()
+			self.passwordTextCtrl.Show()
+		else:
+			providerLabelText = LABEL_DICT[provider_tmp]
+			self.accessLLMTextLabel.SetLabel(providerLabelText + _(" Account"))
+			self.accountInfoLabel1.SetLabel(_("API Key:"))
+			self.accountInfoLabel2.SetLabel(_("Secret Key:"))
+			if textctrl1 != self.apikeyTextCtrlMap[provider_tmp]:
+				self.accessPanelSizer.Detach(textctrl1)
+				textctrl1.Hide()
+				self.accessPanelSizer.Add(self.apikeyTextCtrlMap[provider_tmp], pos=(1, 1))
+			if textctrl2 != self.secretkeyTextCtrlMap[provider_tmp]:
+				self.accessPanelSizer.Detach(textctrl2)
+				textctrl2.Hide()
+				self.accessPanelSizer.Add(self.secretkeyTextCtrlMap[provider_tmp], pos=(2, 1))
+			self.apikeyTextCtrlMap[provider_tmp].Show()
+			if CORRECTOR_CONFIG_VALUES[model_index]["model"]["require_secret_key"]:
+				self.accountInfoLabel2.Show()
+				self.secretkeyTextCtrlMap[provider_tmp].Show()
+			else:
+				self.accountInfoLabel2.Hide()
+				self.secretkeyTextCtrlMap[provider_tmp].Hide()
+
 	def onEditDictionary(self, event):
 		gui.mainFrame.popupSettingsDialog(DictionaryEntryDialog)
 
 	def onSave(self):
 		model_index = self.modelList.GetSelection()
-		provider_tmp = CORRECTOR_CONFIG_VALUES[model_index]["model"]["provider"]
 		config.conf["WordBridge"]["settings"]["corrector_config_filename"] = CORRECTOR_CONFIG_FILENAMES[model_index]
 		config.conf["WordBridge"]["settings"]["language"] = LANGUAGE_VALUES[self.languageList.GetSelection()]
-		config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = self.apikeyTextCtrl.GetValue()
-		config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp] = self.secretkeyTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_username"] = self.usernameTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_password"] = self.passwordTextCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["max_char_count"] = self.maxCharCountSpinCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["auto_display_report"] = self.autoDisplayReportEnable.GetValue()
 		config.conf["WordBridge"]["settings"]["customized_words_enable"] = self.customizedWordEnable.GetValue()
+		for i in range(len(CORRECTOR_CONFIG_VALUES)):
+			provider_tmp = CORRECTOR_CONFIG_VALUES[i]["model"]["provider"]
+			api_key_tmp = self.apikeyTextCtrlMap[provider_tmp].GetValue()
+			secret_key_tmp = self.secretkeyTextCtrlMap[provider_tmp].GetValue()
+			config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = api_key_tmp
+			config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp] = secret_key_tmp
 
 	def onChangeChoice(self, evt):
 		self.Freeze()
 		# trigger a refresh of the settings
+		self._refreshAccountInfo()
 		self.onPanelActivated()
 		self._sendLayoutUpdatedEvent()
-		self._enableAccessElements()
 		self.Thaw()
-
-	def _enableAccessElements(self):
-		if not CORRECTOR_CONFIG_VALUES[self.modelList.GetSelection()]["model"]['coseeing_relay']:
-			self.accessCoseeingTextLabel.Disable()
-			self.usernameTextLabel.Disable()
-			self.passwordTextLabel.Disable()
-			self.usernameTextCtrl.Disable()
-			self.passwordTextCtrl.Disable()
-			self.accessLLMTextLabel.Enable()
-			self.apikeyTextLabel.Enable()
-			self.apikeyTextCtrl.Enable()
-			self.secretkeyTextLabel.Enable()
-			self.secretkeyTextCtrl.Enable()
-		else:
-			self.accessCoseeingTextLabel.Enable()
-			self.usernameTextLabel.Enable()
-			self.passwordTextLabel.Enable()
-			self.usernameTextCtrl.Enable()
-			self.passwordTextCtrl.Enable()
-			self.accessLLMTextLabel.Disable()
-			self.apikeyTextLabel.Disable()
-			self.apikeyTextCtrl.Disable()
-			self.secretkeyTextLabel.Disable()
-			self.secretkeyTextCtrl.Disable()
-
-		provider_tmp = CORRECTOR_CONFIG_VALUES[self.modelList.GetSelection()]["model"]["provider"]
-		if provider_tmp not in config.conf["WordBridge"]["settings"]["api_key"]:
-			config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = ""
-		self.apikeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["api_key"][provider_tmp])
-
-		if CORRECTOR_CONFIG_VALUES[self.modelList.GetSelection()]["model"]["require_secret_key"]:
-			self.secretkeyTextLabel.Show()
-			self.secretkeyTextCtrl.Show()
-			if provider_tmp not in config.conf["WordBridge"]["settings"]["secret_key"]:
-				config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp] = ""
-			self.secretkeyTextCtrl.SetValue(config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp])
-		else:
-			self.secretkeyTextLabel.Hide()
-			self.secretkeyTextCtrl.Hide()
 
 	def updateCurrentKey(self, key):
 		self.apikeyTextCtrl.SetValue(key)
