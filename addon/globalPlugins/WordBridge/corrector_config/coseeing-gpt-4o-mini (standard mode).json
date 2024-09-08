@@ -2,7 +2,7 @@
 	"model": {
 		"model_name": "gpt-4o-mini",
 		"provider": "OpenAI",
-		"coseeing_relay": true,
+		"llm_access_method": "coseeing_relay",
 		"require_secret_key": false,
 		"template_name": "Standard_v1.json",
 		"optional_guidance_enable": {

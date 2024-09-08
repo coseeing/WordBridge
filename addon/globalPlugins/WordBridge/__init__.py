@@ -196,7 +196,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			customized_words = [row["text"] for row in self.readDictionary()]
 		else:
 			customized_words = []
-		if not corrector_config['model']['coseeing_relay']:
+		if corrector_config['model']['llm_access_method'] != "coseeing_relay":
 			corrector_mode = corrector_config["typo_corrector"]["typo_correction_mode"]
 			if provider not in config.conf["WordBridge"]["settings"]["api_key"]:
 				config.conf["WordBridge"]["settings"]["api_key"][provider] = ""

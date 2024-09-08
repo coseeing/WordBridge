@@ -58,7 +58,7 @@ endpoint_set = set()
 for path in CORRECTOR_CONFIG_PATHS:
 	with open(path, "r", encoding="utf8") as f:
 		corrector_config = json.loads(f.read())
-	if not corrector_config['model']['coseeing_relay']:
+	if corrector_config['model']['llm_access_method'] != "coseeing_relay":
 		endpoint_text = LABEL_DICT[corrector_config['model']['provider']]
 		endpoint_set.add(corrector_config['model']['provider'])
 	else:
@@ -219,11 +219,11 @@ class LLMSettingsPanel(SettingsPanel):
 	def _refreshAccountInfo(self):
 		model_index = self.modelList.GetSelection()
 		provider_tmp = CORRECTOR_CONFIG_VALUES[model_index]["model"]["provider"]
-		coseeing_relay_tmp = CORRECTOR_CONFIG_VALUES[model_index]["model"]['coseeing_relay']
+		llm_access_method = CORRECTOR_CONFIG_VALUES[model_index]['model']['llm_access_method']
 		textctrl1 = self.accessPanelSizer.FindItemAtPosition((1, 1)).GetWindow()
 		textctrl2 = self.accessPanelSizer.FindItemAtPosition((2, 1)).GetWindow()
 
-		if coseeing_relay_tmp:
+		if llm_access_method == "coseeing_relay":
 			self.accessLLMTextLabel.SetLabel(_("Coseeing Account"))
 			self.accountInfoLabel1.SetLabel(_("Username:"))
 			self.accountInfoLabel2.SetLabel(_("Password:"))
@@ -235,10 +235,12 @@ class LLMSettingsPanel(SettingsPanel):
 				self.accessPanelSizer.Detach(textctrl2)
 				textctrl2.Hide()
 				self.accessPanelSizer.Add(self.passwordTextCtrl, pos=(2, 1))
+			self.accessLLMTextLabel.Show()
+			self.accountInfoLabel1.Show()
 			self.accountInfoLabel2.Show()
 			self.usernameTextCtrl.Show()
 			self.passwordTextCtrl.Show()
-		else:
+		elif llm_access_method == "personal_api_key":
 			providerLabelText = LABEL_DICT[provider_tmp]
 			self.accessLLMTextLabel.SetLabel(providerLabelText + _(" Account"))
 			self.accountInfoLabel1.SetLabel(_("API Key:"))
@@ -251,6 +253,8 @@ class LLMSettingsPanel(SettingsPanel):
 				self.accessPanelSizer.Detach(textctrl2)
 				textctrl2.Hide()
 				self.accessPanelSizer.Add(self.secretkeyTextCtrlMap[provider_tmp], pos=(2, 1))
+			self.accessLLMTextLabel.Show()
+			self.accountInfoLabel1.Show()
 			self.apikeyTextCtrlMap[provider_tmp].Show()
 			if CORRECTOR_CONFIG_VALUES[model_index]["model"]["require_secret_key"]:
 				self.accountInfoLabel2.Show()
@@ -258,6 +262,12 @@ class LLMSettingsPanel(SettingsPanel):
 			else:
 				self.accountInfoLabel2.Hide()
 				self.secretkeyTextCtrlMap[provider_tmp].Hide()
+		else:
+			self.accessLLMTextLabel.Hide()
+			self.accountInfoLabel1.Hide()
+			self.accountInfoLabel2.Hide()
+			textctrl1.Hide()
+			textctrl2.Hide()
 
 	def onEditDictionary(self, event):
 		gui.mainFrame.popupSettingsDialog(DictionaryEntryDialog)
