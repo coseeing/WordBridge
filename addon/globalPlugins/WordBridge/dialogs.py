@@ -101,7 +101,7 @@ class LLMSettingsPanel(SettingsPanel):
 		self.accountGroupSizerMap = {}
 		self.accountTextCtrlMap1 = {}
 		self.accountTextCtrlMap2 = {}
-		for endpoint in endpoint_set:
+		for endpoint in sorted(list(endpoint_set)):
 			if endpoint not in config.conf["WordBridge"]["settings"]["api_key"]:
 				config.conf["WordBridge"]["settings"]["api_key"][endpoint] = ""
 			if endpoint not in config.conf["WordBridge"]["settings"]["secret_key"]:
