@@ -97,20 +97,6 @@ class LLMSettingsPanel(SettingsPanel):
 		self.modelList.SetSelection(model_index)
 		self.modelList.Bind(wx.EVT_CHOICE, self.onChangeChoice)
 
-		# For selecting language
-		languageLabelText = _("Language:")
-		self.languageList = settingsSizerHelper.addLabeledControl(
-			languageLabelText,
-			wx.Choice,
-			choices=LANGUAGE_LABELS
-		)
-		self.languageList.SetToolTip(wx.ToolTip(_("Choose the language for the Word Bridge")))
-		if config.conf["WordBridge"]["settings"]["language"] in LANGUAGE_VALUES:
-			self.languageList.SetSelection(LANGUAGE_VALUES.index(config.conf["WordBridge"]["settings"]["language"]))
-		else:
-			config.conf["WordBridge"]["settings"]["language"] = LANGUAGE_DEFAULT
-			self.languageList.SetSelection(LANGUAGE_VALUES.index(config.conf["WordBridge"]["settings"]["language"]))
-
 		# For setting account information
 		self.accountGroupSizerMap = {}
 		self.accountTextCtrlMap1 = {}
@@ -154,6 +140,20 @@ class LLMSettingsPanel(SettingsPanel):
 				)
 
 		self._refreshAccountInfo()
+
+		# For selecting language
+		languageLabelText = _("Language:")
+		self.languageList = settingsSizerHelper.addLabeledControl(
+			languageLabelText,
+			wx.Choice,
+			choices=LANGUAGE_LABELS
+		)
+		self.languageList.SetToolTip(wx.ToolTip(_("Choose the language for the Word Bridge")))
+		if config.conf["WordBridge"]["settings"]["language"] in LANGUAGE_VALUES:
+			self.languageList.SetSelection(LANGUAGE_VALUES.index(config.conf["WordBridge"]["settings"]["language"]))
+		else:
+			config.conf["WordBridge"]["settings"]["language"] = LANGUAGE_DEFAULT
+			self.languageList.SetSelection(LANGUAGE_VALUES.index(config.conf["WordBridge"]["settings"]["language"]))
 
 		# For setting upper bound of correction character count
 		maxTokensLabelText = _("Max character count")
