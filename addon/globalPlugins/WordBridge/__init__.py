@@ -53,6 +53,7 @@ config.conf.spec["WordBridge"] = {
 	}
 }
 COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
+# COSEEING_BASE_URL = "http://localhost:8000"
 
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
@@ -163,7 +164,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return True
 
 	def readDictionary(self):
-		with open(os.path.join(PATH, "dictionary", "data.csv"), newline='') as csvfile:
+		with open(os.path.join(PATH, "dictionary", "data.csv"), encoding='utf8', newline='') as csvfile:
 			reader = csv.DictReader(csvfile)
 			word_list = list(reader)
 		return word_list
@@ -176,9 +177,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, request):
+		corrector_config_filename = config.conf["WordBridge"]["settings"]["corrector_config_filename"]
 		corrector_config_file_path = os.path.join(
 			CORRECTOR_CONFIG_FOLDER_PATH,
-			config.conf["WordBridge"]["settings"]["corrector_config_filename"]
+			corrector_config_filename
 		)
 		if not os.path.exists(corrector_config_file_path):
 			corrector_config_file_path = os.path.join(
@@ -196,8 +198,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			customized_words = [row["text"] for row in self.readDictionary()]
 		else:
 			customized_words = []
+		corrector_mode = corrector_config["typo_corrector"]["typo_correction_mode"]
 		if corrector_config['model']['llm_access_method'] != "coseeing_relay":
-			corrector_mode = corrector_config["typo_corrector"]["typo_correction_mode"]
 			if provider not in config.conf["WordBridge"]["settings"]["api_key"]:
 				config.conf["WordBridge"]["settings"]["api_key"][provider] = ""
 			if provider not in config.conf["WordBridge"]["settings"]["secret_key"]:
@@ -240,8 +242,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 			data = {
 				"request": request,
-				"model": model_name,
+				"corrector_config_filename": corrector_config_filename,
 				"language": language,
+				"customized_words": customized_words,
 			}
 			headers = {
 				"Authorization": f"Bearer {access_token}",

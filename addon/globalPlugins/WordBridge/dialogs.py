@@ -44,7 +44,7 @@ if os_language_code in ["zh_TW", "zh_MO", "zh_HK"]:
 	LANGUAGE_DEFAULT = "zh_traditional"
 else:
 	LANGUAGE_DEFAULT = "zh_simplified"
-CORRECTOR_CONFIG_FILENAME_DEFAULT = "coseeing-gpt-4o-mini (standard mode)"
+CORRECTOR_CONFIG_FILENAME_DEFAULT = "coseeing-gpt-4o-mini (standard mode).json"
 CORRECTOR_CONFIG_FOLDER_PATH = os.path.join(os.path.dirname(__file__), "corrector_config")
 
 LANGUAGE_VALUES = ["zh_traditional", "zh_simplified"]
