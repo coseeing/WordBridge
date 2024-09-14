@@ -28,6 +28,8 @@ LABEL_DICT = {
 	"gpt-4o": _("gpt-4o"),
 	"gpt-4o-mini": _("gpt-4o-mini"),
 	"ernie-4.0-turbo-8k": _("ernie-4.0-turbo-8k"),
+	"o1-mini": _("o1-mini"),
+	"o1-preview": _("o1-preview"),
 	"Standard Mode": _("Standard Mode"),
 	"Lite Mode": _("Lite Mode"),
 	"zh_traditional": _("Traditional Chinese"),

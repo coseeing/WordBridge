@@ -1,0 +1,16 @@
+{
+	"model": {
+		"model_name": "o1-mini",
+		"provider": "OpenAI",
+		"llm_access_method": "personal_api_key",
+		"require_secret_key": false,
+		"template_name": "Standard_v1.json",
+		"optional_guidance_enable": {
+			"keep_non_chinese_char": true,
+			"no_explanation": false
+		}
+	},
+	"typo_corrector": {
+		"typo_correction_mode": "Standard Mode"
+	}
+}
