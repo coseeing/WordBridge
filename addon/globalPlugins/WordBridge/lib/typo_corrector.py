@@ -246,9 +246,15 @@ class BaseTypoCorrector():
 		if self.provider == "ollama":
 			return {}
 		total_usage = defaultdict(int)
+		total_usage["completion_tokens_details"] = defaultdict(int)
 		for response in self.response_history:
 			for usage_type in response["usage"].keys():
-				total_usage[usage_type] += response["usage"][usage_type]
+				if usage_type == "completion_tokens_details":
+					for usage_type_sub in response["usage"][usage_type]:
+						total_usage[usage_type][usage_type_sub] += response["usage"][usage_type][usage_type_sub]
+				else:
+					total_usage[usage_type] += response["usage"][usage_type]
+
 		return total_usage
 
 	def _correct_segment_task(
