@@ -52,8 +52,15 @@ if __name__ == "__main__":
 
 	eval_file_name = f"eval_{model.replace(':', '_').replace('/', '_')}_{tag}_{os.path.basename(data_path)}"
 	result_file_name = f"result_{model.replace(':', '_').replace('/', '_')}_{tag}_{os.path.basename(data_path)}"
-	eval_file_path = os.path.join(path, "eval", eval_file_name)
-	result_file_path = os.path.join(path, "result", result_file_name)
+	eval_file_folder = os.path.join(path, "eval")
+	result_file_folder = os.path.join(path, "result")
+	eval_file_path = os.path.join(eval_file_folder, eval_file_name)
+	result_file_path = os.path.join(result_file_folder, result_file_name)
+
+	if not os.path.isdir(eval_file_folder):
+		os.makedirs(eval_file_folder)
+	if not os.path.isdir(result_file_folder):
+		os.makedirs(result_file_folder)
 
 	# Initialize the typo corrector object with the OpenAI API key and the GPT model
 	corrector = typo_corrector_class(
@@ -94,8 +101,15 @@ if __name__ == "__main__":
 		result_file.write(f"\n\nToken Usage:\n")
 		print("Token Usage:")
 		for k in usage:
-			result_file.write(f"{k} = {usage[k]}\n")
-			print(f"{k} = {usage[k]}")
+			if isinstance(usage[k], dict):
+				result_file.write(f"  {k}:\n")
+				print(f"  {k}:")
+				for m in usage[k]:
+					result_file.write(f"    {m} = {usage[k][m]}\n")
+					print(f"    {m} = {usage[k][m]}")
+			else:
+				result_file.write(f"  {k} = {usage[k]}\n")
+				print(f"  {k} = {usage[k]}")
 
 		result_file.close()
 
