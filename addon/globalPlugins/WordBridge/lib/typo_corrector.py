@@ -249,7 +249,8 @@ class BaseTypoCorrector():
 		for response in self.response_history:
 			for usage_type in response["usage"].keys():
 				if usage_type.endswith("_details"):
-					total_usage[usage_type] = defaultdict(int)
+					if usage_type not in total_usage:
+						total_usage[usage_type] = defaultdict(int)
 					for usage_type_sub in response["usage"][usage_type]:
 						total_usage[usage_type][usage_type_sub] += response["usage"][usage_type][usage_type_sub]
 				else:
