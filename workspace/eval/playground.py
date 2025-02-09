@@ -58,7 +58,12 @@ if __name__ == "__main__":
 	print("Token Usage:")
 	usage = corrector.get_total_usage()
 	for k in usage:
-		print(f"{k} = {usage[k]}")
+		if isinstance(usage[k], dict):
+			print(f"  {k}:")
+			for m in usage[k]:
+				print(f"    {m} = {usage[k][m]}")
+		else:
+			print(f"  {k} = {usage[k]}")
 
 """
 Output:
