@@ -1,5 +1,6 @@
 from collections import defaultdict
 from copy import deepcopy
+from requests.utils import urlparse
 from threading import Thread
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Tuple
@@ -29,10 +30,10 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
-BASE_API_URLS = {
-	"openai": "https://api.openai.com",
-	"baidu": "https://qianfan.baidubce.com",
-	"ollama": "http://localhost:11434",
+API_URLS = {
+	"openai": "https://api.openai.com/v1/chat/completions",
+	"baidu": "https://qianfan.baidubce.com/v2/chat/completions",
+	"ollama": "http://localhost:11434/api/chat",
 }
 
 
@@ -121,7 +122,9 @@ class BaseTypoCorrector():
 			return fake_corrected_text, strings_diff(text, fake_corrected_text)
 
 		if self.provider in ["openai", "baidu"]:
-			self._try_internet_connection(BASE_API_URLS[self.provider])
+			parse = urlparse(API_URLS[self.provider])
+			base_url = f"{parse.scheme}://{parse.netloc}"
+			self._try_internet_connection(base_url)
 
 		text_corrected = ""
 		segments = text_segmentation(text, max_length=100)
@@ -290,16 +293,10 @@ class BaseTypoCorrector():
 		)
 
 	def _get_api_url(self):
-		if self.provider == "openai":
-			api_url = BASE_API_URLS[self.provider] + "/v1/chat/completions"
-		elif self.provider == "ollama":
-			api_url = BASE_API_URLS[self.provider] + "/api/chat"
-		elif self.provider == "baidu":
-			api_url = BASE_API_URLS[self.provider] + "/v2/chat/completions"
-		else:
+		if self.provider not in API_URLS.keys():
 			raise NotImplementedError("Subclass must implement this method")
 
-		return api_url
+		return API_URLS[self.provider]
 
 	def _get_input_info(self, input_text):
 		input_info = {
@@ -366,26 +363,25 @@ class BaseTypoCorrector():
 			system_template = deepcopy(self.template[self.language]["system"])
 			system_template = system_template.replace("\\n", "\n")
 			system_template = self._system_add_guidance(system_template, input_info)
+
+		messages = [{"role": "system", "content": system_template}] + messages
 		if self.provider == "openai":
-			messages = [{"role": "system", "content": system_template}] + messages
 			data = {
 				"model": self.model,
 				"messages": messages,
 				**setting,
 			}
 		elif self.provider == "baidu":
-			messages = [{"role": "system", "content": system_template}] + messages
 			if "temperature" in setting:
 				setting["temperature"] = max(setting["temperature"], 0.0001)
 			if "max_completion_tokens" in setting:
 				setting["max_completion_tokens"] = min(setting["max_completion_tokens"], len(messages[-1]["content"]))
 			data = {
-				"messages": messages,
 				"model": self.model,
+				"messages": messages,
 				**setting,
 			}
 		elif self.provider == "ollama":
-			messages = [{"role": "system", "content": system_template}] + messages
 			data = {
 				"model": self.model,
 				"messages": messages,
@@ -400,15 +396,11 @@ class BaseTypoCorrector():
 		return data
 
 	def _get_headers(self):
-		if self.provider == "openai":
+		headers = {'Content-Type': 'application/json'}
+		if self.provider in ["openai", "baidu"]:
 			headers = {"Authorization": f"Bearer {self.credential['api_key']}"}
-		elif self.provider == "baidu":
-			headers = {'Content-Type': 'application/json', "Authorization": f"Bearer {self.credential['api_key']}"}
-		elif self.provider == "ollama":
-			headers = {'Content-Type': 'application/json'}
-		else:
+		elif self.provider not in API_URLS.keys():
 			raise NotImplementedError("Subclass must implement this method")
-
 		return headers
 
 	def _chat_completion(self, input: List, response_text_history: List, input_info: dict) -> str:
@@ -467,7 +459,8 @@ class BaseTypoCorrector():
 		if self.provider == "openai" and response.status_code != 200:
 			self._handle_openai_errors(response)
 
-		if self.provider == "baidu" and ("error_code" in response_json or not response_json["choices"][0]["message"]["content"]):
+		if self.provider == "baidu" and\
+			("error_code" in response_json or not response_json["choices"][0]["message"]["content"]):
 			self._handle_baidu_errors(response_json)
 
 		return response_json
@@ -506,9 +499,7 @@ class BaseTypoCorrector():
 			raise Exception(response_json["error_msg"])
 
 	def _parse_response(self, response: str) -> str:
-		if self.provider == "openai":
-			sentence = response["choices"][0]["message"]["content"]
-		elif self.provider == "baidu":
+		if self.provider in ["openai", "baidu"]:
 			sentence = response["choices"][0]["message"]["content"]
 		elif self.provider == "ollama":
 			sentence = response["message"]["content"]
