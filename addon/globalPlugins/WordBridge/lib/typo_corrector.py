@@ -292,8 +292,6 @@ class BaseTypoCorrector():
 	def _get_api_url(self):
 		if self.provider == "openai":
 			api_url = BASE_API_URLS[self.provider] + "/v1/chat/completions"
-		elif self.provider == "deepseek":
-			api_url = BASE_API_URLS[self.provider] + "/chat"
 		elif self.provider == "ollama":
 			api_url = BASE_API_URLS[self.provider] + "/api/chat"
 		elif self.provider == "baidu":
