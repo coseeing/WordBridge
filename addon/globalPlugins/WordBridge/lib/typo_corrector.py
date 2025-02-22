@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 
 BASE_API_URLS = {
 	"openai": "https://api.openai.com",
-	"baidu": "https://aip.baidubce.com",
+	"baidu": "https://qianfan.baidubce.com",
 	"ollama": "http://localhost:11434",
 }
 
@@ -292,41 +292,12 @@ class BaseTypoCorrector():
 	def _get_api_url(self):
 		if self.provider == "openai":
 			api_url = BASE_API_URLS[self.provider] + "/v1/chat/completions"
+		elif self.provider == "deepseek":
+			api_url = BASE_API_URLS[self.provider] + "/chat"
 		elif self.provider == "ollama":
 			api_url = BASE_API_URLS[self.provider] + "/api/chat"
 		elif self.provider == "baidu":
-			api_key = self.credential["api_key"]
-			secret_key = self.credential["secret_key"]
-			url_get_access = BASE_API_URLS[self.provider] + "/oauth/2.0/token" +\
-						f"?grant_type=client_credentials&client_id={api_key}&client_secret={secret_key}"
-			headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-			response = None
-			for r in range(2):
-				timeout = min(5 * (r + 1), 15)
-				try:
-					response = requests.request("POST", url_get_access, headers=headers, json={}, timeout=timeout)
-				except Exception as e:
-					request_error = type(e).__name__
-					log.error(
-						"Try = {try_index}, {request_error}, an error occurred when sending {provider} request: {e}".format(
-							try_index=(r + 1),
-							request_error=request_error,
-							provider=self.provider,
-							e=e
-						)
-					)
-					time.sleep(0.5 + random.random())
-			if response is None:
-				raise Exception(
-					_("HTTP request error ({request_error}). Please check the network setting.").format(
-						request_error=request_error
-					)
-				)
-			elif "error" in response.json():
-				raise Exception(_("Authentication error. Please check if the large language model's key is correct."))
-			access_token = response.json().get("access_token")
-			api_url = BASE_API_URLS[self.provider] + "/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/" +\
-						f"{self.model}?access_token=" + access_token
+			api_url = BASE_API_URLS[self.provider] + "/v2/chat/completions"
 		else:
 			raise NotImplementedError("Subclass must implement this method")
 
@@ -405,13 +376,14 @@ class BaseTypoCorrector():
 				**setting,
 			}
 		elif self.provider == "baidu":
+			messages = [{"role": "system", "content": system_template}] + messages
 			if "temperature" in setting:
 				setting["temperature"] = max(setting["temperature"], 0.0001)
-			if "max_output_tokens" in setting:
-				setting["max_output_tokens"] = min(setting["max_output_tokens"], len(messages[-1]["content"]))
+			if "max_completion_tokens" in setting:
+				setting["max_completion_tokens"] = min(setting["max_completion_tokens"], len(messages[-1]["content"]))
 			data = {
 				"messages": messages,
-				"system": system_template,
+				"model": self.model,
 				**setting,
 			}
 		elif self.provider == "ollama":
@@ -433,7 +405,7 @@ class BaseTypoCorrector():
 		if self.provider == "openai":
 			headers = {"Authorization": f"Bearer {self.credential['api_key']}"}
 		elif self.provider == "baidu":
-			headers = {'Content-Type': 'application/json'}
+			headers = {'Content-Type': 'application/json', "Authorization": f"Bearer {self.credential['api_key']}"}
 		elif self.provider == "ollama":
 			headers = {'Content-Type': 'application/json'}
 		else:
@@ -497,7 +469,7 @@ class BaseTypoCorrector():
 		if self.provider == "openai" and response.status_code != 200:
 			self._handle_openai_errors(response)
 
-		if self.provider == "baidu" and ("error_code" in response_json or not response_json["result"]):
+		if self.provider == "baidu" and ("error_code" in response_json or not response_json["choices"][0]["message"]["content"]):
 			self._handle_baidu_errors(response_json)
 
 		return response_json
@@ -530,7 +502,7 @@ class BaseTypoCorrector():
 			raise Exception(_("Usage limit exceeded, please try again later."))
 		elif response_json["error_code"] == 17:
 			raise Exception(_("Please check if the API has been activated and the current account has enough money"))
-		elif not response_json["result"]:
+		elif not response_json["choices"][0]["message"]["content"]:
 			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
 		else:
 			raise Exception(response_json["error_msg"])
@@ -539,7 +511,7 @@ class BaseTypoCorrector():
 		if self.provider == "openai":
 			sentence = response["choices"][0]["message"]["content"]
 		elif self.provider == "baidu":
-			sentence = response["result"]
+			sentence = response["choices"][0]["message"]["content"]
 		elif self.provider == "ollama":
 			sentence = response["message"]["content"]
 		else:
