@@ -132,7 +132,7 @@ class LLMSettingsPanel(SettingsPanel):
 				size=(self.scaleSize(375), -1),
 				value=firstInfo,
 			)
-			if endpoint != "OpenAI":
+			if endpoint == "Coseeing":
 				self.accountTextCtrlMap2[endpoint] = self.accountGroupSizerHelper.addLabeledControl(
 					secondInfoText,
 					wx.TextCtrl,
