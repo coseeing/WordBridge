@@ -423,8 +423,10 @@ class BaseTypoCorrector():
 	def _post_with_retries(self, request_data, api_url, headers):
 		backoff = self.backoff
 		response_json = None
+		timeout0 = 5 if self.provider != "deepseek" else 30
+		timeout_max = 15 if self.provider != "deepseek" else 60
 		for r in range(self.httppost_retries):
-			timeout = min(5 * (r + 1), 15) if self.provider != "ollama" else 300
+			timeout = min(timeout0 * (r + 1), timeout_max) if self.provider != "ollama" else 300
 			request_error = None
 			response = None
 			try:
