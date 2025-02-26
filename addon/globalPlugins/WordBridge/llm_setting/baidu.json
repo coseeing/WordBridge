@@ -1,7 +1,6 @@
 {
-	"max_output_tokens": 4096,
+	"max_completion_tokens": 4096,
 	"temperature": 0.0,
 	"top_p": 0.0,
-	"logprobs": true,
 	"stop": ["\n", "&"]
 }

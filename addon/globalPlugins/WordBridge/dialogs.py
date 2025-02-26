@@ -28,6 +28,7 @@ LABEL_DICT = {
 	"gpt-4o": _("gpt-4o"),
 	"gpt-4o-mini": _("gpt-4o-mini"),
 	"ernie-4.0-turbo-8k": _("ernie-4.0-turbo-8k"),
+	"deepseek-v3": _("deepseek-v3"),
 	"o1-mini": _("o1-mini"),
 	"o1-preview": _("o1-preview"),
 	"Standard Mode": _("Standard Mode"),
@@ -132,7 +133,7 @@ class LLMSettingsPanel(SettingsPanel):
 				size=(self.scaleSize(375), -1),
 				value=firstInfo,
 			)
-			if endpoint != "OpenAI":
+			if endpoint == "Coseeing":
 				self.accountTextCtrlMap2[endpoint] = self.accountGroupSizerHelper.addLabeledControl(
 					secondInfoText,
 					wx.TextCtrl,
