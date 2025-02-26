@@ -33,6 +33,7 @@ log = logging.getLogger(__name__)
 API_URLS = {
 	"openai": "https://api.openai.com/v1/chat/completions",
 	"baidu": "https://qianfan.baidubce.com/v2/chat/completions",
+	"deepseek": "https://api.deepseek.com/chat/completions",
 	"ollama": "http://localhost:11434/api/chat",
 }
 
@@ -80,7 +81,7 @@ class BaseTypoCorrector():
 					"no_explanation": False,
 					"keep_non_chinese_char": True,
 				}
-			elif self.provider == "baidu":
+			elif self.provider == "baidu" or self.provider == "deepseek":
 				self.optional_guidance_enable = {
 					"no_explanation": True,
 					"keep_non_chinese_char": False,
@@ -121,7 +122,7 @@ class BaseTypoCorrector():
 		if fake_corrected_text is not None:
 			return fake_corrected_text, strings_diff(text, fake_corrected_text)
 
-		if self.provider in ["openai", "baidu"]:
+		if self.provider in ["openai", "baidu", "deepseek"]:
 			parse = urlparse(API_URLS[self.provider])
 			base_url = f"{parse.scheme}://{parse.netloc}"
 			self._try_internet_connection(base_url)
@@ -381,7 +382,7 @@ class BaseTypoCorrector():
 				"messages": messages,
 				**setting,
 			}
-		elif self.provider == "ollama":
+		elif self.provider in ["ollama", "deepseek"]:
 			data = {
 				"model": self.model,
 				"messages": messages,
@@ -397,7 +398,7 @@ class BaseTypoCorrector():
 
 	def _get_headers(self):
 		headers = {'Content-Type': 'application/json'}
-		if self.provider in ["openai", "baidu"]:
+		if self.provider in ["openai", "baidu", "deepseek"]:
 			headers = {"Authorization": f"Bearer {self.credential['api_key']}"}
 		elif self.provider not in API_URLS.keys():
 			raise NotImplementedError("Subclass must implement this method")
@@ -422,8 +423,10 @@ class BaseTypoCorrector():
 	def _post_with_retries(self, request_data, api_url, headers):
 		backoff = self.backoff
 		response_json = None
+		timeout0 = 5 if self.provider != "deepseek" else 30
+		timeout_max = 15 if self.provider != "deepseek" else 60
 		for r in range(self.httppost_retries):
-			timeout = min(5 * (r + 1), 15) if self.provider != "ollama" else 300
+			timeout = min(timeout0 * (r + 1), timeout_max) if self.provider != "ollama" else 300
 			request_error = None
 			response = None
 			try:
@@ -499,7 +502,7 @@ class BaseTypoCorrector():
 			raise Exception(response_json["error_msg"])
 
 	def _parse_response(self, response: str) -> str:
-		if self.provider in ["openai", "baidu"]:
+		if self.provider in ["openai", "baidu", "deepseek"]:
 			sentence = response["choices"][0]["message"]["content"]
 		elif self.provider == "ollama":
 			sentence = response["message"]["content"]
