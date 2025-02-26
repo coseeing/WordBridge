@@ -23,7 +23,7 @@ LABEL_DICT = {
 	"OpenAI": _("OpenAI"),
 	"Baidu": _("Baidu"),
 	"Coseeing": _("Coseeing"),
-	"DeepSeek": _("DeepSeek")
+	"DeepSeek": _("DeepSeek"),
 	"gpt-3.5-turbo": _("gpt-3.5-turbo"),
 	"gpt-4-turbo": _("gpt-4-turbo"),
 	"gpt-4o": _("gpt-4o"),
