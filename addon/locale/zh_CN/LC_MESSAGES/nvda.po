@@ -291,10 +291,6 @@ msgstr "请求速率已达到上限，或您使用的次数已超过了您的配
 msgid "Please reduce the frequency of sending requests or check your account balance."
 msgstr "请降低您发送请求的频率或检查您的账户余额。"
 
-#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:360
-msgid "The server had an error while processing your request, please try again later."
-msgstr "服务器在处理您的请求时发生错误，请稍后再试。"
-
 #: addon\globalPlugins\WordBridge\lib\typo_corrector.py:362
 msgid "The server is currently overloaded, please try again later."
 msgstr "当前服务器超载，请稍后再试。"
@@ -308,9 +304,14 @@ msgid "Usage limit exceeded, please try again later."
 msgstr "使用超出限制，请稍后再试。"
 
 #: addon\globalPlugins\WordBridge\lib\typo_corrector.py:374
-msgid ""
-"Please check if the API has been activated and the current account has enough money"
+msgid "Please check if the API has been activated and the current account has enough money"
 msgstr "请确认模型API已启用且当前账户有足够的余额"
+
+msgid "An error occurred, status code = "
+msgstr "发生错误，状态码 = "
+
+msgid "An error occurred, error code = "
+msgstr "发生错误，错误码 = "
 
 #: addon\globalPlugins\WordBridge\dictionary\dialog.py:13
 msgid ""
