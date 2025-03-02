@@ -366,7 +366,6 @@ class BaseTypoCorrector():
 			system_template = self._system_add_guidance(system_template, input_info)
 
 		messages = [{"role": "system", "content": system_template}] + messages
-
 		if self.provider == "openai":
 			if self.provider == "openai" and self.model.startswith("o"):
 				messages.pop(0)
