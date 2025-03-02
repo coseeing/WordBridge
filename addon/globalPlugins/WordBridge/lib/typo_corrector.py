@@ -32,6 +32,7 @@ log = logging.getLogger(__name__)
 
 API_URLS = {
 	"openai": "https://api.openai.com/v1/chat/completions",
+	"openrouter": "https://openrouter.ai/api/v1/chat/completions",
 	"baidu": "https://qianfan.baidubce.com/v2/chat/completions",
 	"deepseek": "https://api.deepseek.com/chat/completions",
 	"ollama": "http://localhost:11434/api/chat",
@@ -81,7 +82,7 @@ class BaseTypoCorrector():
 					"no_explanation": False,
 					"keep_non_chinese_char": True,
 				}
-			elif self.provider == "baidu" or self.provider == "deepseek":
+			elif self.provider in ["baidu", "deepseek", "openrouter"]:
 				self.optional_guidance_enable = {
 					"no_explanation": True,
 					"keep_non_chinese_char": False,
@@ -122,7 +123,7 @@ class BaseTypoCorrector():
 		if fake_corrected_text is not None:
 			return fake_corrected_text, strings_diff(text, fake_corrected_text)
 
-		if self.provider in ["openai", "baidu", "deepseek"]:
+		if self.provider in ["openai", "baidu", "deepseek", "openrouter"]:
 			parse = urlparse(API_URLS[self.provider])
 			base_url = f"{parse.scheme}://{parse.netloc}"
 			self._try_internet_connection(base_url)
@@ -388,7 +389,7 @@ class BaseTypoCorrector():
 				"messages": messages,
 				**setting,
 			}
-		elif self.provider in ["ollama", "deepseek"]:
+		elif self.provider in ["ollama", "deepseek", "openrouter"]:
 			data = {
 				"model": self.model,
 				"messages": messages,
@@ -404,7 +405,7 @@ class BaseTypoCorrector():
 
 	def _get_headers(self):
 		headers = {'Content-Type': 'application/json'}
-		if self.provider in ["openai", "baidu", "deepseek"]:
+		if self.provider in ["openai", "baidu", "deepseek", "openrouter"]:
 			headers = {"Authorization": f"Bearer {self.credential['api_key']}"}
 		elif self.provider not in API_URLS.keys():
 			raise NotImplementedError("Subclass must implement this method")
@@ -510,7 +511,7 @@ class BaseTypoCorrector():
 			raise Exception(_("An error occurred, error code = ") + response_json["error_msg"])
 
 	def _parse_response(self, response: str) -> str:
-		if self.provider in ["openai", "baidu", "deepseek"]:
+		if self.provider in ["openai", "baidu", "deepseek", "openrouter"]:
 			sentence = response["choices"][0]["message"]["content"]
 		elif self.provider == "ollama":
 			sentence = response["message"]["content"]
