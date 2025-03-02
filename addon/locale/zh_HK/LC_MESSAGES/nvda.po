@@ -307,11 +307,11 @@ msgstr "使用超出限制，請稍後再試。"
 msgid "Please check if the API has been activated and the current account has enough money"
 msgstr "請確認模型API已啟用且當前帳戶有足夠的餘額"
 
-+msgid "An error occurred, status code = "
-+msgstr "發生錯誤，狀態碼 = "
+msgid "An error occurred, status code = "
+msgstr "發生錯誤，狀態碼 = "
 
-+msgid "An error occurred, error code = "
-+msgstr "發生錯誤，錯誤碼 = "
+msgid "An error occurred, error code = "
+msgstr "發生錯誤，錯誤碼 = "
 
 #: addon\globalPlugins\WordBridge\dictionary\dialog.py:13
 msgid ""
