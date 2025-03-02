@@ -480,12 +480,14 @@ class BaseTypoCorrector():
 				_("Rate limit reached for requests or you exceeded your current quota. ") +\
 				_("Please reduce the frequency of sending requests or check your account balance.")
 			)
-		elif response.status_code == 500:
-			raise Exception(_("The server had an error while processing your request, please try again later."))
 		elif response.status_code == 503:
 			raise Exception(_("The server is currently overloaded, please try again later."))
 		else:
-			raise Exception(_("Unknown errors. Status code = {status_code}").format(status_code=response.status_code))
+			message = json.loads(response.text)["error"]["message"]
+			raise Exception(_("An error occurred, status code = ") + "{status_code}, {message}".format(
+				status_code=response.status_code,
+				message=message
+			))
 
 	def _handle_baidu_errors(self, response_json):
 		if response_json["error_code"] == 3:
@@ -499,7 +501,7 @@ class BaseTypoCorrector():
 		elif not response_json["choices"][0]["message"]["content"]:
 			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
 		else:
-			raise Exception(response_json["error_msg"])
+			raise Exception(_("An error occurred, error code = ") + response_json["error_msg"])
 
 	def _parse_response(self, response: str) -> str:
 		if self.provider in ["openai", "baidu", "deepseek"]:
