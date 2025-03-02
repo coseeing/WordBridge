@@ -367,6 +367,12 @@ class BaseTypoCorrector():
 
 		messages = [{"role": "system", "content": system_template}] + messages
 		if self.provider == "openai":
+			if self.provider == "openai" and self.model.startswith("o"):
+				messages.pop(0)
+				messages[0]["content"] = system_template + "\n" + messages[0]["content"]
+				setting = {
+					"max_completion_tokens": setting["max_completion_tokens"],
+				}
 			data = {
 				"model": self.model,
 				"messages": messages,
@@ -423,8 +429,8 @@ class BaseTypoCorrector():
 	def _post_with_retries(self, request_data, api_url, headers):
 		backoff = self.backoff
 		response_json = None
-		timeout0 = 5 if self.provider != "deepseek" else 30
-		timeout_max = 15 if self.provider != "deepseek" else 60
+		timeout0 = 5 if self.provider != "deepseek" and (not self.model.startswith("o")) else 30
+		timeout_max = 15 if self.provider != "deepseek" and (not self.model.startswith("o")) else 60
 		for r in range(self.httppost_retries):
 			timeout = min(timeout0 * (r + 1), timeout_max) if self.provider != "ollama" else 300
 			request_error = None
