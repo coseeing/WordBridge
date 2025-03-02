@@ -1,7 +1,7 @@
 {
 	"model": {
-		"model_name": "deepseek-chat",
-		"provider": "DeepSeek",
+		"model_name": "deepseek/deepseek-chat:free",
+		"provider": "OpenRouter",
 		"llm_access_method": "personal_api_key",
 		"require_secret_key": true,
 		"template_name": "Standard_v1.json",
