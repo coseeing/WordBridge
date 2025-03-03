@@ -35,11 +35,11 @@ LABEL_DICT = {
 	"deepseek/deepseek-chat:free": _("deepseek/deepseek-chat:free"),
 	"o1-mini": _("o1-mini"),
 	"o1-preview": _("o1-preview"),
-	"Standard Mode": _("Standard Mode"),
-	"Lite Mode": _("Lite Mode"),
+	"o3-mini": _("o3-mini"),
 	"zh_traditional": _("Traditional Chinese"),
 	"zh_simplified": _("Simplified Chinese"),
-
+	"standard": _("Standard"),
+	"lite": _("Lite"),
 	# legacy
 	"ernie-4.0-8k-preview": _("ernie-4.0-8k-preview"),
 	"personal_api_key": _("Personal API Key"),
@@ -51,11 +51,15 @@ if os_language_code in ["zh_TW", "zh_MO", "zh_HK"]:
 	LANGUAGE_DEFAULT = "zh_traditional"
 else:
 	LANGUAGE_DEFAULT = "zh_simplified"
-CORRECTOR_CONFIG_FILENAME_DEFAULT = "coseeing-gpt-4o-mini (standard mode).json"
+CORRECTOR_CONFIG_FILENAME_DEFAULT = "coseeing-gpt-4o-mini.json"
 CORRECTOR_CONFIG_FOLDER_PATH = os.path.join(os.path.dirname(__file__), "corrector_config")
+TYPO_CORRECTION_MODE_DEFAULT = "standard"
 
 LANGUAGE_VALUES = ["zh_traditional", "zh_simplified"]
 LANGUAGE_LABELS = [LABEL_DICT[val] for val in LANGUAGE_VALUES]
+
+TYPO_CORRECTION_MODE_VALUES = ["standard", "lite"]
+TYPO_CORRECTION_MODE_LABELS = [LABEL_DICT[val] for val in TYPO_CORRECTION_MODE_VALUES]
 
 CORRECTOR_CONFIG_PATHS = sorted(glob.glob(os.path.join(CORRECTOR_CONFIG_FOLDER_PATH, "*.json")))
 CORRECTOR_CONFIG_VALUES = []
@@ -63,6 +67,7 @@ CORRECTOR_CONFIG_LABELS = []
 CORRECTOR_CONFIG_FILENAMES = []
 endpoint_set = set()
 for path in CORRECTOR_CONFIG_PATHS:
+	print(path)
 	with open(path, "r", encoding="utf8") as f:
 		corrector_config = json.loads(f.read())
 	if corrector_config['model']['llm_access_method'] != "coseeing_relay":
@@ -72,9 +77,8 @@ for path in CORRECTOR_CONFIG_PATHS:
 		endpoint_text = LABEL_DICT["Coseeing"]
 		endpoint_set.add("Coseeing")
 	model_name_text = LABEL_DICT[corrector_config['model']['model_name']]
-	typo_correction_mode_text = LABEL_DICT[corrector_config["typo_corrector"]["typo_correction_mode"]]
 
-	CORRECTOR_CONFIG_LABELS.append(f"{endpoint_text}: {model_name_text} | {typo_correction_mode_text}")
+	CORRECTOR_CONFIG_LABELS.append(f"{endpoint_text}: {model_name_text}")
 	CORRECTOR_CONFIG_VALUES.append(corrector_config)
 	CORRECTOR_CONFIG_FILENAMES.append(os.path.basename(path))
 
@@ -162,6 +166,21 @@ class LLMSettingsPanel(SettingsPanel):
 			config.conf["WordBridge"]["settings"]["language"] = LANGUAGE_DEFAULT
 			self.languageList.SetSelection(LANGUAGE_VALUES.index(config.conf["WordBridge"]["settings"]["language"]))
 
+		# For selecting typo correction mode
+
+		typoCorrectionModeLabelText = _("Typo Correction Mode:")
+		self.typoCorrectionModeList = settingsSizerHelper.addLabeledControl(
+			typoCorrectionModeLabelText,
+			wx.Choice,
+			choices=TYPO_CORRECTION_MODE_LABELS
+		)
+		self.typoCorrectionModeList.SetToolTip(wx.ToolTip(_("Choose the typo correction mode for the Word Bridge")))
+		if config.conf["WordBridge"]["settings"]["typo_correction_mode"] in TYPO_CORRECTION_MODE_VALUES:
+			self.typoCorrectionModeList.SetSelection(TYPO_CORRECTION_MODE_VALUES.index(config.conf["WordBridge"]["settings"]["typo_correction_mode"]))
+		else:
+			config.conf["WordBridge"]["settings"]["typo_correction_mode"] = TYPO_CORRECTION_MODE_DEFAULT
+			self.typoCorrectionModeList.SetSelection(TYPO_CORRECTION_MODE_VALUES.index(config.conf["WordBridge"]["settings"]["typo_correction_mode"]))
+
 		# For setting upper bound of correction character count
 		maxTokensLabelText = _("Max character count")
 		try:
@@ -231,6 +250,7 @@ class LLMSettingsPanel(SettingsPanel):
 		model_index = self.modelList.GetSelection()
 		config.conf["WordBridge"]["settings"]["corrector_config_filename"] = CORRECTOR_CONFIG_FILENAMES[model_index]
 		config.conf["WordBridge"]["settings"]["language"] = LANGUAGE_VALUES[self.languageList.GetSelection()]
+		config.conf["WordBridge"]["settings"]["typo_correction_mode"] = TYPO_CORRECTION_MODE_VALUES[self.typoCorrectionModeList.GetSelection()]
 		config.conf["WordBridge"]["settings"]["max_char_count"] = self.maxCharCountSpinCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["auto_display_report"] = self.autoDisplayReportEnable.GetValue()
 		config.conf["WordBridge"]["settings"]["customized_words_enable"] = self.customizedWordEnable.GetValue()

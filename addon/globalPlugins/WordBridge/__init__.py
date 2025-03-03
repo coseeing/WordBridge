@@ -25,7 +25,7 @@ import wx
 
 import requests
 
-from .dialogs import CORRECTOR_CONFIG_FILENAME_DEFAULT, CORRECTOR_CONFIG_FOLDER_PATH, LANGUAGE_DEFAULT
+from .dialogs import CORRECTOR_CONFIG_FILENAME_DEFAULT, CORRECTOR_CONFIG_FOLDER_PATH, LANGUAGE_DEFAULT, TYPO_CORRECTION_MODE_DEFAULT
 from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.coseeing import obtain_openai_key
@@ -43,6 +43,7 @@ config.conf.spec["WordBridge"] = {
 	"settings": {
 		"corrector_config_filename": f"string(default={CORRECTOR_CONFIG_FILENAME_DEFAULT})",
 		"language": f"string(default={LANGUAGE_DEFAULT})",
+		"typo_correction_mode": f"string(default={TYPO_CORRECTION_MODE_DEFAULT})",
 		"api_key": {},
 		"secret_key": {},
 		"coseeing_username": "string(default=\0)",
@@ -187,18 +188,20 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				CORRECTOR_CONFIG_FOLDER_PATH,
 				CORRECTOR_CONFIG_FILENAME_DEFAULT
 			)
+
+		language = config.conf["WordBridge"]["settings"]["language"]
+		corrector_mode = config.conf["WordBridge"]["settings"]["typo_correction_mode"]
 		with open(corrector_config_file_path, "r", encoding="utf8") as f:
 			corrector_config = json.loads(f.read())
 		provider = corrector_config["model"]["provider"]
 		model_name = corrector_config["model"]["model_name"]
-		template_name = corrector_config["model"]["template_name"]
+		template_name = corrector_config["model"]["template_name"][corrector_mode]
 		optional_guidance_enable = corrector_config["model"]["optional_guidance_enable"]
-		language = config.conf["WordBridge"]["settings"]["language"]
+
 		if config.conf["WordBridge"]["settings"]["customized_words_enable"]:
 			customized_words = [row["text"] for row in self.readDictionary()]
 		else:
 			customized_words = []
-		corrector_mode = corrector_config["typo_corrector"]["typo_correction_mode"]
 		if corrector_config['model']['llm_access_method'] != "coseeing_relay":
 			if provider not in config.conf["WordBridge"]["settings"]["api_key"]:
 				config.conf["WordBridge"]["settings"]["api_key"][provider] = ""
@@ -208,7 +211,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				"api_key": config.conf["WordBridge"]["settings"]["api_key"][provider],
 				"secret_key": config.conf["WordBridge"]["settings"]["secret_key"][provider],
 			}
-			corrector_class = ChineseTypoCorrectorLite if corrector_mode == "Lite Mode" else ChineseTypoCorrector
+			corrector_class = ChineseTypoCorrectorLite if corrector_mode == "lite" else ChineseTypoCorrector
 			corrector = corrector_class(
 				model=model_name,
 				provider=provider,
@@ -244,6 +247,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				"request": request,
 				"corrector_config_filename": corrector_config_filename,
 				"language": language,
+				"typo_correction_mode": corrector_mode,
 				"customized_words": customized_words,
 			}
 			headers = {
