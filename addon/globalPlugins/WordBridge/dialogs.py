@@ -15,6 +15,7 @@ from gui import guiHelper, nvdaControls
 from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
 
+from . configManager import ConfigManager
 from .dictionary.dialog import DictionaryEntryDialog
 
 addonHandler.initTranslation()
@@ -25,23 +26,10 @@ LABEL_DICT = {
 	"Coseeing": _("Coseeing"),
 	"DeepSeek": _("DeepSeek"),
 	"OpenRouter": _("OpenRouter"),
-	"gpt-3.5-turbo": _("gpt-3.5-turbo"),
-	"gpt-4-turbo": _("gpt-4-turbo"),
-	"gpt-4o": _("gpt-4o"),
-	"gpt-4o-mini": _("gpt-4o-mini"),
-	"ernie-4.0-turbo-8k": _("ernie-4.0-turbo-8k"),
-	"deepseek-v3": _("deepseek-v3"),
-	"deepseek-chat": _("deepseek-chat"),
-	"deepseek/deepseek-chat:free": _("deepseek/deepseek-chat:free"),
-	"o1-mini": _("o1-mini"),
-	"o1-preview": _("o1-preview"),
-	"o3-mini": _("o3-mini"),
 	"zh_traditional": _("Traditional Chinese"),
 	"zh_simplified": _("Simplified Chinese"),
 	"standard": _("Standard"),
 	"lite": _("Lite"),
-	# legacy
-	"ernie-4.0-8k-preview": _("ernie-4.0-8k-preview"),
 	"personal_api_key": _("Personal API Key"),
 	"coseeing_account": _("Coseeing Account"),
 }
@@ -51,7 +39,7 @@ if os_language_code in ["zh_TW", "zh_MO", "zh_HK"]:
 	LANGUAGE_DEFAULT = "zh_traditional"
 else:
 	LANGUAGE_DEFAULT = "zh_simplified"
-CORRECTOR_CONFIG_FILENAME_DEFAULT = "coseeing-gpt-4o-mini.json"
+CORRECTOR_CONFIG_FILENAME_DEFAULT = "openrouter-deepseek-chat.json"
 CORRECTOR_CONFIG_FOLDER_PATH = os.path.join(os.path.dirname(__file__), "corrector_config")
 TYPO_CORRECTION_MODE_DEFAULT = "standard"
 
@@ -61,26 +49,7 @@ LANGUAGE_LABELS = [LABEL_DICT[val] for val in LANGUAGE_VALUES]
 TYPO_CORRECTION_MODE_VALUES = ["standard", "lite"]
 TYPO_CORRECTION_MODE_LABELS = [LABEL_DICT[val] for val in TYPO_CORRECTION_MODE_VALUES]
 
-CORRECTOR_CONFIG_PATHS = sorted(glob.glob(os.path.join(CORRECTOR_CONFIG_FOLDER_PATH, "*.json")))
-CORRECTOR_CONFIG_VALUES = []
-CORRECTOR_CONFIG_LABELS = []
-CORRECTOR_CONFIG_FILENAMES = []
-endpoint_set = set()
-for path in CORRECTOR_CONFIG_PATHS:
-	print(path)
-	with open(path, "r", encoding="utf8") as f:
-		corrector_config = json.loads(f.read())
-	if corrector_config['model']['llm_access_method'] != "coseeing_relay":
-		endpoint_text = LABEL_DICT[corrector_config['model']['provider']]
-		endpoint_set.add(corrector_config['model']['provider'])
-	else:
-		endpoint_text = LABEL_DICT["Coseeing"]
-		endpoint_set.add("Coseeing")
-	model_name_text = LABEL_DICT[corrector_config['model']['model_name']]
-
-	CORRECTOR_CONFIG_LABELS.append(f"{endpoint_text}: {model_name_text}")
-	CORRECTOR_CONFIG_VALUES.append(corrector_config)
-	CORRECTOR_CONFIG_FILENAMES.append(os.path.basename(path))
+configManager = ConfigManager(CORRECTOR_CONFIG_FOLDER_PATH)
 
 
 class LLMSettingsPanel(SettingsPanel):
@@ -95,16 +64,18 @@ class LLMSettingsPanel(SettingsPanel):
 		self.modelList = settingsSizerHelper.addLabeledControl(
 			modelLabelText,
 			wx.Choice,
-			choices=CORRECTOR_CONFIG_LABELS
+			choices=configManager.labels
 		)
 		self.modelList.SetToolTip(wx.ToolTip(_("Choose the large language model for the Word Bridge")))
-		config_filename = config.conf["WordBridge"]["settings"]["corrector_config_filename"]
 
-		if config_filename not in CORRECTOR_CONFIG_FILENAMES:
-			model_index = CORRECTOR_CONFIG_FILENAMES.index(CORRECTOR_CONFIG_FILENAME_DEFAULT)
+		config_filename = config.conf["WordBridge"]["settings"]["corrector_config_filename"]
+		if config_filename not in configManager.filenames:
+			try:
+				model_index = configManager.filenames.index(CORRECTOR_CONFIG_FILENAME_DEFAULT)
+			except ValueError:
+				model_index = 0
 		else:
-			model_index = CORRECTOR_CONFIG_FILENAMES.index(config_filename)
-		model_provider_selected = CORRECTOR_CONFIG_VALUES[model_index]["model"]["provider"]
+			model_index = configManager.filenames.index(config_filename)
 		self.modelList.SetSelection(model_index)
 		self.modelList.Bind(wx.EVT_CHOICE, self.onChangeChoice)
 
@@ -112,7 +83,7 @@ class LLMSettingsPanel(SettingsPanel):
 		self.accountGroupSizerMap = {}
 		self.accountTextCtrlMap1 = {}
 		self.accountTextCtrlMap2 = {}
-		for endpoint in sorted(list(endpoint_set)):
+		for endpoint in sorted(list(configManager.endpoint)):
 			if endpoint not in config.conf["WordBridge"]["settings"]["api_key"]:
 				config.conf["WordBridge"]["settings"]["api_key"][endpoint] = ""
 			if endpoint not in config.conf["WordBridge"]["settings"]["secret_key"]:
@@ -232,12 +203,12 @@ class LLMSettingsPanel(SettingsPanel):
 
 	def _refreshAccountInfo(self):
 		model_index = self.modelList.GetSelection()
-		if CORRECTOR_CONFIG_VALUES[model_index]['model']['llm_access_method'] == "coseeing_relay":
+		if configManager.values[model_index]['model']['llm_access_method'] == "coseeing_relay":
 			endpoint = "Coseeing"
 		else:
-			endpoint = CORRECTOR_CONFIG_VALUES[model_index]["model"]["provider"]
+			endpoint = configManager.values[model_index]["model"]["provider"]
 
-		for ep in endpoint_set:
+		for ep in configManager.endpoint:
 			if ep == endpoint:
 				self.settingsSizer.Show(self.accountGroupSizerMap[ep], recursive=True)
 			else:
@@ -248,7 +219,7 @@ class LLMSettingsPanel(SettingsPanel):
 
 	def onSave(self):
 		model_index = self.modelList.GetSelection()
-		config.conf["WordBridge"]["settings"]["corrector_config_filename"] = CORRECTOR_CONFIG_FILENAMES[model_index]
+		config.conf["WordBridge"]["settings"]["corrector_config_filename"] = configManager.filenames[model_index]
 		config.conf["WordBridge"]["settings"]["language"] = LANGUAGE_VALUES[self.languageList.GetSelection()]
 		config.conf["WordBridge"]["settings"]["typo_correction_mode"] = TYPO_CORRECTION_MODE_VALUES[self.typoCorrectionModeList.GetSelection()]
 		config.conf["WordBridge"]["settings"]["max_char_count"] = self.maxCharCountSpinCtrl.GetValue()
@@ -257,10 +228,10 @@ class LLMSettingsPanel(SettingsPanel):
 
 		config.conf["WordBridge"]["settings"]["coseeing_username"] = self.accountTextCtrlMap1["Coseeing"].GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_password"] = self.accountTextCtrlMap2["Coseeing"].GetValue()
-		for i in range(len(CORRECTOR_CONFIG_VALUES)):
-			if CORRECTOR_CONFIG_VALUES[i]['model']['llm_access_method'] == "coseeing_relay":
+		for i in range(len(configManager.values)):
+			if configManager.values[i]['model']['llm_access_method'] == "coseeing_relay":
 				continue
-			provider_tmp = CORRECTOR_CONFIG_VALUES[i]["model"]["provider"]
+			provider_tmp = configManager.values[i]["model"]["provider"]
 			if provider_tmp in self.accountTextCtrlMap1:
 				api_key_tmp = self.accountTextCtrlMap1[provider_tmp].GetValue()
 				config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = api_key_tmp
