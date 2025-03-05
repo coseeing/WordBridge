@@ -21,11 +21,6 @@ from .dictionary.dialog import DictionaryEntryDialog
 addonHandler.initTranslation()
 
 LABEL_DICT = {
-	"OpenAI": _("OpenAI"),
-	"Baidu": _("Baidu"),
-	"Coseeing": _("Coseeing"),
-	"DeepSeek": _("DeepSeek"),
-	"OpenRouter": _("OpenRouter"),
 	"zh_traditional": _("Traditional Chinese"),
 	"zh_simplified": _("Simplified Chinese"),
 	"standard": _("Standard"),
@@ -59,31 +54,42 @@ class LLMSettingsPanel(SettingsPanel):
 	def makeSettings(self, settingsSizer):
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 
+		config_filename = config.conf["WordBridge"]["settings"]["corrector_config_filename"]
+		(provider_index, model_index) = configManager.find_index_by_filename(config_filename)
+		if (provider_index, model_index) == (-1, -1):
+			(provider_index, model_index) = configManager.find_index_by_filename(CORRECTOR_CONFIG_FILENAME_DEFAULT)
+
+		# For selecting provider
+		providerLabelText = _("Service Provider:")
+		self.providerList = settingsSizerHelper.addLabeledControl(
+			providerLabelText,
+			wx.Choice,
+			choices=list(configManager.endpoint_labels)
+		)
+		self.providerList.SetToolTip(wx.ToolTip(_("Choose the service provider for the WordBridge")))
+
+		self.providerList.Bind(wx.EVT_CHOICE, self.onChangeProviderChoice)
+		self.providerList.SetSelection(provider_index)
+
+		provider_index = self.providerList.GetSelection()
+		configManager.provider = list(configManager.endpoints)[provider_index]
+
 		# For selecting LLM
 		modelLabelText = _("Large Language Model:")
 		self.modelList = settingsSizerHelper.addLabeledControl(
 			modelLabelText,
 			wx.Choice,
-			choices=configManager.labels
+			choices=configManager.model_labels
 		)
 		self.modelList.SetToolTip(wx.ToolTip(_("Choose the large language model for the Word Bridge")))
 
-		config_filename = config.conf["WordBridge"]["settings"]["corrector_config_filename"]
-		if config_filename not in configManager.filenames:
-			try:
-				model_index = configManager.filenames.index(CORRECTOR_CONFIG_FILENAME_DEFAULT)
-			except ValueError:
-				model_index = 0
-		else:
-			model_index = configManager.filenames.index(config_filename)
 		self.modelList.SetSelection(model_index)
-		self.modelList.Bind(wx.EVT_CHOICE, self.onChangeChoice)
 
 		# For setting account information
 		self.accountGroupSizerMap = {}
 		self.accountTextCtrlMap1 = {}
 		self.accountTextCtrlMap2 = {}
-		for endpoint in sorted(list(configManager.endpoint)):
+		for endpoint, label in zip(configManager.endpoints.keys(), configManager.endpoint_labels):
 			if endpoint not in config.conf["WordBridge"]["settings"]["api_key"]:
 				config.conf["WordBridge"]["settings"]["api_key"][endpoint] = ""
 			if endpoint not in config.conf["WordBridge"]["settings"]["secret_key"]:
@@ -101,7 +107,7 @@ class LLMSettingsPanel(SettingsPanel):
 			accountBoxSizer = wx.StaticBoxSizer(
 				wx.VERTICAL,
 				self,
-				label=LABEL_DICT[endpoint] + _(" Account")
+				label=label + _(" Account")
 			)
 			self.accountGroupSizerMap[endpoint] = accountBoxSizer
 			self.accountGroupSizerHelper = guiHelper.BoxSizerHelper(self, sizer=accountBoxSizer)
@@ -201,15 +207,13 @@ class LLMSettingsPanel(SettingsPanel):
 
 		self.settingsSizer = settingsSizer
 
-	def _refreshAccountInfo(self):
-		model_index = self.modelList.GetSelection()
-		if configManager.values[model_index]['model']['llm_access_method'] == "coseeing_relay":
-			endpoint = "Coseeing"
-		else:
-			endpoint = configManager.values[model_index]["model"]["provider"]
+	def _refreshModelChoice(self):
+		self.modelList.SetItems(configManager.model_labels)
+		self.modelList.SetSelection(0)
 
-		for ep in configManager.endpoint:
-			if ep == endpoint:
+	def _refreshAccountInfo(self):
+		for ep in configManager.endpoints.keys():
+			if ep == configManager.provider:
 				self.settingsSizer.Show(self.accountGroupSizerMap[ep], recursive=True)
 			else:
 				self.settingsSizer.Hide(self.accountGroupSizerMap[ep], recursive=True)
@@ -218,8 +222,9 @@ class LLMSettingsPanel(SettingsPanel):
 		gui.mainFrame.popupSettingsDialog(DictionaryEntryDialog)
 
 	def onSave(self):
+		provider_index = self.providerList.GetSelection()
 		model_index = self.modelList.GetSelection()
-		config.conf["WordBridge"]["settings"]["corrector_config_filename"] = configManager.filenames[model_index]
+		config.conf["WordBridge"]["settings"]["corrector_config_filename"] = configManager.get_config_by_index(provider_index, model_index).filename
 		config.conf["WordBridge"]["settings"]["language"] = LANGUAGE_VALUES[self.languageList.GetSelection()]
 		config.conf["WordBridge"]["settings"]["typo_correction_mode"] = TYPO_CORRECTION_MODE_VALUES[self.typoCorrectionModeList.GetSelection()]
 		config.conf["WordBridge"]["settings"]["max_char_count"] = self.maxCharCountSpinCtrl.GetValue()
@@ -228,10 +233,10 @@ class LLMSettingsPanel(SettingsPanel):
 
 		config.conf["WordBridge"]["settings"]["coseeing_username"] = self.accountTextCtrlMap1["Coseeing"].GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_password"] = self.accountTextCtrlMap2["Coseeing"].GetValue()
-		for i in range(len(configManager.values)):
-			if configManager.values[i]['model']['llm_access_method'] == "coseeing_relay":
+		for ep in configManager.endpoints.keys():
+			if ep == "Coseeing":
 				continue
-			provider_tmp = configManager.values[i]["model"]["provider"]
+			provider_tmp = ep
 			if provider_tmp in self.accountTextCtrlMap1:
 				api_key_tmp = self.accountTextCtrlMap1[provider_tmp].GetValue()
 				config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = api_key_tmp
@@ -239,10 +244,14 @@ class LLMSettingsPanel(SettingsPanel):
 				secret_key_tmp = self.accountTextCtrlMap2[provider_tmp].GetValue()
 				config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp] = secret_key_tmp
 
-	def onChangeChoice(self, evt):
+	def onChangeProviderChoice(self, evt):
+		provider_index = self.providerList.GetSelection()
+		configManager.provider = list(configManager.endpoints)[provider_index]
+
 		self.Freeze()
 		# trigger a refresh of the settings
 		self._refreshAccountInfo()
+		self._refreshModelChoice()
 		self.onPanelActivated()
 		self._sendLayoutUpdatedEvent()
 		self.Thaw()

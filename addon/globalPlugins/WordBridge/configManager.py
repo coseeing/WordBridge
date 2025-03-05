@@ -4,7 +4,6 @@ import glob
 import json
 import os
 
-
 LABEL_DICT = {
 	"Baidu": _("Baidu"),
 	"Coseeing": _("Coseeing"),
@@ -30,7 +29,7 @@ LABEL_DICT = {
 class ConfigManager:
 	def __init__(self, path):
 		self.configs = []
-		self.endpoint = defaultdict(list)
+		self.endpoints = defaultdict(list)
 		self.provider = ""
 
 		for item in sorted(glob.glob(os.path.join(path, "*.json"))):
@@ -45,25 +44,43 @@ class ConfigManager:
 			endpoint_text = LABEL_DICT[provider]
 			model_name_text = LABEL_DICT[corrector_config['model']['model_name']]
 
-			label= f"{endpoint_text}: {model_name_text}"
+			label= model_name_text
 			value = corrector_config
 			filename = os.path.basename(item)
 
 			config = Config(label=label, value=value, filename=filename)
 			self.configs.append(config)
-			self.endpoint[provider].append(config)
+			self.endpoints[provider].append(config)
 
 	@property
-	def labels(self):
-		return [item.label for item in self.endpoint[self.provider]] if self.provider else [item.label for item in self.configs]
+	def model_labels(self):
+		return [item.label for item in self.endpoints[self.provider]] if self.provider else [item.label for item in self.configs]
 
 	@property
-	def filenames(self):
-		return [item.filename for item in self.endpoint[self.provider]] if self.provider else [item.filename for item in self.configs]
+	def endpoint_labels(self):
+		return [LABEL_DICT[item] for item in self.endpoints]
 
-	@property
-	def values(self):
-		return [item.value for item in self.endpoint[self.provider]] if self.provider else [item.value for item in self.configs]
+	def find_index_by_filename(self, value):
+		provider_mapping = {key: idx for idx, key in enumerate(self.endpoints.keys())}
+    
+		for provider_key, config_list in self.endpoints.items():
+			filename_list = [config.filename for config in config_list]
+			if value in filename_list:
+				provider_index = provider_mapping[provider_key]
+				config_index = filename_list.index(value)
+				return (provider_index, config_index)
+    
+		return (-1, -1)
+
+	def get_config_by_index(self, endpoint_index, model_index):
+		endpoint_key = list(self.endpoints.keys())[endpoint_index]
+		return self.endpoints[endpoint_key][model_index]
+
+	def get_config_by_filename(self, value):
+		endpoint_index, model_index = self.find_index_by_filename(value)
+		endpoint_key = list(self.endpoints.keys())[endpoint_index]
+		return self.endpoints[endpoint_key][model_index]
+
 
 @dataclass
 class Config:
