@@ -6,10 +6,10 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: 'WordBridge' '0.1'\n"
+"Project-Id-Version: 'WordBridge' '2025.3.5'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-03-05 21:21+0800\n"
-"PO-Revision-Date: 2025-03-05 21:27+0800\n"
+"POT-Creation-Date: 2025-03-06 10:50+0800\n"
+"PO-Revision-Date: 2025-03-06 10:53+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -76,12 +76,12 @@ msgid "The corrected text has been copied to the clipboard."
 msgstr "結果已複製到剪貼簿。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:303
-msgid "Popup"
-msgstr "Popup"
+msgid "Open custom dictionary"
+msgstr "開啟客製化辭典"
 
 #: addon\globalPlugins\WordBridge\__init__.py:311
-msgid "Execute GPT typo correction for Chinese character"
-msgstr "執行GPT中文改錯字"
+msgid "Execute typo correction"
+msgstr "執行錯字校正"
 
 #: addon\globalPlugins\WordBridge\__init__.py:317
 #: addon\globalPlugins\WordBridge\__init__.py:320
@@ -91,12 +91,12 @@ msgid ""
 msgstr "改錯字無法運行，請先結束NVDA設定視窗。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:332
-msgid "Show settings dialog of WordBridge"
-msgstr "顯示Word Bridge設定對話框"
+msgid "Open settings dialog of WordBridge"
+msgstr "開啟 WordBridge 設定對話框"
 
 #: addon\globalPlugins\WordBridge\__init__.py:344
-msgid "Show report of typos"
-msgstr "顯示錯字報告"
+msgid "Show report of correction"
+msgstr "顯示校正報告"
 
 #: addon\globalPlugins\WordBridge\__init__.py:349
 #: addon\globalPlugins\WordBridge\__init__.py:350
@@ -106,8 +106,8 @@ msgid "No report has been generated yet."
 msgstr "尚未產生報告。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:357
-msgid "Feedback of typos"
-msgstr "回報錯字"
+msgid "Feedback of correction"
+msgstr "校正回饋"
 
 #: addon\globalPlugins\WordBridge\__init__.py:405
 #, python-brace-format
@@ -218,7 +218,7 @@ msgstr "WordBridge"
 #. For selecting provider
 #: addon\globalPlugins\WordBridge\dialogs.py:63
 msgid "Service Provider:"
-msgstr "服務提供商"
+msgstr "服務提供商："
 
 #: addon\globalPlugins\WordBridge\dialogs.py:69
 msgid "Choose the service provider for the WordBridge"
@@ -528,6 +528,9 @@ msgstr "Word Bridge"
 #: buildVars.py:26
 msgid "Help fix Chinese typos to ensure the words are correct."
 msgstr "幫助改正中文錯字以確保文字正確。"
+
+#~ msgid "Popup"
+#~ msgstr "Popup"
 
 #~ msgid "Large Language Model Access Method:"
 #~ msgstr "大語言模型的訪問方式:"

@@ -300,15 +300,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+d",
-		description=_("Popup"),
+		description=_("Open custom dictionary"),
 		category=ADDON_SUMMARY,
 	)
-	def script_dictionary(self, gesture):
+	def script_openCustomDictionary(self, gesture):
 		gui.mainFrame.popupSettingsDialog(DictionaryEntryDialog)
 
 	@script(
 		gesture="kb:NVDA+alt+o",
-		description=_("Execute GPT typo correction for Chinese character"),
+		description=_("Execute typo correction"),
 		category=ADDON_SUMMARY,
 	)
 	def script_correction(self, gesture):
@@ -328,11 +328,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		action_thread.start()
 
 	@script(
-		gesture="kb:NVDA+alt+i",
-		description=_("Show settings dialog of WordBridge"),
+		gesture="kb:NVDA+alt+w",
+		description=_("Open settings dialog of WordBridge"),
 		category=ADDON_SUMMARY,
 	)
-	def script_showGPTSettings(self, gesture):
+	def script_openWordBridgeSettings(self, gesture):
 		wx.CallAfter(
 			gui.mainFrame._popupSettingsDialog,
 			gui.settingsDialogs.NVDASettingsDialog,
@@ -340,11 +340,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		)
 
 	@script(
-		gesture="kb:NVDA+alt+u",
-		description=_("Show report of typos"),
+		gesture="kb:NVDA+alt+r",
+		description=_("Show report of correction"),
 		category=ADDON_SUMMARY,
 	)
-	def script_showTypoReport(self, gesture):
+	def script_showCorrectionReport(self, gesture):
 		if self.latest_action["diff"] is None:
 			ui.message(_("No report has been generated yet."))
 			log.warning(_("No report has been generated yet."))
@@ -354,10 +354,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+f",
-		description=_("Feedback of typos"),
+		description=_("Feedback of correction"),
 		category=ADDON_SUMMARY,
 	)
-	def script_feedbackTypo(self, gesture):
+	def script_correctionFeedback(self, gesture):
 		# self.latest_action = {
 		# 	"request": "考式以經通過",
 		# 	"response": "考試已經通過",

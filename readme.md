@@ -1,30 +1,49 @@
-# WordBridge
+# WordBridge User Guide
 
-為了解決視障者輸入中文同音錯別字的問題並提升對文字與關聯詞的熟悉度，我們開發了 WordBridge 這個 NVDA 附加元件。WordBridge 提供同音字校對功能，能夠自動檢測和更正同音錯別字，協助降低內容中發生錯別字的機率。它的功能不僅可以檢測和更正錯別字，還提供了友善的校對結果顯示頁面，讓使用者能夠一目了然地知道有哪些錯別字。透過顯示詳細的錯誤與正確字的字詞解釋提示，讓使用者可以從錯誤的經驗中學習，逐漸熟悉不同字的用法和關聯詞彙，提高語言能力和輸入文字準確度。
+WordBridge is a tool specifically designed to correct Chinese homophone errors. It automatically detects and corrects homophonic character mistakes in your text, helping users significantly reduce the occurrence of typos.
 
-## 選項設定
+Beyond just detecting and correcting errors, WordBridge offers detailed reports clearly displaying incorrect and corrected words along with explanations. This allows users to learn from mistakes and gradually master the correct usage and associated vocabulary, effectively enhancing language proficiency and input accuracy.
 
-從 NVDA 功能表 -> 偏好 -> 設定 -> WordBridge 進入
+## How to Perform Text Checks
 
-目前 WordBridge OpenAI 模型分為 4 種
+Select the text you wish to check, then press the shortcut key NVDA+Alt+O to initiate the checking process. You will hear beeping sounds during the check. Once completed, the corrected text will automatically be copied to the clipboard for your further use.
 
-* gpt-3.5-turbo
-* gpt-4-turbo
-* gpt-4o
-* gpt-4o | Lite 簡單模式
+## How to View Correction Reports
 
-Note:
+Each time a text check and correction are completed, the system generates a web-based report clearly listing all corrected errors. Incorrect characters are displayed as clickable buttons; clicking them reveals detailed explanations about the incorrect and corrected characters, helping you better understand proper usage.
 
-* 未標示 Lite Mode 的三種模型會提示輸出文字需與輸入文字的發音相同，亦即模型會盡量以相同發音的字替換錯別字。
-* 在 gpt-4o | 簡單模式下，不會提示輸出文字需與輸入文字的發音相同，亦即模型有較高可能會以不同發音的字替換錯別字。
-* 語言：選擇模型預設處理文字的語言，分為繁體中文與簡體中文兩種
+If you have enabled the "Automatically Show Correction Report" option, the report webpage will automatically open after each check. If this option is disabled, you can manually open the report anytime by pressing the shortcut key NVDA+Alt+U.
 
-## 測試結果
+## Adjusting Settings
 
-以下提供各種模型的精確度、成本的測試結果供模型選用參考
+You can customize settings via the NVDA Menu → Preferences → Settings → WordBridge. The adjustable settings include:
 
-測試日期：2024/5/15
-測資數：250
+* Service Provider: Choose the cloud computing resource provider.
+* Large Language Model (LLM): Select an appropriate language model based on the chosen service provider.
+* Correction Mode:
+ * Standard Mode: Corrected words closely match the pronunciation of the original input, minimizing excessive corrections.
+ * Lightweight Mode: Corrected words might differ from the original pronunciation, suitable for contexts with similar-sounding words.
+* Chinese Simplified/Traditional: Select the language style (Traditional or Simplified Chinese) that the language model processes by default and automatically convert the input text accordingly.
+* Custom Dictionary: Provide a custom vocabulary list to the language model to enhance accuracy for specialized terminology.
+
+## Reporting Errors
+
+If you encounter incorrect corrections when using the Coseeing service provider, please report them by pressing the shortcut key NVDA+Alt+F. Your feedback helps us continually optimize the algorithm to enhance correction accuracy.
+
+## 測試紀錄
+
+以下提供各種情況下的精準度與成本的測試結果供使用者選用參考
+
+### 2024/6/15
+
+| Model | Accuracy | Input Token | Output Token | Input Price ($/1M token) | Output Price ($/1M token) | Character Count (without punctuation) | Price ($) / 1k Character |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| gpt-3.5-turbo | 94.40% | 46539 | 7189 | 0.5 | 1.5 | 3745 | 0.0091 |
+| gpt-4-turbo | 95.60% | 45467 | 7110 | 10.0 | 30.0 | 3745 | 0.1784 |
+| gpt-4o | 97.20% | 35628 | 4483 | 5.0 | 15.0 | 3745 | 0.0655 |
+| gpt-4o Simple Mode | 93.20% | 19887 | 3900 | 5.0 | 15.0 | 3745 | 0.0422 |
+
+### 2024/5/15
 
 | Model | Accuracy | Input Token | Output Token | Input Price ($/1M token) | Output Price ($/1M token) | Character Count (without punctuation) | Price ($) / 1k Character |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -32,15 +51,3 @@ Note:
 | gpt-4-turbo | 92.80% | 65746 | 7961 | 10.0 | 30.0 | 3745 | 0.2393 |
 | gpt-4o | 96.40% | 53803 | 5303 | 5.0 | 15.0 | 3745 | 0.0931 |
 | gpt-4o Lite Mode | 90.00% | 29169 | 3553 | 5.0 | 15.0 | 3745 | 0.0532 |
-
-## 進行文字檢查
-
-當使用者選取文字後按下指令鍵 NVDA+alt+o 即會開始進行文字檢查，過程中會有嗶嗶聲提示，當完成後結果會放入剪貼板中。
-
-## 瀏覽錯字報告
-
-當「自動顯示改錯字報告」勾選時，執行完文字檢查後會自動開啟報告網頁。報告中會以按鈕呈現原先為錯別字的文字，並以修正後的文字替代，同時可以點擊按鈕打開對話框，查看詳細的錯誤與正確字的字詞解釋。
-
-## 回報錯誤
-
-如果在使用或測試時，發現有錯字未被檢測到或在修正錯字時發生誤判，可以按 NVDA+Alt+F 將錯誤回報給我們，以便我們優化演算法來提高正確度。
