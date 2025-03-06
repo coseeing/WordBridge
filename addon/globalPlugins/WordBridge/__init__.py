@@ -165,7 +165,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return True
 
 	def readDictionary(self):
-		with open(os.path.join(PATH, "dictionary", "data.csv"), encoding='utf8', newline='') as csvfile:
+		dictionary_path = os.path.join(PATH, "dictionary", "data.csv")
+		if not os.path.exists(dictionary_path):
+			open(dictionary_path, 'w', encoding='utf-8').close()
+		with open(dictionary_path, encoding='utf8', newline='') as csvfile:
 			reader = csv.DictReader(csvfile)
 			word_list = list(reader)
 		return word_list
@@ -239,9 +242,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					config.conf["WordBridge"]["settings"]["coseeing_password"],
 				)
 			except Exception as e:
-				ui.message(_("Sorry, an error occurred while logging into Coseeing, the details are: {e}").format(e=e))
-				log.warning(_("Sorry, an error occurred while logging into Coseeing, the details are: {e}").format(e=e))
-				return
+				access_token = ""
+				# ui.message(_("Sorry, an error occurred while logging into Coseeing, the details are: {e}").format(e=e))
+				# log.warning(_("Sorry, an error occurred while logging into Coseeing, the details are: {e}").format(e=e))
+				# return
 
 			data = {
 				"request": request,

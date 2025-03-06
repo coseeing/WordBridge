@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 'WordBridge' '2025.3.5'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-03-06 10:50+0800\n"
-"PO-Revision-Date: 2025-03-06 10:53+0800\n"
+"POT-Creation-Date: 2025-03-06 17:05+0800\n"
+"PO-Revision-Date: 2025-03-06 17:06+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -39,77 +39,75 @@ msgstr "選取範圍不含漢字，無法分析。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:229
 #: addon\globalPlugins\WordBridge\__init__.py:230
-#: addon\globalPlugins\WordBridge\__init__.py:406
+#: addon\globalPlugins\WordBridge\__init__.py:407
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred during the program execution, the details are: {e}"
 msgstr "抱歉，程式運行中遇到了一些問題，錯誤詳情是: {e}"
 
-#: addon\globalPlugins\WordBridge\__init__.py:242
-#: addon\globalPlugins\WordBridge\__init__.py:243
-#: addon\globalPlugins\WordBridge\__init__.py:391
-#: addon\globalPlugins\WordBridge\__init__.py:392
-#, python-brace-format
-msgid ""
-"Sorry, an error occurred while logging into Coseeing, the details are: {e}"
-msgstr "抱歉，登入 Coseeing 時遇到了一些問題，錯誤詳情是: {e}"
-
-#: addon\globalPlugins\WordBridge\__init__.py:260
+#: addon\globalPlugins\WordBridge\__init__.py:261
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred while decode Coseeing response, the details are: {e}"
 msgstr "抱歉，解析回復時遇到了一些問題，錯誤詳情是: {e}"
 
-#: addon\globalPlugins\WordBridge\__init__.py:263
+#: addon\globalPlugins\WordBridge\__init__.py:264
 #, python-brace-format
 msgid "Sorry, http 403 forbidden, the details are: {e}"
 msgstr "抱歉，HTTP 403 禁止訪問，錯誤詳情是:{e}"
 
-#: addon\globalPlugins\WordBridge\__init__.py:278
 #: addon\globalPlugins\WordBridge\__init__.py:279
+#: addon\globalPlugins\WordBridge\__init__.py:280
 msgid "No errors in the selected text."
 msgstr "選取範圍未檢測出錯誤。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:283
 #: addon\globalPlugins\WordBridge\__init__.py:284
+#: addon\globalPlugins\WordBridge\__init__.py:285
 msgid "The corrected text has been copied to the clipboard."
 msgstr "結果已複製到剪貼簿。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:303
+#: addon\globalPlugins\WordBridge\__init__.py:304
 msgid "Open custom dictionary"
 msgstr "開啟客製化辭典"
 
-#: addon\globalPlugins\WordBridge\__init__.py:311
+#: addon\globalPlugins\WordBridge\__init__.py:312
 msgid "Execute typo correction"
 msgstr "執行錯字校正"
 
-#: addon\globalPlugins\WordBridge\__init__.py:317
-#: addon\globalPlugins\WordBridge\__init__.py:320
+#: addon\globalPlugins\WordBridge\__init__.py:318
+#: addon\globalPlugins\WordBridge\__init__.py:321
 msgid ""
 "The function cannot be executed. Please finish the configuration and close "
 "the setting window."
 msgstr "改錯字無法運行，請先結束NVDA設定視窗。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:332
+#: addon\globalPlugins\WordBridge\__init__.py:333
 msgid "Open settings dialog of WordBridge"
 msgstr "開啟 WordBridge 設定對話框"
 
-#: addon\globalPlugins\WordBridge\__init__.py:344
+#: addon\globalPlugins\WordBridge\__init__.py:345
 msgid "Show report of correction"
 msgstr "顯示校正報告"
 
-#: addon\globalPlugins\WordBridge\__init__.py:349
 #: addon\globalPlugins\WordBridge\__init__.py:350
-#: addon\globalPlugins\WordBridge\__init__.py:368
+#: addon\globalPlugins\WordBridge\__init__.py:351
 #: addon\globalPlugins\WordBridge\__init__.py:369
+#: addon\globalPlugins\WordBridge\__init__.py:370
 msgid "No report has been generated yet."
 msgstr "尚未產生報告。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:357
+#: addon\globalPlugins\WordBridge\__init__.py:358
 msgid "Feedback of correction"
 msgstr "校正回饋"
 
-#: addon\globalPlugins\WordBridge\__init__.py:405
+#: addon\globalPlugins\WordBridge\__init__.py:392
+#: addon\globalPlugins\WordBridge\__init__.py:393
+#, python-brace-format
+msgid ""
+"Sorry, an error occurred while logging into Coseeing, the details are: {e}"
+msgstr "抱歉，登入 Coseeing 時遇到了一些問題，錯誤詳情是: {e}"
+
+#: addon\globalPlugins\WordBridge\__init__.py:406
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred during the feedback request, the details are: {e}"
@@ -264,8 +262,8 @@ msgstr "選擇Word Bridge所使用的語言"
 
 #. For selecting typo correction mode
 #: addon\globalPlugins\WordBridge\dialogs.py:148
-msgid "Typo Correction Mode:"
-msgstr "錯字校正模式："
+msgid "Correction Mode:"
+msgstr "校正模式："
 
 #: addon\globalPlugins\WordBridge\dialogs.py:154
 msgid "Choose the typo correction mode for the Word Bridge"

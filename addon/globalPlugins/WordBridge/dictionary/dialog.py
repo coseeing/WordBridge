@@ -85,6 +85,8 @@ class DictionaryEntryDialog(SettingsDialog):
 	def __init__(self, parent):
 		self.path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data.csv')
 		data = []
+		if not os.path.exists(self.path):
+			open(self.path, 'w', encoding='utf-8').close()
 		with open(self.path, 'r', encoding='utf-8') as file:
 			reader = csv.DictReader(file)
 			for row in reader:

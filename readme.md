@@ -12,7 +12,7 @@ Select the text you wish to check, then press the shortcut key NVDA+Alt+O to ini
 
 Each time a text check and correction are completed, the system generates a web-based report clearly listing all corrected errors. Incorrect characters are displayed as clickable buttons; clicking them reveals detailed explanations about the incorrect and corrected characters, helping you better understand proper usage.
 
-If you have enabled the "Automatically Show Correction Report" option, the report webpage will automatically open after each check. If this option is disabled, you can manually open the report anytime by pressing the shortcut key NVDA+Alt+U.
+If you have enabled the "Automatically Show Correction Report" option, the report webpage will automatically open after each check. If this option is disabled, you can manually open the report anytime by pressing the shortcut key NVDA+Alt+R.
 
 ## Adjusting Settings
 
