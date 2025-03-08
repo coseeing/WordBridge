@@ -251,14 +251,10 @@ class BaseTypoCorrector():
 		if self.provider == "ollama":
 			return {}
 		total_usage = defaultdict(int)
+		# print(json.dumps(self.response_history, indent=2, sort_keys=True))
 		for response in self.response_history:
-			for usage_type in response["usage"].keys():
-				if usage_type.endswith("_details"):
-					if usage_type not in total_usage:
-						total_usage[usage_type] = defaultdict(int)
-					for usage_type_sub in response["usage"][usage_type]:
-						total_usage[usage_type][usage_type_sub] += response["usage"][usage_type][usage_type_sub]
-				else:
+			if isinstance(response, dict) and "usage" in response:
+				for usage_type in ["prompt_tokens", "completion_tokens"]:
 					total_usage[usage_type] += response["usage"][usage_type]
 
 		return total_usage
