@@ -1,7 +1,7 @@
 {
 	"model": {
-		"model_name": "o1-preview",
-		"provider": "OpenAI",
+		"model_name": "claude-3-7-sonnet-20250219",
+		"provider": "Anthropic",
 		"llm_access_method": "personal_api_key",
 		"require_secret_key": false,
 		"template_name": {

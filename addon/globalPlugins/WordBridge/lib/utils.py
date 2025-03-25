@@ -219,6 +219,25 @@ def find_correction_errors(text, text_corrected):
 	return text_corrected_fixed, typo_indices
 
 
+def review_correction_errors(text, text_corrected):
+	differences = strings_diff(text, text_corrected)
+	text_corrected_fixed = ""
+	typo_indices = []
+	for diff in differences:
+		if diff["operation"] in ["insert", "delete"]:  # Insert or delete
+			text_corrected_fixed += diff["before_text"]
+			continue
+
+		if diff["before_text"] and not all(is_chinese_character(c) for c in diff["before_text"]):
+			text_corrected_fixed += diff["before_text"]
+		elif diff["after_text"] and not all(is_chinese_character(c) for c in diff["after_text"]):
+			text_corrected_fixed += diff["before_text"]
+		else:
+			text_corrected_fixed += diff["after_text"]
+
+	return text_corrected_fixed
+
+
 def get_segments_to_recorrect(segments: list, typo_indices: list, max_length: int = 30) -> tuple:
 	text = "".join(segments)
 	segments_to_correct = []

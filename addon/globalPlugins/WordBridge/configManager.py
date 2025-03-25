@@ -5,23 +5,28 @@ import json
 import os
 
 LABEL_DICT = {
+
+	"Anthropic": _("Anthropic"),
 	"Baidu": _("Baidu"),
 	"Coseeing": _("Coseeing"),
 	"DeepSeek": _("DeepSeek"),
 	"OpenAI": _("OpenAI"),
 	"OpenRouter": _("OpenRouter"),
+	"claude-3-5-haiku-20241022": _("claude-3-5-haiku-20241022"),
+	"claude-3-5-sonnet-20241022": _("claude-3-5-sonnet-20241022"),
+	"claude-3-7-sonnet-20250219": _("claude-3-7-sonnet-20250219"),
+	"deepseek-v3": _("deepseek-v3"),
+	"deepseek-chat": _("deepseek-chat"),
+	"deepseek/deepseek-chat:free": _("deepseek-chat:free"),
+	"deepseek/deepseek-r1:free": _("deepseek-r1:free"),
 	"gpt-3.5-turbo": _("gpt-3.5-turbo"),
 	"gpt-4-turbo": _("gpt-4-turbo"),
 	"gpt-4o": _("gpt-4o"),
 	"gpt-4o-mini": _("gpt-4o-mini"),
-	"ernie-4.0-turbo-8k": _("ernie-4.0-turbo-8k"),
-	"deepseek-v3": _("deepseek-v3"),
-	"deepseek-chat": _("deepseek-chat"),
-	"deepseek/deepseek-chat:free": _("deepseek/deepseek-chat:free"),
-	"deepseek/deepseek-r1:free": _("deepseek/deepseek-r1:free"),
 	"o1-mini": _("o1-mini"),
-	"o1-preview": _("o1-preview"),
+	"o1": _("o1"),
 	"o3-mini": _("o3-mini"),
+	"ernie-4.0-turbo-8k": _("ernie-4.0-turbo-8k"),
 	"ernie-4.0-8k-preview": _("ernie-4.0-8k-preview"),
 }
 

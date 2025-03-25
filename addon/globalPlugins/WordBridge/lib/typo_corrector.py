@@ -15,7 +15,7 @@ import time
 from pypinyin import lazy_pinyin, Style
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
 from .utils import PUNCTUATION, SEPERATOR, is_chinese_character, strings_diff, text_segmentation
-from .utils import find_correction_errors, get_segments_to_recorrect
+from .utils import find_correction_errors, review_correction_errors, get_segments_to_recorrect
 
 import chinese_converter
 
@@ -33,6 +33,7 @@ log = logging.getLogger(__name__)
 API_URLS = {
 	"openai": "https://api.openai.com/v1/chat/completions",
 	"openrouter": "https://openrouter.ai/api/v1/chat/completions",
+	"anthropic": "https://api.anthropic.com/v1/messages",
 	"baidu": "https://qianfan.baidubce.com/v2/chat/completions",
 	"deepseek": "https://api.deepseek.com/chat/completions",
 	"ollama": "http://localhost:11434/api/chat",
@@ -178,6 +179,7 @@ class BaseTypoCorrector():
 				else:
 					text_corrected += segments_revised[j]
 
+		text_corrected = review_correction_errors(text, text_corrected)
 		diff = strings_diff(text, text_corrected)
 
 		return text_corrected, diff
@@ -185,7 +187,7 @@ class BaseTypoCorrector():
 
 	def correct_segment(self, input_text: str, previous_results: list = [], fake_operation: bool = False) -> str:
 		if fake_operation or not self._has_target_language(input_text):
-			return CorrectorResult(input_text, input_text, [])
+			return CorrectorResult(input_text, input_text, {})
 
 		input_info = self._get_input_info(input_text)
 
@@ -251,11 +253,13 @@ class BaseTypoCorrector():
 		if self.provider == "ollama":
 			return {}
 		total_usage = defaultdict(int)
-		# print(json.dumps(self.response_history, indent=2, sort_keys=True))
 		for response in self.response_history:
 			if isinstance(response, dict) and "usage" in response:
 				for usage_type in ["prompt_tokens", "completion_tokens"]:
-					total_usage[usage_type] += response["usage"][usage_type]
+					try:
+						total_usage[usage_type] += response["usage"][usage_type]
+					except KeyError:
+						pass
 
 		return total_usage
 
@@ -375,6 +379,14 @@ class BaseTypoCorrector():
 				"messages": messages,
 				**setting,
 			}
+		elif self.provider == "anthropic":
+			messages.pop(0)
+			data = {
+				"model": self.model,
+				"system": system_template,
+				"messages": messages,
+				**setting,
+			}
 		elif self.provider == "baidu":
 			if "temperature" in setting:
 				setting["temperature"] = max(setting["temperature"], 0.0001)
@@ -403,6 +415,11 @@ class BaseTypoCorrector():
 		headers = {'Content-Type': 'application/json'}
 		if self.provider in ["openai", "baidu", "deepseek", "openrouter"]:
 			headers = {"Authorization": f"Bearer {self.credential['api_key']}"}
+		elif self.provider in ["anthropic"]:
+			headers = {
+				"anthropic-version": "2023-06-01",
+				"x-api-key": f"{self.credential['api_key']}"
+			}
 		elif self.provider not in API_URLS.keys():
 			raise NotImplementedError("Subclass must implement this method")
 		return headers
@@ -461,7 +478,6 @@ class BaseTypoCorrector():
 			)
 
 		response_json = response.json()
-
 		if self.provider == "openai" and response.status_code != 200:
 			self._handle_openai_errors(response)
 
@@ -509,6 +525,8 @@ class BaseTypoCorrector():
 	def _parse_response(self, response: str) -> str:
 		if self.provider in ["openai", "baidu", "deepseek", "openrouter"]:
 			sentence = response["choices"][0]["message"]["content"]
+		elif self.provider in ["anthropic"]:
+			sentence = response["content"][0]["text"]
 		elif self.provider == "ollama":
 			sentence = response["message"]["content"]
 		else:
@@ -534,7 +552,7 @@ class BaseTypoCorrector():
 		while input_text_tmp[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
 			text = text[:-1]
 
-		if text[-1] not in SEPERATOR and input_text[-1] in SEPERATOR:
+		if text and text[-1] not in SEPERATOR and input_text[-1] in SEPERATOR:
 			for i in range(len(input_text_tmp)):
 				if input_text_tmp[-1 - i] not in SEPERATOR:
 					text += input_text_tmp[-i:]

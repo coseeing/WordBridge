@@ -231,6 +231,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			except Exception as e:
 				ui.message(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 				log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
+				raise e
 				return
 			res = corrector.get_total_usage()
 			interaction_id = None
