@@ -107,7 +107,7 @@ class LLMSettingsPanel(SettingsPanel):
 			accountBoxSizer = wx.StaticBoxSizer(
 				wx.VERTICAL,
 				self,
-				label=label + _(" Account")
+				label=label+" "+_("Authentication")
 			)
 			self.accountGroupSizerMap[endpoint] = accountBoxSizer
 			self.accountGroupSizerHelper = guiHelper.BoxSizerHelper(self, sizer=accountBoxSizer)

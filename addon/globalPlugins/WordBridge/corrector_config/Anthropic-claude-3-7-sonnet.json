@@ -1,6 +1,6 @@
 {
 	"model": {
-		"model_name": "claude-3-7-sonnet-20250219",
+		"model_name": "claude-3-7-sonnet-latest",
 		"provider": "Anthropic",
 		"llm_access_method": "personal_api_key",
 		"require_secret_key": false,
