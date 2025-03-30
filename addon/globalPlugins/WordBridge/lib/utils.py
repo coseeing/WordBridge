@@ -205,19 +205,12 @@ def find_correction_errors(text, text_corrected):
 			typo_indices.append(max(len(text_corrected_fixed) - 1, 0))
 			continue
 
-		share_common_pinyin = True
-		for before_char, after_char in zip(diff["before_text"], diff["after_text"]):
-			if len(set(get_char_pinyin(before_char)) & set(get_char_pinyin(after_char))) == 0:
-				share_common_pinyin = False
-				break
-
-		if share_common_pinyin:
-			text_corrected_fixed += diff["after_text"]
-		else:
+		if len(set(get_char_pinyin(diff["before_text"])) & set(get_char_pinyin(diff["after_text"]))) == 0:
 			text_corrected_fixed += diff["before_text"]
-			typo_indices.extend(
-				list(range(len(text_corrected_fixed) - len(diff["after_text"]), len(text_corrected_fixed)))
-			)
+			typo_indices.append(len(text_corrected_fixed) - 1)
+		else:
+			text_corrected_fixed += diff["after_text"]
+
 
 	return text_corrected_fixed, typo_indices
 
