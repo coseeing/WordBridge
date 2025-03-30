@@ -17,7 +17,7 @@ except ImportError:
 
 # Characters used for text segmentation
 SEPERATOR = "﹐，,.。﹒．｡!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ "
-PUNCTUATION = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t\"\'#$%&()*+-/<=>@[\]^_`{|}~"
+PUNCTUATION = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t\"\'#$%&()*+-/<=>@[\\]^_`{|}~"
 
 ZH_UNICODE_INTERVALS = [
 	["\u4e00", "\u9fff"],
