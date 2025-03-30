@@ -37,7 +37,10 @@ ZH_UNICODE_INTERVALS = [
 
 
 def is_chinese_character(char: str) -> bool:
-	assert len(char) == 1, "Length of char should be 1."
+	assert len(char) <= 1, "Length of char should not be larger than 1."
+	if not char:
+		return False
+
 	for interval in ZH_UNICODE_INTERVALS:
 		if char >= interval[0] and char <= interval[1]:
 			return True
@@ -222,18 +225,15 @@ def find_correction_errors(text, text_corrected):
 def review_correction_errors(text, text_corrected):
 	differences = strings_diff(text, text_corrected)
 	text_corrected_fixed = ""
-	typo_indices = []
 	for diff in differences:
 		if diff["operation"] in ["insert", "delete"]:  # Insert or delete
 			text_corrected_fixed += diff["before_text"]
 			continue
 
-		if diff["before_text"] and not all(is_chinese_character(c) for c in diff["before_text"]):
-			text_corrected_fixed += diff["before_text"]
-		elif diff["after_text"] and not all(is_chinese_character(c) for c in diff["after_text"]):
-			text_corrected_fixed += diff["before_text"]
-		else:
+		if is_chinese_character(diff["before_text"]) and is_chinese_character(diff["after_text"]):
 			text_corrected_fixed += diff["after_text"]
+		else:
+			text_corrected_fixed += diff["before_text"]
 
 	return text_corrected_fixed
 
