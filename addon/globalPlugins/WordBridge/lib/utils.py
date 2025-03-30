@@ -200,7 +200,10 @@ def find_correction_errors(text, text_corrected):
 	text_corrected_fixed = ""
 	typo_indices = []
 	for diff in differences:
-		if diff["operation"] in ["insert", "delete"]:  # Insert or delete
+		if diff["operation"] == "equal":
+			text_corrected_fixed += diff["after_text"]
+			continue
+		elif diff["operation"] in ["insert", "delete"]:  # Insert or delete
 			text_corrected_fixed += diff["before_text"]
 			typo_indices.append(max(len(text_corrected_fixed) - 1, 0))
 			continue
@@ -330,8 +333,7 @@ def strings_diff(string_before: str, string_after: str) -> Dict:
 				"".join(tokens_after[index_start_after + i]),
 			)
 
-			assert len(operation_dict["before_text"]) == 1 and len(operation_dict["after_text"]) == 1,
-			"Each 'replace' operation should contain only one character."
+			assert len(operation_dict["before_text"]) == 1 and len(operation_dict["after_text"]) == 1, "Each 'replace' operation should contain only one character."
 
 			diff.append(operation_dict)
 
