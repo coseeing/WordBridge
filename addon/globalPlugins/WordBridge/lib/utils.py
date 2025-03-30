@@ -337,6 +337,9 @@ def strings_diff(string_before: str, string_after: str) -> Dict:
 				"".join(tokens_after[index_start_after + i]),
 			)
 
+			assert len(operation_dict["before_text"]) == 1 and len(operation_dict["after_text"]) == 1,
+			"Each 'replace' operation should contain only one character."
+
 			diff.append(operation_dict)
 
 	return diff
