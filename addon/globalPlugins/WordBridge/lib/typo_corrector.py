@@ -392,50 +392,8 @@ class BaseTypoCorrector():
 				)
 			)
 
-		response_json = response.json()
-		if self.provider_object.name == "openai" and response.status_code != 200:
-			self._handle_openai_errors(response)
-
-		if self.provider_object.name == "baidu" and\
-			("error_code" in response_json or not response_json["choices"][0]["message"]["content"]):
-			self._handle_baidu_errors(response_json)
-
-		return response_json
-
-	def _handle_openai_errors(self, response):
-		if response.status_code == 401:
-			raise Exception(_("Authentication error. Please check if the large language model's key is correct."))
-		elif response.status_code == 403:
-			raise Exception(_("Country, region, or territory not supported."))
-		elif response.status_code == 404:
-			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
-		elif response.status_code == 429:
-			raise Exception(
-				_("Rate limit reached for requests or you exceeded your current quota. ") +\
-				_("Please reduce the frequency of sending requests or check your account balance.")
-			)
-		elif response.status_code == 503:
-			raise Exception(_("The server is currently overloaded, please try again later."))
-		else:
-			message = json.loads(response.text)["error"]["message"]
-			raise Exception(_("An error occurred, status code = ") + "{status_code}, {message}".format(
-				status_code=response.status_code,
-				message=message
-			))
-
-	def _handle_baidu_errors(self, response_json):
-		if response_json["error_code"] == 3:
-			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
-		elif response_json["error_code"] in [336000, 336100]:
-			raise Exception(_("Service internal error, please try again later."))
-		elif response_json["error_code"] in [18, 336501, 336502]:
-			raise Exception(_("Usage limit exceeded, please try again later."))
-		elif response_json["error_code"] == 17:
-			raise Exception(_("Please check if the API has been activated and the current account has enough money"))
-		elif not response_json["choices"][0]["message"]["content"]:
-			raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
-		else:
-			raise Exception(_("An error occurred, error code = ") + response_json["error_msg"])
+		self.provider_object.handle_errors(response)
+		return response.json()
 
 	def _parse_response(self, response: str) -> str:
 		# ollama: sentence = response["message"]["content"]

@@ -3,6 +3,13 @@ from pathlib import Path
 
 from requests.utils import urlparse
 
+try:
+	import addonHandler
+	addonHandler.initTranslation()
+except ImportError:
+	def _(s):
+		return s
+
 
 class Provider:
 	timeout0 = 10
@@ -23,7 +30,8 @@ class Provider:
 	def base_url(self):
 		parse = urlparse(self.url)
 		return f"{parse.scheme}://{parse.netloc}"
-	def _get_headers(self, credential):
+
+	def get_headers(self, credential):
 		return {
 			"Content-Type": "application/json",
 			"Authorization": f"Bearer {credential['api_key']}"
@@ -36,7 +44,8 @@ class Provider:
 		return response["choices"][0]["message"]["content"]
 
 	def handle_errors(self, response):
-		raise NotImplementedError("Subclass must implement this method")
+		pass
+		# raise NotImplementedError("Subclass must implement this method")
 
 
 class OpenaiProvider(Provider):
@@ -59,6 +68,28 @@ class OpenaiProvider(Provider):
 		}
 
 		return data
+
+	def handle_errors(self, response):
+		if response.status_code != 200:
+			if response.status_code == 401:
+				raise Exception(_("Authentication error. Please check if the large language model's key is correct."))
+			elif response.status_code == 403:
+				raise Exception(_("Country, region, or territory not supported."))
+			elif response.status_code == 404:
+				raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
+			elif response.status_code == 429:
+				raise Exception(
+					_("Rate limit reached for requests or you exceeded your current quota. ") +\
+					_("Please reduce the frequency of sending requests or check your account balance.")
+				)
+			elif response.status_code == 503:
+				raise Exception(_("The server is currently overloaded, please try again later."))
+			else:
+				message = json.loads(response.text)["error"]["message"]
+				raise Exception(_("An error occurred, status code = ") + "{status_code}, {message}".format(
+					status_code=response.status_code,
+					message=message
+				))
 
 
 class AnthropicProvider(Provider):
@@ -101,6 +132,22 @@ class BaiduProvider(Provider):
 			**self.setting,
 		}
 		return data
+
+	def handle_errors(self, response):
+		response_json = response.json()
+		if "error_code" in response_json or not response_json["choices"][0]["message"]["content"]:
+			if response_json["error_code"] == 3:
+				raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
+			elif response_json["error_code"] in [336000, 336100]:
+				raise Exception(_("Service internal error, please try again later."))
+			elif response_json["error_code"] in [18, 336501, 336502]:
+				raise Exception(_("Usage limit exceeded, please try again later."))
+			elif response_json["error_code"] == 17:
+				raise Exception(_("Please check if the API has been activated and the current account has enough money"))
+			elif not response_json["choices"][0]["message"]["content"]:
+				raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
+			else:
+				raise Exception(_("An error occurred, error code = ") + response_json["error_msg"])
 
 
 class OpenrouterProvider(Provider):
