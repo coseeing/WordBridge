@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 'WordBridge' '2025.3.25'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-03-25 11:47+0800\n"
-"PO-Revision-Date: 2025-03-25 11:49+0800\n"
+"POT-Creation-Date: 2025-03-28 18:02+0800\n"
+"PO-Revision-Date: 2025-03-28 18:06+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -138,16 +138,16 @@ msgid "OpenRouter"
 msgstr "OpenRouter"
 
 #: addon\globalPlugins\WordBridge\configManager.py:15
-msgid "claude-3-5-haiku-20241022"
-msgstr "claude-3-5-haiku-20241022"
+msgid "claude-3-5-haiku"
+msgstr "claude-3-5-haiku"
 
 #: addon\globalPlugins\WordBridge\configManager.py:16
-msgid "claude-3-5-sonnet-20241022"
-msgstr "claude-3-5-sonnet-20241022"
+msgid "claude-3-5-sonnet"
+msgstr "claude-3-5-sonnet"
 
 #: addon\globalPlugins\WordBridge\configManager.py:17
-msgid "claude-3-7-sonnet-20250219"
-msgstr "claude-3-7-sonnet-20250219"
+msgid "claude-3-7-sonnet"
+msgstr "claude-3-7-sonnet"
 
 #: addon\globalPlugins\WordBridge\configManager.py:18
 msgid "deepseek-v3"
@@ -158,46 +158,50 @@ msgid "deepseek-chat"
 msgstr "deepseek-chat"
 
 #: addon\globalPlugins\WordBridge\configManager.py:20
-msgid "deepseek-chat:free"
-msgstr "deepseek-chat:free"
+msgid "deepseek-chat(free)"
+msgstr "deepseek-chat(free)"
 
 #: addon\globalPlugins\WordBridge\configManager.py:21
-msgid "deepseek-r1:free"
-msgstr "deepseek-r1:free"
+msgid "deepseek-chat-0324(free)"
+msgstr "deepseek-chat-0324(free)"
 
 #: addon\globalPlugins\WordBridge\configManager.py:22
+msgid "deepseek-reasoner(free)"
+msgstr "deepseek-reasoner(free)"
+
+#: addon\globalPlugins\WordBridge\configManager.py:23
 msgid "gpt-3.5-turbo"
 msgstr "gpt-3.5-turbo"
 
-#: addon\globalPlugins\WordBridge\configManager.py:23
+#: addon\globalPlugins\WordBridge\configManager.py:24
 msgid "gpt-4-turbo"
 msgstr "gpt-4-turbo"
 
-#: addon\globalPlugins\WordBridge\configManager.py:24
+#: addon\globalPlugins\WordBridge\configManager.py:25
 msgid "gpt-4o"
 msgstr "gpt-4o"
 
-#: addon\globalPlugins\WordBridge\configManager.py:25
+#: addon\globalPlugins\WordBridge\configManager.py:26
 msgid "gpt-4o-mini"
 msgstr "gpt-4o-mini"
 
-#: addon\globalPlugins\WordBridge\configManager.py:26
+#: addon\globalPlugins\WordBridge\configManager.py:27
 msgid "o1-mini"
 msgstr "o1-mini"
 
-#: addon\globalPlugins\WordBridge\configManager.py:27
+#: addon\globalPlugins\WordBridge\configManager.py:28
 msgid "o1"
 msgstr "o1"
 
-#: addon\globalPlugins\WordBridge\configManager.py:28
+#: addon\globalPlugins\WordBridge\configManager.py:29
 msgid "o3-mini"
 msgstr "o3-mini"
 
-#: addon\globalPlugins\WordBridge\configManager.py:29
+#: addon\globalPlugins\WordBridge\configManager.py:30
 msgid "ernie-4.0-turbo-8k"
 msgstr "文心-4.0-turbo-8k"
 
-#: addon\globalPlugins\WordBridge\configManager.py:30
+#: addon\globalPlugins\WordBridge\configManager.py:31
 msgid "ernie-4.0-8k-preview"
 msgstr "ernie-4.0-8k-preview"
 
@@ -264,8 +268,8 @@ msgid "Secret Key:"
 msgstr "Secret Key:"
 
 #: addon\globalPlugins\WordBridge\dialogs.py:110
-msgid " Account"
-msgstr "帳號"
+msgid "Authentication"
+msgstr "驗證"
 
 #. For selecting language
 #: addon\globalPlugins\WordBridge\dialogs.py:133
@@ -542,6 +546,9 @@ msgstr "Word Bridge"
 #: buildVars.py:26
 msgid "Help fix Chinese typos to ensure the words are correct."
 msgstr "幫助改正中文錯字以確保文字正確。"
+
+#~ msgid " Account"
+#~ msgstr "帳號"
 
 #~ msgid "deepseek/deepseek-chat:free"
 #~ msgstr "deepseek/deepseek-chat:free"

@@ -1,6 +1,5 @@
 from collections import defaultdict
 from copy import deepcopy
-from requests.utils import urlparse
 from threading import Thread
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Tuple
@@ -13,6 +12,7 @@ import requests
 import time
 
 from pypinyin import lazy_pinyin, Style
+from .provider import OpenaiProvider, AnthropicProvider, BaiduProvider, OpenrouterProvider, DeepseekProvider
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
 from .utils import PUNCTUATION, SEPERATOR, is_chinese_character, strings_diff, text_segmentation
 from .utils import find_correction_errors, review_correction_errors, get_segments_to_recorrect
@@ -30,15 +30,6 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
-API_URLS = {
-	"openai": "https://api.openai.com/v1/chat/completions",
-	"openrouter": "https://openrouter.ai/api/v1/chat/completions",
-	"anthropic": "https://api.anthropic.com/v1/messages",
-	"baidu": "https://qianfan.baidubce.com/v2/chat/completions",
-	"deepseek": "https://api.deepseek.com/chat/completions",
-	"ollama": "http://localhost:11434/api/chat",
-}
-
 
 class CorrectorResult():
 	def __init__(
@@ -53,6 +44,13 @@ class CorrectorResult():
 
 
 class BaseTypoCorrector():
+	PROVIDER = {
+		"openai": OpenaiProvider,
+		"anthropic": AnthropicProvider,
+		"baidu": BaiduProvider,
+		"deepseek": DeepseekProvider,
+		"openrouter": OpenrouterProvider,
+	}
 
 	def __init__(
 		self,
@@ -71,31 +69,16 @@ class BaseTypoCorrector():
 
 		self.model = model
 		self.provider = provider.lower()
+		self.provider_object = self.PROVIDER[self.provider]()
+
 		self.max_correction_attempts = max_correction_attempts
 		self.httppost_retries = httppost_retries
 		self.backoff = backoff
 		self.credential = credential
 		self.language = language
 		self.optional_guidance_enable = optional_guidance_enable
-		if self.optional_guidance_enable is None:
-			if self.provider == "openai":
-				self.optional_guidance_enable = {
-					"no_explanation": False,
-					"keep_non_chinese_char": True,
-				}
-			elif self.provider in ["baidu", "deepseek", "openrouter"]:
-				self.optional_guidance_enable = {
-					"no_explanation": True,
-					"keep_non_chinese_char": False,
-				}
-			else:
-				self.optional_guidance_enable = {
-					"no_explanation": False,
-					"keep_non_chinese_char": False,
-				}
 
 		self.customized_words = customized_words
-		self.llm_settings = llm_settings
 		self.response_history = []
 
 		file_dirpath = os.path.dirname(__file__)
@@ -124,10 +107,8 @@ class BaseTypoCorrector():
 		if fake_corrected_text is not None:
 			return fake_corrected_text, strings_diff(text, fake_corrected_text)
 
-		if self.provider in ["openai", "baidu", "deepseek", "openrouter"]:
-			parse = urlparse(API_URLS[self.provider])
-			base_url = f"{parse.scheme}://{parse.netloc}"
-			self._try_internet_connection(base_url)
+		base_url = self.provider_object.base_url
+		self._try_internet_connection(base_url)
 
 		text_corrected = ""
 		segments = text_segmentation(text, max_length=100)
@@ -250,8 +231,6 @@ class BaseTypoCorrector():
 		Returns:
 			The total usage of OpenAI model (in tokens)
 		"""
-		if self.provider == "ollama":
-			return {}
 		total_usage = defaultdict(int)
 		for response in self.response_history:
 			if isinstance(response, dict) and "usage" in response:
@@ -295,10 +274,7 @@ class BaseTypoCorrector():
 		)
 
 	def _get_api_url(self):
-		if self.provider not in API_URLS.keys():
-			raise NotImplementedError("Subclass must implement this method")
-
-		return API_URLS[self.provider]
+		return self.provider_object.url
 
 	def _get_input_info(self, input_text):
 		input_info = {
@@ -349,14 +325,6 @@ class BaseTypoCorrector():
 		return system
 
 	def _get_request_data(self, messages, input_info):
-		# Load default setting
-		setting_path = os.path.join(os.path.dirname(__file__), "..", "llm_setting", self.provider + ".json")
-		with open(setting_path, "r", encoding="utf8") as f:
-			setting = json.loads(f.read())
-
-		for k in self.llm_settings:
-			setting[k] = self.llm_settings[k]
-
 		if input_info["focus_typo"]:
 			system_template = deepcopy(self.template[self.language]["system_tag"])
 			system_template = system_template.replace("\\n", "\n")
@@ -366,63 +334,10 @@ class BaseTypoCorrector():
 			system_template = system_template.replace("\\n", "\n")
 			system_template = self._system_add_guidance(system_template, input_info)
 
-		messages = [{"role": "system", "content": system_template}] + messages
-		if self.provider == "openai":
-			if self.provider == "openai" and self.model.startswith("o"):
-				messages.pop(0)
-				messages[0]["content"] = system_template + "\n" + messages[0]["content"]
-				setting = {
-					"max_completion_tokens": setting["max_completion_tokens"],
-				}
-			data = {
-				"model": self.model,
-				"messages": messages,
-				**setting,
-			}
-		elif self.provider == "anthropic":
-			messages.pop(0)
-			data = {
-				"model": self.model,
-				"system": system_template,
-				"messages": messages,
-				**setting,
-			}
-		elif self.provider == "baidu":
-			if "temperature" in setting:
-				setting["temperature"] = max(setting["temperature"], 0.0001)
-			if "max_completion_tokens" in setting:
-				setting["max_completion_tokens"] = min(setting["max_completion_tokens"], len(messages[-1]["content"]))
-			data = {
-				"model": self.model,
-				"messages": messages,
-				**setting,
-			}
-		elif self.provider in ["ollama", "deepseek", "openrouter"]:
-			data = {
-				"model": self.model,
-				"messages": messages,
-				"stream": False,
-				"options":{
-					**setting,
-				}
-			}
-		else:
-			raise NotImplementedError("Subclass must implement this method")
-
-		return data
+		return self.provider_object.get_request_data(messages, system_template, self.model)
 
 	def _get_headers(self):
-		headers = {'Content-Type': 'application/json'}
-		if self.provider in ["openai", "baidu", "deepseek", "openrouter"]:
-			headers = {"Authorization": f"Bearer {self.credential['api_key']}"}
-		elif self.provider in ["anthropic"]:
-			headers = {
-				"anthropic-version": "2023-06-01",
-				"x-api-key": f"{self.credential['api_key']}"
-			}
-		elif self.provider not in API_URLS.keys():
-			raise NotImplementedError("Subclass must implement this method")
-		return headers
+		return self.provider_object.get_headers(self.credential)
 
 	def _chat_completion(self, input: List, response_text_history: List, input_info: dict) -> str:
 		messages = deepcopy(input)
@@ -443,10 +358,10 @@ class BaseTypoCorrector():
 	def _post_with_retries(self, request_data, api_url, headers):
 		backoff = self.backoff
 		response_json = None
-		timeout0 = 10 if self.provider != "deepseek" and (not self.model.startswith("o")) else 30
-		timeout_max = 20 if self.provider != "deepseek" and (not self.model.startswith("o")) else 60
+		timeout0 = self.provider_object.timeout0 if not self.model.startswith("o") else 30
+		timeout_max = self.provider_object.timeout_max if not self.model.startswith("o") else 60
 		for r in range(self.httppost_retries):
-			timeout = min(timeout0 * (r + 1), timeout_max) if self.provider != "ollama" else 300
+			timeout = min(timeout0 * (r + 1), timeout_max) if self.provider_object.name != "ollama" else 300
 			request_error = None
 			response = None
 			try:
@@ -478,10 +393,10 @@ class BaseTypoCorrector():
 			)
 
 		response_json = response.json()
-		if self.provider == "openai" and response.status_code != 200:
+		if self.provider_object.name == "openai" and response.status_code != 200:
 			self._handle_openai_errors(response)
 
-		if self.provider == "baidu" and\
+		if self.provider_object.name == "baidu" and\
 			("error_code" in response_json or not response_json["choices"][0]["message"]["content"]):
 			self._handle_baidu_errors(response_json)
 
@@ -523,14 +438,9 @@ class BaseTypoCorrector():
 			raise Exception(_("An error occurred, error code = ") + response_json["error_msg"])
 
 	def _parse_response(self, response: str) -> str:
-		if self.provider in ["openai", "baidu", "deepseek", "openrouter"]:
-			sentence = response["choices"][0]["message"]["content"]
-		elif self.provider in ["anthropic"]:
-			sentence = response["content"][0]["text"]
-		elif self.provider == "ollama":
-			sentence = response["message"]["content"]
-		else:
-			raise NotImplementedError("Subclass must implement this method")
+		# ollama: sentence = response["message"]["content"]
+
+		sentence = self.provider_object.parse_response(response)
 
 		if self.language == "zh_traditional" and has_simplified_chinese_char(sentence):
 			sentence = chinese_converter.to_traditional(sentence)
