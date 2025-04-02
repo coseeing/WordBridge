@@ -294,7 +294,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			cost = decimal_to_str_0(cost)
 		except:
 			pass
-		ui.message(_("This task costs {cost} USD.".format(cost=cost)))
+		ui.message(_("This task costs {cost} USD.").format(cost=cost))
 		log.warning(_("This task costs {cost} USD.".format(cost=cost)))
 
 		if config.conf["WordBridge"]["settings"]["auto_display_report"]:
