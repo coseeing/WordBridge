@@ -1,0 +1,12 @@
+{
+	"name": "deepseek",
+	"url": "https://api.deepseek.com/chat/completions",
+	"setting": {
+		"max_tokens": 4096,
+		"temperature": 0.0,
+		"top_p": 0.0,
+		"stop": [ " =>" ]
+	},
+	"timeout0": 30,
+	"timeout_max": 60
+}

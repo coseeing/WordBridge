@@ -1,15 +1,17 @@
 from collections import defaultdict
-from copy import deepcopy
-from threading import Thread
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from copy import deepcopy
+from decimal import Decimal
+from threading import Thread
 from typing import Any, Dict, List, Tuple
 
 import json
 import logging
 import os
 import random
-import requests
 import time
+
+import requests
 
 from pypinyin import lazy_pinyin, Style
 from .provider import OpenaiProvider, AnthropicProvider, BaiduProvider, OpenrouterProvider, DeepseekProvider
@@ -51,6 +53,88 @@ class BaseTypoCorrector():
 		"deepseek": DeepseekProvider,
 		"openrouter": OpenrouterProvider,
 	}
+	MODEL = {
+		"claude-3-5-haiku-latest": {
+			"input_tokens": "0.8",
+			"cache_creation_input_tokens": "1",
+			"cache_read_input_tokens": "0.08",
+			"output_tokens": "4",
+			"base_unit": "1000000"
+		},
+		"claude-3-5-sonnet-latest": {
+			"input_tokens": "3",
+			"cache_creation_input_tokens": "3.75",
+			"cache_read_input_tokens": "0.3",
+			"output_tokens": "15",
+			"base_unit": "1000000"
+		},
+		"claude-3-7-sonnet-latest": {
+			"input_tokens": "3",
+			"cache_creation_input_tokens": "3.75",
+			"cache_read_input_tokens": "0.3",
+			"output_tokens": "15",
+			"base_unit": "1000000"
+		},
+		"deepseek-v3": {},
+		"deepseek-chat": {
+			"prompt_cache_hit_tokens": "0.07",
+			"prompt_cache_miss_tokens": "0.27",
+			"completion_tokens": "1.1",
+			"base_unit": "1000000"
+		},
+		"deepseek-reasoner": {
+			"prompt_cache_hit_tokens": "0.14",
+			"prompt_cache_miss_tokens": "0.55",
+			"completion_tokens": "2.19",
+			"base_unit": "1000000"
+		},
+		"deepseek/deepseek-chat:free": {},
+		"deepseek/deepseek-chat-v3-0324:free": {},
+		"deepseek/deepseek-r1:free": {},
+		"google/gemini-2.5-pro-exp-03-25:free": {},
+		"gpt-3.5-turbo": {
+			"prompt_tokens": "0.5",
+			"completion_tokens": "1.5",
+			"base_unit": "1000000"
+		},
+		"gpt-4-turbo": {
+			"prompt_tokens": "10",
+			"completion_tokens": "30",
+			"base_unit": "1000000"
+		},
+		"gpt-4o": {
+			"prompt_tokens": "2.5",
+			"completion_tokens": "10",
+			"base_unit": "1000000"
+		},
+		"gpt-4o-mini": {
+			"prompt_tokens": "0.15",
+			"completion_tokens": "0.6",
+			"base_unit": "1000000"
+		},
+		"gpt-4.5-preview": {
+			"prompt_tokens": "75",
+			"completion_tokens": "150",
+			"base_unit": "1000000"
+		},
+		"o1-mini": {
+			"prompt_tokens": "1.1",
+			"completion_tokens": "4.4",
+			"base_unit": "1000000"
+		},
+		"o1": {
+			"prompt_tokens": "15",
+			"completion_tokens": "60",
+			"base_unit": "1000000"
+		},
+		"o3-mini": {
+			"prompt_tokens": "1.1",
+			"completion_tokens": "4.4",
+			"base_unit": "1000000"
+		},
+		"ernie-4.0-turbo-8k": {},
+		"ernie-4.0-8k-preview": {},
+	}
 
 	def __init__(
 		self,
@@ -68,8 +152,7 @@ class BaseTypoCorrector():
 	):
 
 		self.model = model
-		self.provider = provider.lower()
-		self.provider_object = self.PROVIDER[self.provider]()
+		self.provider_object = self.PROVIDER[provider.lower()]()
 
 		self.max_correction_attempts = max_correction_attempts
 		self.httppost_retries = httppost_retries
@@ -139,10 +222,9 @@ class BaseTypoCorrector():
 			if recorrection_history is None:
 				recorrection_history = [[] for _ in range(len(segments_revised))]
 			segments_to_recorrect = get_segments_to_recorrect(segments_revised, typo_indices)
-			for j in range(len(segments_to_recorrect)):
-				if segments_to_recorrect[j]:
-					print(f"iter = {i}, segment = {segments_revised[j]} isn't correct => {segments_to_recorrect[j]}, text_corrected_previous = {text_corrected_previous}")
-
+			# for j in range(len(segments_to_recorrect)):
+				# if segments_to_recorrect[j]:
+					# print(f"iter = {i}, segment = {segments_revised[j]} isn't correct => {segments_to_recorrect[j]}, text_corrected_previous = {text_corrected_previous}")
 			history_for_correction = recorrection_history if i >= self.max_correction_attempts / 3 else [[] for _ in range(len(segments_revised))]
 
 			if batch_mode:
@@ -234,13 +316,30 @@ class BaseTypoCorrector():
 		total_usage = defaultdict(int)
 		for response in self.response_history:
 			if isinstance(response, dict) and "usage" in response:
-				for usage_type in ["prompt_tokens", "completion_tokens"]:
+				for usage_type in set(self.MODEL[self.model].keys()):
+					if usage_type == "base_unit":
+						continue
 					try:
 						total_usage[usage_type] += response["usage"][usage_type]
 					except KeyError:
 						pass
 
 		return total_usage
+
+	def get_total_cost(self) -> int:
+		"""
+		Get the total cost of provider model (in USD)
+
+		Returns:
+			The total cost of provider model (in USDs)
+		"""
+		price_info = self.MODEL[self.model]
+		cost = Decimal("0")
+		usages = self.get_total_usage()
+		for key, value in usages.items():
+			cost += Decimal(price_info[key]) * Decimal(str(value)) / Decimal(price_info["base_unit"])
+
+		return cost
 
 	def _correct_segment_task(
 		self,
@@ -378,7 +477,7 @@ class BaseTypoCorrector():
 					"Try = {try_index}, {request_error}, an error occurred when sending {provider} request: {e}".format(
 						try_index=(r + 1),
 						request_error=request_error,
-						provider=self.provider,
+						provider=self.provider_object.name,
 						e=e
 					)
 				)

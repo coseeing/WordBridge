@@ -1,7 +1,0 @@
-{
-	"max_completion_tokens": 4096,
-	"seed": 0,
-	"temperature": 0.0,
-	"top_p": 0.0,
-	"stop": [" =>"]
-}

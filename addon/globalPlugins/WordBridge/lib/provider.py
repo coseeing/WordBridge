@@ -1,3 +1,4 @@
+from copy import deepcopy
 import json
 from pathlib import Path
 
@@ -12,19 +13,20 @@ except ImportError:
 
 
 class Provider:
-	timeout0 = 10
-	timeout_max = 20
-
 	def __init__(self, llm_settings: dict = {}):
 		self.llm_settings = llm_settings
 
 		# Load default setting
-		setting_path = Path(__file__).parent.parent / "llm_setting" / f"{self.name}.json"
+		setting_path = Path(__file__).parent.parent / "setting" / "provider" / f"{self.name}.json"
 		with setting_path.open("r", encoding="utf8") as f:
-			self.setting = json.load(f)
+			data = json.load(f)
+			self.url = data["url"]
+			self.setting = data["setting"]
+			self.timeout0 = data["timeout0"]
+			self.timeout_max = data["timeout_max"]
 
-		for k in self.llm_settings:
-			self.setting[k] = self.llm_settings[k]
+		for k in llm_settings:
+			self.setting[k] = llm_settings[k]
 
 	@property
 	def base_url(self):
@@ -42,32 +44,6 @@ class Provider:
 
 	def parse_response(self, response):
 		return response["choices"][0]["message"]["content"]
-
-	def handle_errors(self, response):
-		pass
-		# raise NotImplementedError("Subclass must implement this method")
-
-
-class OpenaiProvider(Provider):
-	name = "openai"
-	url = "https://api.openai.com/v1/chat/completions"
-
-	def get_request_data(self, messages, system_template, model):
-		messages = [{"role": "system", "content": system_template}] + messages
-		if model.startswith("o"):
-			messages.pop(0)
-			messages[0]["content"] = system_template + "\n" + messages[0]["content"]
-			self.setting.pop("stop")
-			self.setting.pop("temperature")
-			self.setting.pop("top_p")
-
-		data = {
-			"model": model,
-			"messages": messages,
-			**self.setting,
-		}
-
-		return data
 
 	def handle_errors(self, response):
 		if response.status_code != 200:
@@ -92,9 +68,30 @@ class OpenaiProvider(Provider):
 				))
 
 
+class OpenaiProvider(Provider):
+	name = "openai"
+
+	def get_request_data(self, messages, system_template, model):
+		messages = [{"role": "system", "content": system_template}] + messages
+		setting = deepcopy(self.setting)
+		if model.startswith("o"):
+			messages.pop(0)
+			messages[0]["content"] = system_template + "\n" + messages[0]["content"]
+			setting.pop("stop")
+			setting.pop("temperature")
+			setting.pop("top_p")
+
+		data = {
+			"model": model,
+			"messages": messages,
+			**setting,
+		}
+
+		return data
+
+
 class AnthropicProvider(Provider):
 	name = "anthropic"
-	url = "https://api.anthropic.com/v1/messages"
 
 	def get_headers(self, credential):
 		return {
@@ -118,10 +115,10 @@ class AnthropicProvider(Provider):
 
 class BaiduProvider(Provider):
 	name = "baidu"
-	url = "https://qianfan.baidubce.com/v2/chat/completions"
 
 	def get_request_data(self, messages, system_template, model):
 		messages = [{"role": "system", "content": system_template}] + messages
+		setting = deepcopy(self.setting)
 		if "temperature" in setting:
 			setting["temperature"] = max(setting["temperature"], 0.0001)
 		if "max_completion_tokens" in setting:
@@ -152,7 +149,6 @@ class BaiduProvider(Provider):
 
 class OpenrouterProvider(Provider):
 	name = "openrouter"
-	url = "https://openrouter.ai/api/v1/chat/completions"
 
 	def get_request_data(self, messages, system_template, model):
 		messages = [{"role": "system", "content": system_template}] + messages
@@ -169,9 +165,6 @@ class OpenrouterProvider(Provider):
 
 class DeepseekProvider(Provider):
 	name = "deepseek"
-	url = "https://api.deepseek.com/chat/completions"
-	timeout0 = 30
-	timeout_max = 60
 
 	def get_request_data(self, messages, system_template, model):
 		messages = [{"role": "system", "content": system_template}] + messages

@@ -27,6 +27,7 @@ import requests
 
 from .dialogs import CORRECTOR_CONFIG_FILENAME_DEFAULT, CORRECTOR_CONFIG_FOLDER_PATH, LANGUAGE_DEFAULT, TYPO_CORRECTION_MODE_DEFAULT
 from .dialogs import LLMSettingsPanel, FeedbackDialog
+from .decimalUtils import decimal_to_str_0
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.coseeing import obtain_openai_key
 from .lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorLite
@@ -233,8 +234,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 				raise e
 				return
-			res = corrector.get_total_usage()
 			interaction_id = None
+			cost = corrector.get_total_cost()
 		else:
 			try:
 				access_token = obtain_openai_key(
@@ -269,6 +270,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				return
 			response = result["response"]
 			interaction_id = result["interaction_id"]
+			cost = result["cost"]
 
 		diff = strings_diff(request, response)
 
@@ -288,9 +290,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		ui.message(_("The corrected text has been copied to the clipboard."))
 		log.warning(_("The corrected text has been copied to the clipboard."))
 
-		# print(_(f"Original text: {request}"))
-		# print(_(f"Corrected text: {response}"))
-		# print(_(f"Difference: {diff}"))
+		try:
+			cost = decimal_to_str_0(cost)
+		except:
+			pass
+		ui.message(_("This task costs {cost} USD.".format(cost=cost)))
+		log.warning(_("This task costs {cost} USD.".format(cost=cost)))
 
 		if config.conf["WordBridge"]["settings"]["auto_display_report"]:
 			self.showReport(self.latest_action["diff"])

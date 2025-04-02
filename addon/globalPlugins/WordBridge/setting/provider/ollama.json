@@ -1,0 +1,10 @@
+{
+	"name": "openai",
+	"url": "https://api.openai.com/v1/chat/completions",
+	"setting": {
+		"max_tokens": 4096,
+		"stop": [" =>"]
+	},
+	"timeout0": 10,
+	"timeout_max": 20
+}

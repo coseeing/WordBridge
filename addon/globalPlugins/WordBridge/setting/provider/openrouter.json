@@ -1,0 +1,13 @@
+{
+	"name": "anthropic",
+	"url": "https://openrouter.ai/api/v1/chat/completions",
+	"setting": {
+		"max_tokens": 4096,
+		"temperature": 0.0,
+		"top_p": 0.0,
+		"stop": [ " =>" ]
+	},
+	"timeout0": 10,
+	"timeout_max": 20
+}
+
