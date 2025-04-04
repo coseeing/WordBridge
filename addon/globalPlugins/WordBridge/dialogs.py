@@ -34,7 +34,7 @@ if os_language_code in ["zh_TW", "zh_MO", "zh_HK"]:
 	LANGUAGE_DEFAULT = "zh_traditional"
 else:
 	LANGUAGE_DEFAULT = "zh_simplified"
-CORRECTOR_CONFIG_FILENAME_DEFAULT = "Coseeing-deepseek-chat.json"
+CORRECTOR_CONFIG_FILENAME_DEFAULT = "Coseeing-3-deepseek-chat.json"
 CORRECTOR_CONFIG_FOLDER_PATH = os.path.join(os.path.dirname(__file__), "corrector_config")
 TYPO_CORRECTION_MODE_DEFAULT = "standard"
 

@@ -30,9 +30,9 @@ You can customize settings via the NVDA Menu → Preferences → Settings → Wo
 
 If you encounter incorrect corrections when using the Coseeing service provider, please report them by pressing the shortcut key NVDA+Alt+F. Your feedback helps us continually optimize the algorithm to enhance correction accuracy.
 
-## 測試紀錄
+## test history
 
-以下提供各種情況下的精準度與成本的測試結果供使用者選用參考
+The following provides test results on accuracy and cost under various conditions for users' reference and selection.
 
 ### 2024/6/15
 

@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 'WordBridge' '2025.4.2'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-04-02 20:25+0800\n"
-"PO-Revision-Date: 2025-04-02 23:15+0800\n"
+"POT-Creation-Date: 2025-04-04 11:24+0800\n"
+"PO-Revision-Date: 2025-04-04 11:25+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -371,9 +371,8 @@ msgstr "未知錯誤。狀態碼 = {status_code}"
 
 #: addon\globalPlugins\WordBridge\lib\provider.py:51
 msgid ""
-"Authentication error. Please check if the large language model's key is "
-"correct."
-msgstr "認證錯誤。請檢查大模型的key是否正確。"
+"Authentication error. Please check if the service provider's key is correct."
+msgstr "認證錯誤。請檢查服務提供商的 key 是否正確。"
 
 #: addon\globalPlugins\WordBridge\lib\provider.py:53
 msgid "Country, region, or territory not supported."

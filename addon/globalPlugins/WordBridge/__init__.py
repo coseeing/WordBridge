@@ -75,7 +75,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def onSettings(self, evt):
 		wx.CallAfter(
-			gui.mainFrame._popupSettingsDialog,
+			gui.mainFrame.popupSettingsDialog,
 			gui.settingsDialogs.NVDASettingsDialog,
 			LLMSettingsPanel
 		)
@@ -295,7 +295,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		except:
 			pass
 		ui.message(_("This task costs {cost} USD.").format(cost=cost))
-		log.warning(_("This task costs {cost} USD.".format(cost=cost)))
+		log.warning(_("This task costs {cost} USD.").format(cost=cost))
 
 		if config.conf["WordBridge"]["settings"]["auto_display_report"]:
 			self.showReport(self.latest_action["diff"])
@@ -344,7 +344,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	)
 	def script_openWordBridgeSettings(self, gesture):
 		wx.CallAfter(
-			gui.mainFrame._popupSettingsDialog,
+			gui.mainFrame.popupSettingsDialog,
 			gui.settingsDialogs.NVDASettingsDialog,
 			LLMSettingsPanel
 		)

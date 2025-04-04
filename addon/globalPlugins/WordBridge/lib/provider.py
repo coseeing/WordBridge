@@ -48,7 +48,7 @@ class Provider:
 	def handle_errors(self, response):
 		if response.status_code != 200:
 			if response.status_code == 401:
-				raise Exception(_("Authentication error. Please check if the large language model's key is correct."))
+				raise Exception(_("Authentication error. Please check if the service provider's key is correct."))
 			elif response.status_code == 403:
 				raise Exception(_("Country, region, or territory not supported."))
 			elif response.status_code == 404:
