@@ -13,11 +13,12 @@ sys.path.insert(0, PACKAGE_PATH)
 import addonHandler
 import api
 import config
+from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
 import globalPluginHandler
 import gui
 from logHandler import log
+import nvwave
 from scriptHandler import script
-from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
 import textInfos
 from tones import beep
 import ui
@@ -27,9 +28,9 @@ import requests
 
 from .dialogs import CORRECTOR_CONFIG_FILENAME_DEFAULT, CORRECTOR_CONFIG_FOLDER_PATH, LANGUAGE_DEFAULT, TYPO_CORRECTION_MODE_DEFAULT
 from .dialogs import LLMSettingsPanel, FeedbackDialog
-from .decimalUtils import decimal_to_str_0
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.coseeing import obtain_openai_key
+from .lib.decimalUtils import decimal_to_str_0
 from .lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorLite
 from .lib.utils import strings_diff
 from .lib.viewHTML import text2template
@@ -68,6 +69,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			"diff": None,
 			"interaction_id": None,
 		}
+		self.correct_typo_thread = None
 
 	def terminate(self, *args, **kwargs):
 		super().terminate(*args, **kwargs)
@@ -260,13 +262,22 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				"Authorization": f"Bearer {access_token}",
 			}
 			try:
-				data = requests.post(f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data)
+				data = requests.post(f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data, timeout=120)
 				result = data.json()
 			except requests.exceptions.JSONDecodeError as e:
 				ui.message(_("Sorry, an error occurred while decode Coseeing response, the details are: {e}").format(e=e))
 				return
-			if data.status_code == 403:
-				ui.message(_("Sorry, http 403 forbidden, the details are: {e}").format(e=data.json()["detail"]))
+			except requests.exceptions.Timeout:
+				ui.message(_("The request has not responded for over 2 minutes, possibly because the Coseeing server is busy. Please try again later."))
+				return
+			if data.status_code == 401:
+				ui.message(_("Authentication error. Please check if the Coseeing's username and password is correct."))
+				return
+			elif data.status_code == 429:
+				ui.message(
+					_("Rate limit reached for requests or you exceeded your current quota. ") +\
+					_("Please reduce the frequency of sending requests or check your account balance.")
+				)
 				return
 			response = result["response"]
 			interaction_id = result["interaction_id"]
@@ -301,12 +312,22 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self.showReport(self.latest_action["diff"])
 
 	def correctionAction(self, text):
-		correct_typo_thread = threading.Thread(target=self.correctTypo, args=(text,))
-		correct_typo_thread.start()
+		if self.correct_typo_thread and self.correct_typo_thread.is_alive():
+			ui.message(_("Only one proofreading task can run at a time. Please wait until the current task has finished before starting another."))
+			return
 
-		while correct_typo_thread.is_alive():
-			beep(261.6, 300)
-			time.sleep(0.5)
+		self.correct_typo_thread = threading.Thread(target=self.correctTypo, args=(text,))
+		self.correct_typo_thread.start()
+
+		while self.correct_typo_thread.is_alive():
+			# beep(261.6, 300)
+			nvwave.playWaveFile(
+				os.path.join(os.path.dirname(__file__), "sounds", "zapsplat_nature_water_underwater_whoosh_movement_pass_med_designed_001_59240.wav"),
+				asynchronous=False,
+			)
+			time.sleep(5)
+
+		self.correct_typo_thread = None
 
 	@script(
 		gesture="kb:NVDA+alt+d",

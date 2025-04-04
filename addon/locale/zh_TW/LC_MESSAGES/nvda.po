@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 'WordBridge' '2025.4.2'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-04-04 11:24+0800\n"
-"PO-Revision-Date: 2025-04-04 11:25+0800\n"
+"POT-Creation-Date: 2025-04-04 23:14+0800\n"
+"PO-Revision-Date: 2025-04-04 23:15+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -18,102 +18,128 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 3.5\n"
 
-#: addon\globalPlugins\WordBridge\__init__.py:145
-#: addon\globalPlugins\WordBridge\__init__.py:151
+#: addon\globalPlugins\WordBridge\__init__.py:147
+#: addon\globalPlugins\WordBridge\__init__.py:153
 #, python-brace-format
 msgid ""
 "The number of characters is {len_text}, which exceeds the maximum, "
 "{max_char_count}."
 msgstr "原文字元數為{len_text}，超過上限{max_char_count}。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:158
-#: addon\globalPlugins\WordBridge\__init__.py:159
+#: addon\globalPlugins\WordBridge\__init__.py:160
+#: addon\globalPlugins\WordBridge\__init__.py:161
 msgid "No text is selected, unable to analyze."
 msgstr "未選取任何文字，無法分析。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:162
-#: addon\globalPlugins\WordBridge\__init__.py:163
+#: addon\globalPlugins\WordBridge\__init__.py:164
+#: addon\globalPlugins\WordBridge\__init__.py:165
 msgid ""
 "The selected text does not contain Chinese characters, unable to analyze."
 msgstr "選取範圍不含漢字，無法分析。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:233
-#: addon\globalPlugins\WordBridge\__init__.py:234
-#: addon\globalPlugins\WordBridge\__init__.py:416
+#: addon\globalPlugins\WordBridge\__init__.py:235
+#: addon\globalPlugins\WordBridge\__init__.py:236
+#: addon\globalPlugins\WordBridge\__init__.py:437
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred during the program execution, the details are: {e}"
 msgstr "抱歉，程式運行中遇到了一些問題，錯誤詳情是: {e}"
 
-#: addon\globalPlugins\WordBridge\__init__.py:266
+#: addon\globalPlugins\WordBridge\__init__.py:268
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred while decode Coseeing response, the details are: {e}"
 msgstr "抱歉，解析回復時遇到了一些問題，錯誤詳情是: {e}"
 
-#: addon\globalPlugins\WordBridge\__init__.py:269
-#, python-brace-format
-msgid "Sorry, http 403 forbidden, the details are: {e}"
-msgstr "抱歉，HTTP 403 禁止訪問，錯誤詳情是:{e}"
+#: addon\globalPlugins\WordBridge\__init__.py:271
+msgid ""
+"The request has not responded for over 2 minutes, possibly because the "
+"Coseeing server is busy. Please try again later."
+msgstr ""
+"此請求已超過 2 分鐘未回應，可能是因為 Coseeing 伺服器忙碌中。請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:285
-#: addon\globalPlugins\WordBridge\__init__.py:286
+#: addon\globalPlugins\WordBridge\__init__.py:274
+msgid ""
+"Authentication error. Please check if the Coseeing's username and password "
+"is correct."
+msgstr "認證錯誤。請檢查 Coseeing 的使用者名稱和密碼是否正確。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:278
+#: addon\globalPlugins\WordBridge\lib\provider.py:58
+msgid "Rate limit reached for requests or you exceeded your current quota. "
+msgstr "請求速率已達到上限，或您使用的次數已超過了您的配额。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:279
+#: addon\globalPlugins\WordBridge\lib\provider.py:59
+msgid ""
+"Please reduce the frequency of sending requests or check your account "
+"balance."
+msgstr "請降低您發送請求的頻率或檢查您的帳戶餘額。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:296
+#: addon\globalPlugins\WordBridge\__init__.py:297
 msgid "No errors in the selected text."
 msgstr "選取範圍未檢測出錯誤。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:290
-#: addon\globalPlugins\WordBridge\__init__.py:291
+#: addon\globalPlugins\WordBridge\__init__.py:301
+#: addon\globalPlugins\WordBridge\__init__.py:302
 msgid "The corrected text has been copied to the clipboard."
 msgstr "結果已複製到剪貼簿。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:297
-#: addon\globalPlugins\WordBridge\__init__.py:298
+#: addon\globalPlugins\WordBridge\__init__.py:308
+#: addon\globalPlugins\WordBridge\__init__.py:309
 #, python-brace-format
 msgid "This task costs {cost} USD."
 msgstr "任務花費費用 {cost} 美元。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:313
+#: addon\globalPlugins\WordBridge\__init__.py:316
+msgid ""
+"Only one proofreading task can run at a time. Please wait until the current "
+"task has finished before starting another."
+msgstr "同一時間只能執行一項校對任務。請等待目前的任務完成後再開始新的任務。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:334
 msgid "Open custom dictionary"
 msgstr "開啟客製化辭典"
 
-#: addon\globalPlugins\WordBridge\__init__.py:321
+#: addon\globalPlugins\WordBridge\__init__.py:342
 msgid "Execute typo correction"
 msgstr "執行錯字校正"
 
-#: addon\globalPlugins\WordBridge\__init__.py:327
-#: addon\globalPlugins\WordBridge\__init__.py:330
+#: addon\globalPlugins\WordBridge\__init__.py:348
+#: addon\globalPlugins\WordBridge\__init__.py:351
 msgid ""
 "The function cannot be executed. Please finish the configuration and close "
 "the setting window."
 msgstr "改錯字無法運行，請先結束NVDA設定視窗。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:342
+#: addon\globalPlugins\WordBridge\__init__.py:363
 msgid "Open settings dialog of WordBridge"
 msgstr "開啟 WordBridge 設定對話框"
 
-#: addon\globalPlugins\WordBridge\__init__.py:354
+#: addon\globalPlugins\WordBridge\__init__.py:375
 msgid "Show report of correction"
 msgstr "顯示校正報告"
 
-#: addon\globalPlugins\WordBridge\__init__.py:359
-#: addon\globalPlugins\WordBridge\__init__.py:360
-#: addon\globalPlugins\WordBridge\__init__.py:378
-#: addon\globalPlugins\WordBridge\__init__.py:379
+#: addon\globalPlugins\WordBridge\__init__.py:380
+#: addon\globalPlugins\WordBridge\__init__.py:381
+#: addon\globalPlugins\WordBridge\__init__.py:399
+#: addon\globalPlugins\WordBridge\__init__.py:400
 msgid "No report has been generated yet."
 msgstr "尚未產生報告。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:367
+#: addon\globalPlugins\WordBridge\__init__.py:388
 msgid "Feedback of correction"
 msgstr "校正回饋"
 
-#: addon\globalPlugins\WordBridge\__init__.py:401
-#: addon\globalPlugins\WordBridge\__init__.py:402
+#: addon\globalPlugins\WordBridge\__init__.py:422
+#: addon\globalPlugins\WordBridge\__init__.py:423
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred while logging into Coseeing, the details are: {e}"
 msgstr "抱歉，登入 Coseeing 時遇到了一些問題，錯誤詳情是: {e}"
 
-#: addon\globalPlugins\WordBridge\__init__.py:415
+#: addon\globalPlugins\WordBridge\__init__.py:436
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred during the feedback request, the details are: {e}"
@@ -354,8 +380,8 @@ msgstr ""
 "Try = {try_index}, {request_error}, 向 Coseeing 發送請求時發生錯誤: {e}"
 
 #: addon\globalPlugins\WordBridge\lib\coseeing.py:41
-#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:370
-#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:489
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:369
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:488
 #, python-brace-format
 msgid "HTTP request error ({request_error}). Please check the network setting."
 msgstr "HTTP請求錯誤 ({request_error})，請檢察網路設定。"
@@ -385,16 +411,6 @@ msgid ""
 "Service does not exist. Please check if the model does not exist or has "
 "expired."
 msgstr "服務不存在。請檢察模型是已到期或不存在。"
-
-#: addon\globalPlugins\WordBridge\lib\provider.py:58
-msgid "Rate limit reached for requests or you exceeded your current quota. "
-msgstr "請求速率已達到上限，或您使用的次數已超過了您的配额。"
-
-#: addon\globalPlugins\WordBridge\lib\provider.py:59
-msgid ""
-"Please reduce the frequency of sending requests or check your account "
-"balance."
-msgstr "請降低您發送請求的頻率或檢查您的帳戶餘額。"
 
 #: addon\globalPlugins\WordBridge\lib\provider.py:62
 msgid "The server is currently overloaded, please try again later."
@@ -567,6 +583,10 @@ msgstr "Word Bridge"
 #: buildVars.py:26
 msgid "Help fix Chinese typos to ensure the words are correct."
 msgstr "幫助改正中文錯字以確保文字正確。"
+
+#, python-brace-format
+#~ msgid "Sorry, http 403 forbidden, the details are: {e}"
+#~ msgstr "抱歉，HTTP 403 禁止訪問，錯誤詳情是:{e}"
 
 #~ msgid " Account"
 #~ msgstr "帳號"

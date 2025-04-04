@@ -247,7 +247,6 @@ class BaseTypoCorrector():
 
 		return text_corrected, diff
 
-
 	def correct_segment(self, input_text: str, previous_results: list = [], fake_operation: bool = False) -> str:
 		if fake_operation or not self._has_target_language(input_text):
 			return CorrectorResult(input_text, input_text, {})
@@ -497,7 +496,13 @@ class BaseTypoCorrector():
 	def _parse_response(self, response: str) -> str:
 		# ollama: sentence = response["message"]["content"]
 
-		sentence = self.provider_object.parse_response(response)
+		try:
+			sentence = self.provider_object.parse_response(response)
+		except KeyError as e:
+			log.error(
+				f"{response}"
+			)
+			raise Exception(_(f"Parsing error. Unexpected server response. Response: {response}"))
 
 		if self.language == "zh_traditional" and has_simplified_chinese_char(sentence):
 			sentence = chinese_converter.to_traditional(sentence)
