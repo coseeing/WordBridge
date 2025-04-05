@@ -44,6 +44,8 @@ LANGUAGE_LABELS = [LABEL_DICT[val] for val in LANGUAGE_VALUES]
 TYPO_CORRECTION_MODE_VALUES = ["standard", "lite"]
 TYPO_CORRECTION_MODE_LABELS = [LABEL_DICT[val] for val in TYPO_CORRECTION_MODE_VALUES]
 
+SOUND_EFFECTS_URL = "https://www.zapsplat.com/music/medium-underwater-movement-whoosh-pass-by-1/"
+
 configManager = ConfigManager(CORRECTOR_CONFIG_FOLDER_PATH)
 
 
@@ -193,7 +195,7 @@ class LLMSettingsPanel(SettingsPanel):
 
 		# For setting custom dictionary
 		self.customizedWordEnable = settingsSizerHelper.addItem(
-			wx.CheckBox(self, label=_("Apply customized dictionary"))
+			wx.CheckBox(self, label=_("Apply personal dictionary"))
 		)
 		self.customizedWordEnable.SetValue(config.conf["WordBridge"]["settings"]["customized_words_enable"])
 
@@ -204,6 +206,20 @@ class LLMSettingsPanel(SettingsPanel):
 			)
 		)
 		self.wordDictionaryCtrl.Bind(wx.EVT_BUTTON, self.onEditDictionary)
+
+		# For setting sound effects
+		self.soundEffectsEnable = settingsSizerHelper.addItem(
+			wx.CheckBox(self, label=_("Enable sound effect cues"))
+		)
+		self.soundEffectsEnable.SetValue(config.conf["WordBridge"]["settings"]["sound_effects_enable"])
+
+		self.soundEffectsCtrl = settingsSizerHelper.addItem(
+			wx.Button(
+				self,
+				label=_("Sound effect credits"),
+			)
+		)
+		self.soundEffectsCtrl.Bind(wx.EVT_BUTTON, self.onSoundEffects)
 
 		self.settingsSizer = settingsSizer
 
@@ -221,6 +237,11 @@ class LLMSettingsPanel(SettingsPanel):
 	def onEditDictionary(self, event):
 		gui.mainFrame.popupSettingsDialog(DictionaryEntryDialog)
 
+	def onSoundEffects(self, event):
+		def openfile():
+			os.startfile(SOUND_EFFECTS_URL)
+		wx.CallAfter(openfile)
+
 	def onSave(self):
 		provider_index = self.providerList.GetSelection()
 		model_index = self.modelList.GetSelection()
@@ -230,6 +251,7 @@ class LLMSettingsPanel(SettingsPanel):
 		config.conf["WordBridge"]["settings"]["max_char_count"] = self.maxCharCountSpinCtrl.GetValue()
 		config.conf["WordBridge"]["settings"]["auto_display_report"] = self.autoDisplayReportEnable.GetValue()
 		config.conf["WordBridge"]["settings"]["customized_words_enable"] = self.customizedWordEnable.GetValue()
+		config.conf["WordBridge"]["settings"]["sound_effects_enable"] = self.soundEffectsEnable.GetValue()
 
 		config.conf["WordBridge"]["settings"]["coseeing_username"] = self.accountTextCtrlMap1["Coseeing"].GetValue()
 		config.conf["WordBridge"]["settings"]["coseeing_password"] = self.accountTextCtrlMap2["Coseeing"].GetValue()

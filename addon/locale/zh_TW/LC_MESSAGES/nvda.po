@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 'WordBridge' '2025.4.2'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-04-04 23:14+0800\n"
-"PO-Revision-Date: 2025-04-04 23:15+0800\n"
+"POT-Creation-Date: 2025-04-05 11:32+0800\n"
+"PO-Revision-Date: 2025-04-05 11:35+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -18,128 +18,128 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 3.5\n"
 
-#: addon\globalPlugins\WordBridge\__init__.py:147
-#: addon\globalPlugins\WordBridge\__init__.py:153
+#: addon\globalPlugins\WordBridge\__init__.py:148
+#: addon\globalPlugins\WordBridge\__init__.py:154
 #, python-brace-format
 msgid ""
 "The number of characters is {len_text}, which exceeds the maximum, "
 "{max_char_count}."
 msgstr "原文字元數為{len_text}，超過上限{max_char_count}。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:160
 #: addon\globalPlugins\WordBridge\__init__.py:161
+#: addon\globalPlugins\WordBridge\__init__.py:162
 msgid "No text is selected, unable to analyze."
 msgstr "未選取任何文字，無法分析。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:164
 #: addon\globalPlugins\WordBridge\__init__.py:165
+#: addon\globalPlugins\WordBridge\__init__.py:166
 msgid ""
 "The selected text does not contain Chinese characters, unable to analyze."
 msgstr "選取範圍不含漢字，無法分析。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:235
 #: addon\globalPlugins\WordBridge\__init__.py:236
-#: addon\globalPlugins\WordBridge\__init__.py:437
+#: addon\globalPlugins\WordBridge\__init__.py:237
+#: addon\globalPlugins\WordBridge\__init__.py:443
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred during the program execution, the details are: {e}"
 msgstr "抱歉，程式運行中遇到了一些問題，錯誤詳情是: {e}"
 
-#: addon\globalPlugins\WordBridge\__init__.py:268
+#: addon\globalPlugins\WordBridge\__init__.py:269
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred while decode Coseeing response, the details are: {e}"
 msgstr "抱歉，解析回復時遇到了一些問題，錯誤詳情是: {e}"
 
-#: addon\globalPlugins\WordBridge\__init__.py:271
+#: addon\globalPlugins\WordBridge\__init__.py:272
 msgid ""
 "The request has not responded for over 2 minutes, possibly because the "
 "Coseeing server is busy. Please try again later."
 msgstr ""
 "此請求已超過 2 分鐘未回應，可能是因為 Coseeing 伺服器忙碌中。請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:274
+#: addon\globalPlugins\WordBridge\__init__.py:275
 msgid ""
 "Authentication error. Please check if the Coseeing's username and password "
 "is correct."
 msgstr "認證錯誤。請檢查 Coseeing 的使用者名稱和密碼是否正確。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:278
+#: addon\globalPlugins\WordBridge\__init__.py:279
 #: addon\globalPlugins\WordBridge\lib\provider.py:58
 msgid "Rate limit reached for requests or you exceeded your current quota. "
 msgstr "請求速率已達到上限，或您使用的次數已超過了您的配额。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:279
+#: addon\globalPlugins\WordBridge\__init__.py:280
 #: addon\globalPlugins\WordBridge\lib\provider.py:59
 msgid ""
 "Please reduce the frequency of sending requests or check your account "
 "balance."
 msgstr "請降低您發送請求的頻率或檢查您的帳戶餘額。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:296
 #: addon\globalPlugins\WordBridge\__init__.py:297
+#: addon\globalPlugins\WordBridge\__init__.py:298
 msgid "No errors in the selected text."
 msgstr "選取範圍未檢測出錯誤。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:301
 #: addon\globalPlugins\WordBridge\__init__.py:302
+#: addon\globalPlugins\WordBridge\__init__.py:303
 msgid "The corrected text has been copied to the clipboard."
 msgstr "結果已複製到剪貼簿。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:308
 #: addon\globalPlugins\WordBridge\__init__.py:309
+#: addon\globalPlugins\WordBridge\__init__.py:310
 #, python-brace-format
 msgid "This task costs {cost} USD."
 msgstr "任務花費費用 {cost} 美元。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:316
+#: addon\globalPlugins\WordBridge\__init__.py:317
 msgid ""
 "Only one proofreading task can run at a time. Please wait until the current "
 "task has finished before starting another."
 msgstr "同一時間只能執行一項校對任務。請等待目前的任務完成後再開始新的任務。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:334
+#: addon\globalPlugins\WordBridge\__init__.py:340
 msgid "Open custom dictionary"
 msgstr "開啟客製化辭典"
 
-#: addon\globalPlugins\WordBridge\__init__.py:342
+#: addon\globalPlugins\WordBridge\__init__.py:348
 msgid "Execute typo correction"
 msgstr "執行錯字校正"
 
-#: addon\globalPlugins\WordBridge\__init__.py:348
-#: addon\globalPlugins\WordBridge\__init__.py:351
+#: addon\globalPlugins\WordBridge\__init__.py:354
+#: addon\globalPlugins\WordBridge\__init__.py:357
 msgid ""
 "The function cannot be executed. Please finish the configuration and close "
 "the setting window."
 msgstr "改錯字無法運行，請先結束NVDA設定視窗。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:363
+#: addon\globalPlugins\WordBridge\__init__.py:369
 msgid "Open settings dialog of WordBridge"
 msgstr "開啟 WordBridge 設定對話框"
 
-#: addon\globalPlugins\WordBridge\__init__.py:375
+#: addon\globalPlugins\WordBridge\__init__.py:381
 msgid "Show report of correction"
 msgstr "顯示校正報告"
 
-#: addon\globalPlugins\WordBridge\__init__.py:380
-#: addon\globalPlugins\WordBridge\__init__.py:381
-#: addon\globalPlugins\WordBridge\__init__.py:399
-#: addon\globalPlugins\WordBridge\__init__.py:400
+#: addon\globalPlugins\WordBridge\__init__.py:386
+#: addon\globalPlugins\WordBridge\__init__.py:387
+#: addon\globalPlugins\WordBridge\__init__.py:405
+#: addon\globalPlugins\WordBridge\__init__.py:406
 msgid "No report has been generated yet."
 msgstr "尚未產生報告。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:388
+#: addon\globalPlugins\WordBridge\__init__.py:394
 msgid "Feedback of correction"
 msgstr "校正回饋"
 
-#: addon\globalPlugins\WordBridge\__init__.py:422
-#: addon\globalPlugins\WordBridge\__init__.py:423
+#: addon\globalPlugins\WordBridge\__init__.py:428
+#: addon\globalPlugins\WordBridge\__init__.py:429
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred while logging into Coseeing, the details are: {e}"
 msgstr "抱歉，登入 Coseeing 時遇到了一些問題，錯誤詳情是: {e}"
 
-#: addon\globalPlugins\WordBridge\__init__.py:436
+#: addon\globalPlugins\WordBridge\__init__.py:442
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred during the feedback request, the details are: {e}"
@@ -277,97 +277,105 @@ msgstr "個人API Key"
 msgid "Coseeing Account"
 msgstr "Coseeing帳號"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:51
+#: addon\globalPlugins\WordBridge\dialogs.py:53
 msgid "WordBridge"
 msgstr "WordBridge"
 
 #. For selecting provider
-#: addon\globalPlugins\WordBridge\dialogs.py:63
+#: addon\globalPlugins\WordBridge\dialogs.py:65
 msgid "Service Provider:"
 msgstr "服務提供商："
 
-#: addon\globalPlugins\WordBridge\dialogs.py:69
+#: addon\globalPlugins\WordBridge\dialogs.py:71
 msgid "Choose the service provider for the WordBridge"
 msgstr "選擇 WordBridge 所使用的服務提供商"
 
 #. For selecting LLM
-#: addon\globalPlugins\WordBridge\dialogs.py:78
+#: addon\globalPlugins\WordBridge\dialogs.py:80
 msgid "Large Language Model:"
 msgstr "大語言模型:"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:84
+#: addon\globalPlugins\WordBridge\dialogs.py:86
 msgid "Choose the large language model for the Word Bridge"
 msgstr "選擇Word Bridge所使用的大語言模型"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:98
+#: addon\globalPlugins\WordBridge\dialogs.py:100
 msgid "Username:"
 msgstr "使用者名稱:"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:98
+#: addon\globalPlugins\WordBridge\dialogs.py:100
 msgid "API Key:"
 msgstr "API Key:"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:99
+#: addon\globalPlugins\WordBridge\dialogs.py:101
 msgid "Password:"
 msgstr "密碼:"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:99
+#: addon\globalPlugins\WordBridge\dialogs.py:101
 msgid "Secret Key:"
 msgstr "Secret Key:"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:110
+#: addon\globalPlugins\WordBridge\dialogs.py:112
 msgid "Authentication"
 msgstr "驗證"
 
 #. For selecting language
-#: addon\globalPlugins\WordBridge\dialogs.py:133
+#: addon\globalPlugins\WordBridge\dialogs.py:135
 msgid "Language:"
 msgstr "語言:"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:139
+#: addon\globalPlugins\WordBridge\dialogs.py:141
 msgid "Choose the language for the Word Bridge"
 msgstr "選擇Word Bridge所使用的語言"
 
 #. For selecting typo correction mode
-#: addon\globalPlugins\WordBridge\dialogs.py:148
+#: addon\globalPlugins\WordBridge\dialogs.py:150
 msgid "Correction Mode:"
 msgstr "校正模式："
 
-#: addon\globalPlugins\WordBridge\dialogs.py:154
+#: addon\globalPlugins\WordBridge\dialogs.py:156
 msgid "Choose the typo correction mode for the Word Bridge"
 msgstr "選擇 WordBridge 所使用的錯字校正模式"
 
 #. For setting upper bound of correction character count
-#: addon\globalPlugins\WordBridge\dialogs.py:162
+#: addon\globalPlugins\WordBridge\dialogs.py:164
 msgid "Max character count"
 msgstr "最大字元數"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:190
+#: addon\globalPlugins\WordBridge\dialogs.py:192
 msgid "Auto display typo report"
 msgstr "自動顯示改錯字報告"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:196
-msgid "Apply customized dictionary"
-msgstr "使用客製化辭典"
+#: addon\globalPlugins\WordBridge\dialogs.py:198
+msgid "Apply personal dictionary"
+msgstr "使用個人化辭典"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:203
+#: addon\globalPlugins\WordBridge\dialogs.py:205
 msgid "Edit dictionary"
 msgstr "編輯辭典"
 
+#: addon\globalPlugins\WordBridge\dialogs.py:212
+msgid "Enable sound effect cues"
+msgstr "啟用音效提示"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:219
+msgid "Sound effect credits"
+msgstr "音效來源"
+
 #. This is the label for the feedback dialog for Coseeing.
-#: addon\globalPlugins\WordBridge\dialogs.py:275
+#: addon\globalPlugins\WordBridge\dialogs.py:297
 msgid "Feedback Coseeing"
 msgstr "Coseeing意見回報"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:281
+#: addon\globalPlugins\WordBridge\dialogs.py:303
 msgid "Request:"
 msgstr "請求:"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:288
+#: addon\globalPlugins\WordBridge\dialogs.py:310
 msgid "Response:"
 msgstr "回復:"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:295
+#: addon\globalPlugins\WordBridge\dialogs.py:317
 msgid "Feedback:"
 msgstr "意見回報:"
 

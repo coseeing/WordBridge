@@ -53,6 +53,7 @@ config.conf.spec["WordBridge"] = {
 		"max_char_count": "integer(default=512,min=256,max=1024)",
 		"auto_display_report": "boolean(default=False)",
 		"customized_words_enable": "boolean(default=True)",
+		"sound_effects_enable": "boolean(default=True)",
 	}
 }
 COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
@@ -320,12 +321,17 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self.correct_typo_thread.start()
 
 		while self.correct_typo_thread.is_alive():
-			# beep(261.6, 300)
-			nvwave.playWaveFile(
-				os.path.join(os.path.dirname(__file__), "sounds", "zapsplat_nature_water_underwater_whoosh_movement_pass_med_designed_001_59240.wav"),
-				asynchronous=False,
-			)
-			time.sleep(5)
+			if config.conf["WordBridge"]["settings"]["sound_effects_enable"]:
+				nvwave.playWaveFile(
+					os.path.join(os.path.dirname(__file__), "sounds", "zapsplat_nature_water_underwater_whoosh_movement_pass_med_designed_001_59240.wav"),
+					asynchronous=False,
+				)
+				time.sleep(5)
+			else:
+				time.sleep(1)
+				beep(261.6, 300)
+				time.sleep(1)
+
 
 		self.correct_typo_thread = None
 
