@@ -222,7 +222,7 @@ def review_correction_errors(text, text_corrected):
 	differences = strings_diff(text, text_corrected)
 	text_corrected_fixed = ""
 	for diff in differences:
-		if diff["operation"] in ["insert", "delete"]:  # Insert or delete
+		if diff["operation"] != "replace":  # Insert or Delete or Equal
 			text_corrected_fixed += diff["before_text"]
 			continue
 
