@@ -124,7 +124,7 @@ class GoogleProvider(Provider):
 
 	def __init__(self, credential: dict, model: str, llm_settings: dict = {}):
 		super().__init__(credential=credential, model=model, llm_settings=llm_settings)
-		self.url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.credential['api_key']}"
+		self.url = self.url + f"/models/{self.model}:generateContent?key={self.credential['api_key']}"
 
 	def get_headers(self):
 		return {
