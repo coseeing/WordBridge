@@ -37,7 +37,10 @@ ZH_UNICODE_INTERVALS = [
 
 
 def is_chinese_character(char: str) -> bool:
-	assert len(char) == 1, "Length of char should be 1."
+	assert len(char) <= 1, "Length of char should not be larger than 1."
+	if not char:
+		return False
+
 	for interval in ZH_UNICODE_INTERVALS:
 		if char >= interval[0] and char <= interval[1]:
 			return True
@@ -197,24 +200,20 @@ def find_correction_errors(text, text_corrected):
 	text_corrected_fixed = ""
 	typo_indices = []
 	for diff in differences:
-		if diff["operation"] in ["insert", "delete"]:  # Insert or delete
+		if diff["operation"] == "equal":
+			text_corrected_fixed += diff["after_text"]
+			continue
+		elif diff["operation"] in ["insert", "delete"]:  # Insert or delete
 			text_corrected_fixed += diff["before_text"]
 			typo_indices.append(max(len(text_corrected_fixed) - 1, 0))
 			continue
 
-		share_common_pinyin = True
-		for before_char, after_char in zip(diff["before_text"], diff["after_text"]):
-			if len(set(get_char_pinyin(before_char)) & set(get_char_pinyin(after_char))) == 0:
-				share_common_pinyin = False
-				break
-
-		if share_common_pinyin:
-			text_corrected_fixed += diff["after_text"]
-		else:
+		if len(set(get_char_pinyin(diff["before_text"])) & set(get_char_pinyin(diff["after_text"]))) == 0:
 			text_corrected_fixed += diff["before_text"]
-			typo_indices.extend(
-				list(range(len(text_corrected_fixed) - len(diff["after_text"]), len(text_corrected_fixed)))
-			)
+			typo_indices.append(len(text_corrected_fixed) - 1)
+		else:
+			text_corrected_fixed += diff["after_text"]
+
 
 	return text_corrected_fixed, typo_indices
 
@@ -222,18 +221,15 @@ def find_correction_errors(text, text_corrected):
 def review_correction_errors(text, text_corrected):
 	differences = strings_diff(text, text_corrected)
 	text_corrected_fixed = ""
-	typo_indices = []
 	for diff in differences:
-		if diff["operation"] in ["insert", "delete"]:  # Insert or delete
+		if diff["operation"] != "replace":  # Insert or Delete or Equal
 			text_corrected_fixed += diff["before_text"]
 			continue
 
-		if diff["before_text"] and not all(is_chinese_character(c) for c in diff["before_text"]):
-			text_corrected_fixed += diff["before_text"]
-		elif diff["after_text"] and not all(is_chinese_character(c) for c in diff["after_text"]):
-			text_corrected_fixed += diff["before_text"]
-		else:
+		if is_chinese_character(diff["before_text"]) and is_chinese_character(diff["after_text"]):
 			text_corrected_fixed += diff["after_text"]
+		else:
+			text_corrected_fixed += diff["before_text"]
 
 	return text_corrected_fixed
 
@@ -336,6 +332,8 @@ def strings_diff(string_before: str, string_after: str) -> Dict:
 				"".join(tokens_before[index_start_before + i]),
 				"".join(tokens_after[index_start_after + i]),
 			)
+
+			assert len(operation_dict["before_text"]) == 1 and len(operation_dict["after_text"]) == 1, "Each 'replace' operation should contain only one character."
 
 			diff.append(operation_dict)
 
