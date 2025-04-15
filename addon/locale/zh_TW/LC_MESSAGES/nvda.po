@@ -6,10 +6,10 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: 'WordBridge' '2025.4.2'\n"
+"Project-Id-Version: 'WordBridge' '2025.4.15'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-04-05 11:32+0800\n"
-"PO-Revision-Date: 2025-04-05 11:35+0800\n"
+"POT-Creation-Date: 2025-04-15 22:27+0800\n"
+"PO-Revision-Date: 2025-04-15 22:29+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -65,12 +65,12 @@ msgid ""
 msgstr "認證錯誤。請檢查 Coseeing 的使用者名稱和密碼是否正確。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:279
-#: addon\globalPlugins\WordBridge\lib\provider.py:58
+#: addon\globalPlugins\WordBridge\lib\provider.py:64
 msgid "Rate limit reached for requests or you exceeded your current quota. "
 msgstr "請求速率已達到上限，或您使用的次數已超過了您的配额。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:280
-#: addon\globalPlugins\WordBridge\lib\provider.py:59
+#: addon\globalPlugins\WordBridge\lib\provider.py:65
 msgid ""
 "Please reduce the frequency of sending requests or check your account "
 "balance."
@@ -170,86 +170,94 @@ msgid "OpenRouter"
 msgstr "OpenRouter"
 
 #: addon\globalPlugins\WordBridge\configManager.py:15
+msgid "Google"
+msgstr "Google"
+
+#: addon\globalPlugins\WordBridge\configManager.py:16
 msgid "claude-3-5-haiku"
 msgstr "claude-3-5-haiku"
 
-#: addon\globalPlugins\WordBridge\configManager.py:16
+#: addon\globalPlugins\WordBridge\configManager.py:17
 msgid "claude-3-5-sonnet"
 msgstr "claude-3-5-sonnet"
 
-#: addon\globalPlugins\WordBridge\configManager.py:17
+#: addon\globalPlugins\WordBridge\configManager.py:18
 msgid "claude-3-7-sonnet"
 msgstr "claude-3-7-sonnet"
 
-#: addon\globalPlugins\WordBridge\configManager.py:18
+#: addon\globalPlugins\WordBridge\configManager.py:19
 msgid "deepseek-v3"
 msgstr "deepseek-v3"
 
-#: addon\globalPlugins\WordBridge\configManager.py:19
+#: addon\globalPlugins\WordBridge\configManager.py:20
 msgid "deepseek-chat"
 msgstr "deepseek-chat"
 
-#: addon\globalPlugins\WordBridge\configManager.py:20
+#: addon\globalPlugins\WordBridge\configManager.py:21
 msgid "deepseek-reasoner"
 msgstr "deepseek-reasoner"
 
-#: addon\globalPlugins\WordBridge\configManager.py:21
+#: addon\globalPlugins\WordBridge\configManager.py:22
 msgid "deepseek-chat(free)"
 msgstr "deepseek-chat(free)"
 
-#: addon\globalPlugins\WordBridge\configManager.py:22
+#: addon\globalPlugins\WordBridge\configManager.py:23
 msgid "deepseek-chat-0324(free)"
 msgstr "deepseek-chat-0324(free)"
 
-#: addon\globalPlugins\WordBridge\configManager.py:23
+#: addon\globalPlugins\WordBridge\configManager.py:24
 msgid "deepseek-reasoner(free)"
 msgstr "deepseek-reasoner(free)"
 
-#: addon\globalPlugins\WordBridge\configManager.py:24
+#: addon\globalPlugins\WordBridge\configManager.py:25
+msgid "gemini-2.0-flash"
+msgstr "gemini-2.0-flash"
+
+#: addon\globalPlugins\WordBridge\configManager.py:26
+msgid "gemini-2.0-flash-lite"
+msgstr "gemini-2.0-flash-lite"
+
+#: addon\globalPlugins\WordBridge\configManager.py:27
 msgid "gemini-2.5-pro-exp-03-25(free)"
 msgstr "gemini-2.5-pro-exp-03-25(free)"
 
-#: addon\globalPlugins\WordBridge\configManager.py:25
-msgid "gpt-3.5-turbo"
-msgstr "gpt-3.5-turbo"
-
-#: addon\globalPlugins\WordBridge\configManager.py:26
-msgid "gpt-4-turbo"
-msgstr "gpt-4-turbo"
-
-#: addon\globalPlugins\WordBridge\configManager.py:27
+#: addon\globalPlugins\WordBridge\configManager.py:28
 msgid "gpt-4o"
 msgstr "gpt-4o"
 
-#: addon\globalPlugins\WordBridge\configManager.py:28
+#: addon\globalPlugins\WordBridge\configManager.py:29
 msgid "gpt-4o-mini"
 msgstr "gpt-4o-mini"
 
-#: addon\globalPlugins\WordBridge\configManager.py:29
-msgid "gpt-4.5-preview"
-msgstr "gpt-4.5-preview"
-
 #: addon\globalPlugins\WordBridge\configManager.py:30
+msgid "gpt-4.1"
+msgstr "gpt-4.1"
+
+#: addon\globalPlugins\WordBridge\configManager.py:31
+msgid "gpt-4.1-mini"
+msgstr "gpt-4.1-mini"
+
+#: addon\globalPlugins\WordBridge\configManager.py:32
+msgid "gpt-4.1-nano"
+msgstr "gpt-4.1-nano"
+
+#: addon\globalPlugins\WordBridge\configManager.py:33
 msgid "o1-mini"
 msgstr "o1-mini"
 
-#: addon\globalPlugins\WordBridge\configManager.py:31
+#: addon\globalPlugins\WordBridge\configManager.py:34
 msgid "o1"
 msgstr "o1"
 
-#: addon\globalPlugins\WordBridge\configManager.py:32
+#: addon\globalPlugins\WordBridge\configManager.py:35
 msgid "o3-mini"
 msgstr "o3-mini"
 
-#: addon\globalPlugins\WordBridge\configManager.py:33
-msgid "qwen-2.5-72b-instruct(free)"
-msgstr "qwen-2.5-72b-instruct(free)"
-
-#: addon\globalPlugins\WordBridge\configManager.py:34
+#: addon\globalPlugins\WordBridge\configManager.py:36
 msgid "ernie-4.0-turbo-8k"
 msgstr "文心-4.0-turbo-8k"
 
-#: addon\globalPlugins\WordBridge\configManager.py:35
+#: addon\globalPlugins\WordBridge\configManager.py:37
 msgid "ernie-4.0-8k-preview"
 msgstr "ernie-4.0-8k-preview"
 
@@ -388,8 +396,8 @@ msgstr ""
 "Try = {try_index}, {request_error}, 向 Coseeing 發送請求時發生錯誤: {e}"
 
 #: addon\globalPlugins\WordBridge\lib\coseeing.py:41
-#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:369
-#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:488
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:398
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:509
 #, python-brace-format
 msgid "HTTP request error ({request_error}). Please check the network setting."
 msgstr "HTTP請求錯誤 ({request_error})，請檢察網路設定。"
@@ -403,46 +411,46 @@ msgstr "Coseeing 帳戶的使用者名稱或密碼不正確。"
 msgid "Unknown errors. Status code = {status_code}"
 msgstr "未知錯誤。狀態碼 = {status_code}"
 
-#: addon\globalPlugins\WordBridge\lib\provider.py:51
+#: addon\globalPlugins\WordBridge\lib\provider.py:57
 msgid ""
 "Authentication error. Please check if the service provider's key is correct."
 msgstr "認證錯誤。請檢查服務提供商的 key 是否正確。"
 
-#: addon\globalPlugins\WordBridge\lib\provider.py:53
+#: addon\globalPlugins\WordBridge\lib\provider.py:59
 msgid "Country, region, or territory not supported."
 msgstr "該國家、區域或領土不支持該服務。"
 
-#: addon\globalPlugins\WordBridge\lib\provider.py:55
-#: addon\globalPlugins\WordBridge\lib\provider.py:137
-#: addon\globalPlugins\WordBridge\lib\provider.py:145
+#: addon\globalPlugins\WordBridge\lib\provider.py:61
+#: addon\globalPlugins\WordBridge\lib\provider.py:193
+#: addon\globalPlugins\WordBridge\lib\provider.py:201
 msgid ""
 "Service does not exist. Please check if the model does not exist or has "
 "expired."
 msgstr "服務不存在。請檢察模型是已到期或不存在。"
 
-#: addon\globalPlugins\WordBridge\lib\provider.py:62
+#: addon\globalPlugins\WordBridge\lib\provider.py:68
 msgid "The server is currently overloaded, please try again later."
 msgstr "當前伺服器超載，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\lib\provider.py:65
+#: addon\globalPlugins\WordBridge\lib\provider.py:71
 msgid "An error occurred, status code = "
 msgstr "發生錯誤，狀態碼 = "
 
-#: addon\globalPlugins\WordBridge\lib\provider.py:139
+#: addon\globalPlugins\WordBridge\lib\provider.py:195
 msgid "Service internal error, please try again later."
 msgstr "服務發生內部錯誤，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\lib\provider.py:141
+#: addon\globalPlugins\WordBridge\lib\provider.py:197
 msgid "Usage limit exceeded, please try again later."
 msgstr "使用超出限制，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\lib\provider.py:143
+#: addon\globalPlugins\WordBridge\lib\provider.py:199
 msgid ""
 "Please check if the API has been activated and the current account has "
 "enough money"
 msgstr "請確認模型API已啟用且當前帳戶有足夠的餘額"
 
-#: addon\globalPlugins\WordBridge\lib\provider.py:147
+#: addon\globalPlugins\WordBridge\lib\provider.py:203
 msgid "An error occurred, error code = "
 msgstr "發生錯誤，錯誤碼 = "
 
@@ -591,6 +599,18 @@ msgstr "Word Bridge"
 #: buildVars.py:26
 msgid "Help fix Chinese typos to ensure the words are correct."
 msgstr "幫助改正中文錯字以確保文字正確。"
+
+#~ msgid "gpt-3.5-turbo"
+#~ msgstr "gpt-3.5-turbo"
+
+#~ msgid "gpt-4-turbo"
+#~ msgstr "gpt-4-turbo"
+
+#~ msgid "gpt-4.5-preview"
+#~ msgstr "gpt-4.5-preview"
+
+#~ msgid "qwen-2.5-72b-instruct(free)"
+#~ msgstr "qwen-2.5-72b-instruct(free)"
 
 #, python-brace-format
 #~ msgid "Sorry, http 403 forbidden, the details are: {e}"
