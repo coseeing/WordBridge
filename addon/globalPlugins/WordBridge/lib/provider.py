@@ -13,7 +13,9 @@ except ImportError:
 
 
 class Provider:
-	def __init__(self, llm_settings: dict = {}):
+	def __init__(self, credential: dict, model: str, llm_settings: dict = {}):
+		self.credential = credential
+		self.model = model
 		self.llm_settings = llm_settings
 
 		# Load default setting
@@ -28,18 +30,22 @@ class Provider:
 		for k in llm_settings:
 			self.setting[k] = llm_settings[k]
 
+	def set(self, credential: dict, model: str):
+		self.credential = credential
+		self.model = model
+
 	@property
 	def base_url(self):
 		parse = urlparse(self.url)
 		return f"{parse.scheme}://{parse.netloc}"
 
-	def get_headers(self, credential):
+	def get_headers(self):
 		return {
 			"Content-Type": "application/json",
-			"Authorization": f"Bearer {credential['api_key']}"
+			"Authorization": f"Bearer {self.credential['api_key']}"
 		}
 
-	def get_request_data(self, messages, system_template, model):
+	def get_request_data(self, messages, system_template):
 		raise NotImplementedError("Subclass must implement this method")
 
 	def parse_response(self, response):
@@ -71,10 +77,10 @@ class Provider:
 class OpenaiProvider(Provider):
 	name = "openai"
 
-	def get_request_data(self, messages, system_template, model):
+	def get_request_data(self, messages, system_template):
 		messages = [{"role": "system", "content": system_template}] + messages
 		setting = deepcopy(self.setting)
-		if model.startswith("o"):
+		if self.model.startswith("o"):
 			messages.pop(0)
 			messages[0]["content"] = system_template + "\n" + messages[0]["content"]
 			setting.pop("stop")
@@ -82,7 +88,7 @@ class OpenaiProvider(Provider):
 			setting.pop("top_p")
 
 		data = {
-			"model": model,
+			"model": self.model,
 			"messages": messages,
 			**setting,
 		}
@@ -93,16 +99,16 @@ class OpenaiProvider(Provider):
 class AnthropicProvider(Provider):
 	name = "anthropic"
 
-	def get_headers(self, credential):
+	def get_headers(self):
 		return {
 			"Content-Type": "application/json",
 			"anthropic-version": "2023-06-01",
-			"x-api-key": f"{credential['api_key']}",
+			"x-api-key": f"{self.credential['api_key']}",
 		}
 
-	def get_request_data(self, messages, system_template, model):
+	def get_request_data(self, messages, system_template):
 		data = {
-			"model": model,
+			"model": self.model,
 			"system": system_template,
 			"messages": messages,
 			**self.setting,
@@ -113,10 +119,60 @@ class AnthropicProvider(Provider):
 		return response["content"][0]["text"]
 
 
+class GoogleProvider(Provider):
+	name = "google"
+
+	def __init__(self, credential: dict, model: str, llm_settings: dict = {}):
+		super().__init__(credential=credential, model=model, llm_settings=llm_settings)
+		self.url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.credential['api_key']}"
+
+	def get_headers(self):
+		return {
+			"Content-Type": "application/json",
+		}
+
+	def get_request_data(self, messages, system_template):
+		contents = []
+		for message in messages:
+			if message["role"] == "assistant":
+				contents.append({
+					"role": "model",
+					"parts": [
+						{
+							"text": message["content"]
+						}
+					]
+				})
+			else:
+				contents.append({
+					"role": "user",
+					"parts": [
+						{
+							"text": message["content"]
+						}
+					]
+				})
+
+		data = {
+			"system_instruction": {
+				"parts": [
+					{
+						"text": system_template
+					}
+				]
+			},
+			"contents": contents
+		}
+		return data
+
+	def parse_response(self, response):
+		return response["candidates"][0]["content"]["parts"][0]["text"]
+
+
 class BaiduProvider(Provider):
 	name = "baidu"
 
-	def get_request_data(self, messages, system_template, model):
+	def get_request_data(self, messages, system_template):
 		messages = [{"role": "system", "content": system_template}] + messages
 		setting = deepcopy(self.setting)
 		if "temperature" in setting:
@@ -124,7 +180,7 @@ class BaiduProvider(Provider):
 		if "max_completion_tokens" in setting:
 			setting["max_completion_tokens"] = min(setting["max_completion_tokens"], len(messages[-1]["content"]))
 		data = {
-			"model": model,
+			"model": self.model,
 			"messages": messages,
 			**self.setting,
 		}
@@ -150,10 +206,10 @@ class BaiduProvider(Provider):
 class OpenrouterProvider(Provider):
 	name = "openrouter"
 
-	def get_request_data(self, messages, system_template, model):
+	def get_request_data(self, messages, system_template):
 		messages = [{"role": "system", "content": system_template}] + messages
 		data = {
-			"model": model,
+			"model": self.model,
 			"messages": messages,
 			"stream": False,
 			"options":{
@@ -166,10 +222,10 @@ class OpenrouterProvider(Provider):
 class DeepseekProvider(Provider):
 	name = "deepseek"
 
-	def get_request_data(self, messages, system_template, model):
+	def get_request_data(self, messages, system_template):
 		messages = [{"role": "system", "content": system_template}] + messages
 		data = {
-			"model": model,
+			"model": self.model,
 			"messages": messages,
 			"stream": False,
 			"options":{

@@ -14,7 +14,7 @@ import time
 import requests
 
 from pypinyin import lazy_pinyin, Style
-from .provider import OpenaiProvider, AnthropicProvider, BaiduProvider, OpenrouterProvider, DeepseekProvider
+from .provider import OpenaiProvider, AnthropicProvider, BaiduProvider, OpenrouterProvider, DeepseekProvider, GoogleProvider
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
 from .utils import PUNCTUATION, SEPERATOR, is_chinese_character, strings_diff, text_segmentation
 from .utils import find_correction_errors, review_correction_errors, get_segments_to_recorrect
@@ -51,10 +51,12 @@ class BaseTypoCorrector():
 		"anthropic": AnthropicProvider,
 		"baidu": BaiduProvider,
 		"deepseek": DeepseekProvider,
+		"google": GoogleProvider,
 		"openrouter": OpenrouterProvider,
 	}
 	MODEL = {
 		"claude-3-5-haiku-latest": {
+			"usage_key": "usage",
 			"input_tokens": "0.8",
 			"cache_creation_input_tokens": "1",
 			"cache_read_input_tokens": "0.08",
@@ -62,6 +64,7 @@ class BaseTypoCorrector():
 			"base_unit": "1000000"
 		},
 		"claude-3-5-sonnet-latest": {
+			"usage_key": "usage",
 			"input_tokens": "3",
 			"cache_creation_input_tokens": "3.75",
 			"cache_read_input_tokens": "0.3",
@@ -69,6 +72,7 @@ class BaseTypoCorrector():
 			"base_unit": "1000000"
 		},
 		"claude-3-7-sonnet-latest": {
+			"usage_key": "usage",
 			"input_tokens": "3",
 			"cache_creation_input_tokens": "3.75",
 			"cache_read_input_tokens": "0.3",
@@ -77,12 +81,14 @@ class BaseTypoCorrector():
 		},
 		"deepseek-v3": {},
 		"deepseek-chat": {
+			"usage_key": "usage",
 			"prompt_cache_hit_tokens": "0.07",
 			"prompt_cache_miss_tokens": "0.27",
 			"completion_tokens": "1.1",
 			"base_unit": "1000000"
 		},
 		"deepseek-reasoner": {
+			"usage_key": "usage",
 			"prompt_cache_hit_tokens": "0.14",
 			"prompt_cache_miss_tokens": "0.55",
 			"completion_tokens": "2.19",
@@ -91,43 +97,63 @@ class BaseTypoCorrector():
 		"deepseek/deepseek-chat:free": {},
 		"deepseek/deepseek-chat-v3-0324:free": {},
 		"deepseek/deepseek-r1:free": {},
+		"gemini-2.0-flash": {
+			"usage_key": "usageMetadata",
+			"promptTokenCount": "0.1",
+			"candidatesTokenCount": "0.4",
+			"base_unit": "1000000"
+		},
+		"gemini-2.0-flash-lite": {
+			"usage_key": "usageMetadata",
+			"promptTokenCount": "0.075",
+			"candidatesTokenCount": "0.3",
+			"base_unit": "1000000"
+		},
 		"google/gemini-2.5-pro-exp-03-25:free": {},
-		"gpt-3.5-turbo": {
-			"prompt_tokens": "0.5",
-			"completion_tokens": "1.5",
-			"base_unit": "1000000"
-		},
-		"gpt-4-turbo": {
-			"prompt_tokens": "10",
-			"completion_tokens": "30",
-			"base_unit": "1000000"
-		},
 		"gpt-4o": {
+			"usage_key": "usage",
 			"prompt_tokens": "2.5",
 			"completion_tokens": "10",
 			"base_unit": "1000000"
 		},
 		"gpt-4o-mini": {
+			"usage_key": "usage",
 			"prompt_tokens": "0.15",
 			"completion_tokens": "0.6",
 			"base_unit": "1000000"
 		},
-		"gpt-4.5-preview": {
-			"prompt_tokens": "75",
-			"completion_tokens": "150",
+		"gpt-4.1": {
+			"usage_key": "usage",
+			"prompt_tokens": "2",
+			"completion_tokens": "8",
+			"base_unit": "1000000"
+		},
+		"gpt-4.1-mini": {
+			"usage_key": "usage",
+			"prompt_tokens": "0.4",
+			"completion_tokens": "1.6",
+			"base_unit": "1000000"
+		},
+		"gpt-4.1-nano": {
+			"usage_key": "usage",
+			"prompt_tokens": "0.1",
+			"completion_tokens": "0.4",
 			"base_unit": "1000000"
 		},
 		"o1-mini": {
+			"usage_key": "usage",
 			"prompt_tokens": "1.1",
 			"completion_tokens": "4.4",
 			"base_unit": "1000000"
 		},
 		"o1": {
+			"usage_key": "usage",
 			"prompt_tokens": "15",
 			"completion_tokens": "60",
 			"base_unit": "1000000"
 		},
 		"o3-mini": {
+			"usage_key": "usage",
 			"prompt_tokens": "1.1",
 			"completion_tokens": "4.4",
 			"base_unit": "1000000"
@@ -152,12 +178,11 @@ class BaseTypoCorrector():
 	):
 
 		self.model = model
-		self.provider_object = self.PROVIDER[provider.lower()]()
+		self.provider_object = self.PROVIDER[provider.lower()](credential, model)
 
 		self.max_correction_attempts = max_correction_attempts
 		self.httppost_retries = httppost_retries
 		self.backoff = backoff
-		self.credential = credential
 		self.language = language
 		self.optional_guidance_enable = optional_guidance_enable
 
@@ -312,14 +337,18 @@ class BaseTypoCorrector():
 		Returns:
 			The total usage of OpenAI model (in tokens)
 		"""
+		usage_key = self.MODEL[self.model].get("usage_key")
 		total_usage = defaultdict(int)
+		if not usage_key:
+			return total_usage
+
 		for response in self.response_history:
-			if isinstance(response, dict) and "usage" in response:
+			if isinstance(response, dict) and usage_key in response:
 				for usage_type in set(self.MODEL[self.model].keys()):
-					if usage_type == "base_unit":
+					if usage_type == "base_unit" or usage_type == "usage_key":
 						continue
 					try:
-						total_usage[usage_type] += response["usage"][usage_type]
+						total_usage[usage_type] += response[usage_key][usage_type]
 					except KeyError:
 						pass
 
@@ -371,9 +400,6 @@ class BaseTypoCorrector():
 			)
 		)
 
-	def _get_api_url(self):
-		return self.provider_object.url
-
 	def _get_input_info(self, input_text):
 		input_info = {
 			"input_text": input_text,
@@ -422,21 +448,6 @@ class BaseTypoCorrector():
 		system = system + "\n須注意: " + "、".join(guidance_list)
 		return system
 
-	def _get_request_data(self, messages, input_info):
-		if input_info["focus_typo"]:
-			system_template = deepcopy(self.template[self.language]["system_tag"])
-			system_template = system_template.replace("\\n", "\n")
-			system_template = self._system_add_guidance(system_template, input_info)
-		else:
-			system_template = deepcopy(self.template[self.language]["system"])
-			system_template = system_template.replace("\\n", "\n")
-			system_template = self._system_add_guidance(system_template, input_info)
-
-		return self.provider_object.get_request_data(messages, system_template, self.model)
-
-	def _get_headers(self):
-		return self.provider_object.get_headers(self.credential)
-
 	def _chat_completion(self, input: List, response_text_history: List, input_info: dict) -> str:
 		messages = deepcopy(input)
 		comment_template = deepcopy(self.template[self.language]["comment"])
@@ -447,9 +458,19 @@ class BaseTypoCorrector():
 			messages.append({"role": "assistant", "content": response_previous})
 			messages.append({"role": "user", "content": comment})
 
-		request_data = self._get_request_data(messages, input_info)
-		api_url = self._get_api_url()
-		headers = self._get_headers()
+		if input_info["focus_typo"]:
+			system_template = deepcopy(self.template[self.language]["system_tag"])
+			system_template = system_template.replace("\\n", "\n")
+			system_template = self._system_add_guidance(system_template, input_info)
+		else:
+			system_template = deepcopy(self.template[self.language]["system"])
+			system_template = system_template.replace("\\n", "\n")
+			system_template = self._system_add_guidance(system_template, input_info)
+
+		request_data = self.provider_object.get_request_data(messages, system_template)
+		api_url = self.provider_object.url
+		headers = self.provider_object.get_headers()
+		print(request_data)
 
 		return self._post_with_retries(request_data, api_url, headers)
 

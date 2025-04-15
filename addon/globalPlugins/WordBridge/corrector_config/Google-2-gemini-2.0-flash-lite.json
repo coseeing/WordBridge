@@ -1,7 +1,7 @@
 {
 	"model": {
-		"model_name": "gpt-4.5-preview",
-		"provider": "OpenAI",
+		"model_name": "gemini-2.0-flash-lite",
+		"provider": "Google",
 		"llm_access_method": "personal_api_key",
 		"require_secret_key": false,
 		"template_name": {
