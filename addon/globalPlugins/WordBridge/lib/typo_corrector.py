@@ -470,7 +470,6 @@ class BaseTypoCorrector():
 		request_data = self.provider_object.get_request_data(messages, system_template)
 		api_url = self.provider_object.url
 		headers = self.provider_object.get_headers()
-		print(request_data)
 
 		return self._post_with_retries(request_data, api_url, headers)
 

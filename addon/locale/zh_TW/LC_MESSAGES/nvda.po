@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 'WordBridge' '2025.4.16'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-04-17 08:33+0800\n"
-"PO-Revision-Date: 2025-04-17 08:36+0800\n"
+"POT-Creation-Date: 2025-04-17 10:20+0800\n"
+"PO-Revision-Date: 2025-04-17 10:21+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -122,6 +122,11 @@ msgid "Show correction report"
 msgstr "顯示修正報告"
 
 #: addon\globalPlugins\WordBridge\__init__.py:386
+msgid ""
+"You have not run a typos correction task with the Coseeing service provider "
+"yet."
+msgstr "您尚未使用 Coseeing 服務提供商執行任何錯字校對任務。"
+
 #: addon\globalPlugins\WordBridge\__init__.py:387
 #: addon\globalPlugins\WordBridge\__init__.py:405
 #: addon\globalPlugins\WordBridge\__init__.py:406
@@ -400,7 +405,7 @@ msgstr ""
 
 #: addon\globalPlugins\WordBridge\lib\coseeing.py:41
 #: addon\globalPlugins\WordBridge\lib\typo_corrector.py:398
-#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:509
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:508
 #, python-brace-format
 msgid "HTTP request error ({request_error}). Please check the network setting."
 msgstr "HTTP請求錯誤 ({request_error})，請檢察網路設定。"

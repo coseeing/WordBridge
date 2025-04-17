@@ -383,7 +383,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	)
 	def script_showCorrectionReport(self, gesture):
 		if self.latest_action["diff"] is None:
-			ui.message(_("No report has been generated yet."))
+			ui.message(_("You have not run a typos correction task with the Coseeing service provider yet."))
 			log.warning(_("No report has been generated yet."))
 			return
 
