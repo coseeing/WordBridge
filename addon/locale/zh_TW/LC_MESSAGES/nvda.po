@@ -6,10 +6,10 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: 'WordBridge' '2025.4.15'\n"
+"Project-Id-Version: 'WordBridge' '2025.4.16'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-04-15 22:27+0800\n"
-"PO-Revision-Date: 2025-04-15 22:29+0800\n"
+"POT-Creation-Date: 2025-04-17 08:33+0800\n"
+"PO-Revision-Date: 2025-04-17 08:36+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -99,8 +99,8 @@ msgid ""
 msgstr "同一時間只能執行一項校對任務。請等待目前的任務完成後再開始新的任務。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:340
-msgid "Open custom dictionary"
-msgstr "開啟客製化辭典"
+msgid "Open personal dictionary editor"
+msgstr "開啟個人化辭典編輯器"
 
 #: addon\globalPlugins\WordBridge\__init__.py:348
 msgid "Execute typo correction"
@@ -114,12 +114,12 @@ msgid ""
 msgstr "改錯字無法運行，請先結束NVDA設定視窗。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:369
-msgid "Open settings dialog of WordBridge"
-msgstr "開啟 WordBridge 設定對話框"
+msgid "Open WordBridge settings"
+msgstr "開啟 WordBridge 設定"
 
 #: addon\globalPlugins\WordBridge\__init__.py:381
-msgid "Show report of correction"
-msgstr "顯示校正報告"
+msgid "Show correction report"
+msgstr "顯示修正報告"
 
 #: addon\globalPlugins\WordBridge\__init__.py:386
 #: addon\globalPlugins\WordBridge\__init__.py:387
@@ -129,8 +129,8 @@ msgid "No report has been generated yet."
 msgstr "尚未產生報告。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:394
-msgid "Feedback of correction"
-msgstr "校正回饋"
+msgid "Submit correction feedback"
+msgstr "回報修正結果"
 
 #: addon\globalPlugins\WordBridge\__init__.py:428
 #: addon\globalPlugins\WordBridge\__init__.py:429
@@ -285,7 +285,10 @@ msgstr "個人API Key"
 msgid "Coseeing Account"
 msgstr "Coseeing帳號"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:53
+#. Add-on summary, usually the user visible name of the addon.
+#. Translators: Summary for this add-on
+#. to be shown on installation and add-on information found in Add-ons Manager.
+#: addon\globalPlugins\WordBridge\dialogs.py:53 buildVars.py:23
 msgid "WordBridge"
 msgstr "WordBridge"
 
@@ -587,18 +590,26 @@ msgstr "錯誤"
 msgid "Close"
 msgstr "關閉"
 
-#. Add-on summary, usually the user visible name of the addon.
-#. Translators: Summary for this add-on
-#. to be shown on installation and add-on information found in Add-ons Manager.
-#: buildVars.py:23
-msgid "Word Bridge"
-msgstr "Word Bridge"
-
 #. Add-on description
 #. Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 #: buildVars.py:26
-msgid "Help fix Chinese typos to ensure the words are correct."
-msgstr "幫助改正中文錯字以確保文字正確。"
+msgid "helps users identify and correct homophone-based typos in Chinese."
+msgstr "協助使用者辨識並修正中文中的同音錯字。"
+
+#~ msgid "Word Bridge"
+#~ msgstr "Word Bridge"
+
+#~ msgid "Help fix Chinese typos to ensure the words are correct."
+#~ msgstr "幫助改正中文錯字以確保文字正確。"
+
+#~ msgid "Open custom dictionary"
+#~ msgstr "開啟客製化辭典"
+
+#~ msgid "Open settings dialog of WordBridge"
+#~ msgstr "開啟 WordBridge 設定對話框"
+
+#~ msgid "Feedback of correction"
+#~ msgstr "校正回饋"
 
 #~ msgid "gpt-3.5-turbo"
 #~ msgstr "gpt-3.5-turbo"

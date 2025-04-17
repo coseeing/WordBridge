@@ -337,7 +337,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+d",
-		description=_("Open custom dictionary"),
+		description=_("Open personal dictionary editor"),
 		category=ADDON_SUMMARY,
 	)
 	def script_openCustomDictionary(self, gesture):
@@ -366,7 +366,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+w",
-		description=_("Open settings dialog of WordBridge"),
+		description=_("Open WordBridge settings"),
 		category=ADDON_SUMMARY,
 	)
 	def script_openWordBridgeSettings(self, gesture):
@@ -378,7 +378,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+r",
-		description=_("Show report of correction"),
+		description=_("Show correction report"),
 		category=ADDON_SUMMARY,
 	)
 	def script_showCorrectionReport(self, gesture):
@@ -391,7 +391,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+f",
-		description=_("Feedback of correction"),
+		description=_("Submit correction feedback"),
 		category=ADDON_SUMMARY,
 	)
 	def script_correctionFeedback(self, gesture):

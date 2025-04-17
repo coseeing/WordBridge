@@ -1,34 +1,60 @@
-# WordBridge User Guide
+# WordBridge – User Guide
 
-WordBridge is a tool specifically designed to correct Chinese homophone errors. It automatically detects and corrects homophonic character mistakes in your text, helping users significantly reduce the occurrence of typos.
+**WordBridge** is an NVDA addon that helps users identify and correct homophone-based typos in Chinese.
 
-Beyond just detecting and correcting errors, WordBridge offers detailed reports clearly displaying incorrect and corrected words along with explanations. This allows users to learn from mistakes and gradually master the correct usage and associated vocabulary, effectively enhancing language proficiency and input accuracy.
+In addition to identifying and correcting homophone typos, WordBridge generates detailed reports that list the original typos, suggested corrections, and detailed descriptions of each character. This helps users learn from their mistakes and gradually master correct usage, effectively improving both language proficiency and typing accuracy.
 
-## How to Perform Text Checks
+---
 
-Select the text you wish to check, then press the shortcut key NVDA+Alt+O to initiate the checking process. You will hear beeping sounds during the check. Once completed, the corrected text will automatically be copied to the clipboard for your further use.
+## Running a Text Check
 
-## How to View Correction Reports
+To check text for typos, select the desired content and press `NVDA+Alt+O`. A sound effect will play during the check. Once complete, the corrected text will be automatically copied to the clipboard for further use.
 
-Each time a text check and correction are completed, the system generates a web-based report clearly listing all corrected errors. Incorrect characters are displayed as clickable buttons; clicking them reveals detailed explanations about the incorrect and corrected characters, helping you better understand proper usage.
+---
 
-If you have enabled the "Automatically Show Correction Report" option, the report webpage will automatically open after each check. If this option is disabled, you can manually open the report anytime by pressing the shortcut key NVDA+Alt+R.
+## Viewing Reports
 
-## Adjusting Settings
+Each time a check is performed, WordBridge generates a web-based report that clearly lists all identified typos. Each typo appears as a clickable button—clicking it reveals detailed descriptions of both the incorrect and corrected characters, helping users better understand proper usage.
 
-You can customize settings via the NVDA Menu → Preferences → Settings → WordBridge. The adjustable settings include:
+If the **“Automatically Show Correction Report”** option is enabled, the report page will open automatically after each check. Otherwise, you can open it manually at any time by pressing `NVDA+Alt+R`.
 
-* Service Provider: Choose the cloud computing resource provider.
-* Large Language Model (LLM): Select an appropriate language model based on the chosen service provider.
-* Correction Mode:
- * Standard Mode: Corrected words closely match the pronunciation of the original input, minimizing excessive corrections.
- * Lightweight Mode: Corrected words might differ from the original pronunciation, suitable for contexts with similar-sounding words.
-* Chinese Simplified/Traditional: Select the language style (Traditional or Simplified Chinese) that the language model processes by default and automatically convert the input text accordingly.
-* Custom Dictionary: Provide a custom vocabulary list to the language model to enhance accuracy for specialized terminology.
+---
+
+## Configuring Settings
+
+You can configure WordBridge via `NVDA Menu → Preferences → Settings → WordBridge`. The available settings include:
+
+- **Service Provider**  
+  Select the cloud computing provider that powers the correction service.
+
+- **Large Language Model (LLM)**  
+  Choose an appropriate language model based on the selected provider.
+
+- **Correction Mode**  
+  - *Standard Mode*: Produces corrections that closely match the original pronunciation, suitable for users who want to avoid overextending to loosely related homophones.  
+  - *Lightweight Mode*: May produce corrections that differ more from the original pronunciation, suitable for input contexts where users want to explore broader homophone associations.
+
+- **Simplified/Traditional Chinese**  
+  Specify whether the language model should process Simplified or Traditional Chinese. Input text will be automatically converted to match the selected form.
+
+- **Personal Dictionary**  
+  Provide a custom vocabulary list to improve correction accuracy for domain-specific or specialized terminology.
+
+---
+
+## Keyboard Shortcuts
+
+| Function                           | Shortcut Key     |
+|------------------------------------|------------------|
+| Execute typo correction            | `NVDA+Alt+O`     |
+| Show correction report             | `NVDA+Alt+R`     |
+| Open WordBridge settings           | `NVDA+Alt+W`     |
+| Open personal dictionary editor    | `NVDA+Alt+D`     |
+| Submit correction feedback         | `NVDA+Alt+F`     |
 
 ## Reporting Errors
 
-If you encounter incorrect corrections when using the Coseeing service provider, please report them by pressing the shortcut key NVDA+Alt+F. Your feedback helps us continually optimize the algorithm to enhance correction accuracy.
+If you notice incorrect corrections while using the **Coseeing** service provider, press `NVDA+Alt+F` to report them. Your feedback helps us continuously refine the correction algorithm and improve overall accuracy.
 
 ## test history
 
