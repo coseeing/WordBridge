@@ -383,7 +383,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	)
 	def script_showCorrectionReport(self, gesture):
 		if self.latest_action["diff"] is None:
-			ui.message(_("You have not run a typos correction task with the Coseeing service provider yet."))
+			ui.message(_("No report has been generated yet."))
 			log.warning(_("No report has been generated yet."))
 			return
 
@@ -395,15 +395,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category=ADDON_SUMMARY,
 	)
 	def script_correctionFeedback(self, gesture):
-		# self.latest_action = {
-		# 	"request": "考式以經通過",
-		# 	"response": "考試已經通過",
-		# 	"diff": None,
-		# 	"interaction_id": 1,
-		# }
 		if self.latest_action["interaction_id"] is None:
-			ui.message(_("No report has been generated yet."))
-			log.warning(_("No report has been generated yet."))
+			ui.message(_("You have not run a typos correction task with the Coseeing service provider yet."))
+
+			log.warning(_("You have not run a typos correction task with the Coseeing service provider yet."))
 			return
 
 		def show():
