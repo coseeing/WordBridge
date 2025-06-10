@@ -6,10 +6,10 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: 'WordBridge' '2025.4.16'\n"
+"Project-Id-Version: 'WordBridge' '2025.6.10'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-04-17 10:20+0800\n"
-"PO-Revision-Date: 2025-04-17 10:21+0800\n"
+"POT-Creation-Date: 2025-06-10 17:59+0800\n"
+"PO-Revision-Date: 2025-06-10 18:00+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_TW\n"
@@ -39,7 +39,7 @@ msgstr "選取範圍不含漢字，無法分析。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:236
 #: addon\globalPlugins\WordBridge\__init__.py:237
-#: addon\globalPlugins\WordBridge\__init__.py:443
+#: addon\globalPlugins\WordBridge\__init__.py:438
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred during the program execution, the details are: {e}"
@@ -122,14 +122,7 @@ msgid "Show correction report"
 msgstr "顯示修正報告"
 
 #: addon\globalPlugins\WordBridge\__init__.py:386
-msgid ""
-"You have not run a typos correction task with the Coseeing service provider "
-"yet."
-msgstr "您尚未使用 Coseeing 服務提供商執行任何錯字校對任務。"
-
 #: addon\globalPlugins\WordBridge\__init__.py:387
-#: addon\globalPlugins\WordBridge\__init__.py:405
-#: addon\globalPlugins\WordBridge\__init__.py:406
 msgid "No report has been generated yet."
 msgstr "尚未產生報告。"
 
@@ -137,34 +130,45 @@ msgstr "尚未產生報告。"
 msgid "Submit correction feedback"
 msgstr "回報修正結果"
 
-#: addon\globalPlugins\WordBridge\__init__.py:428
-#: addon\globalPlugins\WordBridge\__init__.py:429
+#: addon\globalPlugins\WordBridge\__init__.py:399
+#: addon\globalPlugins\WordBridge\__init__.py:401
+msgid ""
+"You have not run a typos correction task with the Coseeing service provider "
+"yet."
+msgstr "您尚未使用 Coseeing 服務提供商執行任何錯字校對任務。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:423
+#: addon\globalPlugins\WordBridge\__init__.py:424
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred while logging into Coseeing, the details are: {e}"
 msgstr "抱歉，登入 Coseeing 時遇到了一些問題，錯誤詳情是: {e}"
 
-#: addon\globalPlugins\WordBridge\__init__.py:442
+#: addon\globalPlugins\WordBridge\__init__.py:437
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred during the feedback request, the details are: {e}"
 msgstr "抱歉，回報錯字時遇到了一些問題，錯誤詳情是: {e}"
 
-#: addon\globalPlugins\WordBridge\configManager.py:9
+#: addon\globalPlugins\WordBridge\configManager.py:8
 msgid "Anthropic"
 msgstr "Anthropic"
 
-#: addon\globalPlugins\WordBridge\configManager.py:10
+#: addon\globalPlugins\WordBridge\configManager.py:9
 msgid "Baidu"
 msgstr "百度"
 
-#: addon\globalPlugins\WordBridge\configManager.py:11
+#: addon\globalPlugins\WordBridge\configManager.py:10
 msgid "Coseeing"
 msgstr "Coseeing"
 
-#: addon\globalPlugins\WordBridge\configManager.py:12
+#: addon\globalPlugins\WordBridge\configManager.py:11
 msgid "DeepSeek"
 msgstr "DeepSeek"
+
+#: addon\globalPlugins\WordBridge\configManager.py:12
+msgid "Google"
+msgstr "Google"
 
 #: addon\globalPlugins\WordBridge\configManager.py:13
 msgid "OpenAI"
@@ -175,96 +179,80 @@ msgid "OpenRouter"
 msgstr "OpenRouter"
 
 #: addon\globalPlugins\WordBridge\configManager.py:15
-msgid "Google"
-msgstr "Google"
-
-#: addon\globalPlugins\WordBridge\configManager.py:16
 msgid "claude-3-5-haiku"
 msgstr "claude-3-5-haiku"
 
+#: addon\globalPlugins\WordBridge\configManager.py:16
+msgid "claude-3.7-sonnet"
+msgstr "claude-3.7-sonnet"
+
 #: addon\globalPlugins\WordBridge\configManager.py:17
-msgid "claude-3-5-sonnet"
-msgstr "claude-3-5-sonnet"
+msgid "claude-4-sonnet"
+msgstr "claude-4-sonnet"
 
 #: addon\globalPlugins\WordBridge\configManager.py:18
-msgid "claude-3-7-sonnet"
-msgstr "claude-3-7-sonnet"
-
-#: addon\globalPlugins\WordBridge\configManager.py:19
 msgid "deepseek-v3"
 msgstr "deepseek-v3"
 
-#: addon\globalPlugins\WordBridge\configManager.py:20
+#: addon\globalPlugins\WordBridge\configManager.py:19
 msgid "deepseek-chat"
 msgstr "deepseek-chat"
 
-#: addon\globalPlugins\WordBridge\configManager.py:21
+#: addon\globalPlugins\WordBridge\configManager.py:20
 msgid "deepseek-reasoner"
 msgstr "deepseek-reasoner"
 
-#: addon\globalPlugins\WordBridge\configManager.py:22
+#: addon\globalPlugins\WordBridge\configManager.py:21
 msgid "deepseek-chat(free)"
 msgstr "deepseek-chat(free)"
 
-#: addon\globalPlugins\WordBridge\configManager.py:23
+#: addon\globalPlugins\WordBridge\configManager.py:22
 msgid "deepseek-chat-0324(free)"
 msgstr "deepseek-chat-0324(free)"
 
+#: addon\globalPlugins\WordBridge\configManager.py:23
+msgid "deepseek-chat-0528(free)"
+msgstr "deepseek-chat-0528(free)"
+
 #: addon\globalPlugins\WordBridge\configManager.py:24
-msgid "deepseek-reasoner(free)"
-msgstr "deepseek-reasoner(free)"
+msgid "deepseek-chat-0528-qwen3-8b(free)"
+msgstr "deepseek-chat-0528-qwen3-8b(free)"
 
 #: addon\globalPlugins\WordBridge\configManager.py:25
-msgid "gemini-2.0-flash"
-msgstr "gemini-2.0-flash"
+msgid "gemini-2.5-flash"
+msgstr "gemini-2.5-flash"
 
 #: addon\globalPlugins\WordBridge\configManager.py:26
-msgid "gemini-2.0-flash-lite"
-msgstr "gemini-2.0-flash-lite"
+msgid "gemini-2.5-pro"
+msgstr "gemini-2.5-pro"
 
 #: addon\globalPlugins\WordBridge\configManager.py:27
-msgid "gemini-2.5-pro-exp-03-25(free)"
-msgstr "gemini-2.5-pro-exp-03-25(free)"
-
-#: addon\globalPlugins\WordBridge\configManager.py:28
 msgid "gpt-4o"
 msgstr "gpt-4o"
 
-#: addon\globalPlugins\WordBridge\configManager.py:29
+#: addon\globalPlugins\WordBridge\configManager.py:28
 msgid "gpt-4o-mini"
 msgstr "gpt-4o-mini"
 
-#: addon\globalPlugins\WordBridge\configManager.py:30
+#: addon\globalPlugins\WordBridge\configManager.py:29
 msgid "gpt-4.1"
 msgstr "gpt-4.1"
 
-#: addon\globalPlugins\WordBridge\configManager.py:31
+#: addon\globalPlugins\WordBridge\configManager.py:30
 msgid "gpt-4.1-mini"
 msgstr "gpt-4.1-mini"
 
-#: addon\globalPlugins\WordBridge\configManager.py:32
+#: addon\globalPlugins\WordBridge\configManager.py:31
 msgid "gpt-4.1-nano"
 msgstr "gpt-4.1-nano"
 
+#: addon\globalPlugins\WordBridge\configManager.py:32
+msgid "o4-mini"
+msgstr "o4-mini"
+
 #: addon\globalPlugins\WordBridge\configManager.py:33
-msgid "o1-mini"
-msgstr "o1-mini"
-
-#: addon\globalPlugins\WordBridge\configManager.py:34
-msgid "o1"
-msgstr "o1"
-
-#: addon\globalPlugins\WordBridge\configManager.py:35
-msgid "o3-mini"
-msgstr "o3-mini"
-
-#: addon\globalPlugins\WordBridge\configManager.py:36
 msgid "ernie-4.0-turbo-8k"
 msgstr "文心-4.0-turbo-8k"
-
-#: addon\globalPlugins\WordBridge\configManager.py:37
-msgid "ernie-4.0-8k-preview"
-msgstr "ernie-4.0-8k-preview"
 
 #: addon\globalPlugins\WordBridge\dialogs.py:24
 msgid "Traditional Chinese"
@@ -404,8 +392,8 @@ msgstr ""
 "Try = {try_index}, {request_error}, 向 Coseeing 發送請求時發生錯誤: {e}"
 
 #: addon\globalPlugins\WordBridge\lib\coseeing.py:41
-#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:398
-#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:508
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:385
+#: addon\globalPlugins\WordBridge\lib\typo_corrector.py:495
 #, python-brace-format
 msgid "HTTP request error ({request_error}). Please check the network setting."
 msgstr "HTTP請求錯誤 ({request_error})，請檢察網路設定。"
@@ -600,6 +588,24 @@ msgstr "關閉"
 #: buildVars.py:26
 msgid "helps users identify and correct homophone-based typos in Chinese."
 msgstr "協助使用者辨識並修正中文中的同音錯字。"
+
+#~ msgid "deepseek-reasoner(free)"
+#~ msgstr "deepseek-reasoner(free)"
+
+#~ msgid "gemini-2.0-flash-lite"
+#~ msgstr "gemini-2.0-flash-lite"
+
+#~ msgid "gemini-2.5-pro-exp-03-25(free)"
+#~ msgstr "gemini-2.5-pro-exp-03-25(free)"
+
+#~ msgid "o1"
+#~ msgstr "o1"
+
+#~ msgid "o3-mini"
+#~ msgstr "o3-mini"
+
+#~ msgid "ernie-4.0-8k-preview"
+#~ msgstr "ernie-4.0-8k-preview"
 
 #~ msgid "Word Bridge"
 #~ msgstr "Word Bridge"
