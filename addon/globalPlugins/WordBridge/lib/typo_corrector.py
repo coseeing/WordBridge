@@ -55,7 +55,7 @@ class BaseTypoCorrector():
 		"openrouter": OpenrouterProvider,
 	}
 	MODEL = {
-		"claude-3-5-haiku-latest": {
+		"claude-3-5-haiku-20241022": {
 			"usage_key": "usage",
 			"input_tokens": "0.8",
 			"cache_creation_input_tokens": "1",
@@ -63,7 +63,7 @@ class BaseTypoCorrector():
 			"output_tokens": "4",
 			"base_unit": "1000000"
 		},
-		"claude-3-5-sonnet-latest": {
+		"claude-3-7-sonnet-20250219": {
 			"usage_key": "usage",
 			"input_tokens": "3",
 			"cache_creation_input_tokens": "3.75",
@@ -71,7 +71,7 @@ class BaseTypoCorrector():
 			"output_tokens": "15",
 			"base_unit": "1000000"
 		},
-		"claude-3-7-sonnet-latest": {
+		"claude-sonnet-4-20250514": {
 			"usage_key": "usage",
 			"input_tokens": "3",
 			"cache_creation_input_tokens": "3.75",
@@ -96,70 +96,57 @@ class BaseTypoCorrector():
 		},
 		"deepseek/deepseek-chat:free": {},
 		"deepseek/deepseek-chat-v3-0324:free": {},
-		"deepseek/deepseek-r1:free": {},
-		"gemini-2.0-flash": {
+		"deepseek/deepseek-r1-0528:free": {},
+		"deepseek/deepseek-r1-0528-qwen3-8b:free": {},
+		"gemini-2.5-flash-preview-05-20": {
 			"usage_key": "usageMetadata",
-			"promptTokenCount": "0.1",
-			"candidatesTokenCount": "0.4",
+			"promptTokenCount": "0.15",
+			"candidatesTokenCount": "0.6",
 			"base_unit": "1000000"
 		},
-		"gemini-2.0-flash-lite": {
+		"gemini-2.5-pro-preview-06-05": {
 			"usage_key": "usageMetadata",
-			"promptTokenCount": "0.075",
-			"candidatesTokenCount": "0.3",
+			"promptTokenCount": "1.25",
+			"candidatesTokenCount": "10",
 			"base_unit": "1000000"
 		},
-		"google/gemini-2.5-pro-exp-03-25:free": {},
-		"gpt-4o": {
+		"gpt-4o-2024-08-06": {
 			"usage_key": "usage",
 			"prompt_tokens": "2.5",
 			"completion_tokens": "10",
 			"base_unit": "1000000"
 		},
-		"gpt-4o-mini": {
+		"gpt-4o-mini-2024-07-18": {
 			"usage_key": "usage",
 			"prompt_tokens": "0.15",
 			"completion_tokens": "0.6",
 			"base_unit": "1000000"
 		},
-		"gpt-4.1": {
+		"gpt-4.1-2025-04-14": {
 			"usage_key": "usage",
 			"prompt_tokens": "2",
 			"completion_tokens": "8",
 			"base_unit": "1000000"
 		},
-		"gpt-4.1-mini": {
+		"gpt-4.1-mini-2025-04-14": {
 			"usage_key": "usage",
 			"prompt_tokens": "0.4",
 			"completion_tokens": "1.6",
 			"base_unit": "1000000"
 		},
-		"gpt-4.1-nano": {
+		"gpt-4.1-nano-2025-04-14": {
 			"usage_key": "usage",
 			"prompt_tokens": "0.1",
 			"completion_tokens": "0.4",
 			"base_unit": "1000000"
 		},
-		"o1-mini": {
-			"usage_key": "usage",
-			"prompt_tokens": "1.1",
-			"completion_tokens": "4.4",
-			"base_unit": "1000000"
-		},
-		"o1": {
-			"usage_key": "usage",
-			"prompt_tokens": "15",
-			"completion_tokens": "60",
-			"base_unit": "1000000"
-		},
-		"o3-mini": {
+		"o4-mini-2025-04-16": {
 			"usage_key": "usage",
 			"prompt_tokens": "1.1",
 			"completion_tokens": "4.4",
 			"base_unit": "1000000"
 		},
 		"ernie-4.0-turbo-8k": {},
-		"ernie-4.0-8k-preview": {},
 	}
 
 	def __init__(

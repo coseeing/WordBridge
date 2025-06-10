@@ -25,7 +25,7 @@ addon_info = {
 	# Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 	"addon_description": _("""helps users identify and correct homophone-based typos in Chinese."""),
 	# version
-	"addon_version": "2025.4.16",
+	"addon_version": "2025.6.10",
 	# Author(s)
 	"addon_author": "Coseeing Community Contributors <coseeing@coseeing.org>, Tseng Woody <tsengwoody.tw@gmail.com>, Music Tsai <foreverlovekaggle3@gmail.com>",
 	# URL for the add-on documentation support

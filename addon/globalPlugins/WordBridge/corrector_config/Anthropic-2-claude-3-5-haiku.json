@@ -1,6 +1,6 @@
 {
 	"model": {
-		"model_name": "claude-3-5-haiku-latest",
+		"model_name": "claude-3-5-haiku-20241022",
 		"provider": "Anthropic",
 		"llm_access_method": "personal_api_key",
 		"require_secret_key": false,

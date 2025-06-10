@@ -1,6 +1,6 @@
 {
 	"model": {
-		"model_name": "gpt-4.1",
+		"model_name": "gpt-4.1-2025-04-14",
 		"provider": "OpenAI",
 		"llm_access_method": "personal_api_key",
 		"require_secret_key": false,

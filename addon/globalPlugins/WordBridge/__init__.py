@@ -50,7 +50,7 @@ config.conf.spec["WordBridge"] = {
 		"secret_key": {},
 		"coseeing_username": "string(default=\0)",
 		"coseeing_password": "string(default=\0)",
-		"max_char_count": "integer(default=512,min=256,max=1024)",
+		"max_char_count": "integer(default=512,min=256,max=4096)",
 		"auto_display_report": "boolean(default=False)",
 		"customized_words_enable": "boolean(default=True)",
 		"sound_effects_enable": "boolean(default=True)",

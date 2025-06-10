@@ -1,6 +1,6 @@
 {
 	"model": {
-		"model_name": "gemini-2.0-flash-lite",
+		"model_name": "gemini-2.5-pro-preview-06-05",
 		"provider": "Google",
 		"llm_access_method": "personal_api_key",
 		"require_secret_key": false,

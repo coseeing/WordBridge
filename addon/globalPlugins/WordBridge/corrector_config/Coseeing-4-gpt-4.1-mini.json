@@ -1,8 +1,8 @@
 {
 	"model": {
-		"model_name": "claude-3-7-sonnet-latest",
-		"provider": "Anthropic",
-		"llm_access_method": "personal_api_key",
+		"model_name": "gpt-4.1-mini-2025-04-14",
+		"provider": "OpenAI",
+		"llm_access_method": "coseeing_relay",
 		"require_secret_key": false,
 		"template_name": {
 			"standard": "Standard_v1.json",

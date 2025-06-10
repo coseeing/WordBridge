@@ -1,16 +1,16 @@
 {
 	"model": {
-		"model_name": "o3-mini",
-		"provider": "OpenAI",
+		"model_name": "deepseek/deepseek-r1-0528:free",
+		"provider": "OpenRouter",
 		"llm_access_method": "personal_api_key",
-		"require_secret_key": false,
+		"require_secret_key": true,
 		"template_name": {
 			"standard": "Standard_v1.json",
 			"lite": "Lite_v1.json"
 		},
 		"optional_guidance_enable": {
-			"keep_non_chinese_char": true,
-			"no_explanation": false
+			"keep_non_chinese_char": false,
+			"no_explanation": true
 		}
 	}
 }
