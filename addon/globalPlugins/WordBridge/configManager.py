@@ -26,7 +26,6 @@ LABEL_DICT = {
 	"gpt-4-turbo": _("gpt-4-turbo"),
 	"gpt-4o": _("gpt-4o"),
 	"gpt-4o-mini": _("gpt-4o-mini"),
-	"gpt-4.5-preview": _("gpt-4.5-preview"),
 	"o1-mini": _("o1-mini"),
 	"o1": _("o1"),
 	"o3-mini": _("o3-mini"),

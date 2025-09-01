@@ -112,11 +112,6 @@ class BaseTypoCorrector():
 			"completion_tokens": "0.6",
 			"base_unit": "1000000"
 		},
-		"gpt-4.5-preview": {
-			"prompt_tokens": "75",
-			"completion_tokens": "150",
-			"base_unit": "1000000"
-		},
 		"o1-mini": {
 			"prompt_tokens": "1.1",
 			"completion_tokens": "4.4",

@@ -225,10 +225,6 @@ msgstr "gpt-4o"
 msgid "gpt-4o-mini"
 msgstr "gpt-4o-mini"
 
-#: addon\globalPlugins\WordBridge\configManager.py:29
-msgid "gpt-4.5-preview"
-msgstr "gpt-4.5-preview"
-
 #: addon\globalPlugins\WordBridge\configManager.py:30
 msgid "o1-mini"
 msgstr "o1-mini"
