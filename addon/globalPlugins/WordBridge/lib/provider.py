@@ -77,10 +77,16 @@ class Provider:
 class OpenaiProvider(Provider):
 	name = "openai"
 
+	def __init__(self, credential: dict, model: str, llm_settings: dict = {}):
+		super().__init__(credential, model, llm_settings)
+		if self.model.startswith("o") or self.model in ["gpt-5", "gpt-5-mini", "gpt-5-nano"]:
+			self.timeout0 = 30
+			self.timeout_max = 60
+
 	def get_request_data(self, messages, system_template):
 		messages = [{"role": "system", "content": system_template}] + messages
 		setting = deepcopy(self.setting)
-		if self.model.startswith("o"):
+		if self.model.startswith("o") or self.model in ["gpt-5", "gpt-5-mini", "gpt-5-nano"]:
 			messages.pop(0)
 			messages[0]["content"] = system_template + "\n" + messages[0]["content"]
 			setting.pop("stop")
