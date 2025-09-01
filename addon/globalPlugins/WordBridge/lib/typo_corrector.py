@@ -140,6 +140,24 @@ class BaseTypoCorrector():
 			"completion_tokens": "0.4",
 			"base_unit": "1000000"
 		},
+		"gpt-5": {
+			"usage_key": "usage",
+			"prompt_tokens": "1.25",
+			"completion_tokens": "10",
+			"base_unit": "1000000",
+		},
+		"gpt-5-mini": {
+			"usage_key": "usage",
+			"prompt_tokens": "0.25",
+			"completion_tokens": "2",
+			"base_unit": "1000000",
+		},
+		"gpt-5-nano": {
+			"usage_key": "usage",
+			"prompt_tokens": "0.05",
+			"completion_tokens": "0.4",
+			"base_unit": "1000000",
+		},
 		"o4-mini-2025-04-16": {
 			"usage_key": "usage",
 			"prompt_tokens": "1.1",
