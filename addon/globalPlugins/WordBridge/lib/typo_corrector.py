@@ -140,6 +140,18 @@ class BaseTypoCorrector():
 			"completion_tokens": "0.4",
 			"base_unit": "1000000"
 		},
+		"o4-mini-2025-04-16": {
+			"usage_key": "usage",
+			"prompt_tokens": "1.1",
+			"completion_tokens": "4.4",
+			"base_unit": "1000000"
+		},
+		"gpt-5-chat-latest": {
+			"usage_key": "usage",
+			"prompt_tokens": "1.25",
+			"completion_tokens": "10",
+			"base_unit": "1000000",
+		},
 		"gpt-5": {
 			"usage_key": "usage",
 			"prompt_tokens": "1.25",
@@ -157,12 +169,6 @@ class BaseTypoCorrector():
 			"prompt_tokens": "0.05",
 			"completion_tokens": "0.4",
 			"base_unit": "1000000",
-		},
-		"o4-mini-2025-04-16": {
-			"usage_key": "usage",
-			"prompt_tokens": "1.1",
-			"completion_tokens": "4.4",
-			"base_unit": "1000000"
 		},
 		"ernie-4.0-turbo-8k": {},
 	}
@@ -481,8 +487,8 @@ class BaseTypoCorrector():
 	def _post_with_retries(self, request_data, api_url, headers):
 		backoff = self.backoff
 		response_json = None
-		timeout0 = self.provider_object.timeout0 if not self.model.startswith("o") else 30
-		timeout_max = self.provider_object.timeout_max if not self.model.startswith("o") else 60
+		timeout0 = self.provider_object.timeout0
+		timeout_max = self.provider_object.timeout_max
 		for r in range(self.httppost_retries):
 			timeout = min(timeout0 * (r + 1), timeout_max) if self.provider_object.name != "ollama" else 300
 			request_error = None

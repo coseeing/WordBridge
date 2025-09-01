@@ -29,6 +29,10 @@ LABEL_DICT = {
 	"gpt-4.1-2025-04-14": _("gpt-4.1"),
 	"gpt-4.1-mini-2025-04-14": _("gpt-4.1-mini"),
 	"gpt-4.1-nano-2025-04-14": _("gpt-4.1-nano"),
+	"gpt-5-chat-latest": _("gpt-5-chat-latest"),
+	"gpt-5": _("gpt-5"),
+	"gpt-5-mini": _("gpt-5-mini"),
+	"gpt-5-nano": _("gpt-5-nano"),
 	"o4-mini-2025-04-16": _("o4-mini"),
 	"ernie-4.0-turbo-8k": _("ernie-4.0-turbo-8k"),
 }
