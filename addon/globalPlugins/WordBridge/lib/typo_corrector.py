@@ -98,13 +98,13 @@ class BaseTypoCorrector():
 		"deepseek/deepseek-chat-v3-0324:free": {},
 		"deepseek/deepseek-r1-0528:free": {},
 		"deepseek/deepseek-r1-0528-qwen3-8b:free": {},
-		"gemini-2.5-flash-preview-05-20": {
+		"gemini-2.5-flash": {
 			"usage_key": "usageMetadata",
-			"promptTokenCount": "0.15",
-			"candidatesTokenCount": "0.6",
+			"promptTokenCount": "0.3",
+			"candidatesTokenCount": "2.5",
 			"base_unit": "1000000"
 		},
-		"gemini-2.5-pro-preview-06-05": {
+		"gemini-2.5-pro": {
 			"usage_key": "usageMetadata",
 			"promptTokenCount": "1.25",
 			"candidatesTokenCount": "10",
