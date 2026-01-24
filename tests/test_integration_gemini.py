@@ -1,5 +1,6 @@
 import pytest
 from lib.typo_corrector import ChineseTypoCorrector
+import json
 
 @pytest.mark.integration
 @pytest.mark.slow
@@ -33,6 +34,9 @@ def test_gemini_basic_correction(gemini_credentials, gemini_config):
 	print(f"API calls: {len(corrector.response_history)}")
 	print(f"Diff:   {diff}")
 
+	print("\n=== API Response ===")
+	print(json.dumps(corrector.response_history[0], indent=2, ensure_ascii=False))
+
 @pytest.mark.integration
 @pytest.mark.slow
 def test_gemini_with_typo(gemini_credentials, gemini_config):
@@ -52,13 +56,16 @@ def test_gemini_with_typo(gemini_credentials, gemini_config):
 	assert response is not None
 	assert isinstance(response, str)
 
+	cost = corrector.get_total_cost()
+
+	assert cost >= 0
+
 	print(f"\n=== Typo Correction Test ===")
 	print(f"Input:  {test_text}")
 	print(f"Output: {response}")
+	print(f"Cost:   ${cost} USD")
 	print(f"Changed: {test_text != response}")
 	print(f"Diff:   {diff}")
 
-	cost = corrector.get_total_cost()
-	print(f"Cost:   ${cost} USD")
-	
-	assert cost >= 0
+	print("\n=== API Response ===")
+	print(json.dumps(corrector.response_history[0], indent=2, ensure_ascii=False))
