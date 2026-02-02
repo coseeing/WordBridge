@@ -41,6 +41,10 @@ def credentials():
 			api_key = os.getenv("TEST_OPENAI_API_KEY")
 			if not api_key:
 				pytest.skip("TEST_OPENAI_API_KEY not found in environment")
+		elif provider == "Anthropic":
+			api_key = os.getenv("TEST_ANTHROPIC_API_KEY")
+			if not api_key:
+				pytest.skip("TEST_ANTHROPIC_API_KEY not found in environment")
 		else:
 			pytest.skip(f"Unknown provider: {provider}")
 
