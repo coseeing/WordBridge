@@ -2,18 +2,20 @@ import pytest
 from lib.typo_corrector import ChineseTypoCorrector
 from test_helpers import print_test_results
 
-# Test representative Gemini models
-GEMINI_MODELS_TO_TEST = [
-	"gemini-2.5-flash",
-	"gemini-2.5-pro",
+# Test representative models from different series
+OPENAI_MODELS_TO_TEST = [
+	"gpt-4.1-2025-04-14",
+	"gpt-4o-mini-2024-07-18",
+	"o4-mini-2025-04-16",
+	"gpt-5"
 ]
 
 @pytest.mark.integration
 @pytest.mark.slow
-@pytest.mark.parametrize("model_name", GEMINI_MODELS_TO_TEST)
-def test_gemini_basic_correction(model_config, credentials, test_data, model_name):
-	config = model_config(model_name, "google")
-	creds = credentials("google")
+@pytest.mark.parametrize("model_name", OPENAI_MODELS_TO_TEST)
+def test_openai_basic_correction(model_config, credentials, test_data, model_name):
+	config = model_config(model_name, "OpenAI")
+	creds = credentials("OpenAI")
 
 	corrector = ChineseTypoCorrector(
 		model=config["model_name"],
@@ -41,10 +43,10 @@ def test_gemini_basic_correction(model_config, credentials, test_data, model_nam
 
 @pytest.mark.integration
 @pytest.mark.slow
-@pytest.mark.parametrize("model_name", GEMINI_MODELS_TO_TEST)
-def test_gemini_with_typo(model_config, credentials, test_data, model_name):
-	config = model_config(model_name, "google")
-	creds = credentials("google")
+@pytest.mark.parametrize("model_name", OPENAI_MODELS_TO_TEST)
+def test_openai_with_typo(model_config, credentials, test_data, model_name):
+	config = model_config(model_name, "OpenAI")
+	creds = credentials("OpenAI")
 
 	corrector = ChineseTypoCorrector(
 		model=config["model_name"],
@@ -63,6 +65,7 @@ def test_gemini_with_typo(model_config, credentials, test_data, model_name):
 	assert isinstance(response, str)
 
 	cost = corrector.get_total_cost()
+
 	assert cost >= 0
 
 	print_test_results(model_name, test_text, response, diff, corrector)
