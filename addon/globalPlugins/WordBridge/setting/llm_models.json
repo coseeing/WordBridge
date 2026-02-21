@@ -1,0 +1,216 @@
+{
+	"claude-3-5-haiku-20241022&anthropic": {
+		"model": "claude-3-5-haiku-20241022",
+		"provider": "anthropic",
+		"pricing": {
+			"input_tokens": 0.8,
+			"cache_creation_input_tokens": 1,
+			"cache_read_input_tokens": 0.08,
+			"output_tokens": 4,
+			"base_unit": 1000000
+		},
+		"usage_schema": "anthropic_standard"
+	},
+	"claude-3-7-sonnet-20250219&anthropic": {
+		"model": "claude-3-7-sonnet-20250219",
+		"provider": "anthropic",
+		"pricing": {
+			"input_tokens": 3,
+			"cache_creation_input_tokens": 3.75,
+			"cache_read_input_tokens": 0.3,
+			"output_tokens": 15,
+			"base_unit": 1000000
+		},
+		"usage_schema": "anthropic_standard"
+	},
+	"claude-sonnet-4-20250514&anthropic": {
+		"model": "claude-sonnet-4-20250514",
+		"provider": "anthropic",
+		"pricing": {
+			"input_tokens": 3,
+			"cache_creation_input_tokens": 3.75,
+			"cache_read_input_tokens": 0.3,
+			"output_tokens": 15,
+			"base_unit": 1000000
+		},
+		"usage_schema": "anthropic_standard"
+	},
+	"deepseek-v3&deepseek": {
+		"model": "deepseek-v3",
+		"provider": "deepseek",
+		"pricing": {},
+		"usage_schema": null
+	},
+	"deepseek-chat&deepseek": {
+		"model": "deepseek-chat",
+		"provider": "deepseek",
+		"pricing": {
+			"prompt_cache_hit_tokens": 0.07,
+			"prompt_cache_miss_tokens": 0.27,
+			"completion_tokens": 1.1,
+			"base_unit": 1000000
+		},
+		"usage_schema": "deepseek_standard"
+	},
+	"deepseek-reasoner&deepseek": {
+		"model": "deepseek-reasoner",
+		"provider": "deepseek",
+		"pricing": {
+			"prompt_cache_hit_tokens": 0.14,
+			"prompt_cache_miss_tokens": 0.55,
+			"completion_tokens": 2.19,
+			"base_unit": 1000000
+		},
+		"usage_schema": "deepseek_standard"
+	},
+	"deepseek/deepseek-chat:free&openrouter": {
+		"model": "deepseek/deepseek-chat:free",
+		"provider": "openrouter",
+		"pricing": {},
+		"usage_schema": null
+	},
+	"deepseek/deepseek-chat-v3-0324:free&openrouter": {
+		"model": "deepseek/deepseek-chat-v3-0324:free",
+		"provider": "openrouter",
+		"pricing": {},
+		"usage_schema": null
+	},
+	"deepseek/deepseek-r1-0528:free&openrouter": {
+		"model": "deepseek/deepseek-r1-0528:free",
+		"provider": "openrouter",
+		"pricing": {},
+		"usage_schema": null
+	},
+	"deepseek/deepseek-r1-0528-qwen3-8b:free&openrouter": {
+		"model": "deepseek/deepseek-r1-0528-qwen3-8b:free",
+		"provider": "openrouter",
+		"pricing": {},
+		"usage_schema": null
+	},
+	"gemini-2.5-flash&google": {
+		"model": "gemini-2.5-flash",
+		"provider": "google",
+		"pricing": {
+			"promptTokenCount": 0.3,
+			"candidatesTokenCount": 2.5,
+			"base_unit": 1000000
+		},
+		"usage_schema": "google_standard"
+	},
+	"gemini-2.5-pro&google": {
+		"model": "gemini-2.5-pro",
+		"provider": "google",
+		"pricing": {
+			"promptTokenCount": 1.25,
+			"candidatesTokenCount": 10,
+			"base_unit": 1000000
+		},
+		"usage_schema": "google_standard"
+	},
+	"gpt-4o-2024-08-06&openai": {
+		"model": "gpt-4o-2024-08-06",
+		"provider": "openai",
+		"pricing": {
+			"prompt_tokens": 2.5,
+			"completion_tokens": 10,
+			"base_unit": 1000000
+		},
+		"usage_schema": "openai_standard"
+	},
+	"gpt-4o-mini-2024-07-18&openai": {
+		"model": "gpt-4o-mini-2024-07-18",
+		"provider": "openai",
+		"pricing": {
+			"prompt_tokens": 0.15,
+			"completion_tokens": 0.6,
+			"base_unit": 1000000
+		},
+		"usage_schema": "openai_standard"
+	},
+	"gpt-4.1-2025-04-14&openai": {
+		"model": "gpt-4.1-2025-04-14",
+		"provider": "openai",
+		"pricing": {
+			"prompt_tokens": 2,
+			"completion_tokens": 8,
+			"base_unit": 1000000
+		},
+		"usage_schema": "openai_standard"
+	},
+	"gpt-4.1-mini-2025-04-14&openai": {
+		"model": "gpt-4.1-mini-2025-04-14",
+		"provider": "openai",
+		"pricing": {
+			"prompt_tokens": 0.4,
+			"completion_tokens": 1.6,
+			"base_unit": 1000000
+		},
+		"usage_schema": "openai_standard"
+	},
+	"gpt-4.1-nano-2025-04-14&openai": {
+		"model": "gpt-4.1-nano-2025-04-14",
+		"provider": "openai",
+		"pricing": {
+			"prompt_tokens": 0.1,
+			"completion_tokens": 0.4,
+			"base_unit": 1000000
+		},
+		"usage_schema": "openai_standard"
+	},
+	"o4-mini-2025-04-16&openai": {
+		"model": "o4-mini-2025-04-16",
+		"provider": "openai",
+		"pricing": {
+			"prompt_tokens": 1.1,
+			"completion_tokens": 4.4,
+			"base_unit": 1000000
+		},
+		"usage_schema": "openai_standard"
+	},
+	"gpt-5-chat-latest&openai": {
+		"model": "gpt-5-chat-latest",
+		"provider": "openai",
+		"pricing": {
+			"prompt_tokens": 1.25,
+			"completion_tokens": 10,
+			"base_unit": 1000000
+		},
+		"usage_schema": "openai_standard"
+	},
+	"gpt-5&openai": {
+		"model": "gpt-5",
+		"provider": "openai",
+		"pricing": {
+			"prompt_tokens": 1.25,
+			"completion_tokens": 10,
+			"base_unit": 1000000
+		},
+		"usage_schema": "openai_standard"
+	},
+	"gpt-5-mini&openai": {
+		"model": "gpt-5-mini",
+		"provider": "openai",
+		"pricing": {
+			"prompt_tokens": 0.25,
+			"completion_tokens": 2,
+			"base_unit": 1000000
+		},
+		"usage_schema": "openai_standard"
+	},
+	"gpt-5-nano&openai": {
+		"model": "gpt-5-nano",
+		"provider": "openai",
+		"pricing": {
+			"prompt_tokens": 0.05,
+			"completion_tokens": 0.4,
+			"base_unit": 1000000
+		},
+		"usage_schema": "openai_standard"
+	},
+	"ernie-4.0-turbo-8k&baidu": {
+		"model": "ernie-4.0-turbo-8k",
+		"provider": "baidu",
+		"pricing": {},
+		"usage_schema": null
+	}
+}
