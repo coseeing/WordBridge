@@ -1,0 +1,19 @@
+{
+	"name": "openai",
+	"url": "https://api.openai.com/v1/chat/completions",
+	"setting": {
+		"max_completion_tokens": 4096,
+		"seed": 0,
+		"temperature": 0.0,
+		"top_p": 0.0,
+		"stop": [" =>"]
+	},
+	"timeout0": 10,
+	"timeout_max": 20,
+	"usage_schemas": {
+		"openai_standard": {
+			"usage_key": "usage",
+			"fields": ["prompt_tokens", "completion_tokens"]
+		}
+	}
+}
