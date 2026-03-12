@@ -9,7 +9,8 @@
 			"output_tokens": 5,
 			"base_unit": 1000000
 		},
-		"usage_schema": "anthropic_standard"
+		"usage_schema": "anthropic_standard",
+		"usage_key": "usage"
 	},
 	"claude-sonnet-4-20250514&anthropic": {
 		"model": "claude-sonnet-4-20250514",
@@ -21,7 +22,8 @@
 			"output_tokens": 15,
 			"base_unit": 1000000
 		},
-		"usage_schema": "anthropic_standard"
+		"usage_schema": "anthropic_standard",
+		"usage_key": "usage"
 	},
 	"deepseek-v3&deepseek": {
 		"model": "deepseek-v3",
@@ -83,7 +85,8 @@
 			"candidatesTokenCount": 2.5,
 			"base_unit": 1000000
 		},
-		"usage_schema": "google_standard"
+		"usage_schema": "google_standard",
+		"usage_key": "usageMetadata"
 	},
 	"gemini-2.5-pro&google": {
 		"model": "gemini-2.5-pro",
@@ -93,7 +96,8 @@
 			"candidatesTokenCount": 10,
 			"base_unit": 1000000
 		},
-		"usage_schema": "google_standard"
+		"usage_schema": "google_standard",
+		"usage_key": "usageMetadata"
 	},
 	"gpt-4o-2024-08-06&openai": {
 		"model": "gpt-4o-2024-08-06",
@@ -103,7 +107,8 @@
 			"completion_tokens": 10,
 			"base_unit": 1000000
 		},
-		"usage_schema": "openai_standard"
+		"usage_schema": "openai_standard",
+		"usage_key": "usage"
 	},
 	"gpt-4o-mini-2024-07-18&openai": {
 		"model": "gpt-4o-mini-2024-07-18",
@@ -113,7 +118,8 @@
 			"completion_tokens": 0.6,
 			"base_unit": 1000000
 		},
-		"usage_schema": "openai_standard"
+		"usage_schema": "openai_standard",
+		"usage_key": "usage"
 	},
 	"gpt-4.1-2025-04-14&openai": {
 		"model": "gpt-4.1-2025-04-14",
@@ -123,7 +129,8 @@
 			"completion_tokens": 8,
 			"base_unit": 1000000
 		},
-		"usage_schema": "openai_standard"
+		"usage_schema": "openai_standard",
+		"usage_key": "usage"
 	},
 	"gpt-4.1-mini-2025-04-14&openai": {
 		"model": "gpt-4.1-mini-2025-04-14",
@@ -133,7 +140,8 @@
 			"completion_tokens": 1.6,
 			"base_unit": 1000000
 		},
-		"usage_schema": "openai_standard"
+		"usage_schema": "openai_standard",
+		"usage_key": "usage"
 	},
 	"gpt-4.1-nano-2025-04-14&openai": {
 		"model": "gpt-4.1-nano-2025-04-14",
@@ -143,7 +151,8 @@
 			"completion_tokens": 0.4,
 			"base_unit": 1000000
 		},
-		"usage_schema": "openai_standard"
+		"usage_schema": "openai_standard",
+		"usage_key": "usage"
 	},
 	"o4-mini-2025-04-16&openai": {
 		"model": "o4-mini-2025-04-16",
@@ -153,7 +162,8 @@
 			"completion_tokens": 4.4,
 			"base_unit": 1000000
 		},
-		"usage_schema": "openai_standard"
+		"usage_schema": "openai_standard",
+		"usage_key": "usage"
 	},
 	"gpt-5-chat-latest&openai": {
 		"model": "gpt-5-chat-latest",
@@ -163,7 +173,8 @@
 			"completion_tokens": 10,
 			"base_unit": 1000000
 		},
-		"usage_schema": "openai_standard"
+		"usage_schema": "openai_standard",
+		"usage_key": "usage"
 	},
 	"gpt-5&openai": {
 		"model": "gpt-5",
@@ -173,7 +184,8 @@
 			"completion_tokens": 10,
 			"base_unit": 1000000
 		},
-		"usage_schema": "openai_standard"
+		"usage_schema": "openai_standard",
+		"usage_key": "usage"
 	},
 	"gpt-5-mini&openai": {
 		"model": "gpt-5-mini",
@@ -183,7 +195,8 @@
 			"completion_tokens": 2,
 			"base_unit": 1000000
 		},
-		"usage_schema": "openai_standard"
+		"usage_schema": "openai_standard",
+		"usage_key": "usage"
 	},
 	"gpt-5-nano&openai": {
 		"model": "gpt-5-nano",
@@ -193,12 +206,14 @@
 			"completion_tokens": 0.4,
 			"base_unit": 1000000
 		},
-		"usage_schema": "openai_standard"
+		"usage_schema": "openai_standard",
+		"usage_key": "usage"
 	},
 	"ernie-4.0-turbo-8k&baidu": {
 		"model": "ernie-4.0-turbo-8k",
 		"provider": "baidu",
 		"pricing": {},
-		"usage_schema": null
+		"usage_schema": null,
+		"usage_key": "usage"
 	}
 }

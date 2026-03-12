@@ -4,6 +4,7 @@ from copy import deepcopy
 from decimal import Decimal
 from threading import Thread
 from typing import Any, Dict, List, Tuple
+from pathlib import Path
 
 import json
 import logging
@@ -18,6 +19,7 @@ from .provider import OpenaiProvider, AnthropicProvider, BaiduProvider, Openrout
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
 from .utils import PUNCTUATION, SEPERATOR, is_chinese_character, strings_diff, text_segmentation
 from .utils import find_correction_errors, review_correction_errors, get_segments_to_recorrect
+from .llm import CostCalculator
 
 import chinese_converter
 
@@ -53,124 +55,6 @@ class BaseTypoCorrector():
 		"deepseek": DeepseekProvider,
 		"google": GoogleProvider,
 		"openrouter": OpenrouterProvider,
-	}
-	MODEL = {
-		"claude-haiku-4-5-20251001": {
-			"usage_key": "usage",
-			"input_tokens": "1",
-			"cache_creation_input_tokens": "1.25",
-			"cache_read_input_tokens": "0.10",
-			"output_tokens": "5",
-			"base_unit": "1000000"
-		},
-		"claude-3-7-sonnet-20250219": {
-			"usage_key": "usage",
-			"input_tokens": "3",
-			"cache_creation_input_tokens": "3.75",
-			"cache_read_input_tokens": "0.3",
-			"output_tokens": "15",
-			"base_unit": "1000000"
-		},
-		"claude-sonnet-4-20250514": {
-			"usage_key": "usage",
-			"input_tokens": "3",
-			"cache_creation_input_tokens": "3.75",
-			"cache_read_input_tokens": "0.3",
-			"output_tokens": "15",
-			"base_unit": "1000000"
-		},
-		"deepseek-v3": {},
-		"deepseek-chat": {
-			"usage_key": "usage",
-			"prompt_cache_hit_tokens": "0.07",
-			"prompt_cache_miss_tokens": "0.27",
-			"completion_tokens": "1.1",
-			"base_unit": "1000000"
-		},
-		"deepseek-reasoner": {
-			"usage_key": "usage",
-			"prompt_cache_hit_tokens": "0.14",
-			"prompt_cache_miss_tokens": "0.55",
-			"completion_tokens": "2.19",
-			"base_unit": "1000000"
-		},
-		"deepseek/deepseek-chat:free": {},
-		"deepseek/deepseek-chat-v3-0324:free": {},
-		"deepseek/deepseek-r1-0528:free": {},
-		"deepseek/deepseek-r1-0528-qwen3-8b:free": {},
-		"gemini-2.5-flash": {
-			"usage_key": "usageMetadata",
-			"promptTokenCount": "0.3",
-			"candidatesTokenCount": "2.5",
-			"base_unit": "1000000"
-		},
-		"gemini-2.5-pro": {
-			"usage_key": "usageMetadata",
-			"promptTokenCount": "1.25",
-			"candidatesTokenCount": "10",
-			"base_unit": "1000000"
-		},
-		"gpt-4o-2024-08-06": {
-			"usage_key": "usage",
-			"prompt_tokens": "2.5",
-			"completion_tokens": "10",
-			"base_unit": "1000000"
-		},
-		"gpt-4o-mini-2024-07-18": {
-			"usage_key": "usage",
-			"prompt_tokens": "0.15",
-			"completion_tokens": "0.6",
-			"base_unit": "1000000"
-		},
-		"gpt-4.1-2025-04-14": {
-			"usage_key": "usage",
-			"prompt_tokens": "2",
-			"completion_tokens": "8",
-			"base_unit": "1000000"
-		},
-		"gpt-4.1-mini-2025-04-14": {
-			"usage_key": "usage",
-			"prompt_tokens": "0.4",
-			"completion_tokens": "1.6",
-			"base_unit": "1000000"
-		},
-		"gpt-4.1-nano-2025-04-14": {
-			"usage_key": "usage",
-			"prompt_tokens": "0.1",
-			"completion_tokens": "0.4",
-			"base_unit": "1000000"
-		},
-		"o4-mini-2025-04-16": {
-			"usage_key": "usage",
-			"prompt_tokens": "1.1",
-			"completion_tokens": "4.4",
-			"base_unit": "1000000"
-		},
-		"gpt-5-chat-latest": {
-			"usage_key": "usage",
-			"prompt_tokens": "1.25",
-			"completion_tokens": "10",
-			"base_unit": "1000000",
-		},
-		"gpt-5": {
-			"usage_key": "usage",
-			"prompt_tokens": "1.25",
-			"completion_tokens": "10",
-			"base_unit": "1000000",
-		},
-		"gpt-5-mini": {
-			"usage_key": "usage",
-			"prompt_tokens": "0.25",
-			"completion_tokens": "2",
-			"base_unit": "1000000",
-		},
-		"gpt-5-nano": {
-			"usage_key": "usage",
-			"prompt_tokens": "0.05",
-			"completion_tokens": "0.4",
-			"base_unit": "1000000",
-		},
-		"ernie-4.0-turbo-8k": {},
 	}
 
 	def __init__(
@@ -209,6 +93,16 @@ class BaseTypoCorrector():
 		self.suffix = ""
 		self.question_string = ""
 		self.answer_string = ""
+
+		config_key = f"{model}&{provider}"
+		model_entry = self._load_model_config(config_key)
+		self._cost_calculator = CostCalculator(model_entry)
+
+	def _load_model_config(self, config_key: str) -> dict:
+		config_path = Path(__file__).parent.parent / "setting" / "llm_models.json"
+		with open(config_path, "r", encoding="utf8") as f:
+			config = json.load(f)
+		return config.get(config_key, {})
 
 	def correct_text(self, text: str, batch_mode: bool = True, fake_corrected_text: str = None) -> Tuple:
 		"""
@@ -342,43 +236,10 @@ class BaseTypoCorrector():
 		return output_text_list
 
 	def get_total_usage(self) -> Dict:
-		"""
-		Get the total usage of OpenAI model (in tokens)
+		return self._cost_calculator.get_total_usage(self.response_history)
 
-		Returns:
-			The total usage of OpenAI model (in tokens)
-		"""
-		usage_key = self.MODEL[self.model].get("usage_key")
-		total_usage = defaultdict(int)
-		if not usage_key:
-			return total_usage
-
-		for response in self.response_history:
-			if isinstance(response, dict) and usage_key in response:
-				for usage_type in set(self.MODEL[self.model].keys()):
-					if usage_type == "base_unit" or usage_type == "usage_key":
-						continue
-					try:
-						total_usage[usage_type] += response[usage_key][usage_type]
-					except KeyError:
-						pass
-
-		return total_usage
-
-	def get_total_cost(self) -> int:
-		"""
-		Get the total cost of provider model (in USD)
-
-		Returns:
-			The total cost of provider model (in USDs)
-		"""
-		price_info = self.MODEL[self.model]
-		cost = Decimal("0")
-		usages = self.get_total_usage()
-		for key, value in usages.items():
-			cost += Decimal(price_info[key]) * Decimal(str(value)) / Decimal(price_info["base_unit"])
-
-		return cost
+	def get_total_cost(self) -> Decimal:
+		return self._cost_calculator.get_total_cost(self.response_history)
 
 	def _correct_segment_task(
 		self,
