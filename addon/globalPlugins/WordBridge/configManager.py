@@ -12,7 +12,7 @@ LABEL_DICT = {
 	"Google": _("Google"),
 	"OpenAI": _("OpenAI"),
 	"OpenRouter": _("OpenRouter"),
-	"claude-3-5-haiku-20241022": _("claude-3-5-haiku"),
+	"claude-haiku-4-5-20251001": _("claude-4-5-haiku"),
 	"claude-3-7-sonnet-20250219": _("claude-3.7-sonnet"),
 	"claude-sonnet-4-20250514": _("claude-4-sonnet"),
 	"deepseek-v3": _("deepseek-v3"),

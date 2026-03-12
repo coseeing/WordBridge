@@ -55,12 +55,12 @@ class BaseTypoCorrector():
 		"openrouter": OpenrouterProvider,
 	}
 	MODEL = {
-		"claude-3-5-haiku-20241022": {
+		"claude-haiku-4-5-20251001": {
 			"usage_key": "usage",
-			"input_tokens": "0.8",
-			"cache_creation_input_tokens": "1",
-			"cache_read_input_tokens": "0.08",
-			"output_tokens": "4",
+			"input_tokens": "1",
+			"cache_creation_input_tokens": "1.25",
+			"cache_read_input_tokens": "0.10",
+			"output_tokens": "5",
 			"base_unit": "1000000"
 		},
 		"claude-3-7-sonnet-20250219": {

@@ -5,7 +5,7 @@ from test_helpers import print_test_results
 # Test representative Anthropic Claude models
 ANTHROPIC_MODELS_TO_TEST = [
 	"claude-sonnet-4-20250514",
-	"claude-3-5-haiku-20241022",
+	"claude-haiku-4-5-20251001",
 ]
 
 @pytest.mark.integration
