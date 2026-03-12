@@ -1,24 +1,12 @@
 {
-	"claude-3-5-haiku-20241022&anthropic": {
-		"model": "claude-3-5-haiku-20241022",
+	"claude-haiku-4-5-20251001&anthropic": {
+		"model": "claude-haiku-4-5-20251001",
 		"provider": "anthropic",
 		"pricing": {
-			"input_tokens": 0.8,
-			"cache_creation_input_tokens": 1,
-			"cache_read_input_tokens": 0.08,
-			"output_tokens": 4,
-			"base_unit": 1000000
-		},
-		"usage_schema": "anthropic_standard"
-	},
-	"claude-3-7-sonnet-20250219&anthropic": {
-		"model": "claude-3-7-sonnet-20250219",
-		"provider": "anthropic",
-		"pricing": {
-			"input_tokens": 3,
-			"cache_creation_input_tokens": 3.75,
-			"cache_read_input_tokens": 0.3,
-			"output_tokens": 15,
+			"input_tokens": 1,
+			"cache_creation_input_tokens": 1.25,
+			"cache_read_input_tokens": 0.10,
+			"output_tokens": 5,
 			"base_unit": 1000000
 		},
 		"usage_schema": "anthropic_standard"
