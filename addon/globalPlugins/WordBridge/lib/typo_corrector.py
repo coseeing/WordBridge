@@ -9,10 +9,6 @@ from pathlib import Path
 import json
 import logging
 import os
-import random
-import time
-
-import requests
 
 from pypinyin import lazy_pinyin, Style
 from .provider import get_provider
@@ -112,8 +108,7 @@ class BaseTypoCorrector():
 		if fake_corrected_text is not None:
 			return fake_corrected_text, strings_diff(text, fake_corrected_text)
 
-		base_url = self.provider_object.base_url
-		self._try_internet_connection(base_url)
+		self.provider_object.try_connection()
 
 		text_corrected = ""
 		segments = text_segmentation(text, max_length=100)
@@ -243,27 +238,6 @@ class BaseTypoCorrector():
 		text = self.correct_segment(input_text, previous_results)
 		output_text_list[index] = text
 
-	def _try_internet_connection(self, url, timeout=10, try_count=1):
-		for r in range(try_count):
-			try:
-				response = requests.get(url, timeout=timeout)
-				return
-			except Exception as e:
-				request_error = type(e).__name__
-				log.error(
-					"Try = {try_index}, {request_error}, an error occurred when sending request: {e}".format(
-						try_index=(r + 1),
-						request_error=request_error,
-						e=e,
-					)
-				)
-
-		raise Exception(
-			_("HTTP request error ({request_error}). Please check the network setting.").format(
-				request_error=request_error
-			)
-		)
-
 	def _get_input_info(self, input_text):
 		input_info = {
 			"input_text": input_text,
@@ -331,51 +305,12 @@ class BaseTypoCorrector():
 			system_template = system_template.replace("\\n", "\n")
 			system_template = self._system_add_guidance(system_template, input_info)
 
-		request_data = self.provider_object.get_request_data(messages, system_template)
-		api_url = self.provider_object.url
-		headers = self.provider_object.get_headers()
-
-		return self._post_with_retries(request_data, api_url, headers)
-
-	def _post_with_retries(self, request_data, api_url, headers):
-		backoff = self.backoff
-		response_json = None
-		timeout0 = self.provider_object.timeout0
-		timeout_max = self.provider_object.timeout_max
-		for r in range(self.httppost_retries):
-			timeout = min(timeout0 * (r + 1), timeout_max) if self.provider_object.name != "ollama" else 300
-			request_error = None
-			response = None
-			try:
-				response = requests.post(
-					api_url,
-					headers=headers,
-					json=request_data,
-					timeout=timeout,
-				)
-				break
-			except Exception as e:
-				request_error = type(e).__name__
-				log.error(
-					"Try = {try_index}, {request_error}, an error occurred when sending {provider} request: {e}".format(
-						try_index=(r + 1),
-						request_error=request_error,
-						provider=self.provider_object.name,
-						e=e
-					)
-				)
-				backoff = min(backoff * (1 + random.random()), 3)
-				time.sleep(backoff)
-
-		if response is None:
-			raise Exception(
-				_("HTTP request error ({request_error}). Please check the network setting.").format(
-					request_error=request_error
-				)
-			)
-
-		self.provider_object.handle_errors(response)
-		return response.json()
+		return self.provider_object.chat_completion(
+			messages,
+			system_template,
+			retries=self.httppost_retries,
+			backoff=self.backoff
+		)
 
 	def _parse_response(self, response: str) -> str:
 		# ollama: sentence = response["message"]["content"]

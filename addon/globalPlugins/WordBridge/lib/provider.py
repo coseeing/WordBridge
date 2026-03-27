@@ -1,7 +1,11 @@
 from copy import deepcopy
 import json
+import logging
+import random
+import time
 from pathlib import Path
 
+import requests
 from requests.utils import urlparse
 
 try:
@@ -11,6 +15,7 @@ except ImportError:
 	def _(s):
 		return s
 
+log = logging.getLogger(__name__)
 
 class Provider:
 	def __init__(self, credential: dict, model: str, llm_settings: dict = {}):
@@ -73,6 +78,69 @@ class Provider:
 					message=message
 				))
 
+	def try_connection(self, timeout=10, try_count=1):
+		url = self.base_url
+		for r in range(try_count):
+			try:
+				response = requests.get(url, timeout=timeout)
+				return
+			except Exception as e:
+				request_error = type(e).__name__
+				log.error(
+					"Try = {try_index}, {request_error}, an error occurred when sending request: {e}".format(
+						try_index=(r + 1),
+						request_error=request_error,
+						e=e,
+					)
+				)
+
+		raise Exception(
+			_("HTTP request error ({request_error}). Please check the network setting.").format(
+				request_error=request_error
+			)
+		)
+
+	def chat_completion(self, messages, system_template, retries=2, backoff=1):
+		request_data = self.get_request_data(messages, system_template)
+		api_url = self.url
+		headers = self.get_headers()
+
+		current_backoff = backoff
+		response = None
+		request_error = None
+
+		for r in range(retries):
+			timeout = min(self.timeout0 * (r + 1), self.timeout_max) if self.name != "ollama" else 300
+			try:
+				response = requests.post(
+					api_url,
+					headers=headers,
+					json=request_data,
+					timeout=timeout,
+				)
+				break
+			except Exception as e:
+				request_error = type(e).__name__
+				log.error(
+					"Try = {try_index}, {request_error}, an error occurred when sending {provider} request: {e}".format(
+						try_index=(r + 1),
+						request_error=request_error,
+						provider=self.name,
+						e=e
+					)
+				)
+				current_backoff = min(current_backoff * (1 + random.random()), 3)
+				time.sleep(current_backoff)
+
+		if response is None:
+			raise Exception(
+				_("HTTP request error ({request_error}). Please check the network setting.").format(
+					request_error=request_error
+				)
+			)
+
+		self.handle_errors(response)
+		return response.json()
 
 class OpenaiProvider(Provider):
 	name = "openai"
@@ -259,4 +327,3 @@ def get_provider(provider_name: str, credential: dict, model: str, llm_settings:
 		raise ValueError(f"Unsupported provider: {provider_name}")
 
 	return provider_class(credential, model, llm_settings or {})
-
