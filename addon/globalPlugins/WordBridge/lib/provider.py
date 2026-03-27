@@ -240,3 +240,23 @@ class DeepseekProvider(Provider):
 		}
 		return data
 
+
+def get_provider(provider_name: str, credential: dict, model: str, llm_settings: dict = None) -> Provider:
+	"""
+	Factory function to create a provider instance based on the provider name.
+	"""
+	provider_mapping = {
+		"openai": OpenaiProvider,
+		"anthropic": AnthropicProvider,
+		"baidu": BaiduProvider,
+		"deepseek": DeepseekProvider,
+		"google": GoogleProvider,
+		"openrouter": OpenrouterProvider,
+	}
+
+	provider_class = provider_mapping.get(provider_name.lower())
+	if not provider_class:
+		raise ValueError(f"Unsupported provider: {provider_name}")
+
+	return provider_class(credential, model, llm_settings or {})
+

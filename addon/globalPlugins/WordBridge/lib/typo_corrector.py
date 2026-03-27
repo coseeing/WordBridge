@@ -15,11 +15,11 @@ import time
 import requests
 
 from pypinyin import lazy_pinyin, Style
-from .provider import OpenaiProvider, AnthropicProvider, BaiduProvider, OpenrouterProvider, DeepseekProvider, GoogleProvider
+from .provider import get_provider
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
 from .utils import PUNCTUATION, SEPERATOR, is_chinese_character, strings_diff, text_segmentation
 from .utils import find_correction_errors, review_correction_errors, get_segments_to_recorrect
-from .llm import CostCalculator
+from .cost_calculator import CostCalculator
 
 import chinese_converter
 
@@ -48,14 +48,6 @@ class CorrectorResult():
 
 
 class BaseTypoCorrector():
-	PROVIDER = {
-		"openai": OpenaiProvider,
-		"anthropic": AnthropicProvider,
-		"baidu": BaiduProvider,
-		"deepseek": DeepseekProvider,
-		"google": GoogleProvider,
-		"openrouter": OpenrouterProvider,
-	}
 
 	def __init__(
 		self,
@@ -73,7 +65,7 @@ class BaseTypoCorrector():
 	):
 
 		self.model = model
-		self.provider_object = self.PROVIDER[provider.lower()](credential, model)
+		self.provider_object = get_provider(provider, credential, model, llm_settings)
 
 		self.max_correction_attempts = max_correction_attempts
 		self.httppost_retries = httppost_retries
