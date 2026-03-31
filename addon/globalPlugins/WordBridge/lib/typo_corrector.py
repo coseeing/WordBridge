@@ -1,8 +1,6 @@
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
 from decimal import Decimal
-from threading import Thread
 from typing import Any, Dict, List, Tuple
 from pathlib import Path
 
@@ -14,7 +12,7 @@ from pypinyin import lazy_pinyin, Style
 from .provider import get_provider
 from .utils import get_char_pinyin, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
 from .utils import PUNCTUATION, SEPERATOR, is_chinese_character, strings_diff, text_segmentation
-from .utils import find_correction_errors, review_correction_errors, get_segments_to_recorrect
+from .utils import find_correction_errors, review_correction_errors, get_segments_to_recorrect, parallel_map
 from .cost_calculator import CostCalculator
 
 import chinese_converter
@@ -41,6 +39,77 @@ class CorrectorResult():
 		self.original_text = original_text
 		self.corrected_text = corrected_text
 		self.response_json = response_json
+
+
+class CorrectionOrchestrator:
+	def __init__(self, corrector: 'BaseTypoCorrector'):
+		self.corrector = corrector
+
+	def execute(self, text: str, batch_mode: bool = True, fake_corrected_text: str = None) -> Tuple[str, List]:
+		"""
+		Orchestrate the full text correction process.
+		
+		Returns:
+			A tuple containing the corrected text and a list of differences.
+		"""
+		if fake_corrected_text is not None:
+			return fake_corrected_text, strings_diff(text, fake_corrected_text)
+
+		self.corrector.provider_object.try_connection()
+
+		# Initial correction pass
+		text_corrected = ""
+		segments = text_segmentation(text, max_length=100)
+
+		if batch_mode:
+			results = parallel_map(self.corrector.correct_segment, segments)
+		else:
+			results = [self.corrector.correct_segment(segment) for segment in segments]
+
+		for res in results:
+			text_corrected += res.corrected_text
+			self.corrector.response_history.append(res.response_json)
+
+		# Iterative refinement loop
+		recorrection_history = None
+		for i in range(self.corrector.max_correction_attempts):
+			text_corrected_revised, typo_indices = find_correction_errors(text, text_corrected)
+
+			# No more typos found, stable
+			if text_corrected_revised == text_corrected:
+				break
+
+			text_corrected = ""
+			segments_revised = text_segmentation(text_corrected_revised, max_length=20)
+			if recorrection_history is None:
+				recorrection_history = [[] for _ in range(len(segments_revised))]
+
+			segments_to_recorrect = get_segments_to_recorrect(segments_revised, typo_indices)
+			history_for_correction = recorrection_history if i >= self.corrector.max_correction_attempts / 3 else [[] for _ in range(len(segments_revised))]
+
+			if batch_mode:
+				results = parallel_map(
+					self.corrector.correct_segment,
+					segments_to_recorrect,
+					iterable_kwargs=[{"previous_results": h} for h in history_for_correction]
+				)
+			else:
+				results = [self.corrector.correct_segment(seg, h) for seg, h in zip(segments_to_recorrect, history_for_correction)]
+
+			for j in range(len(segments_revised)):
+				if results[j].corrected_text:
+					res_text = results[j].corrected_text
+					text_corrected += res_text
+					if res_text not in recorrection_history[j] and len(res_text) < len(text) * 2:
+						recorrection_history[j].append(res_text)
+					self.corrector.response_history.append(results[j].response_json)
+				else:
+					text_corrected += segments_revised[j]
+
+		final_text = review_correction_errors(text, text_corrected)
+		diff = strings_diff(text, final_text)
+		
+		return final_text, diff
 
 
 class BaseTypoCorrector():
@@ -92,78 +161,6 @@ class BaseTypoCorrector():
 			config = json.load(f)
 		return config.get(config_key, {})
 
-	def correct_text(self, text: str, batch_mode: bool = True, fake_corrected_text: str = None) -> Tuple:
-		"""
-		Analyze typos of text using self.segment_corrector. It also analyzes the difference between the original
-		text and corrected text.
-
-		Parameters:
-			text (str): The text to be analyzed for typos.
-			batch_mode (bool): If specified, enable multithread for typo correction
-			fake_corrected_text (str, optional): If specified, return input text without correction steps.
-
-		Returns:
-			A tuple containing the corrected text and a list of differences between the original and corrected text.
-		"""
-		if fake_corrected_text is not None:
-			return fake_corrected_text, strings_diff(text, fake_corrected_text)
-
-		self.provider_object.try_connection()
-
-		text_corrected = ""
-		segments = text_segmentation(text, max_length=100)
-
-		# Typo correction
-		if batch_mode:
-			corrector_result_list = self.correct_segment_batch(segments)
-		else:
-			corrector_result_list = [self.correct_segment(segment) for segment in segments]
-		for corrector_result in corrector_result_list:
-			text_corrected += corrector_result.corrected_text
-			self.response_history.append(corrector_result.response_json)
-
-		# Find typo and keep correcting
-		recorrection_history = None
-		for i in range(self.max_correction_attempts):
-			# Find typo
-			text_corrected_previous = text_corrected
-			text_corrected_revised, typo_indices = find_correction_errors(text, text_corrected)
-
-			# No typo, stop correction
-			if text_corrected_revised == text_corrected:
-				break
-
-			# Keep correction
-			text_corrected = ""
-			segments_revised = text_segmentation(text_corrected_revised, max_length=20)
-			if recorrection_history is None:
-				recorrection_history = [[] for _ in range(len(segments_revised))]
-			segments_to_recorrect = get_segments_to_recorrect(segments_revised, typo_indices)
-			# for j in range(len(segments_to_recorrect)):
-				# if segments_to_recorrect[j]:
-					# print(f"iter = {i}, segment = {segments_revised[j]} isn't correct => {segments_to_recorrect[j]}, text_corrected_previous = {text_corrected_previous}")
-			history_for_correction = recorrection_history if i >= self.max_correction_attempts / 3 else [[] for _ in range(len(segments_revised))]
-
-			if batch_mode:
-				corrector_result_list = self.correct_segment_batch(segments_to_recorrect, history_for_correction)
-			else:
-				corrector_result_list = [self.correct_segment(segment, segment_previous) for segment, segment_previous in zip(segments_to_recorrect, history_for_correction)]
-
-			for j in range(len(segments_revised)):
-				if corrector_result_list[j].corrected_text:
-					text_corrected += corrector_result_list[j].corrected_text
-					if corrector_result_list[j].corrected_text not in recorrection_history[j] and\
-						len(corrector_result_list[j].corrected_text) < len(text) * 2:
-						recorrection_history[j].append(corrector_result_list[j].corrected_text)
-					self.response_history.append(corrector_result_list[j].response_json)
-				else:
-					text_corrected += segments_revised[j]
-
-		text_corrected = review_correction_errors(text, text_corrected)
-		diff = strings_diff(text, text_corrected)
-
-		return text_corrected, diff
-
 	def correct_segment(self, input_text: str, previous_results: list = [], fake_operation: bool = False) -> str:
 		if fake_operation or not self._has_target_language(input_text):
 			return CorrectorResult(input_text, input_text, {})
@@ -191,52 +188,11 @@ class BaseTypoCorrector():
 
 		return corrector_result
 
-	def correct_segment_batch(self, input_text_list: list, previous_results_list: list = []) -> list:
-		assert isinstance(input_text_list, list)
-
-		if not previous_results_list:
-			previous_results_list = [[] for _ in range(len(input_text_list))]
-
-		if not input_text_list:
-			return input_text_list
-
-		output_text_list = [None] * len(input_text_list)
-
-		futures = []
-		with ThreadPoolExecutor(max_workers=20) as executor:
-			future_to_index = {
-				executor.submit(
-					self._correct_segment_task,
-					input_text_list[index],
-					previous_results_list[index],
-					output_text_list,
-					index,
-				): index for index in range(len(input_text_list))
-			}
-			try:
-				for future in as_completed(future_to_index):
-					future.result()
-			except Exception as e:
-				executor.shutdown(wait=False)
-				raise e
-
-		return output_text_list
-
 	def get_total_usage(self) -> Dict:
 		return self._cost_calculator.get_total_usage(self.response_history)
 
 	def get_total_cost(self) -> Decimal:
 		return self._cost_calculator.get_total_cost(self.response_history)
-
-	def _correct_segment_task(
-		self,
-		input_text: str,
-		previous_results: list,
-		output_text_list: list,
-		index: int,
-	) -> str:
-		text = self.correct_segment(input_text, previous_results)
-		output_text_list[index] = text
 
 	def _get_input_info(self, input_text):
 		input_info = {

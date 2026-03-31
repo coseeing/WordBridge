@@ -1,5 +1,5 @@
 import pytest
-from lib.typo_corrector import ChineseTypoCorrector
+from lib.typo_corrector import ChineseTypoCorrector, CorrectionOrchestrator
 from test_helpers import print_test_results
 
 # Test representative Gemini models
@@ -25,8 +25,9 @@ def test_gemini_basic_correction(model_config, credentials, test_data, model_nam
 		customized_words=[]
 	)
 
+	orchestrator = CorrectionOrchestrator(corrector)
 	test_text = test_data["basic_text"]
-	response, diff = corrector.correct_text(test_text, batch_mode=True)
+	response, diff = orchestrator.execute(test_text, batch_mode=True)
 
 	assert response is not None, "Response should not be None"
 	assert isinstance(response, str), "Response should be a string"
@@ -56,8 +57,9 @@ def test_gemini_with_typo(model_config, credentials, test_data, model_name):
 		customized_words=[]
 	)
 
+	orchestrator = CorrectionOrchestrator(corrector)
 	test_text = test_data["text_with_typo"]
-	response, diff = corrector.correct_text(test_text, batch_mode=True)
+	response, diff = orchestrator.execute(test_text, batch_mode=True)
 
 	assert response is not None
 	assert isinstance(response, str)

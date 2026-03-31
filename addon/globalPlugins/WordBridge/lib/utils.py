@@ -1,7 +1,8 @@
 import random
 
 from difflib import SequenceMatcher
-from typing import Dict, List
+from typing import Dict, List, Callable, Iterable, Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from chinese_converter import to_simplified, to_traditional
 from .chinese_dictionary import string_to_pinyin, pinyin_to_string
 from hanzidentifier import identify
@@ -17,7 +18,7 @@ except ImportError:
 
 # Characters used for text segmentation
 SEPERATOR = "﹐，,.。﹒．｡!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ "
-PUNCTUATION = "﹐，,.。﹒．｡:։׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t\"\'#$%&()*+-/<=>@[\\]^_`{|}~"
+PUNCTUATION = "﹐，,.。﹒．｡:׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t\"\'#$%&()*+-/<=>@[\\]^_`{|}~"
 
 ZH_UNICODE_INTERVALS = [
 	["\u4e00", "\u9fff"],
@@ -338,3 +339,33 @@ def strings_diff(string_before: str, string_after: str) -> Dict:
 			diff.append(operation_dict)
 
 	return diff
+
+
+def parallel_map(
+	func: Callable,
+	iterable: Iterable,
+	max_workers: int = 20,
+	iterable_kwargs: Iterable[Dict] = None,
+	*args,
+	**kwargs
+) -> List:
+	"""
+	Execute a function over an iterable in parallel using a thread pool.
+	Returns results in the same order as the input iterable.
+	"""
+	results = [None] * len(iterable)
+	with ThreadPoolExecutor(max_workers=max_workers) as executor:
+		if iterable_kwargs is None:
+			future_to_index = {
+				executor.submit(func, item, *args, **kwargs): i
+				for i, item in enumerate(iterable)
+			}
+		else:
+			future_to_index = {
+				executor.submit(func, item, *args, **{**kwargs, **ik}): i
+				for i, (item, ik) in enumerate(zip(iterable, iterable_kwargs))
+			}
+		for future in as_completed(future_to_index):
+			index = future_to_index[future]
+			results[index] = future.result()
+	return results

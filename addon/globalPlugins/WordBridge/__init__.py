@@ -31,7 +31,7 @@ from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.coseeing import obtain_openai_key
 from .lib.decimalUtils import decimal_to_str_0
-from .lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorLite
+from .lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorLite, CorrectionOrchestrator
 from .lib.utils import strings_diff
 from .lib.viewHTML import text2template
 from hanzidentifier import has_chinese
@@ -231,7 +231,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 			try:
 				batch_mode = not DEBUG_MODE
-				response, _diff_ = corrector.correct_text(request, batch_mode=batch_mode)
+				orchestrator = CorrectionOrchestrator(corrector)
+				response, _diff_ = orchestrator.execute(request, batch_mode=batch_mode)
 			except Exception as e:
 				ui.message(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 				log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
