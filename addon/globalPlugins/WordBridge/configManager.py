@@ -54,7 +54,11 @@ class ConfigManager:
 				provider = "Coseeing"
 
 			endpoint_text = LABEL_DICT[provider]
-			model_name_text = LABEL_DICT[corrector_config['model']['model_name']]
+
+			try:
+				model_name_text = LABEL_DICT[corrector_config['model']['model_name']]
+			except KeyError:
+				model_name_text = corrector_config['model']['model_name']
 
 			label= model_name_text
 			value = corrector_config

@@ -142,7 +142,7 @@ class BaseTypoCorrector():
 		self.response_history = []
 
 		file_dirpath = os.path.dirname(__file__)
-		template_path = os.path.join(file_dirpath, "..", "template", template_name)
+		template_path = os.path.join(file_dirpath, "..", "setting", "templates", template_name)
 		with open(template_path, "r", encoding="utf8") as f:
 			self.template = json.loads(f.read())
 

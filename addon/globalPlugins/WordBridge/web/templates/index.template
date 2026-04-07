@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title>{|{ title }|}</title>
-		<meta name="description" content="{|{ title }|}" />
-		<meta name="keywords" content="{|{ title }|}" />
+		<meta charset="utf-8" />
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<script>
+			window.contentConfig = __CONTEXT__;
+		</script>
 		<script src="modules/sweetalert2.all.min.js"></script>
 		<script src="modules/vue.js"></script>
 		<style>
@@ -31,14 +32,10 @@
 				max-width: 80%;
 				margin: 30px auto;
 			}
-			.theme {
-				background-color: {|{ bg_color }|};
-				color: {|{ color }|};
-			}
 		</style>
 	</head>
 	<body>
-		<div id="app" class="theme">
+		<div id="app">
 			<span v-for="item in data">
 				<span v-if="item.operation == 'equal'">
 					{{ item.before_text }}
@@ -57,7 +54,8 @@
 			</span>
 		</div>
 		<script>
-			const {createApp, computed, ref} = Vue;
+			const {createApp, ref} = Vue;
+			document.title = window.contentConfig.title || "WordBridge";
 			const Content = {
 				setup() {
 					const openInfos = (data) => {
@@ -101,15 +99,15 @@
 							didRender: ariaHandler,
 						});
 					}
-					const raw = ref(JSON.parse(`{|{ raw }|}`));
-					const data = ref(JSON.parse(`{|{ data }|}`));
+					const raw = ref(JSON.parse(window.contentConfig.raw));
+					const data = ref(JSON.parse(window.contentConfig.data));
 
 					return {
 						data, raw, openInfos,
 					}
 				},
 			}
-			const app = createApp(Content).mount('#app');
+			createApp(Content).mount('#app');
 		</script>
 	</body>
 </html>
