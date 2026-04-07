@@ -1,5 +1,5 @@
 {
-	"name": "anthropic",
+	"name": "openrouter",
 	"url": "https://openrouter.ai/api/v1/chat/completions",
 	"setting": {
 		"max_tokens": 4096,
