@@ -18,7 +18,7 @@ def test_openai_basic_correction(model_config, credentials, test_data, model_nam
 	creds = credentials("OpenAI")
 
 	corrector = ChineseTypoCorrector(
-		model=config["model_name"],
+		model=config["name"],
 		provider=config["provider"],
 		credential=creds,
 		language=config["language"],
@@ -50,7 +50,7 @@ def test_openai_with_typo(model_config, credentials, test_data, model_name):
 	creds = credentials("OpenAI")
 
 	corrector = ChineseTypoCorrector(
-		model=config["model_name"],
+		model=config["name"],
 		provider=config["provider"],
 		credential=creds,
 		language=config["language"],

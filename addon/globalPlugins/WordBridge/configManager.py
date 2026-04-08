@@ -48,17 +48,17 @@ class ConfigManager:
 			with open(item, "r", encoding="utf8") as f:
 				corrector_config = json.loads(f.read())
 
-			if corrector_config['model']['llm_access_method'] != "coseeing_relay":
-				provider = corrector_config['model']['provider']
+			if corrector_config["llm_access_method"] != "coseeing_relay":
+				provider = corrector_config["provider"]
 			else:
 				provider = "Coseeing"
 
 			endpoint_text = LABEL_DICT[provider]
 
 			try:
-				model_name_text = LABEL_DICT[corrector_config['model']['model_name']]
+				model_name_text = LABEL_DICT[corrector_config["model"]]
 			except KeyError:
-				model_name_text = corrector_config['model']['model_name']
+				model_name_text = corrector_config["model"]
 
 			label= model_name_text
 			value = corrector_config

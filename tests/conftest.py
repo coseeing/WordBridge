@@ -19,7 +19,7 @@ sys.path.insert(0, str(package_path))
 def model_config():
 	def _make_config(model_name, provider):
 		return {
-			"model_name": model_name,
+			"name": model_name,
 			"provider": provider,
 			"language": "zh_traditional",
 			"template_name": "Standard_v1.json",
@@ -33,7 +33,7 @@ def model_config():
 @pytest.fixture
 def credentials():
 	def _get_credentials(provider):
-		if provider == "google":
+		if provider == "Google":
 			api_key = os.getenv("TEST_GOOGLE_API_KEY")
 			if not api_key:
 				pytest.skip("TEST_GOOGLE_API_KEY not found in environment")

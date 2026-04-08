@@ -110,7 +110,7 @@ class Provider:
 		request_error = None
 
 		for r in range(retries):
-			timeout = min(self.timeout0 * (r + 1), self.timeout_max) if self.name != "ollama" else 300
+			timeout = min(self.timeout0 * (r + 1), self.timeout_max)
 			try:
 				response = requests.post(
 					api_url,
@@ -143,7 +143,7 @@ class Provider:
 		return response.json()
 
 class OpenaiProvider(Provider):
-	name = "openai"
+	name = "OpenAI"
 
 	def __init__(self, credential: dict, model: str, llm_settings: dict = {}):
 		super().__init__(credential, model, llm_settings)
@@ -171,7 +171,7 @@ class OpenaiProvider(Provider):
 
 
 class AnthropicProvider(Provider):
-	name = "anthropic"
+	name = "Anthropic"
 
 	def get_headers(self):
 		return {
@@ -194,7 +194,7 @@ class AnthropicProvider(Provider):
 
 
 class GoogleProvider(Provider):
-	name = "google"
+	name = "Google"
 
 	def __init__(self, credential: dict, model: str, llm_settings: dict = {}):
 		super().__init__(credential=credential, model=model, llm_settings=llm_settings)
@@ -244,7 +244,7 @@ class GoogleProvider(Provider):
 
 
 class BaiduProvider(Provider):
-	name = "baidu"
+	name = "Baidu"
 
 	def get_request_data(self, messages, system_template):
 		messages = [{"role": "system", "content": system_template}] + messages
@@ -278,7 +278,7 @@ class BaiduProvider(Provider):
 
 
 class OpenrouterProvider(Provider):
-	name = "openrouter"
+	name = "OpenRouter"
 
 	def get_request_data(self, messages, system_template):
 		messages = [{"role": "system", "content": system_template}] + messages
@@ -294,7 +294,7 @@ class OpenrouterProvider(Provider):
 
 
 class DeepseekProvider(Provider):
-	name = "deepseek"
+	name = "DeepSeek"
 
 	def get_request_data(self, messages, system_template):
 		messages = [{"role": "system", "content": system_template}] + messages
@@ -314,15 +314,15 @@ def get_provider(provider_name: str, credential: dict, model: str, llm_settings:
 	Factory function to create a provider instance based on the provider name.
 	"""
 	provider_mapping = {
-		"openai": OpenaiProvider,
-		"anthropic": AnthropicProvider,
-		"baidu": BaiduProvider,
-		"deepseek": DeepseekProvider,
-		"google": GoogleProvider,
-		"openrouter": OpenrouterProvider,
+		"OpenAI": OpenaiProvider,
+		"Anthropic": AnthropicProvider,
+		"Baidu": BaiduProvider,
+		"DeepSeek": DeepseekProvider,
+		"Google": GoogleProvider,
+		"OpenRouter": OpenrouterProvider,
 	}
 
-	provider_class = provider_mapping.get(provider_name.lower())
+	provider_class = provider_mapping.get(provider_name)
 	if not provider_class:
 		raise ValueError(f"Unsupported provider: {provider_name}")
 

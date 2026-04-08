@@ -12,11 +12,11 @@ GEMINI_MODELS_TO_TEST = [
 @pytest.mark.slow
 @pytest.mark.parametrize("model_name", GEMINI_MODELS_TO_TEST)
 def test_gemini_basic_correction(model_config, credentials, test_data, model_name):
-	config = model_config(model_name, "google")
-	creds = credentials("google")
+	config = model_config(model_name, "Google")
+	creds = credentials("Google")
 
 	corrector = ChineseTypoCorrector(
-		model=config["model_name"],
+		model=config["name"],
 		provider=config["provider"],
 		credential=creds,
 		language=config["language"],
@@ -44,11 +44,11 @@ def test_gemini_basic_correction(model_config, credentials, test_data, model_nam
 @pytest.mark.slow
 @pytest.mark.parametrize("model_name", GEMINI_MODELS_TO_TEST)
 def test_gemini_with_typo(model_config, credentials, test_data, model_name):
-	config = model_config(model_name, "google")
-	creds = credentials("google")
+	config = model_config(model_name, "Google")
+	creds = credentials("Google")
 
 	corrector = ChineseTypoCorrector(
-		model=config["model_name"],
+		model=config["name"],
 		provider=config["provider"],
 		credential=creds,
 		language=config["language"],

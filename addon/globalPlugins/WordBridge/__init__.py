@@ -200,16 +200,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		corrector_mode = config.conf["WordBridge"]["settings"]["typo_correction_mode"]
 		with open(corrector_config_file_path, "r", encoding="utf8") as f:
 			corrector_config = json.loads(f.read())
-		provider = corrector_config["model"]["provider"]
-		model_name = corrector_config["model"]["model_name"]
-		template_name = corrector_config["model"]["template_name"][corrector_mode]
-		optional_guidance_enable = corrector_config["model"]["optional_guidance_enable"]
+		provider = corrector_config["provider"]
+		model_name = corrector_config["model"]
+		template_name = corrector_config["template_name"][corrector_mode]
+		optional_guidance_enable = corrector_config["optional_guidance_enable"]
 
 		if config.conf["WordBridge"]["settings"]["customized_words_enable"]:
 			customized_words = [row["text"] for row in self.readDictionary()]
 		else:
 			customized_words = []
-		if corrector_config['model']['llm_access_method'] != "coseeing_relay":
+		if corrector_config["llm_access_method"] != "coseeing_relay":
 			if provider not in config.conf["WordBridge"]["settings"]["api_key"]:
 				config.conf["WordBridge"]["settings"]["api_key"][provider] = ""
 			if provider not in config.conf["WordBridge"]["settings"]["secret_key"]:

@@ -1,5 +1,5 @@
 {
-	"name": "google",
+	"name": "Google",
 	"url": "https://generativelanguage.googleapis.com/v1beta",
 	"setting": {
 		"max_completion_tokens": 4096,

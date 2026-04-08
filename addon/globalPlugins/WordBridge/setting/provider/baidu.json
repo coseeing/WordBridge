@@ -1,5 +1,5 @@
 {
-	"name": "baidu",
+	"name": "Baidu",
 	"url": "https://qianfan.baidubce.com/v2/chat/completions",
 	"setting": {
 		"max_completion_tokens": 4096,

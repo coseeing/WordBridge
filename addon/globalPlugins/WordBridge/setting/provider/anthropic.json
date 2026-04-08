@@ -1,5 +1,5 @@
 {
-	"name": "anthropic",
+	"name": "Anthropic",
 	"url": "https://api.anthropic.com/v1/messages",
 	"setting": {
 		"max_tokens": 4096,
