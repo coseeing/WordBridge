@@ -12,3 +12,7 @@ manifest.ini
 venv
 .env
 .python-version
+
+.claude
+.codex
+.gemini

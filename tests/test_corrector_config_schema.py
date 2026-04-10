@@ -14,7 +14,7 @@ CORRECTOR_CONFIG_DIR = (
 
 def test_corrector_configs_use_flattened_schema():
 	required_keys = {
-		"name",
+		"model",
 		"provider",
 		"llm_access_method",
 		"require_secret_key",
@@ -27,6 +27,6 @@ def test_corrector_configs_use_flattened_schema():
 			config = json.load(f)
 
 		assert set(config.keys()) == required_keys, path.name
-		assert "model" not in config, path.name
 		assert "model_name" not in config, path.name
-		assert isinstance(config["name"], str) and config["name"], path.name
+		assert "name" not in config, path.name
+		assert isinstance(config["model"], str) and config["model"], path.name

@@ -1,4 +1,8 @@
 import pytest
+from lib.instruction_composer import StandardInstructionComposer
+from lib.language_text_policy import StandardChineseTextPolicy
+from lib.provider import get_provider
+from lib.provider_model_adapter import get_provider_model_adapter
 from lib.typo_corrector import ChineseTypoCorrector, CorrectionOrchestrator
 from test_helpers import print_test_results
 
@@ -16,15 +20,21 @@ OPENAI_MODELS_TO_TEST = [
 def test_openai_basic_correction(model_config, credentials, test_data, model_name):
 	config = model_config(model_name, "OpenAI")
 	creds = credentials("OpenAI")
-
-	corrector = ChineseTypoCorrector(
-		model=config["name"],
-		provider=config["provider"],
-		credential=creds,
+	provider_object = get_provider("OpenAI", creds)
+	adapter_object = get_provider_model_adapter("OpenAI", config["name"])
+	instruction_composer = StandardInstructionComposer(
 		language=config["language"],
 		template_name=config["template_name"],
 		optional_guidance_enable=config["optional_guidance_enable"],
-		customized_words=[]
+		customized_words=[],
+	)
+	language_text_policy = StandardChineseTextPolicy(config["language"])
+
+	corrector = ChineseTypoCorrector(
+		provider_object=provider_object,
+		adapter_object=adapter_object,
+		instruction_composer=instruction_composer,
+		language_text_policy=language_text_policy,
 	)
 
 	orchestrator = CorrectionOrchestrator(corrector)
@@ -48,15 +58,21 @@ def test_openai_basic_correction(model_config, credentials, test_data, model_nam
 def test_openai_with_typo(model_config, credentials, test_data, model_name):
 	config = model_config(model_name, "OpenAI")
 	creds = credentials("OpenAI")
-
-	corrector = ChineseTypoCorrector(
-		model=config["name"],
-		provider=config["provider"],
-		credential=creds,
+	provider_object = get_provider("OpenAI", creds)
+	adapter_object = get_provider_model_adapter("OpenAI", config["name"])
+	instruction_composer = StandardInstructionComposer(
 		language=config["language"],
 		template_name=config["template_name"],
 		optional_guidance_enable=config["optional_guidance_enable"],
-		customized_words=[]
+		customized_words=[],
+	)
+	language_text_policy = StandardChineseTextPolicy(config["language"])
+
+	corrector = ChineseTypoCorrector(
+		provider_object=provider_object,
+		adapter_object=adapter_object,
+		instruction_composer=instruction_composer,
+		language_text_policy=language_text_policy,
 	)
 
 	orchestrator = CorrectionOrchestrator(corrector)

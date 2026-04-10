@@ -24,7 +24,7 @@ def test_provider_config_filenames_use_canonical_titlecase_names():
 
 
 def test_provider_factory_accepts_canonical_titlecase_name_only():
-	provider = get_provider("OpenAI", {"api_key": "test", "secret_key": ""}, "gpt-5")
+	provider = get_provider("OpenAI", {"api_key": "test", "secret_key": ""})
 
 	assert provider.name == "OpenAI"
 
@@ -35,4 +35,4 @@ def test_provider_factory_accepts_canonical_titlecase_name_only():
 )
 def test_provider_factory_rejects_non_canonical_provider_names(provider_name):
 	with pytest.raises(ValueError, match=f"Unsupported provider: {provider_name}"):
-		get_provider(provider_name, {"api_key": "test", "secret_key": ""}, "gpt-5")
+		get_provider(provider_name, {"api_key": "test", "secret_key": ""})

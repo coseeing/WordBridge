@@ -17,18 +17,23 @@ class CostCalculator:
 
 	def get_total_usage(self, response_history: list) -> dict:
 		total_usage = defaultdict(int)
-		if not self._usage_key:
-			return total_usage
 
 		for response in response_history:
-			if isinstance(response, dict) and self._usage_key in response:
-				for usage_type in self._pricing:
-					if usage_type == "base_unit":
-						continue
-					try:
-						total_usage[usage_type] += response[self._usage_key][usage_type]
-					except KeyError:
-						pass
+			if not isinstance(response, dict):
+				continue
+
+			if self._usage_key and self._usage_key in response:
+				usage_source = response[self._usage_key]
+			else:
+				usage_source = response
+
+			for usage_type in self._pricing:
+				if usage_type == "base_unit":
+					continue
+				try:
+					total_usage[usage_type] += usage_source[usage_type]
+				except KeyError:
+					pass
 
 		return dict(total_usage)
 

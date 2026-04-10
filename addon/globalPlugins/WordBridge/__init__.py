@@ -30,8 +30,12 @@ from .dialogs import CORRECTOR_CONFIG_FILENAME_DEFAULT, CORRECTOR_CONFIG_FOLDER_
 from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.coseeing import obtain_openai_key
+from .lib.instruction_composer import LiteInstructionComposer, StandardInstructionComposer
+from .lib.language_text_policy import LiteChineseTextPolicy, StandardChineseTextPolicy
+from .lib.provider import get_provider
+from .lib.provider_model_adapter import get_provider_model_adapter
 from .lib.decimalUtils import decimal_to_str_0
-from .lib.typo_corrector import ChineseTypoCorrector, ChineseTypoCorrectorLite, CorrectionOrchestrator
+from .lib.typo_corrector import ChineseTypoCorrector, CorrectionOrchestrator
 from .lib.utils import strings_diff
 from .lib.viewHTML import text2template
 from hanzidentifier import has_chinese
@@ -218,15 +222,29 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				"api_key": config.conf["WordBridge"]["settings"]["api_key"][provider],
 				"secret_key": config.conf["WordBridge"]["settings"]["secret_key"][provider],
 			}
-			corrector_class = ChineseTypoCorrectorLite if corrector_mode == "lite" else ChineseTypoCorrector
-			corrector = corrector_class(
-				model=model_name,
-				provider=provider,
-				credential=credential,
-				language=language,
-				template_name=template_name,
-				optional_guidance_enable=optional_guidance_enable,
-				customized_words=customized_words,
+			provider_object = get_provider(provider, credential, retries=2, backoff=1)
+			adapter_object = get_provider_model_adapter(provider, model_name)
+			if corrector_mode == "lite":
+				instruction_composer = LiteInstructionComposer(
+					language=language,
+					template_name=template_name,
+					optional_guidance_enable=optional_guidance_enable,
+					customized_words=customized_words,
+				)
+				language_text_policy = LiteChineseTextPolicy(language)
+			else:
+				instruction_composer = StandardInstructionComposer(
+					language=language,
+					template_name=template_name,
+					optional_guidance_enable=optional_guidance_enable,
+					customized_words=customized_words,
+				)
+				language_text_policy = StandardChineseTextPolicy(language)
+			corrector = ChineseTypoCorrector(
+				provider_object=provider_object,
+				adapter_object=adapter_object,
+				instruction_composer=instruction_composer,
+				language_text_policy=language_text_policy,
 			)
 
 			try:

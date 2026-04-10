@@ -1,4 +1,3 @@
-from copy import deepcopy
 import json
 import logging
 import random
@@ -18,10 +17,10 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 class Provider:
-	def __init__(self, credential: dict, model: str, llm_settings: dict = {}):
+	def __init__(self, credential: dict, retries: int = 2, backoff: int = 1):
 		self.credential = credential
-		self.model = model
-		self.llm_settings = llm_settings
+		self.retries = retries
+		self.backoff = backoff
 
 		# Load default setting
 		setting_path = Path(__file__).parent.parent / "setting" / "provider" / f"{self.name}.json"
@@ -31,13 +30,6 @@ class Provider:
 			self.setting = data["setting"]
 			self.timeout0 = data["timeout0"]
 			self.timeout_max = data["timeout_max"]
-
-		for k in llm_settings:
-			self.setting[k] = llm_settings[k]
-
-	def set(self, credential: dict, model: str):
-		self.credential = credential
-		self.model = model
 
 	@property
 	def base_url(self):
@@ -50,11 +42,8 @@ class Provider:
 			"Authorization": f"Bearer {self.credential['api_key']}"
 		}
 
-	def get_request_data(self, messages, system_template):
-		raise NotImplementedError("Subclass must implement this method")
-
-	def parse_response(self, response):
-		return response["choices"][0]["message"]["content"]
+	def get_api_url(self, model_name=None):
+		return self.url
 
 	def handle_errors(self, response):
 		if response.status_code != 200:
@@ -100,22 +89,21 @@ class Provider:
 			)
 		)
 
-	def chat_completion(self, messages, system_template, retries=2, backoff=1):
-		request_data = self.get_request_data(messages, system_template)
-		api_url = self.url
+	def send(self, payload, model_name=None):
+		api_url = self.get_api_url(model_name=model_name)
 		headers = self.get_headers()
 
-		current_backoff = backoff
+		current_backoff = self.backoff
 		response = None
 		request_error = None
 
-		for r in range(retries):
+		for r in range(self.retries):
 			timeout = min(self.timeout0 * (r + 1), self.timeout_max)
 			try:
 				response = requests.post(
 					api_url,
 					headers=headers,
-					json=request_data,
+					json=payload,
 					timeout=timeout,
 				)
 				break
@@ -142,32 +130,11 @@ class Provider:
 		self.handle_errors(response)
 		return response.json()
 
+	def chat_completion(self, payload):
+		return self.send(payload)
+
 class OpenaiProvider(Provider):
 	name = "OpenAI"
-
-	def __init__(self, credential: dict, model: str, llm_settings: dict = {}):
-		super().__init__(credential, model, llm_settings)
-		if self.model.startswith("o") or self.model in ["gpt-5", "gpt-5-mini", "gpt-5-nano"]:
-			self.timeout0 = 30
-			self.timeout_max = 60
-
-	def get_request_data(self, messages, system_template):
-		messages = [{"role": "system", "content": system_template}] + messages
-		setting = deepcopy(self.setting)
-		if self.model.startswith("o") or self.model in ["gpt-5", "gpt-5-mini", "gpt-5-nano"]:
-			messages.pop(0)
-			messages[0]["content"] = system_template + "\n" + messages[0]["content"]
-			setting.pop("stop")
-			setting.pop("temperature")
-			setting.pop("top_p")
-
-		data = {
-			"model": self.model,
-			"messages": messages,
-			**setting,
-		}
-
-		return data
 
 
 class AnthropicProvider(Provider):
@@ -180,143 +147,36 @@ class AnthropicProvider(Provider):
 			"x-api-key": f"{self.credential['api_key']}",
 		}
 
-	def get_request_data(self, messages, system_template):
-		data = {
-			"model": self.model,
-			"system": system_template,
-			"messages": messages,
-			**self.setting,
-		}
-		return data
-
-	def parse_response(self, response):
-		return response["content"][0]["text"]
-
 
 class GoogleProvider(Provider):
 	name = "Google"
-
-	def __init__(self, credential: dict, model: str, llm_settings: dict = {}):
-		super().__init__(credential=credential, model=model, llm_settings=llm_settings)
-		self.url = self.url + f"/models/{self.model}:generateContent?key={self.credential['api_key']}"
 
 	def get_headers(self):
 		return {
 			"Content-Type": "application/json",
 		}
 
-	def get_request_data(self, messages, system_template):
-		contents = []
-		for message in messages:
-			if message["role"] == "assistant":
-				contents.append({
-					"role": "model",
-					"parts": [
-						{
-							"text": message["content"]
-						}
-					]
-				})
-			else:
-				contents.append({
-					"role": "user",
-					"parts": [
-						{
-							"text": message["content"]
-						}
-					]
-				})
-
-		data = {
-			"system_instruction": {
-				"parts": [
-					{
-						"text": system_template
-					}
-				]
-			},
-			"contents": contents
-		}
-		return data
-
-	def parse_response(self, response):
-		return response["candidates"][0]["content"]["parts"][0]["text"]
-
-
-class BaiduProvider(Provider):
-	name = "Baidu"
-
-	def get_request_data(self, messages, system_template):
-		messages = [{"role": "system", "content": system_template}] + messages
-		setting = deepcopy(self.setting)
-		if "temperature" in setting:
-			setting["temperature"] = max(setting["temperature"], 0.0001)
-		if "max_completion_tokens" in setting:
-			setting["max_completion_tokens"] = min(setting["max_completion_tokens"], len(messages[-1]["content"]))
-		data = {
-			"model": self.model,
-			"messages": messages,
-			**self.setting,
-		}
-		return data
-
-	def handle_errors(self, response):
-		response_json = response.json()
-		if "error_code" in response_json or not response_json["choices"][0]["message"]["content"]:
-			if response_json["error_code"] == 3:
-				raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
-			elif response_json["error_code"] in [336000, 336100]:
-				raise Exception(_("Service internal error, please try again later."))
-			elif response_json["error_code"] in [18, 336501, 336502]:
-				raise Exception(_("Usage limit exceeded, please try again later."))
-			elif response_json["error_code"] == 17:
-				raise Exception(_("Please check if the API has been activated and the current account has enough money"))
-			elif not response_json["choices"][0]["message"]["content"]:
-				raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
-			else:
-				raise Exception(_("An error occurred, error code = ") + response_json["error_msg"])
+	def get_api_url(self, model_name=None):
+		if not model_name:
+			raise ValueError("Google provider requires model_name when sending a request")
+		return f"{self.url}/models/{model_name}:generateContent?key={self.credential['api_key']}"
 
 
 class OpenrouterProvider(Provider):
 	name = "OpenRouter"
 
-	def get_request_data(self, messages, system_template):
-		messages = [{"role": "system", "content": system_template}] + messages
-		data = {
-			"model": self.model,
-			"messages": messages,
-			"stream": False,
-			"options":{
-				**self.setting,
-			}
-		}
-		return data
-
 
 class DeepseekProvider(Provider):
 	name = "DeepSeek"
 
-	def get_request_data(self, messages, system_template):
-		messages = [{"role": "system", "content": system_template}] + messages
-		data = {
-			"model": self.model,
-			"messages": messages,
-			"stream": False,
-			"options":{
-				**self.setting,
-			}
-		}
-		return data
 
-
-def get_provider(provider_name: str, credential: dict, model: str, llm_settings: dict = None) -> Provider:
+def get_provider(provider_name: str, credential: dict, retries: int = 2, backoff: int = 1) -> Provider:
 	"""
 	Factory function to create a provider instance based on the provider name.
 	"""
 	provider_mapping = {
 		"OpenAI": OpenaiProvider,
 		"Anthropic": AnthropicProvider,
-		"Baidu": BaiduProvider,
 		"DeepSeek": DeepseekProvider,
 		"Google": GoogleProvider,
 		"OpenRouter": OpenrouterProvider,
@@ -326,4 +186,4 @@ def get_provider(provider_name: str, credential: dict, model: str, llm_settings:
 	if not provider_class:
 		raise ValueError(f"Unsupported provider: {provider_name}")
 
-	return provider_class(credential, model, llm_settings or {})
+	return provider_class(credential, retries=retries, backoff=backoff)
