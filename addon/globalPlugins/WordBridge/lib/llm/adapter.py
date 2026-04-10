@@ -35,7 +35,7 @@ class ProviderModelAdapter:
 		return self._cost_calculator.get_total_cost(usage_history)
 
 	def _load_model_entry(self) -> dict:
-		config_path = Path(__file__).parent.parent / "setting" / "llm_models.json"
+		config_path = Path(__file__).resolve().parents[2] / "setting" / "llm_models.json"
 		with config_path.open("r", encoding="utf8") as f:
 			config = json.load(f)
 		return config.get(f"{self.model_name}&{self.provider_name}", {})
@@ -81,10 +81,7 @@ class GoogleAdapter(ProviderModelAdapter):
 	def format_request(self, messages, system_template, setting: dict):
 		contents = []
 		for message in messages:
-			if message["role"] == "assistant":
-				role = "model"
-			else:
-				role = "user"
+			role = "model" if message["role"] == "assistant" else "user"
 			contents.append({"role": role, "parts": [{"text": message["content"]}]})
 		return {
 			"system_instruction": {"parts": [{"text": system_template}]},

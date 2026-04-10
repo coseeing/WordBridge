@@ -43,9 +43,9 @@ sys.modules.setdefault("hanzidentifier", hanzidentifier_module)
 
 class LanguageTextPolicyTests(unittest.TestCase):
 	def test_standard_language_text_policy_wraps_and_trims_text(self):
-		from lib.language_text_policy import StandardChineseTextPolicy
+		from lib.tasks.typo.text_policy import StandardTypoTextPolicy
 
-		policy = StandardChineseTextPolicy("zh_traditional")
+		policy = StandardTypoTextPolicy("zh_traditional")
 
 		self.assertEqual(policy.preprocess_input("天器"), "我說天器")
 		self.assertEqual(policy.postprocess_output("我說天氣", "天器"), "天氣")
@@ -53,19 +53,19 @@ class LanguageTextPolicyTests(unittest.TestCase):
 		self.assertFalse(policy.has_target_language("abc"))
 
 	def test_standard_language_text_policy_does_not_strip_when_prefix_is_not_present(self):
-		from lib.language_text_policy import StandardChineseTextPolicy
+		from lib.tasks.typo.text_policy import StandardTypoTextPolicy
 
-		policy = StandardChineseTextPolicy("zh_traditional")
+		policy = StandardTypoTextPolicy("zh_traditional")
 
 		self.assertEqual(policy.postprocess_output("天氣", "天器"), "天氣")
 
 	def test_language_text_policy_normalizes_response_for_target_language(self):
-		from lib.language_text_policy import StandardChineseTextPolicy
+		from lib.tasks.typo.text_policy import StandardTypoTextPolicy
 
-		policy = StandardChineseTextPolicy("zh_traditional")
+		policy = StandardTypoTextPolicy("zh_traditional")
 
-		with patch("lib.language_text_policy.has_simplified_chinese_char", return_value=True):
-			with patch("lib.language_text_policy.chinese_converter.to_traditional", return_value="繁體結果"):
+		with patch("lib.tasks.typo.text_policy.has_simplified_chinese_char", return_value=True):
+			with patch("lib.tasks.typo.text_policy.chinese_converter.to_traditional", return_value="繁體結果"):
 				self.assertEqual(policy.normalize_response("简体结果"), "繁體結果")
 
 

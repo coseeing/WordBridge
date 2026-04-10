@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from lib.provider import get_provider
+from lib.llm.provider import get_provider
 
 
 PROVIDER_CONFIG_DIR = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge" / "setting" / "provider"

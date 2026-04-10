@@ -6,8 +6,9 @@ This module provides utilities for:
 - Calculating costs based on model pricing
 """
 
-from decimal import Decimal
 from collections import defaultdict
+from decimal import Decimal
+
 
 class CostCalculator:
 	def __init__(self, model_entry: dict):

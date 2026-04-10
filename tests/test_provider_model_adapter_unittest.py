@@ -46,11 +46,11 @@ sys.modules.setdefault("chinese_converter", chinese_converter_module)
 
 class ProviderModelAdapterTests(unittest.TestCase):
 	def test_provider_model_adapter_module_exists(self):
-		spec = importlib.util.find_spec("lib.provider_model_adapter")
+		spec = importlib.util.find_spec("lib.llm.adapter")
 		self.assertIsNotNone(spec)
 
 	def test_openai_standard_models_use_default_adapter(self):
-		from lib.provider_model_adapter import OpenAIChatAdapter, get_provider_model_adapter
+		from lib.llm.adapter import OpenAIChatAdapter, get_provider_model_adapter
 
 		adapter = get_provider_model_adapter("OpenAI", "gpt-4.1-2025-04-14")
 
@@ -75,7 +75,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertIn("stop", payload)
 
 	def test_openai_gpt5_family_uses_reasoning_adapter_override(self):
-		from lib.provider_model_adapter import OpenAIReasoningAdapter, get_provider_model_adapter
+		from lib.llm.adapter import OpenAIReasoningAdapter, get_provider_model_adapter
 
 		adapter = get_provider_model_adapter("OpenAI", "gpt-5")
 
@@ -100,7 +100,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertNotIn("stop", payload)
 
 	def test_provider_sends_preformatted_payload_without_reformatting(self):
-		from lib.provider import OpenaiProvider
+		from lib.llm.provider import OpenaiProvider
 
 		captured = {}
 
@@ -126,14 +126,14 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		provider.retries = 1
 		provider.backoff = 1
 
-		with patch("lib.provider.requests.post", side_effect=fake_post):
+		with patch("lib.llm.provider.requests.post", side_effect=fake_post):
 			response = provider.chat_completion(payload)
 
 		self.assertEqual(captured["json"], payload)
 		self.assertEqual(response["choices"][0]["message"]["content"], "ok")
 
 	def test_google_provider_uses_model_name_to_build_request_url(self):
-		from lib.provider import GoogleProvider
+		from lib.llm.provider import GoogleProvider
 
 		captured = {}
 
@@ -156,7 +156,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		provider.retries = 1
 		provider.backoff = 1
 
-		with patch("lib.provider.requests.post", side_effect=fake_post):
+		with patch("lib.llm.provider.requests.post", side_effect=fake_post):
 			provider.send(payload, model_name="gemini-2.5-flash")
 
 		self.assertEqual(
@@ -166,7 +166,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertEqual(captured["json"], payload)
 
 	def test_adapter_calculates_total_usage_and_cost_from_usage_history(self):
-		from lib.provider_model_adapter import get_provider_model_adapter
+		from lib.llm.adapter import get_provider_model_adapter
 
 		adapter = get_provider_model_adapter("OpenAI", "gpt-4.1-2025-04-14")
 		usage_history = [
@@ -180,10 +180,11 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		)
 		self.assertEqual(adapter.get_total_cost(usage_history), Decimal("0.000078"))
 
-	def test_corrector_uses_adapter_for_format_parse_and_usage(self):
-		from lib.typo_corrector import ChineseTypoCorrector, CorrectionOrchestrator
-		from lib.instruction_composer import LiteInstructionComposer
-		from lib.language_text_policy import LiteChineseTextPolicy
+	def test_workflow_uses_executor_for_format_parse_and_usage(self):
+		from lib.llm.executor import LLMExecutor
+		from lib.tasks.typo.prompt import LiteTypoPromptStrategy
+		from lib.tasks.typo.text_policy import LiteTypoTextPolicy
+		from lib.tasks.typo.workflow import TypoCorrectionWorkflow
 
 		class FakeProvider:
 			def __init__(self):
@@ -251,7 +252,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 
 		provider = FakeProvider()
 		adapter = FakeAdapter()
-		instruction_composer = LiteInstructionComposer(
+		prompt_strategy = LiteTypoPromptStrategy(
 			language="zh_traditional",
 			template_name="Lite_v1.json",
 			optional_guidance_enable={
@@ -260,18 +261,21 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			},
 			customized_words=[],
 		)
-		language_text_policy = LiteChineseTextPolicy("zh_traditional")
-		corrector = ChineseTypoCorrector(
+		text_policy = LiteTypoTextPolicy("zh_traditional")
+		executor = LLMExecutor(
 			provider_object=provider,
 			adapter_object=adapter,
-			instruction_composer=instruction_composer,
-			language_text_policy=language_text_policy,
 		)
 
-		orchestrator = CorrectionOrchestrator(corrector, max_correction_attempts=0)
-		response, _ = orchestrator.execute("測試文字", batch_mode=False)
+		workflow = TypoCorrectionWorkflow(
+			executor=executor,
+			prompt_strategy=prompt_strategy,
+			text_policy=text_policy,
+			max_correction_attempts=0,
+		)
+		result = workflow.run("測試文字", batch_mode=False)
 
-		self.assertEqual(response, "修正文字")
+		self.assertEqual(result.corrected_text, "修正文字")
 		self.assertTrue(provider.try_connection_called)
 		self.assertEqual(provider.sent_model_name, "gpt-4.1-2025-04-14")
 		self.assertEqual(provider.sent_payload["model"], "gpt-4.1-2025-04-14")
@@ -279,10 +283,10 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertTrue(adapter.parse_called)
 		self.assertTrue(adapter.extract_usage_called)
 		self.assertEqual(
-			corrector.get_total_usage(),
+			executor.get_total_usage(),
 			{"prompt_tokens": 11, "completion_tokens": 7},
 		)
-		self.assertEqual(corrector.get_total_cost(), Decimal("0.000078"))
+		self.assertEqual(executor.get_total_cost(), Decimal("0.000078"))
 
 
 if __name__ == "__main__":

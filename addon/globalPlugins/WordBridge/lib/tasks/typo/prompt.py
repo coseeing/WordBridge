@@ -2,12 +2,14 @@ from copy import deepcopy
 import json
 import os
 
-from pypinyin import lazy_pinyin, Style
+from pypinyin import Style, lazy_pinyin
 
-from .utils import PUNCTUATION, get_char_pinyin, is_chinese_character
+from ...text.chinese import PUNCTUATION, is_chinese_character
+from ..base import BasePromptStrategy
+from .utils import get_char_pinyin
 
 
-class InstructionComposer:
+class TypoPromptStrategy(BasePromptStrategy):
 	def __init__(
 		self,
 		language: str,
@@ -20,7 +22,7 @@ class InstructionComposer:
 		self.customized_words = customized_words or []
 
 		file_dirpath = os.path.dirname(__file__)
-		template_path = os.path.join(file_dirpath, "..", "setting", "templates", template_name)
+		template_path = os.path.join(file_dirpath, "..", "..", "..", "setting", "templates", template_name)
 		with open(template_path, "r", encoding="utf8") as f:
 			self.template = json.loads(f.read())
 
@@ -69,7 +71,7 @@ class InstructionComposer:
 		input_info = {
 			"input_text": input_text,
 			"contain_non_chinese": False,
-			"focus_typo": True if "[[" in input_text and "]]" in input_text else False
+			"focus_typo": "[[" in input_text and "]]" in input_text,
 		}
 		for char in input_text:
 			if not is_chinese_character(char) and char not in PUNCTUATION:
@@ -117,7 +119,7 @@ class InstructionComposer:
 		raise NotImplementedError("Subclass must implement this method")
 
 
-class LiteInstructionComposer(InstructionComposer):
+class LiteTypoPromptStrategy(TypoPromptStrategy):
 	def _render_input_messages(self, template: list, preprocessed_text: str, input_info: dict, text_policy):
 		for i in range(len(template)):
 			template[i]["content"] = template[i]["content"].replace("{{text_input}}", preprocessed_text)
@@ -126,7 +128,7 @@ class LiteInstructionComposer(InstructionComposer):
 		return template
 
 
-class StandardInstructionComposer(InstructionComposer):
+class StandardTypoPromptStrategy(TypoPromptStrategy):
 	def _render_input_messages(self, template: list, preprocessed_text: str, input_info: dict, text_policy):
 		phone = " ".join(lazy_pinyin(preprocessed_text, style=Style.TONE3))
 		if input_info["focus_typo"]:

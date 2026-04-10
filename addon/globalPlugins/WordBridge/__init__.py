@@ -29,14 +29,10 @@ import requests
 from .dialogs import CORRECTOR_CONFIG_FILENAME_DEFAULT, CORRECTOR_CONFIG_FOLDER_PATH, LANGUAGE_DEFAULT, TYPO_CORRECTION_MODE_DEFAULT
 from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .dictionary.dialog import DictionaryEntryDialog
+from .lib.application.task_runner import run_typo_correction
 from .lib.coseeing import obtain_openai_key
-from .lib.instruction_composer import LiteInstructionComposer, StandardInstructionComposer
-from .lib.language_text_policy import LiteChineseTextPolicy, StandardChineseTextPolicy
-from .lib.provider import get_provider
-from .lib.provider_model_adapter import get_provider_model_adapter
 from .lib.decimalUtils import decimal_to_str_0
-from .lib.typo_corrector import ChineseTypoCorrector, CorrectionOrchestrator
-from .lib.utils import strings_diff
+from .lib.tasks.typo.utils import strings_diff
 from .lib.viewHTML import text2template
 from hanzidentifier import has_chinese
 
@@ -222,42 +218,31 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				"api_key": config.conf["WordBridge"]["settings"]["api_key"][provider],
 				"secret_key": config.conf["WordBridge"]["settings"]["secret_key"][provider],
 			}
-			provider_object = get_provider(provider, credential, retries=2, backoff=1)
-			adapter_object = get_provider_model_adapter(provider, model_name)
-			if corrector_mode == "lite":
-				instruction_composer = LiteInstructionComposer(
-					language=language,
-					template_name=template_name,
-					optional_guidance_enable=optional_guidance_enable,
-					customized_words=customized_words,
-				)
-				language_text_policy = LiteChineseTextPolicy(language)
-			else:
-				instruction_composer = StandardInstructionComposer(
-					language=language,
-					template_name=template_name,
-					optional_guidance_enable=optional_guidance_enable,
-					customized_words=customized_words,
-				)
-				language_text_policy = StandardChineseTextPolicy(language)
-			corrector = ChineseTypoCorrector(
-				provider_object=provider_object,
-				adapter_object=adapter_object,
-				instruction_composer=instruction_composer,
-				language_text_policy=language_text_policy,
-			)
 
 			try:
 				batch_mode = not DEBUG_MODE
-				orchestrator = CorrectionOrchestrator(corrector)
-				response, _diff_ = orchestrator.execute(request, batch_mode=batch_mode)
+				result = run_typo_correction(
+					request=request,
+					batch_mode=batch_mode,
+					provider_name=provider,
+					model_name=model_name,
+					credential=credential,
+					language=language,
+					template_name=template_name,
+					corrector_mode=corrector_mode,
+					optional_guidance_enable=optional_guidance_enable,
+					customized_words=customized_words,
+					retries=2,
+					backoff=1,
+				)
 			except Exception as e:
 				ui.message(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 				log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 				raise e
 				return
+			response = result.corrected_text
 			interaction_id = None
-			cost = corrector.get_total_cost()
+			cost = result.cost
 		else:
 			try:
 				access_token = obtain_openai_key(

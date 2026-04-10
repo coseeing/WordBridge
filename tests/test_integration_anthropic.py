@@ -1,10 +1,6 @@
 import pytest
-from lib.instruction_composer import StandardInstructionComposer
-from lib.language_text_policy import StandardChineseTextPolicy
-from lib.provider import get_provider
-from lib.provider_model_adapter import get_provider_model_adapter
-from lib.typo_corrector import ChineseTypoCorrector, CorrectionOrchestrator
-from test_helpers import print_test_results
+from lib.application.task_factory import create_typo_workflow
+from test_helpers import print_test_results, run_workflow_or_skip_transient_failure
 
 # Test representative Anthropic Claude models
 ANTHROPIC_MODELS_TO_TEST = [
@@ -18,37 +14,31 @@ ANTHROPIC_MODELS_TO_TEST = [
 def test_anthropic_basic_correction(model_config, credentials, test_data, model_name):
 	config = model_config(model_name, "Anthropic")
 	creds = credentials("Anthropic")
-	provider_object = get_provider("Anthropic", creds)
-	adapter_object = get_provider_model_adapter("Anthropic", config["name"])
-	instruction_composer = StandardInstructionComposer(
+	workflow = create_typo_workflow(
+		provider_name="Anthropic",
+		model_name=config["name"],
+		credential=creds,
 		language=config["language"],
 		template_name=config["template_name"],
+		corrector_mode="standard",
 		optional_guidance_enable=config["optional_guidance_enable"],
 		customized_words=[],
 	)
-	language_text_policy = StandardChineseTextPolicy(config["language"])
 
-	corrector = ChineseTypoCorrector(
-		provider_object=provider_object,
-		adapter_object=adapter_object,
-		instruction_composer=instruction_composer,
-		language_text_policy=language_text_policy,
-	)
-
-	orchestrator = CorrectionOrchestrator(corrector)
 	test_text = test_data["basic_text"]
-	response, diff = orchestrator.execute(test_text, batch_mode=True)
+	result = run_workflow_or_skip_transient_failure(workflow, test_text, batch_mode=True)
+	response, diff = result.corrected_text, result.diff
 
 	assert response is not None, "Response should not be None"
 	assert isinstance(response, str), "Response should be a string"
 	assert isinstance(diff, list), "Diff should be a list"
 
-	cost = corrector.get_total_cost()
+	cost = workflow.executor.get_total_cost()
 	assert cost >= 0, "Cost should be non-negative"
 
-	assert len(corrector.response_history) > 0, "Should have response history"
+	assert len(workflow.executor.response_history) > 0, "Should have response history"
 
-	print_test_results(model_name, test_text, response, diff, corrector)
+	print_test_results(model_name, test_text, response, diff, workflow.executor)
 
 @pytest.mark.integration
 @pytest.mark.slow
@@ -56,31 +46,25 @@ def test_anthropic_basic_correction(model_config, credentials, test_data, model_
 def test_anthropic_with_typo(model_config, credentials, test_data, model_name):
 	config = model_config(model_name, "Anthropic")
 	creds = credentials("Anthropic")
-	provider_object = get_provider("Anthropic", creds)
-	adapter_object = get_provider_model_adapter("Anthropic", config["name"])
-	instruction_composer = StandardInstructionComposer(
+	workflow = create_typo_workflow(
+		provider_name="Anthropic",
+		model_name=config["name"],
+		credential=creds,
 		language=config["language"],
 		template_name=config["template_name"],
+		corrector_mode="standard",
 		optional_guidance_enable=config["optional_guidance_enable"],
 		customized_words=[],
 	)
-	language_text_policy = StandardChineseTextPolicy(config["language"])
 
-	corrector = ChineseTypoCorrector(
-		provider_object=provider_object,
-		adapter_object=adapter_object,
-		instruction_composer=instruction_composer,
-		language_text_policy=language_text_policy,
-	)
-
-	orchestrator = CorrectionOrchestrator(corrector)
 	test_text = test_data["text_with_typo"]
-	response, diff = orchestrator.execute(test_text, batch_mode=True)
+	result = run_workflow_or_skip_transient_failure(workflow, test_text, batch_mode=True)
+	response, diff = result.corrected_text, result.diff
 
 	assert response is not None
 	assert isinstance(response, str)
 
-	cost = corrector.get_total_cost()
+	cost = workflow.executor.get_total_cost()
 	assert cost >= 0
 
-	print_test_results(model_name, test_text, response, diff, corrector)
+	print_test_results(model_name, test_text, response, diff, workflow.executor)

@@ -1,9 +1,10 @@
-from .utils import SEPERATOR, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
-
 import chinese_converter
 
+from ...text.chinese import SEPERATOR, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
+from ..base import BaseTextPolicy
 
-class ChineseTextPolicy:
+
+class TypoTextPolicy(BaseTextPolicy):
 	def __init__(self, language: str, prefix: str = "", suffix: str = "", question_string: str = "", answer_string: str = ""):
 		self.language = language
 		self.prefix = prefix
@@ -26,7 +27,6 @@ class ChineseTextPolicy:
 		if self.suffix and text.endswith(self.suffix):
 			text = text[:-len(self.suffix)]
 
-		# Remove automatically added punctuations since there is no punctuation at the end of input
 		while input_text_tmp[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
 			text = text[:-1]
 
@@ -36,7 +36,6 @@ class ChineseTextPolicy:
 					text += input_text_tmp[-i:]
 					break
 
-		# Remove automatically added punctuations since there is no punctuation at the begin of input
 		while input_text_tmp[0] not in SEPERATOR and text and text[0] in SEPERATOR:
 			text = text[1:]
 
@@ -53,11 +52,11 @@ class ChineseTextPolicy:
 		return sentence
 
 
-class LiteChineseTextPolicy(ChineseTextPolicy):
+class LiteTypoTextPolicy(TypoTextPolicy):
 	pass
 
 
-class StandardChineseTextPolicy(ChineseTextPolicy):
+class StandardTypoTextPolicy(TypoTextPolicy):
 	def __init__(self, language: str):
 		if language == "zh_traditional":
 			prefix = "我說"

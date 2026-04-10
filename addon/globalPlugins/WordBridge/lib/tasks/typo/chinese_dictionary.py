@@ -1,16 +1,14 @@
 from collections import defaultdict
-
+from pathlib import Path
 import csv
-import os
 
 
 def load_pinyin_mapping():
-	file_dir_path = os.path.dirname(os.path.abspath(__file__))
-	dictionary_path = os.path.join(file_dir_path, "..", "data", "dict_revised_2015_20231228_csv.csv")
+	dictionary_path = Path(__file__).resolve().parent / "data" / "dict_revised_2015_20231228_csv.csv"
 
 	string_to_pinyin = defaultdict(list)
 	pinyin_to_string = defaultdict(list)
-	with open(dictionary_path, encoding="utf8", newline="") as csvfile:
+	with dictionary_path.open(encoding="utf8", newline="") as csvfile:
 		reader = csv.reader(csvfile)
 		for row in reader:
 			pinyin_to_string[row[1]].append(row[0])

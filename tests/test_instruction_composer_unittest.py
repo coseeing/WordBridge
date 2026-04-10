@@ -42,11 +42,11 @@ sys.modules.setdefault("hanzidentifier", hanzidentifier_module)
 
 class InstructionComposerTests(unittest.TestCase):
 	def test_lite_instruction_composer_builds_messages_and_guidance(self):
-		from lib.instruction_composer import LiteInstructionComposer
-		from lib.language_text_policy import LiteChineseTextPolicy
+		from lib.tasks.typo.prompt import LiteTypoPromptStrategy
+		from lib.tasks.typo.text_policy import LiteTypoTextPolicy
 
-		policy = LiteChineseTextPolicy("zh_traditional")
-		composer = LiteInstructionComposer(
+		policy = LiteTypoTextPolicy("zh_traditional")
+		composer = LiteTypoPromptStrategy(
 			language="zh_traditional",
 			template_name="Lite_v1.json",
 			optional_guidance_enable={
@@ -70,11 +70,11 @@ class InstructionComposerTests(unittest.TestCase):
 		self.assertIn("參考詞彙: 天器", system_template)
 
 	def test_standard_instruction_composer_renders_phone_input(self):
-		from lib.instruction_composer import StandardInstructionComposer
-		from lib.language_text_policy import StandardChineseTextPolicy
+		from lib.tasks.typo.prompt import StandardTypoPromptStrategy
+		from lib.tasks.typo.text_policy import StandardTypoTextPolicy
 
-		policy = StandardChineseTextPolicy("zh_traditional")
-		composer = StandardInstructionComposer(
+		policy = StandardTypoTextPolicy("zh_traditional")
+		composer = StandardTypoPromptStrategy(
 			language="zh_traditional",
 			template_name="Standard_v1.json",
 			optional_guidance_enable={
