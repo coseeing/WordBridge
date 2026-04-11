@@ -1,0 +1,10 @@
+{
+	"name": "OpenAIResponse",
+	"url": "https://api.openai.com/v1/responses",
+	"setting": {
+		"max_output_tokens": 4096,
+		"store": false
+	},
+	"timeout0": 10,
+	"timeout_max": 20
+}

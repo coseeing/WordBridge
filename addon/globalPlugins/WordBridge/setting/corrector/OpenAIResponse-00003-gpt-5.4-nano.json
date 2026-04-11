@@ -1,6 +1,6 @@
 {
-    "model": "gemini-2.5-pro",
-    "provider": "Google",
+    "model": "gpt-5.4-nano-2026-03-17",
+    "provider": "OpenAIResponse",
     "template_name": {
         "standard": "Standard_v1.json",
         "lite": "Lite_v1.json"
@@ -9,5 +9,5 @@
         "keep_non_chinese_char": true,
         "no_explanation": false
     },
-    "coseeing": false
+    "coseeing": true
 }

@@ -26,8 +26,9 @@ import wx
 
 import requests
 
-from .dialogs import CORRECTOR_CONFIG_FILENAME_DEFAULT, CORRECTOR_CONFIG_FOLDER_PATH, LANGUAGE_DEFAULT, TYPO_CORRECTION_MODE_DEFAULT
+from .dialogs import CORRECTOR_CONFIG_ID_DEFAULT, EXECUTION_CHANNEL_DEFAULT, LANGUAGE_DEFAULT, TYPO_CORRECTION_MODE_DEFAULT, configManager
 from .dialogs import LLMSettingsPanel, FeedbackDialog
+from .configManager import normalize_selection
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.application.task_runner import run_typo_correction
 from .lib.coseeing import obtain_openai_key
@@ -43,11 +44,11 @@ ADDON_SUMMARY = "WordBridge"
 
 config.conf.spec["WordBridge"] = {
 	"settings": {
-		"corrector_config_filename": f"string(default={CORRECTOR_CONFIG_FILENAME_DEFAULT})",
+		"corrector_config_id": f"string(default={CORRECTOR_CONFIG_ID_DEFAULT})",
+		"execution_channel": f"string(default={EXECUTION_CHANNEL_DEFAULT})",
 		"language": f"string(default={LANGUAGE_DEFAULT})",
 		"typo_correction_mode": f"string(default={TYPO_CORRECTION_MODE_DEFAULT})",
 		"api_key": {},
-		"secret_key": {},
 		"coseeing_username": "string(default=\0)",
 		"coseeing_password": "string(default=\0)",
 		"max_char_count": "integer(default=512,min=256,max=4096)",
@@ -185,38 +186,31 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, request):
-		corrector_config_filename = config.conf["WordBridge"]["settings"]["corrector_config_filename"]
-		corrector_config_file_path = os.path.join(
-			CORRECTOR_CONFIG_FOLDER_PATH,
-			corrector_config_filename
+		corrector_config_id = config.conf["WordBridge"]["settings"]["corrector_config_id"]
+		execution_channel = config.conf["WordBridge"]["settings"]["execution_channel"]
+		corrector_config_id, execution_channel, corrector_config = normalize_selection(
+			configManager,
+			corrector_config_id,
+			execution_channel,
 		)
-		if not os.path.exists(corrector_config_file_path):
-			corrector_config_file_path = os.path.join(
-				CORRECTOR_CONFIG_FOLDER_PATH,
-				CORRECTOR_CONFIG_FILENAME_DEFAULT
-			)
 
 		language = config.conf["WordBridge"]["settings"]["language"]
 		corrector_mode = config.conf["WordBridge"]["settings"]["typo_correction_mode"]
-		with open(corrector_config_file_path, "r", encoding="utf8") as f:
-			corrector_config = json.loads(f.read())
-		provider = corrector_config["provider"]
-		model_name = corrector_config["model"]
-		template_name = corrector_config["template_name"][corrector_mode]
-		optional_guidance_enable = corrector_config["optional_guidance_enable"]
+
+		provider = corrector_config.provider
+		model_name = corrector_config.model
+		template_name = corrector_config.template_name[corrector_mode]
+		optional_guidance_enable = corrector_config.optional_guidance_enable
 
 		if config.conf["WordBridge"]["settings"]["customized_words_enable"]:
 			customized_words = [row["text"] for row in self.readDictionary()]
 		else:
 			customized_words = []
-		if corrector_config["llm_access_method"] != "coseeing_relay":
+		if execution_channel == "local":
 			if provider not in config.conf["WordBridge"]["settings"]["api_key"]:
 				config.conf["WordBridge"]["settings"]["api_key"][provider] = ""
-			if provider not in config.conf["WordBridge"]["settings"]["secret_key"]:
-				config.conf["WordBridge"]["settings"]["secret_key"][provider] = ""
 			credential = {
 				"api_key": config.conf["WordBridge"]["settings"]["api_key"][provider],
-				"secret_key": config.conf["WordBridge"]["settings"]["secret_key"][provider],
 			}
 
 			try:
@@ -258,7 +252,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 			data = {
 				"request": request,
-				"corrector_config_filename": corrector_config_filename,
+				"corrector_config_id": corrector_config_id,
 				"language": language,
 				"typo_correction_mode": corrector_mode,
 				"customized_words": customized_words,

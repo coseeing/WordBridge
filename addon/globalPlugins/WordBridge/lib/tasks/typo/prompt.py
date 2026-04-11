@@ -4,6 +4,7 @@ import os
 
 from pypinyin import Style, lazy_pinyin
 
+from ...llm.prompt_bundle import PromptBundle
 from ...text.chinese import PUNCTUATION, is_chinese_character
 from ..base import BasePromptStrategy
 from .utils import get_char_pinyin
@@ -28,9 +29,9 @@ class TypoPromptStrategy(BasePromptStrategy):
 
 	def compose(self, input_text: str, response_text_history: list, text_policy):
 		input_info = self._get_input_info(input_text)
-		return (
-			self.build_messages(input_text, response_text_history, text_policy, input_info),
-			self.build_system_template(input_info),
+		return PromptBundle(
+			messages=self.build_messages(input_text, response_text_history, text_policy, input_info),
+			system_template=self.build_system_template(input_info),
 		)
 
 	def build_messages(self, input_text: str, response_text_history: list, text_policy, input_info: dict):

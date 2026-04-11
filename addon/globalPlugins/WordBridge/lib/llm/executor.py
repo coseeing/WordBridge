@@ -29,14 +29,13 @@ class LLMExecutor:
 		if not text_policy.has_target_language(input_text):
 			return LLMExecutionResult(input_text, input_text, {}, {})
 
-		messages, system_template = prompt_strategy.compose(
+		prompt_bundle = prompt_strategy.compose(
 			input_text=input_text,
 			response_text_history=previous_results,
 			text_policy=text_policy,
 		)
 		payload = self.adapter_object.format_request(
-			messages=messages,
-			system_template=system_template,
+			prompt_bundle=prompt_bundle,
 			setting=self.provider_object.setting,
 		)
 		response_json = self.provider_object.send(

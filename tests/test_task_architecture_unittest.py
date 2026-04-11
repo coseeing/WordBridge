@@ -44,6 +44,7 @@ sys.modules.setdefault("hanzidentifier", hanzidentifier_module)
 class TaskArchitectureTests(unittest.TestCase):
 	def test_llm_executor_coordinates_prompt_policy_provider_and_adapter(self):
 		from lib.llm.executor import LLMExecutor
+		from lib.llm.prompt_bundle import PromptBundle
 
 		class FakeProvider:
 			def __init__(self):
@@ -64,11 +65,11 @@ class TaskArchitectureTests(unittest.TestCase):
 				self.parse_called = False
 				self.extract_usage_called = False
 
-			def format_request(self, messages, system_template, setting):
+			def format_request(self, prompt_bundle, setting):
 				self.format_called = True
 				return {
-					"messages": messages,
-					"system": system_template,
+					"messages": prompt_bundle.messages,
+					"system": prompt_bundle.system_template,
 					"setting": setting,
 				}
 
@@ -88,7 +89,10 @@ class TaskArchitectureTests(unittest.TestCase):
 
 		class FakePromptStrategy:
 			def compose(self, input_text, response_text_history, text_policy):
-				return ([{"role": "user", "content": input_text}], "系統提示")
+				return PromptBundle(
+					messages=[{"role": "user", "content": input_text}],
+					system_template="系統提示",
+				)
 
 		class FakeTextPolicy:
 			def has_target_language(self, text):
@@ -183,6 +187,52 @@ class TaskArchitectureTests(unittest.TestCase):
 			task_factory.create_typo_workflow = original_create
 
 		self.assertTrue(TypoCorrectionWorkflow)
+
+	def test_task_factory_supports_openai_response_provider_contract(self):
+		from lib.application import task_factory
+		from lib.tasks.typo.workflow import TypoCorrectionWorkflow
+
+		captured = {}
+
+		class FakeProvider:
+			setting = {}
+
+		class FakeAdapter:
+			pass
+
+		original_get_provider = task_factory.get_provider
+		original_get_provider_model_adapter = task_factory.get_provider_model_adapter
+		try:
+			def fake_get_provider(provider_name, credential, retries=2, backoff=1):
+				captured["provider_name"] = provider_name
+				return FakeProvider()
+
+			def fake_get_provider_model_adapter(provider_name, model_name):
+				captured["adapter_provider_name"] = provider_name
+				captured["model_name"] = model_name
+				return FakeAdapter()
+
+			task_factory.get_provider = fake_get_provider
+			task_factory.get_provider_model_adapter = fake_get_provider_model_adapter
+
+			workflow = task_factory.create_typo_workflow(
+				provider_name="OpenAIResponse",
+				model_name="gpt-4.1-2025-04-14",
+				credential={"api_key": "test"},
+				language="zh_traditional",
+				template_name="Lite_v1.json",
+				corrector_mode="lite",
+				optional_guidance_enable={},
+				customized_words=[],
+			)
+		finally:
+			task_factory.get_provider = original_get_provider
+			task_factory.get_provider_model_adapter = original_get_provider_model_adapter
+
+		self.assertIsInstance(workflow, TypoCorrectionWorkflow)
+		self.assertEqual(captured["provider_name"], "OpenAIResponse")
+		self.assertEqual(captured["adapter_provider_name"], "OpenAIResponse")
+		self.assertEqual(captured["model_name"], "gpt-4.1-2025-04-14")
 
 
 if __name__ == "__main__":

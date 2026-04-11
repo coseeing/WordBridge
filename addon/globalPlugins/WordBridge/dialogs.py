@@ -2,8 +2,6 @@ from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
 
 import config
 import ctypes
-import glob
-import json
 import locale
 import os
 import wx
@@ -15,7 +13,7 @@ from gui import guiHelper, nvdaControls
 from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
 
-from . configManager import ConfigManager
+from . configManager import ConfigManager, normalize_selection
 from .dictionary.dialog import DictionaryEntryDialog
 
 addonHandler.initTranslation()
@@ -34,7 +32,6 @@ if os_language_code in ["zh_TW", "zh_MO", "zh_HK"]:
 	LANGUAGE_DEFAULT = "zh_traditional"
 else:
 	LANGUAGE_DEFAULT = "zh_simplified"
-CORRECTOR_CONFIG_FILENAME_DEFAULT = "Coseeing-1-deepseek-chat-v3-0324.json"
 CORRECTOR_CONFIG_FOLDER_PATH = os.path.join(os.path.dirname(__file__), "setting", "corrector")
 TYPO_CORRECTION_MODE_DEFAULT = "standard"
 
@@ -47,6 +44,7 @@ TYPO_CORRECTION_MODE_LABELS = [LABEL_DICT[val] for val in TYPO_CORRECTION_MODE_V
 SOUND_EFFECTS_URL = "https://www.zapsplat.com/music/medium-underwater-movement-whoosh-pass-by-1/"
 
 configManager = ConfigManager(CORRECTOR_CONFIG_FOLDER_PATH)
+CORRECTOR_CONFIG_ID_DEFAULT, EXECUTION_CHANNEL_DEFAULT = configManager.default_selection()
 
 
 class LLMSettingsPanel(SettingsPanel):
@@ -56,10 +54,19 @@ class LLMSettingsPanel(SettingsPanel):
 	def makeSettings(self, settingsSizer):
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 
-		config_filename = config.conf["WordBridge"]["settings"]["corrector_config_filename"]
-		(provider_index, model_index) = configManager.find_index_by_filename(config_filename)
+		config_id = config.conf["WordBridge"]["settings"]["corrector_config_id"]
+		execution_channel = config.conf["WordBridge"]["settings"]["execution_channel"]
+		config_id, execution_channel, selected_config = normalize_selection(
+			configManager,
+			config_id,
+			execution_channel,
+		)
+		(provider_index, model_index) = configManager.find_selection(config_id, execution_channel)
 		if (provider_index, model_index) == (-1, -1):
-			(provider_index, model_index) = configManager.find_index_by_filename(CORRECTOR_CONFIG_FILENAME_DEFAULT)
+			(provider_index, model_index) = configManager.find_selection(
+				CORRECTOR_CONFIG_ID_DEFAULT,
+				EXECUTION_CHANNEL_DEFAULT,
+			)
 
 		# For selecting provider
 		providerLabelText = _("Service Provider:")
@@ -74,7 +81,7 @@ class LLMSettingsPanel(SettingsPanel):
 		self.providerList.SetSelection(provider_index)
 
 		provider_index = self.providerList.GetSelection()
-		configManager.provider = list(configManager.endpoints)[provider_index]
+		configManager.provider = configManager.provider_groups[provider_index]
 
 		# For selecting LLM
 		modelLabelText = _("Large Language Model:")
@@ -91,11 +98,9 @@ class LLMSettingsPanel(SettingsPanel):
 		self.accountGroupSizerMap = {}
 		self.accountTextCtrlMap1 = {}
 		self.accountTextCtrlMap2 = {}
-		for endpoint, label in zip(configManager.endpoints.keys(), configManager.endpoint_labels):
+		for endpoint, label in zip(configManager.provider_groups, configManager.endpoint_labels):
 			if endpoint not in config.conf["WordBridge"]["settings"]["api_key"]:
 				config.conf["WordBridge"]["settings"]["api_key"][endpoint] = ""
-			if endpoint not in config.conf["WordBridge"]["settings"]["secret_key"]:
-				config.conf["WordBridge"]["settings"]["secret_key"][endpoint] = ""
 
 			firstInfoText = _("Username:") if endpoint == "Coseeing" else _("API Key:")
 			secondInfoText = _("Password:") if endpoint == "Coseeing" else _("Secret Key:")
@@ -104,7 +109,6 @@ class LLMSettingsPanel(SettingsPanel):
 				secondInfo = config.conf["WordBridge"]["settings"]["coseeing_password"]
 			else:
 				firstInfo = config.conf["WordBridge"]["settings"]["api_key"][endpoint]
-				secondInfo =config.conf["WordBridge"]["settings"]["secret_key"][endpoint]
 
 			accountBoxSizer = wx.StaticBoxSizer(
 				wx.VERTICAL,
@@ -245,7 +249,9 @@ class LLMSettingsPanel(SettingsPanel):
 	def onSave(self):
 		provider_index = self.providerList.GetSelection()
 		model_index = self.modelList.GetSelection()
-		config.conf["WordBridge"]["settings"]["corrector_config_filename"] = configManager.get_config_by_index(provider_index, model_index).filename
+		selected_item = configManager.get_item_by_index(provider_index, model_index)
+		config.conf["WordBridge"]["settings"]["corrector_config_id"] = selected_item.corrector_config_id
+		config.conf["WordBridge"]["settings"]["execution_channel"] = selected_item.execution_channel
 		config.conf["WordBridge"]["settings"]["language"] = LANGUAGE_VALUES[self.languageList.GetSelection()]
 		config.conf["WordBridge"]["settings"]["typo_correction_mode"] = TYPO_CORRECTION_MODE_VALUES[self.typoCorrectionModeList.GetSelection()]
 		config.conf["WordBridge"]["settings"]["max_char_count"] = self.maxCharCountSpinCtrl.GetValue()
@@ -262,13 +268,10 @@ class LLMSettingsPanel(SettingsPanel):
 			if provider_tmp in self.accountTextCtrlMap1:
 				api_key_tmp = self.accountTextCtrlMap1[provider_tmp].GetValue()
 				config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = api_key_tmp
-			if provider_tmp in self.accountTextCtrlMap2:
-				secret_key_tmp = self.accountTextCtrlMap2[provider_tmp].GetValue()
-				config.conf["WordBridge"]["settings"]["secret_key"][provider_tmp] = secret_key_tmp
 
 	def onChangeProviderChoice(self, evt):
 		provider_index = self.providerList.GetSelection()
-		configManager.provider = list(configManager.endpoints)[provider_index]
+		configManager.provider = configManager.provider_groups[provider_index]
 
 		self.Freeze()
 		# trigger a refresh of the settings

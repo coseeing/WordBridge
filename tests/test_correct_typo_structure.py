@@ -15,7 +15,7 @@ def _assigned_names(nodes):
 	return names
 
 
-def test_correct_typo_does_not_hide_runtime_vars_inside_missing_file_fallback():
+def test_correct_typo_uses_config_id_and_execution_channel_instead_of_filename_lookup():
 	module_path = (
 		Path(__file__).resolve().parents[1]
 		/ "addon"
@@ -35,16 +35,17 @@ def test_correct_typo_does_not_hide_runtime_vars_inside_missing_file_fallback():
 
 	assert correct_typo is not None
 
-	fallback_if = None
-	for stmt in correct_typo.body:
-		if isinstance(stmt, ast.If) and isinstance(stmt.test, ast.UnaryOp):
-			fallback_if = stmt
-			break
+	string_constants = {
+		child.value
+		for child in ast.walk(correct_typo)
+		if isinstance(child, ast.Constant) and isinstance(child.value, str)
+	}
+	used_names = {child.id for child in ast.walk(correct_typo) if isinstance(child, ast.Name)}
 
-	assert fallback_if is not None
-	assert "language" not in _assigned_names(fallback_if.body)
-	assert "corrector_mode" not in _assigned_names(fallback_if.body)
-	assert "corrector_config" not in _assigned_names(fallback_if.body)
+	assert "corrector_config_id" in string_constants
+	assert "execution_channel" in string_constants
+	assert "corrector_config_filename" not in string_constants
+	assert "normalize_selection" in used_names
 
 
 def test_correct_typo_uses_application_layer_instead_of_low_level_llm_assembly():
@@ -142,3 +143,16 @@ def test_cost_calculator_lives_under_llm_layer():
 
 	assert not (root / "cost_calculator.py").exists()
 	assert (root / "llm" / "cost_calculator.py").exists()
+
+
+def test_dialogs_account_groups_follow_provider_group_order():
+	module_path = (
+		Path(__file__).resolve().parents[1]
+		/ "addon"
+		/ "globalPlugins"
+		/ "WordBridge"
+		/ "dialogs.py"
+	)
+	source = module_path.read_text(encoding="utf-8")
+
+	assert "zip(configManager.provider_groups, configManager.endpoint_labels)" in source

@@ -13,7 +13,7 @@ class ProviderModelAdapter:
 		self._model_entry = self._load_model_entry()
 		self._cost_calculator = CostCalculator(self._model_entry)
 
-	def format_request(self, messages, system_template, setting: dict):
+	def format_request(self, prompt_bundle, setting: dict):
 		raise NotImplementedError("Subclass must implement this method")
 
 	def parse_response(self, response):
@@ -41,35 +41,75 @@ class ProviderModelAdapter:
 		return config.get(f"{self.model_name}&{self.provider_name}", {})
 
 
-class OpenAIChatAdapter(ProviderModelAdapter):
-	def format_request(self, messages, system_template, setting: dict):
+class OpenAIChatCompletionAdapter(ProviderModelAdapter):
+	def _is_reasoning_model(self) -> bool:
+		return self.model_name.startswith("o") or self.model_name.startswith("gpt-5")
+
+	def format_request(self, prompt_bundle, setting: dict):
 		payload = deepcopy(setting)
-		payload["model"] = self.model_name
-		payload["messages"] = [{"role": "system", "content": system_template}] + deepcopy(messages)
-		return payload
+		messages = deepcopy(prompt_bundle.messages)
 
-
-class OpenAIReasoningAdapter(ProviderModelAdapter):
-	def format_request(self, messages, system_template, setting: dict):
-		payload = deepcopy(setting)
-		payload.pop("stop", None)
-		payload.pop("temperature", None)
-		payload.pop("top_p", None)
-
-		messages = deepcopy(messages)
-		messages[0]["content"] = system_template + "\n" + messages[0]["content"]
+		if self._is_reasoning_model():
+			payload.pop("stop", None)
+			payload.pop("temperature", None)
+			payload.pop("top_p", None)
+			messages[0]["content"] = prompt_bundle.system_template + "\n" + messages[0]["content"]
+		else:
+			messages = [{"role": "system", "content": prompt_bundle.system_template}] + messages
 
 		payload["model"] = self.model_name
 		payload["messages"] = messages
 		return payload
 
 
+class OpenAIResponseAdapter(ProviderModelAdapter):
+	def format_request(self, prompt_bundle, setting: dict):
+		payload = deepcopy(setting)
+		payload["model"] = self.model_name
+		payload["instructions"] = prompt_bundle.system_template
+		payload["input"] = [
+			self._build_input_item(message)
+			for message in deepcopy(prompt_bundle.messages)
+		]
+		return payload
+
+	def _build_input_item(self, message: dict) -> dict:
+		content_type = "output_text" if message["role"] == "assistant" else "input_text"
+		return {
+			"role": message["role"],
+			"content": [{"type": content_type, "text": message["content"]}],
+		}
+
+	def parse_response(self, response):
+		try:
+			output_blocks = response["output"]
+		except KeyError:
+			if "output_text" in response:
+				return response["output_text"]
+			raise
+
+		for block in output_blocks:
+			if block.get("type") != "message":
+				continue
+			for content in block.get("content", []):
+				if content.get("type") == "output_text":
+					return content["text"]
+		raise KeyError("No output_text found in Responses API payload")
+
+	def extract_usage(self, response):
+		usage = response.get(self._model_entry.get("usage_key", "usage"), {})
+		return {
+			"input_tokens": usage.get("input_tokens", 0),
+			"output_tokens": usage.get("output_tokens", 0),
+		}
+
+
 class AnthropicAdapter(ProviderModelAdapter):
-	def format_request(self, messages, system_template, setting: dict):
+	def format_request(self, prompt_bundle, setting: dict):
 		return {
 			"model": self.model_name,
-			"system": system_template,
-			"messages": deepcopy(messages),
+			"system": prompt_bundle.system_template,
+			"messages": deepcopy(prompt_bundle.messages),
 			**deepcopy(setting),
 		}
 
@@ -78,13 +118,13 @@ class AnthropicAdapter(ProviderModelAdapter):
 
 
 class GoogleAdapter(ProviderModelAdapter):
-	def format_request(self, messages, system_template, setting: dict):
+	def format_request(self, prompt_bundle, setting: dict):
 		contents = []
-		for message in messages:
+		for message in prompt_bundle.messages:
 			role = "model" if message["role"] == "assistant" else "user"
 			contents.append({"role": role, "parts": [{"text": message["content"]}]})
 		return {
-			"system_instruction": {"parts": [{"text": system_template}]},
+			"system_instruction": {"parts": [{"text": prompt_bundle.system_template}]},
 			"contents": contents,
 		}
 
@@ -93,30 +133,30 @@ class GoogleAdapter(ProviderModelAdapter):
 
 
 class OpenRouterAdapter(ProviderModelAdapter):
-	def format_request(self, messages, system_template, setting: dict):
+	def format_request(self, prompt_bundle, setting: dict):
 		return {
 			"model": self.model_name,
-			"messages": [{"role": "system", "content": system_template}] + deepcopy(messages),
+			"messages": [{"role": "system", "content": prompt_bundle.system_template}] + deepcopy(prompt_bundle.messages),
 			"stream": False,
 			"options": {**deepcopy(setting)},
 		}
 
 
 class DeepSeekAdapter(ProviderModelAdapter):
-	def format_request(self, messages, system_template, setting: dict):
+	def format_request(self, prompt_bundle, setting: dict):
 		return {
 			"model": self.model_name,
-			"messages": [{"role": "system", "content": system_template}] + deepcopy(messages),
+			"messages": [{"role": "system", "content": prompt_bundle.system_template}] + deepcopy(prompt_bundle.messages),
 			"stream": False,
 			"options": {**deepcopy(setting)},
 		}
 
 
 def get_provider_model_adapter(provider_name: str, model_name: str) -> ProviderModelAdapter:
-	if provider_name == "OpenAI":
-		if model_name.startswith("o") or model_name in ["gpt-5", "gpt-5-mini", "gpt-5-nano"]:
-			return OpenAIReasoningAdapter(provider_name, model_name)
-		return OpenAIChatAdapter(provider_name, model_name)
+	if provider_name == "OpenAIChatCompletion":
+		return OpenAIChatCompletionAdapter(provider_name, model_name)
+	if provider_name == "OpenAIResponse":
+		return OpenAIResponseAdapter(provider_name, model_name)
 
 	family_mapping = {
 		"Anthropic": AnthropicAdapter,

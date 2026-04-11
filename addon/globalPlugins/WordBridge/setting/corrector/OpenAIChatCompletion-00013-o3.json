@@ -1,13 +1,13 @@
 {
-    "model": "deepseek/deepseek-chat-v3-0324:free",
-    "provider": "OpenRouter",
+    "model": "o3-2025-04-16",
+    "provider": "OpenAIChatCompletion",
     "template_name": {
         "standard": "Standard_v1.json",
         "lite": "Lite_v1.json"
     },
     "optional_guidance_enable": {
-        "keep_non_chinese_char": false,
-        "no_explanation": true
+        "keep_non_chinese_char": true,
+        "no_explanation": false
     },
     "coseeing": false
 }

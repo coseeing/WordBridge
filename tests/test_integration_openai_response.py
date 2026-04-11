@@ -1,23 +1,25 @@
 import pytest
+
 from lib.application.task_factory import create_typo_workflow
 from test_helpers import print_test_results, run_workflow_or_skip_transient_failure
 
-# Test representative models from different series
-OPENAI_MODELS_TO_TEST = [
+
+OPENAI_RESPONSE_MODELS_TO_TEST = [
 	"gpt-4.1-2025-04-14",
 	"gpt-5.4-mini-2026-03-17",
 	"o4-mini-2025-04-16",
-	"gpt-5-2025-08-07"
+	"gpt-5-2025-08-07",
 ]
+
 
 @pytest.mark.integration
 @pytest.mark.slow
-@pytest.mark.parametrize("model_name", OPENAI_MODELS_TO_TEST)
-def test_openai_basic_correction(model_config, credentials, test_data, model_name):
-	config = model_config(model_name, "OpenAIChatCompletion")
-	creds = credentials("OpenAIChatCompletion")
+@pytest.mark.parametrize("model_name", OPENAI_RESPONSE_MODELS_TO_TEST)
+def test_openai_response_basic_correction(model_config, credentials, test_data, model_name):
+	config = model_config(model_name, "OpenAIResponse")
+	creds = credentials("OpenAIResponse")
 	workflow = create_typo_workflow(
-		provider_name="OpenAIChatCompletion",
+		provider_name="OpenAIResponse",
 		model_name=config["name"],
 		credential=creds,
 		language=config["language"],
@@ -42,14 +44,15 @@ def test_openai_basic_correction(model_config, credentials, test_data, model_nam
 
 	print_test_results(model_name, test_text, response, diff, workflow.executor)
 
+
 @pytest.mark.integration
 @pytest.mark.slow
-@pytest.mark.parametrize("model_name", OPENAI_MODELS_TO_TEST)
-def test_openai_with_typo(model_config, credentials, test_data, model_name):
-	config = model_config(model_name, "OpenAIChatCompletion")
-	creds = credentials("OpenAIChatCompletion")
+@pytest.mark.parametrize("model_name", OPENAI_RESPONSE_MODELS_TO_TEST)
+def test_openai_response_with_typo(model_config, credentials, test_data, model_name):
+	config = model_config(model_name, "OpenAIResponse")
+	creds = credentials("OpenAIResponse")
 	workflow = create_typo_workflow(
-		provider_name="OpenAIChatCompletion",
+		provider_name="OpenAIResponse",
 		model_name=config["name"],
 		credential=creds,
 		language=config["language"],
@@ -67,7 +70,6 @@ def test_openai_with_typo(model_config, credentials, test_data, model_name):
 	assert isinstance(response, str)
 
 	cost = workflow.executor.get_total_cost()
-
 	assert cost >= 0
 
 	print_test_results(model_name, test_text, response, diff, workflow.executor)

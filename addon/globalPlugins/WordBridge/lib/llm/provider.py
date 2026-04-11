@@ -139,8 +139,12 @@ class Provider:
 		return self.send(payload)
 
 
-class OpenaiProvider(Provider):
-	name = "OpenAI"
+class OpenAIChatCompletionProvider(Provider):
+	name = "OpenAIChatCompletion"
+
+
+class OpenAIResponseProvider(Provider):
+	name = "OpenAIResponse"
 
 
 class AnthropicProvider(Provider):
@@ -178,7 +182,8 @@ class DeepseekProvider(Provider):
 
 def get_provider(provider_name: str, credential: dict, retries: int = 2, backoff: int = 1) -> Provider:
 	provider_mapping = {
-		"OpenAI": OpenaiProvider,
+		"OpenAIChatCompletion": OpenAIChatCompletionProvider,
+		"OpenAIResponse": OpenAIResponseProvider,
 		"Anthropic": AnthropicProvider,
 		"DeepSeek": DeepseekProvider,
 		"Google": GoogleProvider,

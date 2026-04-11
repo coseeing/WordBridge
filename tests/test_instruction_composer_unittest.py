@@ -42,6 +42,7 @@ sys.modules.setdefault("hanzidentifier", hanzidentifier_module)
 
 class InstructionComposerTests(unittest.TestCase):
 	def test_lite_instruction_composer_builds_messages_and_guidance(self):
+		from lib.llm.prompt_bundle import PromptBundle
 		from lib.tasks.typo.prompt import LiteTypoPromptStrategy
 		from lib.tasks.typo.text_policy import LiteTypoTextPolicy
 
@@ -56,18 +57,19 @@ class InstructionComposerTests(unittest.TestCase):
 			customized_words=["天器"],
 		)
 
-		messages, system_template = composer.compose(
+		prompt_bundle = composer.compose(
 			input_text="abc天器",
 			response_text_history=["前一次答案"],
 			text_policy=policy,
 		)
 
-		self.assertIn("abc天器", messages[-3]["content"])
-		self.assertEqual(messages[-2], {"role": "assistant", "content": "前一次答案"})
-		self.assertIn("'前一次答案'是錯誤答案", messages[-1]["content"])
-		self.assertIn("勿將非漢字用漢字取代", system_template)
-		self.assertIn("輸出答案即可", system_template)
-		self.assertIn("參考詞彙: 天器", system_template)
+		self.assertIsInstance(prompt_bundle, PromptBundle)
+		self.assertIn("abc天器", prompt_bundle.messages[-3]["content"])
+		self.assertEqual(prompt_bundle.messages[-2], {"role": "assistant", "content": "前一次答案"})
+		self.assertIn("'前一次答案'是錯誤答案", prompt_bundle.messages[-1]["content"])
+		self.assertIn("勿將非漢字用漢字取代", prompt_bundle.system_template)
+		self.assertIn("輸出答案即可", prompt_bundle.system_template)
+		self.assertIn("參考詞彙: 天器", prompt_bundle.system_template)
 
 	def test_standard_instruction_composer_renders_phone_input(self):
 		from lib.tasks.typo.prompt import StandardTypoPromptStrategy
@@ -84,15 +86,15 @@ class InstructionComposerTests(unittest.TestCase):
 			customized_words=[],
 		)
 
-		messages, system_template = composer.compose(
+		prompt_bundle = composer.compose(
 			input_text="天器",
 			response_text_history=[],
 			text_policy=policy,
 		)
 
-		self.assertIn("我說天器&", messages[-1]["content"])
-		self.assertIn("我 說 天 器", messages[-1]["content"])
-		self.assertEqual(system_template, "輸入為文字與其正確拼音，請修正錯字並輸出正確文字:\n(文字&拼音) => 文字")
+		self.assertIn("我說天器&", prompt_bundle.messages[-1]["content"])
+		self.assertIn("我 說 天 器", prompt_bundle.messages[-1]["content"])
+		self.assertEqual(prompt_bundle.system_template, "輸入為文字與其正確拼音，請修正錯字並輸出正確文字:\n(文字&拼音) => 文字")
 
 
 if __name__ == "__main__":

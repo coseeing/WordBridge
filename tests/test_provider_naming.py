@@ -12,9 +12,11 @@ def test_provider_config_filenames_use_canonical_titlecase_names():
 	expected_filenames = {
 		"Anthropic.json",
 		"Baidu.json",
+		"Coseeing.json",
 		"DeepSeek.json",
 		"Google.json",
-		"OpenAI.json",
+		"OpenAIChatCompletion.json",
+		"OpenAIResponse.json",
 		"OpenRouter.json",
 	}
 
@@ -23,16 +25,23 @@ def test_provider_config_filenames_use_canonical_titlecase_names():
 	assert actual_filenames == expected_filenames
 
 
-def test_provider_factory_accepts_canonical_titlecase_name_only():
-	provider = get_provider("OpenAI", {"api_key": "test", "secret_key": ""})
+@pytest.mark.parametrize(
+	("provider_name", "expected_name"),
+	[
+		("OpenAIChatCompletion", "OpenAIChatCompletion"),
+		("OpenAIResponse", "OpenAIResponse"),
+	],
+)
+def test_provider_factory_accepts_canonical_titlecase_name_only(provider_name, expected_name):
+	provider = get_provider(provider_name, {"api_key": "test"})
 
-	assert provider.name == "OpenAI"
+	assert provider.name == expected_name
 
 
 @pytest.mark.parametrize(
 	"provider_name",
-	["openai", "OPENAI", "Openai"],
+	["OpenAI", "openai", "OPENAI", "Openai"],
 )
 def test_provider_factory_rejects_non_canonical_provider_names(provider_name):
 	with pytest.raises(ValueError, match=f"Unsupported provider: {provider_name}"):
-		get_provider(provider_name, {"api_key": "test", "secret_key": ""})
+		get_provider(provider_name, {"api_key": "test"})

@@ -1,14 +1,13 @@
 {
-	"model": "claude-sonnet-4-20250514",
-	"provider": "Anthropic",
-	"llm_access_method": "personal_api_key",
-	"require_secret_key": false,
-	"template_name": {
-		"standard": "Standard_v1.json",
-		"lite": "Lite_v1.json"
-	},
-	"optional_guidance_enable": {
-		"keep_non_chinese_char": true,
-		"no_explanation": false
-	}
+    "model": "claude-sonnet-4-20250514",
+    "provider": "Anthropic",
+    "template_name": {
+        "standard": "Standard_v1.json",
+        "lite": "Lite_v1.json"
+    },
+    "optional_guidance_enable": {
+        "keep_non_chinese_char": true,
+        "no_explanation": false
+    },
+    "coseeing": false
 }
