@@ -1,6 +1,6 @@
 {
-    "model": "gpt-4.1-2025-04-14",
-    "provider": "OpenAIResponse",
+    "model": "gpt-4.1-mini-2025-04-14",
+    "provider": "OpenAI",
     "template_name": {
         "standard": "Standard_v1.json",
         "lite": "Lite_v1.json"

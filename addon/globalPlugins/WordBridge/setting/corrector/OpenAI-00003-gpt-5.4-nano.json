@@ -1,6 +1,6 @@
 {
-    "model": "gpt-5.2-2025-12-11",
-    "provider": "OpenAIResponse",
+    "model": "gpt-5.4-nano-2026-03-17",
+    "provider": "OpenAI",
     "template_name": {
         "standard": "Standard_v1.json",
         "lite": "Lite_v1.json"
@@ -9,5 +9,5 @@
         "keep_non_chinese_char": true,
         "no_explanation": false
     },
-    "coseeing": false
+    "coseeing": true
 }

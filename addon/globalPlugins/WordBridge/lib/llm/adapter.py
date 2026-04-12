@@ -41,28 +41,7 @@ class ProviderModelAdapter:
 		return config.get(f"{self.model_name}&{self.provider_name}", {})
 
 
-class OpenAIChatCompletionAdapter(ProviderModelAdapter):
-	def _is_gpt5_family(self) -> bool:
-		return self.model_name.startswith("o") or self.model_name.startswith("gpt-5")
-
-	def format_request(self, prompt_bundle, setting: dict):
-		payload = deepcopy(setting)
-		messages = deepcopy(prompt_bundle.messages)
-
-		if self._is_gpt5_family():
-			messages[0]["content"] = prompt_bundle.system_template + "\n" + messages[0]["content"]
-			payload.pop("temperature", None)
-			payload.pop("top_p", None)
-			payload.pop("stop", None)
-		else:
-			messages = [{"role": "system", "content": prompt_bundle.system_template}] + messages
-
-		payload["model"] = self.model_name
-		payload["messages"] = messages
-		return payload
-
-
-class OpenAIResponseAdapter(ProviderModelAdapter):
+class OpenAIAdapter(ProviderModelAdapter):
 	def _is_gpt5_family(self) -> bool:
 		return self.model_name.startswith("o") or self.model_name.startswith("gpt-5")
 
@@ -188,10 +167,8 @@ class DeepSeekAdapter(ProviderModelAdapter):
 
 
 def get_provider_model_adapter(provider_name: str, model_name: str) -> ProviderModelAdapter:
-	if provider_name == "OpenAIChatCompletion":
-		return OpenAIChatCompletionAdapter(provider_name, model_name)
-	if provider_name == "OpenAIResponse":
-		return OpenAIResponseAdapter(provider_name, model_name)
+	if provider_name == "OpenAI":
+		return OpenAIAdapter(provider_name, model_name)
 
 	family_mapping = {
 		"Anthropic": AnthropicAdapter,

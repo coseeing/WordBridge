@@ -4,8 +4,7 @@
 	"setting": {
 		"maxOutputTokens": 4096,
 		"temperature": 0.0,
-		"topP": 0.0,
-		"stopSequences": [" =>"]
+		"topP": 0.0
 	},
 	"timeout0": 10,
 	"timeout_max": 20

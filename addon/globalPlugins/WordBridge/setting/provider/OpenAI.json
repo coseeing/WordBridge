@@ -1,5 +1,5 @@
 {
-	"name": "OpenAIResponse",
+	"name": "OpenAI",
 	"url": "https://api.openai.com/v1/responses",
 	"setting": {
 		"max_output_tokens": 4096,

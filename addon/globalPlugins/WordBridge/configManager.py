@@ -21,8 +21,6 @@ LABEL_DICT = {
 	"DeepSeek": _("DeepSeek"),
 	"Google": _("Google"),
 	"OpenAI": _("OpenAI"),
-	"OpenAIChatCompletion": _("OpenAI Chat Completion"),
-	"OpenAIResponse": _("OpenAI Response"),
 	"OpenRouter": _("OpenRouter"),
 	"claude-opus-4-6": _("claude-opus-4.6"),
 	"claude-sonnet-4-6": _("claude-sonnet-4.6"),

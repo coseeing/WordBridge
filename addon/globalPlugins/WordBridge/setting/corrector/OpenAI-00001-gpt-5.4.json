@@ -1,6 +1,6 @@
 {
     "model": "gpt-5.4-2026-03-05",
-    "provider": "OpenAIChatCompletion",
+    "provider": "OpenAI",
     "template_name": {
         "standard": "Standard_v1.json",
         "lite": "Lite_v1.json"
