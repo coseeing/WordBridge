@@ -1,4 +1,28 @@
 {
+  "claude-opus-4-6&Anthropic": {
+    "model": "claude-opus-4-6",
+    "provider": "Anthropic",
+    "pricing": {
+      "input_tokens": 5,
+      "cache_creation_input_tokens": 6.25,
+      "cache_read_input_tokens": 0.5,
+      "output_tokens": 25,
+      "base_unit": 1000000
+    },
+    "usage_key": "usage"
+  },
+  "claude-sonnet-4-6&Anthropic": {
+    "model": "claude-sonnet-4-6",
+    "provider": "Anthropic",
+    "pricing": {
+      "input_tokens": 3,
+      "cache_creation_input_tokens": 3.75,
+      "cache_read_input_tokens": 0.3,
+      "output_tokens": 15,
+      "base_unit": 1000000
+    },
+    "usage_key": "usage"
+  },
   "claude-haiku-4-5-20251001&Anthropic": {
     "model": "claude-haiku-4-5-20251001",
     "provider": "Anthropic",
@@ -9,50 +33,18 @@
       "output_tokens": 5,
       "base_unit": 1000000
     },
-    "usage_schema": "anthropic_standard",
-    "usage_key": "usage"
-  },
-  "claude-sonnet-4-20250514&Anthropic": {
-    "model": "claude-sonnet-4-20250514",
-    "provider": "Anthropic",
-    "pricing": {
-      "input_tokens": 3,
-      "cache_creation_input_tokens": 3.75,
-      "cache_read_input_tokens": 0.3,
-      "output_tokens": 15,
-      "base_unit": 1000000
-    },
-    "usage_schema": "anthropic_standard",
     "usage_key": "usage"
   },
   "deepseek-chat&DeepSeek": {
     "model": "deepseek-chat",
     "provider": "DeepSeek",
     "pricing": {
-      "prompt_cache_hit_tokens": 0.07,
-      "prompt_cache_miss_tokens": 0.27,
-      "completion_tokens": 1.1,
+      "prompt_cache_hit_tokens": 0.028,
+      "prompt_cache_miss_tokens": 0.28,
+      "completion_tokens": 0.42,
       "base_unit": 1000000
     },
-    "usage_schema": "deepseek_standard"
-  },
-  "deepseek/deepseek-chat:free&OpenRouter": {
-    "model": "deepseek/deepseek-chat:free",
-    "provider": "OpenRouter",
-    "pricing": {},
-    "usage_schema": null
-  },
-  "deepseek/deepseek-chat-v3-0324:free&OpenRouter": {
-    "model": "deepseek/deepseek-chat-v3-0324:free",
-    "provider": "OpenRouter",
-    "pricing": {},
-    "usage_schema": null
-  },
-  "deepseek/deepseek-r1-0528:free&OpenRouter": {
-    "model": "deepseek/deepseek-r1-0528:free",
-    "provider": "OpenRouter",
-    "pricing": {},
-    "usage_schema": null
+    "usage_key": "usage"
   },
   "gemini-2.5-flash&Google": {
     "model": "gemini-2.5-flash",
@@ -62,7 +54,16 @@
       "candidatesTokenCount": 2.5,
       "base_unit": 1000000
     },
-    "usage_schema": "google_standard",
+    "usage_key": "usageMetadata"
+  },
+  "gemini-2.5-flash-lite&Google": {
+    "model": "gemini-2.5-flash-lite",
+    "provider": "Google",
+    "pricing": {
+      "promptTokenCount": 0.1,
+      "candidatesTokenCount": 0.4,
+      "base_unit": 1000000
+    },
     "usage_key": "usageMetadata"
   },
   "gemini-2.5-pro&Google": {
@@ -73,7 +74,6 @@
       "candidatesTokenCount": 10,
       "base_unit": 1000000
     },
-    "usage_schema": "google_standard",
     "usage_key": "usageMetadata"
   },
   "gpt-5.4-2026-03-05&OpenAIChatCompletion": {
@@ -84,7 +84,6 @@
       "completion_tokens": 15,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_standard",
     "usage_key": "usage"
   },
   "gpt-5.4-2026-03-05&OpenAIResponse": {
@@ -95,7 +94,6 @@
       "output_tokens": 15,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_responses",
     "usage_key": "usage"
   },
   "gpt-5.4-mini-2026-03-17&OpenAIChatCompletion": {
@@ -106,7 +104,6 @@
       "completion_tokens": 4.5,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_standard",
     "usage_key": "usage"
   },
   "gpt-5.4-mini-2026-03-17&OpenAIResponse": {
@@ -117,7 +114,6 @@
       "output_tokens": 4.5,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_responses",
     "usage_key": "usage"
   },
   "gpt-5.4-nano-2026-03-17&OpenAIChatCompletion": {
@@ -128,7 +124,6 @@
       "completion_tokens": 1.25,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_standard",
     "usage_key": "usage"
   },
   "gpt-5.4-nano-2026-03-17&OpenAIResponse": {
@@ -139,7 +134,6 @@
       "output_tokens": 1.25,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_responses",
     "usage_key": "usage"
   },
   "gpt-5.2-2025-12-11&OpenAIChatCompletion": {
@@ -150,7 +144,6 @@
       "completion_tokens": 14,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_standard",
     "usage_key": "usage"
   },
   "gpt-5.2-2025-12-11&OpenAIResponse": {
@@ -161,7 +154,6 @@
       "output_tokens": 14,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_responses",
     "usage_key": "usage"
   },
   "gpt-5.1-2025-11-13&OpenAIChatCompletion": {
@@ -172,7 +164,6 @@
       "completion_tokens": 10,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_standard",
     "usage_key": "usage"
   },
   "gpt-5.1-2025-11-13&OpenAIResponse": {
@@ -183,7 +174,6 @@
       "output_tokens": 10,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_responses",
     "usage_key": "usage"
   },
   "gpt-5-2025-08-07&OpenAIChatCompletion": {
@@ -194,7 +184,6 @@
       "completion_tokens": 10,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_standard",
     "usage_key": "usage"
   },
   "gpt-5-2025-08-07&OpenAIResponse": {
@@ -205,7 +194,6 @@
       "output_tokens": 10,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_responses",
     "usage_key": "usage"
   },
   "gpt-5-mini-2025-08-07&OpenAIChatCompletion": {
@@ -216,7 +204,6 @@
       "completion_tokens": 2,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_standard",
     "usage_key": "usage"
   },
   "gpt-5-mini-2025-08-07&OpenAIResponse": {
@@ -227,7 +214,6 @@
       "output_tokens": 2,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_responses",
     "usage_key": "usage"
   },
   "gpt-5-nano-2025-08-07&OpenAIChatCompletion": {
@@ -238,7 +224,6 @@
       "completion_tokens": 0.4,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_standard",
     "usage_key": "usage"
   },
   "gpt-5-nano-2025-08-07&OpenAIResponse": {
@@ -249,7 +234,6 @@
       "output_tokens": 0.4,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_responses",
     "usage_key": "usage"
   },
   "gpt-4.1-2025-04-14&OpenAIChatCompletion": {
@@ -260,7 +244,6 @@
       "completion_tokens": 8,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_standard",
     "usage_key": "usage"
   },
   "gpt-4.1-2025-04-14&OpenAIResponse": {
@@ -271,7 +254,6 @@
       "output_tokens": 8,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_responses",
     "usage_key": "usage"
   },
   "gpt-4.1-mini-2025-04-14&OpenAIChatCompletion": {
@@ -282,7 +264,6 @@
       "completion_tokens": 1.6,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_standard",
     "usage_key": "usage"
   },
   "gpt-4.1-mini-2025-04-14&OpenAIResponse": {
@@ -293,7 +274,6 @@
       "output_tokens": 1.6,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_responses",
     "usage_key": "usage"
   },
   "gpt-4.1-nano-2025-04-14&OpenAIChatCompletion": {
@@ -304,7 +284,6 @@
       "completion_tokens": 0.4,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_standard",
     "usage_key": "usage"
   },
   "gpt-4.1-nano-2025-04-14&OpenAIResponse": {
@@ -315,73 +294,6 @@
       "output_tokens": 0.4,
       "base_unit": 1000000
     },
-    "usage_schema": "openai_responses",
-    "usage_key": "usage"
-  },
-  "o4-mini-2025-04-16&OpenAIChatCompletion": {
-    "model": "o4-mini-2025-04-16",
-    "provider": "OpenAIChatCompletion",
-    "pricing": {
-      "prompt_tokens": 1.1,
-      "completion_tokens": 4.4,
-      "base_unit": 1000000
-    },
-    "usage_schema": "openai_standard",
-    "usage_key": "usage"
-  },
-  "o4-mini-2025-04-16&OpenAIResponse": {
-    "model": "o4-mini-2025-04-16",
-    "provider": "OpenAIResponse",
-    "pricing": {
-      "input_tokens": 1.1,
-      "output_tokens": 4.4,
-      "base_unit": 1000000
-    },
-    "usage_schema": "openai_responses",
-    "usage_key": "usage"
-  },
-  "o3-2025-04-16&OpenAIChatCompletion": {
-    "model": "o3-2025-04-16",
-    "provider": "OpenAIChatCompletion",
-    "pricing": {
-      "prompt_tokens": 2,
-      "completion_tokens": 8,
-      "base_unit": 1000000
-    },
-    "usage_schema": "openai_standard",
-    "usage_key": "usage"
-  },
-  "o3-2025-04-16&OpenAIResponse": {
-    "model": "o3-2025-04-16",
-    "provider": "OpenAIResponse",
-    "pricing": {
-      "input_tokens": 2,
-      "output_tokens": 8,
-      "base_unit": 1000000
-    },
-    "usage_schema": "openai_responses",
-    "usage_key": "usage"
-  },
-  "o3-mini-2025-01-31&OpenAIChatCompletion": {
-    "model": "o3-mini-2025-01-31",
-    "provider": "OpenAIChatCompletion",
-    "pricing": {
-      "prompt_tokens": 1.1,
-      "completion_tokens": 4.4,
-      "base_unit": 1000000
-    },
-    "usage_schema": "openai_standard",
-    "usage_key": "usage"
-  },
-  "o3-mini-2025-01-31&OpenAIResponse": {
-    "model": "o3-mini-2025-01-31",
-    "provider": "OpenAIResponse",
-    "pricing": {
-      "input_tokens": 1.1,
-      "output_tokens": 4.4,
-      "base_unit": 1000000
-    },
-    "usage_schema": "openai_responses",
     "usage_key": "usage"
   }
 }

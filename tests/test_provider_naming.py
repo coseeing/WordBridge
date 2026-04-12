@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -45,3 +46,8 @@ def test_provider_factory_accepts_canonical_titlecase_name_only(provider_name, e
 def test_provider_factory_rejects_non_canonical_provider_names(provider_name):
 	with pytest.raises(ValueError, match=f"Unsupported provider: {provider_name}"):
 		get_provider(provider_name, {"api_key": "test"})
+
+
+def test_deepseek_provider_top_p_is_within_valid_range():
+	data = json.loads((PROVIDER_CONFIG_DIR / "DeepSeek.json").read_text(encoding="utf8"))
+	assert 0.0 < data["setting"]["top_p"] <= 1.0

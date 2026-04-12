@@ -249,6 +249,71 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		)
 		self.assertEqual(captured["json"], payload)
 
+	def test_google_adapter_maps_provider_setting_to_generation_config(self):
+		from lib.llm.adapter import GoogleAdapter, get_provider_model_adapter
+		from lib.llm.prompt_bundle import PromptBundle
+
+		adapter = get_provider_model_adapter("Google", "gemini-2.5-flash")
+		self.assertIsInstance(adapter, GoogleAdapter)
+
+		payload = adapter.format_request(
+			prompt_bundle=PromptBundle(
+				messages=[{"role": "user", "content": "原始文字"}],
+				system_template="系統提示",
+			),
+			setting={
+				"maxOutputTokens": 4096,
+				"temperature": 0.0,
+				"topP": 0.0,
+				"stopSequences": [" =>"],
+			},
+		)
+
+		self.assertEqual(payload["system_instruction"], {"parts": [{"text": "系統提示"}]})
+		self.assertEqual(
+			payload["contents"],
+			[{"role": "user", "parts": [{"text": "原始文字"}]}],
+		)
+		self.assertEqual(
+			payload["generationConfig"],
+			{
+				"maxOutputTokens": 4096,
+				"temperature": 0.0,
+				"topP": 0.0,
+				"stopSequences": [" =>"],
+			},
+		)
+
+	def test_deepseek_adapter_applies_provider_settings_at_top_level(self):
+		from lib.llm.adapter import DeepSeekAdapter, get_provider_model_adapter
+		from lib.llm.prompt_bundle import PromptBundle
+
+		adapter = get_provider_model_adapter("DeepSeek", "deepseek-chat")
+		self.assertIsInstance(adapter, DeepSeekAdapter)
+
+		payload = adapter.format_request(
+			prompt_bundle=PromptBundle(
+				messages=[{"role": "user", "content": "原始文字"}],
+				system_template="系統提示",
+			),
+			setting={
+				"max_tokens": 4096,
+				"temperature": 0.0,
+				"top_p": 0.0,
+				"stop": [" =>"],
+			},
+		)
+
+		self.assertEqual(payload["model"], "deepseek-chat")
+		self.assertEqual(payload["messages"][0], {"role": "system", "content": "系統提示"})
+		self.assertEqual(payload["messages"][1], {"role": "user", "content": "原始文字"})
+		self.assertFalse(payload["stream"])
+		self.assertEqual(payload["max_tokens"], 4096)
+		self.assertEqual(payload["temperature"], 0.0)
+		self.assertEqual(payload["top_p"], 0.0)
+		self.assertEqual(payload["stop"], [" =>"])
+		self.assertNotIn("options", payload)
+
 	def test_adapter_calculates_total_usage_and_cost_from_usage_history(self):
 		from lib.llm.adapter import get_provider_model_adapter
 

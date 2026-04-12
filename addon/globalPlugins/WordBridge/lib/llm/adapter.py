@@ -35,7 +35,7 @@ class ProviderModelAdapter:
 		return self._cost_calculator.get_total_cost(usage_history)
 
 	def _load_model_entry(self) -> dict:
-		config_path = Path(__file__).resolve().parents[2] / "setting" / "llm_models.json"
+		config_path = Path(__file__).resolve().parents[2] / "setting" / "price.json"
 		with config_path.open("r", encoding="utf8") as f:
 			config = json.load(f)
 		return config.get(f"{self.model_name}&{self.provider_name}", {})
@@ -126,6 +126,7 @@ class GoogleAdapter(ProviderModelAdapter):
 		return {
 			"system_instruction": {"parts": [{"text": prompt_bundle.system_template}]},
 			"contents": contents,
+			"generationConfig": deepcopy(setting),
 		}
 
 	def parse_response(self, response):
@@ -148,7 +149,7 @@ class DeepSeekAdapter(ProviderModelAdapter):
 			"model": self.model_name,
 			"messages": [{"role": "system", "content": prompt_bundle.system_template}] + deepcopy(prompt_bundle.messages),
 			"stream": False,
-			"options": {**deepcopy(setting)},
+			**deepcopy(setting),
 		}
 
 

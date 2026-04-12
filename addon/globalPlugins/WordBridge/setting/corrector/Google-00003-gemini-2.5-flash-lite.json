@@ -1,6 +1,6 @@
 {
-    "model": "o4-mini-2025-04-16",
-    "provider": "OpenAIChatCompletion",
+    "model": "gemini-2.5-flash-lite",
+    "provider": "Google",
     "template_name": {
         "standard": "Standard_v1.json",
         "lite": "Lite_v1.json"

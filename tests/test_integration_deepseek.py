@@ -6,18 +6,16 @@ from test_helpers import (
 )
 
 
-PROVIDER_NAME = "OpenAIResponse"
+PROVIDER_NAME = "DeepSeek"
 MODELS_TO_TEST = [
-	"gpt-5.4-mini-2026-03-17",
-	"gpt-5.2-2025-12-11",
-	"gpt-4.1-nano-2025-04-14",
+	"deepseek-chat",
 ]
 
 
 @pytest.mark.integration
 @pytest.mark.slow
 @pytest.mark.parametrize("model_name", MODELS_TO_TEST)
-def test_openai_response_basic_correction(model_config, credentials, test_data, model_name):
+def test_deepseek_basic_correction(model_config, credentials, test_data, model_name):
 	workflow = build_typo_workflow_for_provider(
 		provider_name=PROVIDER_NAME,
 		model_name=model_name,
@@ -44,7 +42,7 @@ def test_openai_response_basic_correction(model_config, credentials, test_data, 
 @pytest.mark.integration
 @pytest.mark.slow
 @pytest.mark.parametrize("model_name", MODELS_TO_TEST)
-def test_openai_response_with_typo(model_config, credentials, test_data, model_name):
+def test_deepseek_with_typo(model_config, credentials, test_data, model_name):
 	workflow = build_typo_workflow_for_provider(
 		provider_name=PROVIDER_NAME,
 		model_name=model_name,

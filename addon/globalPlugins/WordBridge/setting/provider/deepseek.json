@@ -4,7 +4,7 @@
 	"setting": {
 		"max_tokens": 4096,
 		"temperature": 0.0,
-		"top_p": 0.0,
+		"top_p": 1.0,
 		"stop": [ " =>" ]
 	},
 	"timeout0": 30,

@@ -83,7 +83,6 @@ class CorrectorCatalogTests(unittest.TestCase):
 				"Google",
 				"OpenAIChatCompletion",
 				"OpenAIResponse",
-				"OpenRouter",
 			],
 		)
 

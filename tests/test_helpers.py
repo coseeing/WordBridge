@@ -1,6 +1,8 @@
 import json
 import pytest
 
+from lib.application.task_factory import create_typo_workflow
+
 
 def run_workflow_or_skip_transient_failure(workflow, test_text, batch_mode=True):
 	try:
@@ -28,3 +30,28 @@ def print_test_results(model_name, test_text, response, diff, corrector):
 
 	print("\n=== API Response ===")
 	print(json.dumps(corrector.response_history[0], indent=2, ensure_ascii=False))
+
+
+def build_typo_workflow_for_provider(
+	provider_name,
+	model_name,
+	model_config,
+	credentials,
+	language="zh_traditional",
+	template_name="Standard_v1.json",
+	corrector_mode="standard",
+	optional_guidance_enable=None,
+	customized_words=None,
+):
+	config = model_config(model_name, provider_name)
+	creds = credentials(provider_name)
+	return create_typo_workflow(
+		provider_name=provider_name,
+		model_name=config["name"],
+		credential=creds,
+		language=language or config["language"],
+		template_name=template_name or config["template_name"],
+		corrector_mode=corrector_mode,
+		optional_guidance_enable=optional_guidance_enable or config["optional_guidance_enable"],
+		customized_words=customized_words or [],
+	)

@@ -5,8 +5,7 @@ from test_helpers import (
 	run_workflow_or_skip_transient_failure,
 )
 
-
-PROVIDER_NAME = "OpenAIResponse"
+PROVIDER_NAME = "OpenAIChatCompletion"
 MODELS_TO_TEST = [
 	"gpt-5.4-mini-2026-03-17",
 	"gpt-5.2-2025-12-11",
@@ -17,7 +16,7 @@ MODELS_TO_TEST = [
 @pytest.mark.integration
 @pytest.mark.slow
 @pytest.mark.parametrize("model_name", MODELS_TO_TEST)
-def test_openai_response_basic_correction(model_config, credentials, test_data, model_name):
+def test_openai_basic_correction(model_config, credentials, test_data, model_name):
 	workflow = build_typo_workflow_for_provider(
 		provider_name=PROVIDER_NAME,
 		model_name=model_name,
@@ -44,7 +43,7 @@ def test_openai_response_basic_correction(model_config, credentials, test_data, 
 @pytest.mark.integration
 @pytest.mark.slow
 @pytest.mark.parametrize("model_name", MODELS_TO_TEST)
-def test_openai_response_with_typo(model_config, credentials, test_data, model_name):
+def test_openai_with_typo(model_config, credentials, test_data, model_name):
 	workflow = build_typo_workflow_for_provider(
 		provider_name=PROVIDER_NAME,
 		model_name=model_name,

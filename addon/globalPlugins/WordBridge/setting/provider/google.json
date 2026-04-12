@@ -2,11 +2,10 @@
 	"name": "Google",
 	"url": "https://generativelanguage.googleapis.com/v1beta",
 	"setting": {
-		"max_completion_tokens": 4096,
-		"seed": 0,
+		"maxOutputTokens": 4096,
 		"temperature": 0.0,
-		"top_p": 0.0,
-		"stop": [" =>"]
+		"topP": 0.0,
+		"stopSequences": [" =>"]
 	},
 	"timeout0": 10,
 	"timeout_max": 20

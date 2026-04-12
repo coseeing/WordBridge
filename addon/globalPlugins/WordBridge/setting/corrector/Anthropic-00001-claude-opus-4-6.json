@@ -1,6 +1,6 @@
 {
-    "model": "o4-mini-2025-04-16",
-    "provider": "OpenAIResponse",
+    "model": "claude-opus-4-6",
+    "provider": "Anthropic",
     "template_name": {
         "standard": "Standard_v1.json",
         "lite": "Lite_v1.json"
