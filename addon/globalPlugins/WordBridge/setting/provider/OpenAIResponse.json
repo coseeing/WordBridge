@@ -3,7 +3,12 @@
 	"url": "https://api.openai.com/v1/responses",
 	"setting": {
 		"max_output_tokens": 4096,
-		"store": false
+		"temperature": 0.0,
+		"top_p": 0.0,
+		"store": false,
+		"text": {
+			"verbosity": "low"
+		}
 	},
 	"timeout0": 10,
 	"timeout_max": 20

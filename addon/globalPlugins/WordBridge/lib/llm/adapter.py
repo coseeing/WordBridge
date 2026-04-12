@@ -42,18 +42,18 @@ class ProviderModelAdapter:
 
 
 class OpenAIChatCompletionAdapter(ProviderModelAdapter):
-	def _is_reasoning_model(self) -> bool:
+	def _is_gpt5_family(self) -> bool:
 		return self.model_name.startswith("o") or self.model_name.startswith("gpt-5")
 
 	def format_request(self, prompt_bundle, setting: dict):
 		payload = deepcopy(setting)
 		messages = deepcopy(prompt_bundle.messages)
 
-		if self._is_reasoning_model():
-			payload.pop("stop", None)
+		if self._is_gpt5_family():
+			messages[0]["content"] = prompt_bundle.system_template + "\n" + messages[0]["content"]
 			payload.pop("temperature", None)
 			payload.pop("top_p", None)
-			messages[0]["content"] = prompt_bundle.system_template + "\n" + messages[0]["content"]
+			payload.pop("stop", None)
 		else:
 			messages = [{"role": "system", "content": prompt_bundle.system_template}] + messages
 
@@ -63,8 +63,32 @@ class OpenAIChatCompletionAdapter(ProviderModelAdapter):
 
 
 class OpenAIResponseAdapter(ProviderModelAdapter):
+	def _is_gpt5_family(self) -> bool:
+		return self.model_name.startswith("o") or self.model_name.startswith("gpt-5")
+
+	def _supports_sampling_with_reasoning_none(self) -> bool:
+		return any(
+			self.model_name.startswith(prefix)
+			for prefix in ("gpt-5.1", "gpt-5.2", "gpt-5.4")
+		)
+
+	def _supports_low_verbosity(self) -> bool:
+		return not self.model_name.startswith("gpt-4.1")
+
 	def format_request(self, prompt_bundle, setting: dict):
 		payload = deepcopy(setting)
+
+		text_setting = payload.get("text")
+		if isinstance(text_setting, dict) and text_setting.get("verbosity") == "low" and not self._supports_low_verbosity():
+			payload["text"] = {**text_setting, "verbosity": "medium"}
+
+		if self._is_gpt5_family():
+			if self._supports_sampling_with_reasoning_none():
+				payload["reasoning"] = {"effort": "none"}
+			else:
+				payload.pop("temperature", None)
+				payload.pop("top_p", None)
+
 		payload["model"] = self.model_name
 		payload["instructions"] = prompt_bundle.system_template
 		payload["input"] = [
@@ -118,6 +142,16 @@ class AnthropicAdapter(ProviderModelAdapter):
 
 
 class GoogleAdapter(ProviderModelAdapter):
+	def _build_generation_config(self, setting: dict) -> dict:
+		generation_config = deepcopy(setting)
+
+		if self.model_name.startswith("gemini-2.5-pro"):
+			generation_config["thinkingConfig"] = {"thinkingBudget": 128}
+		elif self.model_name.startswith("gemini-2.5-flash"):
+			generation_config["thinkingConfig"] = {"thinkingBudget": 0}
+
+		return generation_config
+
 	def format_request(self, prompt_bundle, setting: dict):
 		contents = []
 		for message in prompt_bundle.messages:
@@ -126,7 +160,7 @@ class GoogleAdapter(ProviderModelAdapter):
 		return {
 			"system_instruction": {"parts": [{"text": prompt_bundle.system_template}]},
 			"contents": contents,
-			"generationConfig": deepcopy(setting),
+			"generationConfig": self._build_generation_config(setting),
 		}
 
 	def parse_response(self, response):
