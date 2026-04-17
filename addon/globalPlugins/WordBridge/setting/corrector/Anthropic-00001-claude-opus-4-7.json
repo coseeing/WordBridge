@@ -1,0 +1,13 @@
+{
+    "model": "claude-opus-4-7",
+    "provider": "Anthropic",
+    "template_name": {
+        "standard": "Standard_v1.json",
+        "lite": "Lite_v1.json"
+    },
+    "optional_guidance_enable": {
+        "keep_non_chinese_char": true,
+        "no_explanation": false
+    },
+    "coseeing": false
+}

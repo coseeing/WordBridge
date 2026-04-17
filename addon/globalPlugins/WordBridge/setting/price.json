@@ -1,4 +1,16 @@
 {
+  "claude-opus-4-7&Anthropic": {
+    "model": "claude-opus-4-7",
+    "provider": "Anthropic",
+    "pricing": {
+      "input_tokens": 5,
+      "cache_creation_input_tokens": 6.25,
+      "cache_read_input_tokens": 0.5,
+      "output_tokens": 25,
+      "base_unit": 1000000
+    },
+    "usage_key": "usage"
+  },
   "claude-opus-4-6&Anthropic": {
     "model": "claude-opus-4-6",
     "provider": "Anthropic",
@@ -11,8 +23,32 @@
     },
     "usage_key": "usage"
   },
+  "claude-opus-4-5-20251101&Anthropic": {
+    "model": "claude-opus-4-5-20251101",
+    "provider": "Anthropic",
+    "pricing": {
+      "input_tokens": 5,
+      "cache_creation_input_tokens": 6.25,
+      "cache_read_input_tokens": 0.5,
+      "output_tokens": 25,
+      "base_unit": 1000000
+    },
+    "usage_key": "usage"
+  },
   "claude-sonnet-4-6&Anthropic": {
     "model": "claude-sonnet-4-6",
+    "provider": "Anthropic",
+    "pricing": {
+      "input_tokens": 3,
+      "cache_creation_input_tokens": 3.75,
+      "cache_read_input_tokens": 0.3,
+      "output_tokens": 15,
+      "base_unit": 1000000
+    },
+    "usage_key": "usage"
+  },
+  "claude-sonnet-4-5-20250929&Anthropic": {
+    "model": "claude-sonnet-4-5-20250929",
     "provider": "Anthropic",
     "pricing": {
       "input_tokens": 3,
