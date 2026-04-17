@@ -108,12 +108,19 @@ class OpenAIAdapter(ProviderModelAdapter):
 
 
 class AnthropicAdapter(ProviderModelAdapter):
+	def _deprecated_temperature_models(self) -> tuple[str, ...]:
+		return ("claude-opus-4-7",)
+
 	def format_request(self, prompt_bundle, setting: dict):
+		payload = deepcopy(setting)
+		if self.model_name in self._deprecated_temperature_models():
+			payload.pop("temperature", None)
+
 		return {
 			"model": self.model_name,
 			"system": prompt_bundle.system_template,
 			"messages": deepcopy(prompt_bundle.messages),
-			**deepcopy(setting),
+			**payload,
 		}
 
 	def parse_response(self, response):
