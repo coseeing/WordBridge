@@ -112,6 +112,36 @@
     },
     "usage_key": "usageMetadata"
   },
+  "gemini-3-flash-preview&Google": {
+    "model": "gemini-3-flash-preview",
+    "provider": "Google",
+    "pricing": {
+      "promptTokenCount": 0.5,
+      "candidatesTokenCount": 3,
+      "base_unit": 1000000
+    },
+    "usage_key": "usageMetadata"
+  },
+  "gemini-3.1-flash-lite-preview&Google": {
+    "model": "gemini-3.1-flash-lite-preview",
+    "provider": "Google",
+    "pricing": {
+      "promptTokenCount": 0.25,
+      "candidatesTokenCount": 1.5,
+      "base_unit": 1000000
+    },
+    "usage_key": "usageMetadata"
+  },
+  "gemini-3.1-pro-preview&Google": {
+    "model": "gemini-3.1-pro-preview",
+    "provider": "Google",
+    "pricing": {
+      "promptTokenCount": 2,
+      "candidatesTokenCount": 12,
+      "base_unit": 1000000
+    },
+    "usage_key": "usageMetadata"
+  },
   "gpt-5.4-2026-03-05&OpenAI": {
     "model": "gpt-5.4-2026-03-05",
     "provider": "OpenAI",
