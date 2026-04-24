@@ -63,7 +63,7 @@ def make_corrector_config_id(model: str, provider: str) -> str:
 
 def normalize_selection(config_manager, corrector_config_id: str, execution_channel: str):
 	config = config_manager.get_config(corrector_config_id)
-	if config is None:
+	if config is None or not config.active:
 		corrector_config_id, execution_channel = config_manager.default_selection()
 		config = config_manager.get_config(corrector_config_id)
 
@@ -78,6 +78,7 @@ def normalize_selection(config_manager, corrector_config_id: str, execution_chan
 
 @dataclass(frozen=True)
 class CorrectorConfig:
+	active: bool
 	model: str
 	provider: str
 	coseeing: bool
@@ -115,6 +116,7 @@ class ConfigManager:
 				raw_config = json.load(f)
 
 			config = CorrectorConfig(
+				active=raw_config.get("active", True),
 				model=raw_config["model"],
 				provider=raw_config["provider"],
 				coseeing=raw_config["coseeing"],
@@ -129,6 +131,8 @@ class ConfigManager:
 
 	def _build_selectable_items(self):
 		for config in self.configs:
+			if not config.active:
+				continue
 			self._append_selectable_item(
 				provider_group=config.provider,
 				execution_channel="local",
@@ -160,14 +164,17 @@ class ConfigManager:
 			first_item = coseeing_items[0]
 			return (first_item.corrector_config_id, first_item.execution_channel)
 
-		default_config_id = sorted(self.config_by_id)[0]
-		return (default_config_id, "local")
+		for config in self.configs:
+			if config.active:
+				return (config.corrector_config_id, "local")
+
+		raise ValueError("No active corrector configs available")
 
 	@property
 	def provider_groups(self):
 		provider_groups = sorted(group for group in self.endpoints if group != "Coseeing")
 		if "Coseeing" in self.endpoints:
-			return ["Coseeing"] + provider_groups
+			return provider_groups + ["Coseeing"]
 		return provider_groups
 
 	@property
@@ -176,7 +183,7 @@ class ConfigManager:
 
 	@property
 	def endpoint_labels(self):
-		return [LABEL_DICT[item] for item in self.provider_groups]
+		return [LABEL_DICT.get(item, item) for item in self.provider_groups]
 
 	def find_selection(self, corrector_config_id: str, execution_channel: str) -> tuple[int, int]:
 		provider_mapping = {key: idx for idx, key in enumerate(self.provider_groups)}

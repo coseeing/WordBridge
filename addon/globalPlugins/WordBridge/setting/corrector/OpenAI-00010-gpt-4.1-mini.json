@@ -1,4 +1,5 @@
 {
+    "active": false,
     "model": "gpt-4.1-mini-2025-04-14",
     "provider": "OpenAI",
     "template_name": {

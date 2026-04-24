@@ -1,4 +1,5 @@
 {
+    "active": true,
     "model": "gpt-5.4-nano-2026-03-17",
     "provider": "OpenAI",
     "template_name": {
