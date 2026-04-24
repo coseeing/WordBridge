@@ -50,11 +50,6 @@ You can configure WordBridge via `NVDA Menu → Preferences → Settings → Wor
 | Show correction report             | `NVDA+Alt+R`     |
 | Open WordBridge settings           | `NVDA+Alt+W`     |
 | Open personal dictionary editor    | `NVDA+Alt+D`     |
-| Submit correction feedback         | `NVDA+Alt+F`     |
-
-## Reporting Errors
-
-If you notice incorrect corrections while using the **Coseeing** service provider, press `NVDA+Alt+F` to report them. Your feedback helps us continuously refine the correction algorithm and improve overall accuracy.
 
 ## test history
 

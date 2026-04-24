@@ -25,9 +25,9 @@ addon_info = {
 	# Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 	"addon_description": _("""helps users identify and correct homophone-based typos in Chinese."""),
 	# version
-	"addon_version": "2026.4.10",
+	"addon_version": "2026.4.25",
 	# Author(s)
-	"addon_author": "Coseeing Community Contributors <coseeing@coseeing.org>, Tseng Woody <tsengwoody.tw@gmail.com>, Music Tsai <foreverlovekaggle3@gmail.com>",
+	"addon_author": "Coseeing Community Contributors <coseeing@coseeing.org>, Tseng Woody <tsengwoody.tw@gmail.com>",
 	# URL for the add-on documentation support
 	"addon_url": "https://github.com/coseeing/WordBridge",
 	# URL for the add-on repository where the source code can be found
@@ -37,7 +37,7 @@ addon_info = {
 	# Minimum NVDA version supported (e.g. "2018.3.0", minor version is optional)
 	"addon_minimumNVDAVersion": "2024.1",
 	# Last NVDA version supported/tested (e.g. "2018.4.0", ideally more recent than minimum version)
-	"addon_lastTestedNVDAVersion": "2025.1",
+	"addon_lastTestedNVDAVersion": "2026.1",
 	# Add-on update channel (default is None, denoting stable releases,
 	# and for development releases, use "dev".)
 	# Do not change unless you know what you are doing!
