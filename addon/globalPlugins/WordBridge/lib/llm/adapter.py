@@ -48,7 +48,7 @@ class OpenAIAdapter(ProviderModelAdapter):
 	def _supports_sampling_with_reasoning_none(self) -> bool:
 		return any(
 			self.model_name.startswith(prefix)
-			for prefix in ("gpt-5.1", "gpt-5.2", "gpt-5.4")
+			for prefix in ("gpt-5.1", "gpt-5.2", "gpt-5.4", "gpt-5.5")
 		)
 
 	def _supports_low_verbosity(self) -> bool:
@@ -165,12 +165,15 @@ class OpenRouterAdapter(ProviderModelAdapter):
 
 class DeepSeekAdapter(ProviderModelAdapter):
 	def format_request(self, prompt_bundle, setting: dict):
-		return {
+		payload = {
 			"model": self.model_name,
 			"messages": [{"role": "system", "content": prompt_bundle.system_template}] + deepcopy(prompt_bundle.messages),
 			"stream": False,
 			**deepcopy(setting),
 		}
+		if self.model_name.startswith("deepseek-v4-"):
+			payload["thinking"] = {"type": "disabled"}
+		return payload
 
 
 def get_provider_model_adapter(provider_name: str, model_name: str) -> ProviderModelAdapter:

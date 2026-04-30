@@ -82,6 +82,28 @@
     },
     "usage_key": "usage"
   },
+  "deepseek-v4-flash&DeepSeek": {
+    "model": "deepseek-v4-flash",
+    "provider": "DeepSeek",
+    "pricing": {
+      "prompt_cache_hit_tokens": 0.0028,
+      "prompt_cache_miss_tokens": 0.14,
+      "completion_tokens": 0.28,
+      "base_unit": 1000000
+    },
+    "usage_key": "usage"
+  },
+  "deepseek-v4-pro&DeepSeek": {
+    "model": "deepseek-v4-pro",
+    "provider": "DeepSeek",
+    "pricing": {
+      "prompt_cache_hit_tokens": 0.0145,
+      "prompt_cache_miss_tokens": 1.74,
+      "completion_tokens": 3.48,
+      "base_unit": 1000000
+    },
+    "usage_key": "usage"
+  },
   "gemini-2.5-flash&Google": {
     "model": "gemini-2.5-flash",
     "provider": "Google",
@@ -141,6 +163,16 @@
       "base_unit": 1000000
     },
     "usage_key": "usageMetadata"
+  },
+  "gpt-5.5-2026-04-23&OpenAI": {
+    "model": "gpt-5.5-2026-04-23",
+    "provider": "OpenAI",
+    "pricing": {
+      "input_tokens": 5,
+      "output_tokens": 30,
+      "base_unit": 1000000
+    },
+    "usage_key": "usage"
   },
   "gpt-5.4-2026-03-05&OpenAI": {
     "model": "gpt-5.4-2026-03-05",

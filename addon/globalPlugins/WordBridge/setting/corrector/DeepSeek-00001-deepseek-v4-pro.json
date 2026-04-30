@@ -1,6 +1,6 @@
 {
     "active": true,
-    "model": "deepseek-chat",
+    "model": "deepseek-v4-pro",
     "provider": "DeepSeek",
     "template_name": {
         "standard": "Standard_v1.json",
