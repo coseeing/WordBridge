@@ -26,7 +26,7 @@ addon_info = AddonInfo(
 	addon_version="2026.5.1",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
-	addon_changelog=_("Initial release for the current WordBridge version."),
+	addon_changelog=_("Add GPT-5.5."),
 	# Author(s)
 	addon_author="Coseeing Community Contributors <coseeing@coseeing.org>, Tseng Woody <tsengwoody.tw@gmail.com>",
 	# URL for the add-on documentation support
