@@ -1,0 +1,14 @@
+prompts:
+  - "Standard_v3"
+
+providers:
+  - id: "python:provider.py"
+    config:
+      provider: "DeepSeek"
+      local: true
+      model: "qwen2"
+      language: "zh_traditional"
+      corrector_mode: "standard"
+
+tests:
+  - datasets/smoke_test.csv

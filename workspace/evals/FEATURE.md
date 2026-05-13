@@ -101,6 +101,10 @@ providers:
 
 ## 4. 執行與觀測 (Execution)
 
+```
+pip install requests pypinyin chinese_converter hanzidentifier jiwer tqdm
+```
+
 1. **啟動測試**：執行 `npx promptfoo eval`。
 2. **查看矩陣**：執行 `npx promptfoo view`。你可以並列看見：
   * `Prompt v1 (極簡型)`：成本 $0.0001, F_{0.5}: 0.72$。
