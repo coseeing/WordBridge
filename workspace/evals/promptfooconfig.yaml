@@ -1,6 +1,11 @@
 prompts:
   - "Standard_v3"
 
+defaultTest:
+  assert:
+    - type: python
+      value: file://assertions.py
+
 providers:
   - id: "python:provider.py"
     config:
