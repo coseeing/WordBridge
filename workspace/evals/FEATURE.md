@@ -2,7 +2,7 @@
 
 ## 1. 目標 (Objectives)
 
-* **精準度量化**：利用 $F_{0.5}$ 與標準化編輯距離 (NED) 取代肉眼觀察，確保糾錯精準度 。
+* **精準度量化**：利用 $F_2$ 與標準化編輯距離 (NED) 取代肉眼觀察，確保糾錯精準度 。
 * **預算管控**：即時計算每次請求的 Token 成本，並監控「提示詞快取 (Prompt Caching)」的省錢效益 。
 * **快速迭代**：建立自動化測試流水線，支援多版本 Prompt Template 與不同模型（如 GPT-5.4 Nano, Gemini 2.5 Flash）的並行測試 。
 
@@ -17,7 +17,7 @@ WordBridge/
 │   ├── datasets/                      # 存放測試案例 (CSV/JSON)
 │   ├── prompts/                       # 不同版本的 Prompt 模板 (.txt)
 │   ├── provider.py                    # Promptfoo 與 WordBridge 的橋接腳本
-│   ├── assertions.py                  # 自定義 F0.5 與 NED 計算腳本
+│   ├── assertions.py                  # 自定義 F2 與 NED 計算腳本
 │   └── promptfooconfig.yaml           # Promptfoo 總配置文件
 ```
 
@@ -64,7 +64,7 @@ def call_api(prompt, options, context):
 
 定義維護者要求的「精確」指標。
 
-* **$F_{0.5}$ Score**：對視障用戶而言，Precision（不改錯）比 Recall（抓到錯）重要兩倍 。
+* **$F_2$ Score**：因漏改可能不會被使用者發現，而錯改會被工具標示並進入確認流程，因此 Recall（抓到錯）權重高於 Precision（不改錯）。
 * **NED (Normalized Edit Distance)**：處理長度不一的句子評估 。
 
 $$d_{norm}(s, t) = \frac{d_{Levenshtein}(s, t)}{\max(|s|, |t|)}$$
@@ -73,9 +73,9 @@ $$d_{norm}(s, t) = \frac{d_{Levenshtein}(s, t)}{\max(|s|, |t|)}$$
 # 核心計算邏輯
 def get_assert(output, context):
     expected = context['vars']['expected']
-    # 計算 NED 與 F0.5...
-    # 若 NED < 0.1 且 F0.5 > 0.8 則 pass = True
-    return {"pass": True, "score": f05_value, "reason": "Precision prioritized"}
+    # 計算 NED 與 F2...
+    # 若 NED < 0.1 且 F2 > 0.8 則 pass = True
+    return {"pass": True, "score": f2_value, "reason": "Recall prioritized"}
 ```
 
 ### 第四階段：成本與快取追蹤 (Cost Tracker)
@@ -107,11 +107,11 @@ pip install requests pypinyin chinese_converter hanzidentifier jiwer tqdm
 
 1. **啟動測試**：執行 `npx promptfoo eval`。
 2. **查看矩陣**：執行 `npx promptfoo view`。你可以並列看見：
-  * `Prompt v1 (極簡型)`：成本 $0.0001, F_{0.5}: 0.72$。
-  * `Prompt v2 (Few-shot)`：成本 $0.0008, F_{0.5}: 0.91$ (雖然貴，但更準確)。
+  * `Prompt v1 (極簡型)`：成本 $0.0001, F_2: 0.72$。
+  * `Prompt v2 (Few-shot)`：成本 $0.0008, F_2: 0.91$ (雖然貴，但更準確)。
 1. **快取驗證**：第二次執行測試，檢查 `cached` tokens 是否增加，確認 Prompt Template 前綴是否穩定觸發供應商快取 。
 
 ## 5. 未來擴充 (Future Work)
 
 * **LLM-as-a-Judge**：引入更強的模型（如 Claude 4.6）來判定 WordBridge 的修正是否保留了用戶的語氣 。
-* **CI/CD Gate**：設定 GitHub Action，若 $F_{0.5}$ 低於 0.85 則不允許 Pull Request 合併 。
+* **CI/CD Gate**：設定 GitHub Action，若 $F_2$ 低於 0.85 則不允許 Pull Request 合併 。
