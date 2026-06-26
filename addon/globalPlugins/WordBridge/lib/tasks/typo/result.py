@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 
 
@@ -8,3 +8,4 @@ class TypoCorrectionResult:
 	diff: list
 	usage_summary: dict
 	cost: Decimal
+	raw_data: dict = field(default_factory=dict)

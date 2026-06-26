@@ -37,26 +37,22 @@ WordBridge/
 這是在 Node.js 環境（Promptfoo）中執行 Python（WordBridge）的入口。
 
 ```python
-import os
-from wordbridge.main import WordBridgeCorrector # 假設的進入點
-
 def call_api(prompt, options, context):
-    # 初始化 WordBridge 並帶入 Prompt Template
-    corrector = WordBridgeCorrector(template=prompt)
+    input_text = context["vars"].get("input", "")
+    workflow = _create_workflow(...)
+    result = workflow.run(input_text, batch_mode=False)
 
-    # 執行糾錯並捕捉原始數據 (Raw Data)
-    input_text = context['vars']['input']
-    result = corrector.correct(input_text)
-
-    # 回傳給 Promptfoo 做統計
     return {
-        "output": result.text,
+        "output": result.corrected_text,
         "tokenUsage": {
-            "total": result.usage.total_tokens,
-            "prompt": result.usage.prompt_tokens,
-            "completion": result.usage.completion_tokens,
-            "cached": getattr(result.usage, 'cached_tokens', 0) # 捕捉快取命中
-        }
+            "total":  result.raw_data["usage_summary"].get("total_tokens", 0),
+            "prompt": result.raw_data["usage_summary"].get("prompt_tokens", 0),
+            "completion": result.raw_data["usage_summary"].get("completion_tokens", 0),
+            "cached": result.raw_data["usage_summary"].get("cached_tokens", 0),  # 只保留供應商明確回傳值
+        },
+        "cost": float(result.cost),
+        "latencyMs": result.raw_data["metrics"]["total_latency_ms"],
+        "metadata": result.raw_data,
     }
 ```
 
@@ -80,7 +76,42 @@ def get_assert(output, context):
 
 ### 第四階段：成本與快取追蹤 (Cost Tracker)
 
-Promptfoo 會自動加總成本，但我們需在 `promptfooconfig.yaml` 中定義 2026 年的費率：
+成本計算目前在 WordBridge Python 端完成，而不是在 Promptfoo 端手寫費率。實際流程如下：
+
+1. `addon/globalPlugins/WordBridge/setting/price.json` 定義各模型費率。
+2. `lib/llm/cost_calculator.py` 根據 usage 欄位計算單次與總成本。
+3. `lib/llm/executor.py` 保留每次 request 的原始 usage、延遲與 request cost。
+4. `lib/tasks/typo/workflow.py` 彙整成 `TypoCorrectionResult.raw_data`。
+5. `workspace/evals/provider.py` 再把 `cost`、`latencyMs`、`tokenUsage`、`metadata` 回傳給 Promptfoo。
+
+`metadata` 目前至少包含：
+
+```json
+{
+  "metrics": {
+    "request_count": 2,
+    "total_latency_ms": 742.8,
+    "llm_latency_ms": 601.4
+  },
+  "usage_summary": {
+    "prompt_tokens": 120,
+    "completion_tokens": 34
+  },
+  "cost": "0.00123",
+  "requests": [
+    {
+      "request_payload": {},
+      "raw_response": {},
+      "raw_usage": {},
+      "usage": {},
+      "latency_ms": 301.2,
+      "request_cost": "0.00061"
+    }
+  ]
+}
+```
+
+Promptfoo 這邊主要負責設定門檻與觀測：
 
 ```yaml
 # promptfooconfig.yaml
@@ -89,15 +120,14 @@ defaultTest:
     - type: cost
       threshold: 0.002 # 單次請求不能超過 0.002 USD
     - type: latency
-      threshold: 800  # 延遲需低於 800ms (確保 NVDA 朗讀不卡頓)
-
-providers:
-  - id: file://provider.py
-    config:
-      # 模擬 2026 旗艦與 Nano 模型價格
-      cost_input: 0.0000025   # GPT-5.4 價格
-      cost_cached: 0.00000025 # 快取命中價格 (10% cost)
+      threshold: 800  # 整體 workflow 延遲需低於 800ms
 ```
+
+補充：
+
+* `tokenUsage` 已在 `provider.py` 做 provider-agnostic normalization，可兼容 OpenAI、Anthropic、Google、DeepSeek 等不同 usage 欄位。
+* `cached` tokens 只在供應商明確回傳快取欄位時才保留，不做推算或折算。
+* 本地 `Ollama` / fallback provider 若沒有明確 usage / cost，`provider.py` 會用 request/response 文字長度做近似 token 與成本估算，並在 `metadata.estimated_*` 欄位標示來源。
 
 ## 4. 執行與觀測 (Execution)
 
@@ -105,11 +135,10 @@ providers:
 pip install requests pypinyin chinese_converter hanzidentifier jiwer tqdm
 ```
 
-1. **啟動測試**：執行 `npx promptfoo eval`。
-2. **查看矩陣**：執行 `npx promptfoo view`。你可以並列看見：
-  * `Prompt v1 (極簡型)`：成本 $0.0001, F_2: 0.72$。
-  * `Prompt v2 (Few-shot)`：成本 $0.0008, F_2: 0.91$ (雖然貴，但更準確)。
-1. **快取驗證**：第二次執行測試，檢查 `cached` tokens 是否增加，確認 Prompt Template 前綴是否穩定觸發供應商快取 。
+1. **啟動測試**：執行 `npx promptfoo eval -c workspace/evals/promptfooconfig.yaml`。
+2. **查看矩陣**：執行 `npx promptfoo view`，觀察 `F_2`、`NED`、`cost`、`latencyMs`。
+3. **檢查 Raw Data**：展開 provider 回傳內容，確認 `metadata.metrics`、`metadata.usage_summary`、`metadata.requests[*]` 都有值。本地模式若是估算成本，還應看到 `metadata.estimated_usage`、`metadata.estimated_cost`、`metadata.estimated_cost_source`。
+4. **快取驗證**：第二次執行相同測試，只有在供應商明確回傳快取欄位時，才檢查 `tokenUsage.cached` 或 `metadata.usage_summary` 中的快取數值。
 
 ## 5. 未來擴充 (Future Work)
 

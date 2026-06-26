@@ -1,3 +1,5 @@
+import time
+
 from ..concurrency import parallel_map
 from .utils import (
 	find_correction_errors,
@@ -17,6 +19,7 @@ class TypoCorrectionWorkflow:
 		self.max_correction_attempts = max_correction_attempts
 
 	def run(self, input_text: str, batch_mode: bool = True) -> TypoCorrectionResult:
+		start_time = time.perf_counter()
 		self.executor.ensure_connection()
 
 		text_corrected = ""
@@ -69,11 +72,25 @@ class TypoCorrectionWorkflow:
 
 		final_text = review_correction_errors(input_text, text_corrected)
 		diff = strings_diff(input_text, final_text)
+		usage_summary = self.executor.get_total_usage()
+		total_cost = self.executor.get_total_cost()
+		request_metrics = self.executor.get_execution_metrics()
+		total_latency_ms = (time.perf_counter() - start_time) * 1000
 		return TypoCorrectionResult(
 			corrected_text=final_text,
 			diff=diff,
-			usage_summary=self.executor.get_total_usage(),
-			cost=self.executor.get_total_cost(),
+			usage_summary=usage_summary,
+			cost=total_cost,
+			raw_data={
+				"metrics": {
+					"request_count": len(request_metrics),
+					"total_latency_ms": total_latency_ms,
+					"llm_latency_ms": sum(item.get("latency_ms", 0) for item in request_metrics),
+				},
+				"usage_summary": usage_summary,
+				"cost": str(total_cost),
+				"requests": request_metrics,
+			},
 		)
 
 	def _execute_segment(self, input_text: str, previous_results: list | None = None):
