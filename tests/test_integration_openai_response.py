@@ -6,7 +6,7 @@ from test_helpers import (
 )
 
 
-PROVIDER_NAME = "OpenAIResponse"
+PROVIDER_NAME = "OpenAI"
 MODELS_TO_TEST = [
 	"gpt-5.4-mini-2026-03-17",
 	"gpt-5.2-2025-12-11",

@@ -11,14 +11,12 @@ PROVIDER_CONFIG_DIR = Path(__file__).resolve().parents[1] / "addon" / "globalPlu
 
 def test_provider_config_filenames_use_canonical_titlecase_names():
 	expected_filenames = {
-		"Anthropic.json",
-		"Baidu.json",
+		"anthropic.json",
 		"Coseeing.json",
-		"DeepSeek.json",
-		"Google.json",
-		"OpenAIChatCompletion.json",
-		"OpenAIResponse.json",
-		"OpenRouter.json",
+		"deepseek.json",
+		"google.json",
+		"OpenAI.json",
+		"openrouter.json",
 	}
 
 	actual_filenames = {path.name for path in PROVIDER_CONFIG_DIR.glob("*.json")}
@@ -29,8 +27,7 @@ def test_provider_config_filenames_use_canonical_titlecase_names():
 @pytest.mark.parametrize(
 	("provider_name", "expected_name"),
 	[
-		("OpenAIChatCompletion", "OpenAIChatCompletion"),
-		("OpenAIResponse", "OpenAIResponse"),
+		("OpenAI", "OpenAI"),
 	],
 )
 def test_provider_factory_accepts_canonical_titlecase_name_only(provider_name, expected_name):
@@ -41,7 +38,7 @@ def test_provider_factory_accepts_canonical_titlecase_name_only(provider_name, e
 
 @pytest.mark.parametrize(
 	"provider_name",
-	["OpenAI", "openai", "OPENAI", "Openai"],
+	["openai", "OPENAI", "Openai", "OpenAIResponse", "OpenAIChatCompletion"],
 )
 def test_provider_factory_rejects_non_canonical_provider_names(provider_name):
 	with pytest.raises(ValueError, match=f"Unsupported provider: {provider_name}"):

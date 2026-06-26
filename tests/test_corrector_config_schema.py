@@ -23,6 +23,7 @@ LLM_MODELS_PATH = (
 
 def test_corrector_configs_use_flattened_schema():
 	required_keys = {
+		"active",
 		"model",
 		"provider",
 		"coseeing",

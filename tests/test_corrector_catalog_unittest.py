@@ -22,10 +22,10 @@ class CorrectorCatalogTests(unittest.TestCase):
 		from configManager import ConfigManager, make_corrector_config_id
 
 		manager = ConfigManager(CORRECTOR_DIR)
-		config_id = make_corrector_config_id("gpt-5.4-mini-2026-03-17", "OpenAIResponse")
+		config_id = make_corrector_config_id("gpt-5.4-mini-2026-03-17", "OpenAI")
 
 		local_items = [
-			item for item in manager.endpoints["OpenAIResponse"]
+			item for item in manager.endpoints["OpenAI"]
 			if item.corrector_config_id == config_id
 		]
 		coseeing_items = [
@@ -50,9 +50,6 @@ class CorrectorCatalogTests(unittest.TestCase):
 				"gpt-5.4-mini-2026-03-17",
 				"gpt-5.4-nano-2026-03-17",
 				"gpt-5.1-2025-11-13",
-				"gpt-4.1-2025-04-14",
-				"gpt-4.1-mini-2025-04-14",
-				"gpt-4.1-nano-2025-04-14",
 			],
 		)
 
@@ -64,7 +61,7 @@ class CorrectorCatalogTests(unittest.TestCase):
 		self.assertEqual(
 			manager.default_selection(),
 			(
-				"gpt-5.4-mini-2026-03-17&OpenAIResponse",
+				"gpt-5.4-mini-2026-03-17&OpenAI",
 				"Coseeing",
 			),
 		)
@@ -77,12 +74,11 @@ class CorrectorCatalogTests(unittest.TestCase):
 		self.assertEqual(
 			manager.provider_groups,
 			[
-				"Coseeing",
 				"Anthropic",
 				"DeepSeek",
 				"Google",
-				"OpenAIChatCompletion",
-				"OpenAIResponse",
+				"OpenAI",
+				"Coseeing",
 			],
 		)
 
@@ -92,11 +88,11 @@ class CorrectorCatalogTests(unittest.TestCase):
 		manager = ConfigManager(CORRECTOR_DIR)
 		config_id, execution_channel, config = normalize_selection(
 			manager,
-			"gpt-5.4-mini-2026-03-17&OpenAIResponse",
+			"gpt-5.4-mini-2026-03-17&OpenAI",
 			"Coseeing",
 		)
 
-		self.assertEqual(config_id, "gpt-5.4-mini-2026-03-17&OpenAIResponse")
+		self.assertEqual(config_id, "gpt-5.4-mini-2026-03-17&OpenAI")
 		self.assertEqual(execution_channel, "Coseeing")
 		self.assertTrue(config.coseeing)
 
@@ -106,11 +102,11 @@ class CorrectorCatalogTests(unittest.TestCase):
 		manager = ConfigManager(CORRECTOR_DIR)
 		config_id, execution_channel, config = normalize_selection(
 			manager,
-			"gpt-5.4-2026-03-05&OpenAIResponse",
+			"gpt-5.4-2026-03-05&OpenAI",
 			"Coseeing",
 		)
 
-		self.assertEqual(config_id, "gpt-5.4-2026-03-05&OpenAIResponse")
+		self.assertEqual(config_id, "gpt-5.4-2026-03-05&OpenAI")
 		self.assertEqual(execution_channel, "local")
 		self.assertFalse(config.coseeing)
 
@@ -118,13 +114,15 @@ class CorrectorCatalogTests(unittest.TestCase):
 		from configManager import ConfigManager, normalize_selection
 
 		manager = ConfigManager(CORRECTOR_DIR)
-		_, execution_channel, _ = normalize_selection(
+		config_id, execution_channel, config = normalize_selection(
 			manager,
-			"gpt-5.4-mini-2026-03-17&OpenAIResponse",
+			"gpt-5.4-mini-2026-03-17&OpenAI",
 			"unexpected",
 		)
 
+		self.assertEqual(config_id, "gpt-5.4-mini-2026-03-17&OpenAI")
 		self.assertEqual(execution_channel, "local")
+		self.assertTrue(config.coseeing)
 
 
 if __name__ == "__main__":
