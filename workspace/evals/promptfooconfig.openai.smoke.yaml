@@ -4,9 +4,9 @@ prompts:
 defaultTest:
   assert:
     - type: cost
-      threshold: 0.002
+      threshold: 0.01
     - type: latency
-      threshold: 10000
+      threshold: 15000
     - type: python
       value: file://assertions.py
 
@@ -41,22 +41,13 @@ derivedMetrics:
 
 providers:
   - id: "python:provider.py"
-    label: "WordBridge Local All Datasets"
+    label: "WordBridge OpenAI Smoke"
     config:
-      pythonExecutable: "venv/bin/python"
-      # 成本與 latency 由 workspace/evals/provider.py 回傳
-      # 本地 smoke test 先用 Ollama 驗證資料流與欄位結構
-      # 若上游沒有明確 usage/cost，provider.py 會用下列費率做本地近似成本估算
-      provider: "Ollama"
-      local: true
-      model: "qwen2"
-      estimated_cost_input_per_million: 0.14
-      estimated_cost_output_per_million: 0.28
+      provider: "OpenAI"
+      local: false
+      model: "gpt-5.4-mini-2026-03-17"
       language: "zh_traditional"
       corrector_mode: "standard"
 
 tests:
   - datasets/smoke_test.csv
-  - datasets/zhuyin_top1_from_legacy.csv
-  - datasets/zhuyin_two_error_seed0.csv
-  - datasets/zhuyin_three_error_seed0.csv

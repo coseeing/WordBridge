@@ -41,12 +41,8 @@ derivedMetrics:
 
 providers:
   - id: "python:provider.py"
-    label: "WordBridge Local All Datasets"
+    label: "WordBridge Single Error"
     config:
-      pythonExecutable: "venv/bin/python"
-      # 成本與 latency 由 workspace/evals/provider.py 回傳
-      # 本地 smoke test 先用 Ollama 驗證資料流與欄位結構
-      # 若上游沒有明確 usage/cost，provider.py 會用下列費率做本地近似成本估算
       provider: "Ollama"
       local: true
       model: "qwen2"
@@ -56,7 +52,4 @@ providers:
       corrector_mode: "standard"
 
 tests:
-  - datasets/smoke_test.csv
   - datasets/zhuyin_top1_from_legacy.csv
-  - datasets/zhuyin_two_error_seed0.csv
-  - datasets/zhuyin_three_error_seed0.csv

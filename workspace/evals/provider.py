@@ -1,9 +1,15 @@
 import sys
 import json
 import math
+import os
 import re
 from decimal import Decimal
 from pathlib import Path
+
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - optional dependency in some environments
+    load_dotenv = None
 
 # 將 WordBridge 核心路徑加入 sys.path
 # 結構：WordBridge/workspace/evals/provider.py
@@ -11,6 +17,9 @@ from pathlib import Path
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
+
+if load_dotenv is not None:
+    load_dotenv(PROJECT_ROOT / ".env")
 
 
 def _bootstrap_addon_env():
@@ -35,6 +44,13 @@ DEFAULT_CORRECTOR_MODE = "standard"
 DEFAULT_ESTIMATED_COST_INPUT_PER_MILLION = Decimal("0.14")
 DEFAULT_ESTIMATED_COST_OUTPUT_PER_MILLION = Decimal("0.28")
 
+PROVIDER_ENV_KEYS = {
+    "OpenAI": "TEST_OPENAI_API_KEY",
+    "Google": "TEST_GOOGLE_API_KEY",
+    "Anthropic": "TEST_ANTHROPIC_API_KEY",
+    "DeepSeek": "TEST_DEEPSEEK_API_KEY",
+}
+
 
 def _get_config(options):
     config = options.get("config", {})
@@ -56,6 +72,12 @@ def _get_config(options):
 def _get_credential(provider_name, is_local):
     if is_local:
         return {"api_key": "ollama"}
+
+    env_key = PROVIDER_ENV_KEYS.get(provider_name)
+    if env_key:
+        api_key = os.getenv(env_key)
+        if api_key:
+            return {"api_key": api_key}
 
     config_path = PROJECT_ROOT / "workspace" / "eval_legacy" / "config.json"
     if not config_path.exists():
