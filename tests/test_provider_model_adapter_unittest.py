@@ -82,92 +82,32 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertIsInstance(provider, OpenAIResponseProvider)
 		self.assertEqual(provider.get_api_url(), "https://api.openai.com/v1/responses")
 
-	def test_openai_chat_completion_models_use_chat_completion_adapter(self):
-		from lib.llm.adapter import OpenAIChatCompletionAdapter, get_provider_model_adapter
+	def test_anthropic_adapter_builds_request_without_model_specific_temperature_logic(self):
+		from lib.llm.adapter import AnthropicAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("OpenAIChatCompletion", "gpt-4.1-2025-04-14")
+		adapter = get_provider_model_adapter("Anthropic", "claude-opus-5")
 
-		self.assertIsInstance(adapter, OpenAIChatCompletionAdapter)
-		payload = adapter.format_request(
-			prompt_bundle=PromptBundle(
-				messages=[{"role": "user", "content": "原始文字"}],
-				system_template="系統提示",
-			),
-			setting={
-				"max_completion_tokens": 4096,
-				"seed": 0,
-				"temperature": 0.0,
-				"top_p": 0.0,
-				"stop": [" =>"],
-			},
-		)
-
-		self.assertEqual(payload["model"], "gpt-4.1-2025-04-14")
-		self.assertEqual(payload["messages"][0], {"role": "system", "content": "系統提示"})
-		self.assertEqual(payload["messages"][1], {"role": "user", "content": "原始文字"})
-		self.assertIn("temperature", payload)
-		self.assertIn("top_p", payload)
-		self.assertIn("stop", payload)
-
-	def test_openai_chat_completion_adapter_omits_unsupported_settings_for_gpt5_family(self):
-		from lib.llm.adapter import OpenAIChatCompletionAdapter, get_provider_model_adapter
-		from lib.llm.prompt_bundle import PromptBundle
-
-		adapter = get_provider_model_adapter("OpenAIChatCompletion", "gpt-5")
-
-		self.assertIsInstance(adapter, OpenAIChatCompletionAdapter)
-		payload = adapter.format_request(
-			prompt_bundle=PromptBundle(
-				messages=[{"role": "user", "content": "原始文字"}],
-				system_template="系統提示",
-			),
-			setting={
-				"max_completion_tokens": 4096,
-				"seed": 0,
-				"temperature": 0.0,
-				"top_p": 0.0,
-				"stop": [" =>"],
-			},
-		)
-
-		self.assertEqual(payload["model"], "gpt-5")
-		self.assertEqual(payload["messages"][0]["role"], "user")
-		self.assertTrue(payload["messages"][0]["content"].startswith("系統提示\n原始文字"))
-		self.assertNotIn("temperature", payload)
-		self.assertNotIn("top_p", payload)
-		self.assertNotIn("stop", payload)
-
-	def test_openai_chat_completion_adapter_normalizes_the_real_provider_setting(self):
-		from lib.llm.adapter import get_provider_model_adapter
-		from lib.llm.prompt_bundle import PromptBundle
-		from lib.llm.provider import get_provider
-
-		provider = get_provider("OpenAIChatCompletion", {"api_key": "test"})
-		adapter = get_provider_model_adapter("OpenAIChatCompletion", "gpt-5")
-
+		self.assertIsInstance(adapter, AnthropicAdapter)
 		payload = adapter.format_request(
 			PromptBundle(
 				messages=[{"role": "user", "content": "原始文字"}],
 				system_template="系統提示",
 			),
-			provider.setting,
+			{"max_tokens": 4096},
 		)
 
-		self.assertEqual(payload["max_completion_tokens"], 4096)
-		self.assertEqual(payload["verbosity"], "low")
-		self.assertNotIn("max_output_tokens", payload)
-		self.assertNotIn("store", payload)
-		self.assertNotIn("text", payload)
-		self.assertNotIn("temperature", payload)
-		self.assertNotIn("top_p", payload)
+		self.assertEqual(payload["model"], "claude-opus-5")
+		self.assertEqual(payload["system"], "系統提示")
+		self.assertEqual(payload["messages"], [{"role": "user", "content": "原始文字"}])
+		self.assertEqual(payload["max_tokens"], 4096)
 
 	def test_openai_response_adapter_builds_responses_payload_and_extracts_text_output(self):
-		from lib.llm.adapter import OpenAIResponseAdapter, get_provider_model_adapter
+		from lib.llm.adapter import OpenAIAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("OpenAIResponse", "gpt-4.1-2025-04-14")
-		self.assertIsInstance(adapter, OpenAIResponseAdapter)
+		adapter = get_provider_model_adapter("OpenAIResponse", "gpt-5.6-terra")
+		self.assertIsInstance(adapter, OpenAIAdapter)
 
 		payload = adapter.format_request(
 			prompt_bundle=PromptBundle(
@@ -177,10 +117,11 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			setting={
 				"max_output_tokens": 4096,
 				"store": False,
+				"text": {"verbosity": "low"},
 			},
 		)
 
-		self.assertEqual(payload["model"], "gpt-4.1-2025-04-14")
+		self.assertEqual(payload["model"], "gpt-5.6-terra")
 		self.assertEqual(payload["instructions"], "系統提示")
 		self.assertEqual(
 			payload["input"],
@@ -193,6 +134,8 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		)
 		self.assertEqual(payload["max_output_tokens"], 4096)
 		self.assertIs(payload["store"], False)
+		self.assertEqual(payload["reasoning"], {"effort": "none"})
+		self.assertEqual(payload["text"], {"verbosity": "low"})
 
 		response = {
 			"output": [
@@ -211,41 +154,6 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		}
 		self.assertEqual(adapter.parse_response(response), "修正文字")
 		self.assertEqual(adapter.extract_usage(response), {"input_tokens": 11, "output_tokens": 7})
-
-	def test_provider_sends_adapter_formatted_payload_without_reformatting(self):
-		from lib.llm.provider import OpenAIChatCompletionProvider
-
-		captured = {}
-
-		class FakeResponse:
-			status_code = 200
-
-			def json(self):
-				return {"choices": [{"message": {"content": "ok"}}]}
-
-		def fake_post(api_url, headers, json, timeout):
-			captured["api_url"] = api_url
-			captured["headers"] = headers
-			captured["json"] = json
-			captured["timeout"] = timeout
-			return FakeResponse()
-
-		provider = OpenAIChatCompletionProvider({"api_key": "test"})
-		payload = {
-			"model": "gpt-5",
-			"messages": [{"role": "user", "content": "已格式化內容"}],
-		}
-		expected_payload = deepcopy(payload)
-
-		provider.retries = 1
-		provider.backoff = 1
-
-		with patch("lib.llm.provider.requests.post", side_effect=fake_post):
-			response = provider.send(payload)
-
-		self.assertEqual(captured["json"], expected_payload)
-		self.assertEqual(payload, expected_payload)
-		self.assertEqual(response["choices"][0]["message"]["content"], "ok")
 
 	def test_provider_chat_completion_delegates_to_send(self):
 		from lib.llm.provider import OpenAIResponseProvider
@@ -443,21 +351,6 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertEqual(payload["stop"], [" =>"])
 		self.assertNotIn("options", payload)
 
-	def test_openai_chat_completion_adapter_calculates_sol_usage_and_cost_from_usage_history(self):
-		from lib.llm.adapter import get_provider_model_adapter
-
-		adapter = get_provider_model_adapter("OpenAIChatCompletion", "gpt-5.6-sol")
-		usage_history = [
-			{"prompt_tokens": 10, "completion_tokens": 5},
-			{"prompt_tokens": 1, "completion_tokens": 2},
-		]
-
-		self.assertEqual(
-			adapter.get_total_usage(usage_history),
-			{"prompt_tokens": 11, "completion_tokens": 7},
-		)
-		self.assertEqual(adapter.get_total_cost(usage_history), Decimal("0.000265"))
-
 	def test_openai_response_adapter_calculates_terra_usage_and_cost_from_usage_history(self):
 		from lib.llm.adapter import get_provider_model_adapter
 
@@ -505,7 +398,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 				}
 
 		class FakeAdapter:
-			provider_name = "OpenAIChatCompletion"
+			provider_name = "OpenAIResponse"
 			model_name = "gpt-4.1-2025-04-14"
 
 			def __init__(self):

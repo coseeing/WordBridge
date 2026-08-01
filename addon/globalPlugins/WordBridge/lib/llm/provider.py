@@ -144,14 +144,6 @@ class Provider:
 	def chat_completion(self, payload):
 		return self.send(payload)
 
-class OpenAIChatCompletionProvider(Provider):
-	name = "OpenAIChatCompletion"
-	setting_name = "OpenAI"
-
-	def get_api_url(self, model_name=None):
-		return self.url.removesuffix("/responses") + "/chat/completions"
-
-
 class OpenAIResponseProvider(Provider):
 	name = "OpenAIResponse"
 	setting_name = "OpenAI"
@@ -197,7 +189,6 @@ class DeepseekProvider(Provider):
 def get_provider(provider_name: str, credential: dict, retries: int = 2, backoff: int = 1) -> Provider:
 	provider_mapping = {
 		"OpenAI": OpenAIProvider,
-		"OpenAIChatCompletion": OpenAIChatCompletionProvider,
 		"OpenAIResponse": OpenAIResponseProvider,
 		"Anthropic": AnthropicProvider,
 		"DeepSeek": DeepseekProvider,

@@ -9,16 +9,14 @@ from lib.llm.provider import get_provider
 PROVIDER_CONFIG_DIR = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge" / "setting" / "provider"
 
 
-def test_provider_config_filenames_use_canonical_titlecase_names():
+def test_provider_config_filenames_match_catalog():
 	expected_filenames = {
-		"Anthropic.json",
-		"Baidu.json",
 		"Coseeing.json",
-		"DeepSeek.json",
-		"Google.json",
-		"OpenAIChatCompletion.json",
-		"OpenAIResponse.json",
-		"OpenRouter.json",
+		"OpenAI.json",
+		"anthropic.json",
+		"deepseek.json",
+		"google.json",
+		"openrouter.json",
 	}
 
 	actual_filenames = {path.name for path in PROVIDER_CONFIG_DIR.glob("*.json")}
@@ -30,7 +28,6 @@ def test_provider_config_filenames_use_canonical_titlecase_names():
 	("provider_name", "expected_name"),
 	[
 		("OpenAI", "OpenAI"),
-		("OpenAIChatCompletion", "OpenAIChatCompletion"),
 		("OpenAIResponse", "OpenAIResponse"),
 	],
 )
@@ -50,5 +47,5 @@ def test_provider_factory_rejects_non_canonical_provider_names(provider_name):
 
 
 def test_deepseek_provider_top_p_is_within_valid_range():
-	data = json.loads((PROVIDER_CONFIG_DIR / "DeepSeek.json").read_text(encoding="utf8"))
+	data = json.loads((PROVIDER_CONFIG_DIR / "deepseek.json").read_text(encoding="utf8"))
 	assert 0.0 < data["setting"]["top_p"] <= 1.0
