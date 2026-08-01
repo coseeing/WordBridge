@@ -13,7 +13,7 @@ from gui import guiHelper, nvdaControls
 from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
 
-from . configManager import ConfigManager, normalize_selection
+from . configManager import ConfigManager, normalize_selection, save_coseeing_credentials
 from .dictionary.dialog import DictionaryEntryDialog
 
 addonHandler.initTranslation()
@@ -259,8 +259,11 @@ class LLMSettingsPanel(SettingsPanel):
 		config.conf["WordBridge"]["settings"]["customized_words_enable"] = self.customizedWordEnable.GetValue()
 		config.conf["WordBridge"]["settings"]["sound_effects_enable"] = self.soundEffectsEnable.GetValue()
 
-		config.conf["WordBridge"]["settings"]["coseeing_username"] = self.accountTextCtrlMap1["Coseeing"].GetValue()
-		config.conf["WordBridge"]["settings"]["coseeing_password"] = self.accountTextCtrlMap2["Coseeing"].GetValue()
+		save_coseeing_credentials(
+			config.conf["WordBridge"]["settings"],
+			self.accountTextCtrlMap1,
+			self.accountTextCtrlMap2,
+		)
 		for ep in configManager.endpoints.keys():
 			if ep == "Coseeing":
 				continue

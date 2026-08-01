@@ -58,6 +58,14 @@ def normalize_selection(config_manager, corrector_config_id: str, execution_chan
 	return corrector_config_id, execution_channel, config
 
 
+def save_coseeing_credentials(settings: dict, username_controls: dict, password_controls: dict) -> None:
+	if "Coseeing" not in username_controls:
+		return
+
+	settings["coseeing_username"] = username_controls["Coseeing"].GetValue()
+	settings["coseeing_password"] = password_controls["Coseeing"].GetValue()
+
+
 @dataclass(frozen=True)
 class CorrectorConfig:
 	active: bool

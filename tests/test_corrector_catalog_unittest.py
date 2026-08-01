@@ -79,6 +79,19 @@ class CorrectorCatalogTests(unittest.TestCase):
 
 		self.assertEqual(execution_channel, "local")
 
+	def test_save_coseeing_credentials_skips_when_coseeing_controls_are_absent(self):
+		from configManager import save_coseeing_credentials
+
+		settings = {
+			"coseeing_username": "existing-user",
+			"coseeing_password": "existing-password",
+		}
+
+		save_coseeing_credentials(settings, {}, {})
+
+		self.assertEqual(settings["coseeing_username"], "existing-user")
+		self.assertEqual(settings["coseeing_password"], "existing-password")
+
 
 if __name__ == "__main__":
 	unittest.main()
