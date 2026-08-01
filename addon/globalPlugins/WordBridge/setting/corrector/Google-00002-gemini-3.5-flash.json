@@ -1,6 +1,6 @@
 {
     "active": true,
-    "model": "gemini-2.5-flash",
+    "model": "gemini-3.5-flash",
     "provider": "Google",
     "template_name": {
         "standard": "Standard_v1.json",

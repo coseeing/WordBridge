@@ -18,6 +18,23 @@ sys.modules.setdefault("addonHandler", addon_handler)
 
 
 class CorrectorCatalogTests(unittest.TestCase):
+	def test_google_model_labels_match_approved_text_model_catalog(self):
+		from configManager import ConfigManager
+
+		manager = ConfigManager(CORRECTOR_DIR)
+		manager.provider = "Google"
+		self.assertEqual(
+			manager.model_labels,
+			[
+				"gemini-3.6-flash",
+				"gemini-3.5-flash",
+				"gemini-3.5-flash-lite",
+				"gemini-3.1-pro",
+				"gemini-3.1-flash-lite",
+				"gemini-2.5-pro",
+			],
+		)
+
 	def test_openai_and_anthropic_model_labels_match_replacement_catalog(self):
 		from configManager import ConfigManager
 
