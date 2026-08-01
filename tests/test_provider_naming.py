@@ -29,6 +29,7 @@ def test_provider_config_filenames_use_canonical_titlecase_names():
 @pytest.mark.parametrize(
 	("provider_name", "expected_name"),
 	[
+		("OpenAI", "OpenAI"),
 		("OpenAIChatCompletion", "OpenAIChatCompletion"),
 		("OpenAIResponse", "OpenAIResponse"),
 	],
@@ -41,7 +42,7 @@ def test_provider_factory_accepts_canonical_titlecase_name_only(provider_name, e
 
 @pytest.mark.parametrize(
 	"provider_name",
-	["OpenAI", "openai", "OPENAI", "Openai"],
+	["openai", "OPENAI", "Openai"],
 )
 def test_provider_factory_rejects_non_canonical_provider_names(provider_name):
 	with pytest.raises(ValueError, match=f"Unsupported provider: {provider_name}"):

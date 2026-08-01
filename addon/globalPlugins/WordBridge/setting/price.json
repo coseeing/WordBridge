@@ -1,6 +1,6 @@
 {
-  "claude-opus-4-7&Anthropic": {
-    "model": "claude-opus-4-7",
+  "claude-opus-5&Anthropic": {
+    "model": "claude-opus-5",
     "provider": "Anthropic",
     "pricing": {
       "input_tokens": 5,
@@ -11,62 +11,14 @@
     },
     "usage_key": "usage"
   },
-  "claude-opus-4-6&Anthropic": {
-    "model": "claude-opus-4-6",
+  "claude-sonnet-5&Anthropic": {
+    "model": "claude-sonnet-5",
     "provider": "Anthropic",
     "pricing": {
-      "input_tokens": 5,
-      "cache_creation_input_tokens": 6.25,
-      "cache_read_input_tokens": 0.5,
-      "output_tokens": 25,
-      "base_unit": 1000000
-    },
-    "usage_key": "usage"
-  },
-  "claude-opus-4-5-20251101&Anthropic": {
-    "model": "claude-opus-4-5-20251101",
-    "provider": "Anthropic",
-    "pricing": {
-      "input_tokens": 5,
-      "cache_creation_input_tokens": 6.25,
-      "cache_read_input_tokens": 0.5,
-      "output_tokens": 25,
-      "base_unit": 1000000
-    },
-    "usage_key": "usage"
-  },
-  "claude-sonnet-4-6&Anthropic": {
-    "model": "claude-sonnet-4-6",
-    "provider": "Anthropic",
-    "pricing": {
-      "input_tokens": 3,
-      "cache_creation_input_tokens": 3.75,
-      "cache_read_input_tokens": 0.3,
-      "output_tokens": 15,
-      "base_unit": 1000000
-    },
-    "usage_key": "usage"
-  },
-  "claude-sonnet-4-5-20250929&Anthropic": {
-    "model": "claude-sonnet-4-5-20250929",
-    "provider": "Anthropic",
-    "pricing": {
-      "input_tokens": 3,
-      "cache_creation_input_tokens": 3.75,
-      "cache_read_input_tokens": 0.3,
-      "output_tokens": 15,
-      "base_unit": 1000000
-    },
-    "usage_key": "usage"
-  },
-  "claude-haiku-4-5-20251001&Anthropic": {
-    "model": "claude-haiku-4-5-20251001",
-    "provider": "Anthropic",
-    "pricing": {
-      "input_tokens": 1,
-      "cache_creation_input_tokens": 1.25,
-      "cache_read_input_tokens": 0.1,
-      "output_tokens": 5,
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 2.5,
+      "cache_read_input_tokens": 0.2,
+      "output_tokens": 10,
       "base_unit": 1000000
     },
     "usage_key": "usage"
@@ -164,8 +116,8 @@
     },
     "usage_key": "usageMetadata"
   },
-  "gpt-5.5-2026-04-23&OpenAI": {
-    "model": "gpt-5.5-2026-04-23",
+  "gpt-5.6-sol&OpenAI": {
+    "model": "gpt-5.6-sol",
     "provider": "OpenAI",
     "pricing": {
       "input_tokens": 5,
@@ -174,112 +126,22 @@
     },
     "usage_key": "usage"
   },
-  "gpt-5.4-2026-03-05&OpenAI": {
-    "model": "gpt-5.4-2026-03-05",
-    "provider": "OpenAI",
-    "pricing": {
-      "input_tokens": 2.5,
-      "output_tokens": 15,
-      "base_unit": 1000000
-    },
-    "usage_key": "usage"
-  },
-  "gpt-5.4-mini-2026-03-17&OpenAI": {
-    "model": "gpt-5.4-mini-2026-03-17",
-    "provider": "OpenAI",
-    "pricing": {
-      "input_tokens": 0.75,
-      "output_tokens": 4.5,
-      "base_unit": 1000000
-    },
-    "usage_key": "usage"
-  },
-  "gpt-5.4-nano-2026-03-17&OpenAI": {
-    "model": "gpt-5.4-nano-2026-03-17",
-    "provider": "OpenAI",
-    "pricing": {
-      "input_tokens": 0.2,
-      "output_tokens": 1.25,
-      "base_unit": 1000000
-    },
-    "usage_key": "usage"
-  },
-  "gpt-5.2-2025-12-11&OpenAI": {
-    "model": "gpt-5.2-2025-12-11",
-    "provider": "OpenAI",
-    "pricing": {
-      "input_tokens": 1.75,
-      "output_tokens": 14,
-      "base_unit": 1000000
-    },
-    "usage_key": "usage"
-  },
-  "gpt-5.1-2025-11-13&OpenAI": {
-    "model": "gpt-5.1-2025-11-13",
-    "provider": "OpenAI",
-    "pricing": {
-      "input_tokens": 1.25,
-      "output_tokens": 10,
-      "base_unit": 1000000
-    },
-    "usage_key": "usage"
-  },
-  "gpt-5-2025-08-07&OpenAI": {
-    "model": "gpt-5-2025-08-07",
-    "provider": "OpenAI",
-    "pricing": {
-      "input_tokens": 1.25,
-      "output_tokens": 10,
-      "base_unit": 1000000
-    },
-    "usage_key": "usage"
-  },
-  "gpt-5-mini-2025-08-07&OpenAI": {
-    "model": "gpt-5-mini-2025-08-07",
-    "provider": "OpenAI",
-    "pricing": {
-      "input_tokens": 0.25,
-      "output_tokens": 2,
-      "base_unit": 1000000
-    },
-    "usage_key": "usage"
-  },
-  "gpt-5-nano-2025-08-07&OpenAI": {
-    "model": "gpt-5-nano-2025-08-07",
-    "provider": "OpenAI",
-    "pricing": {
-      "input_tokens": 0.05,
-      "output_tokens": 0.4,
-      "base_unit": 1000000
-    },
-    "usage_key": "usage"
-  },
-  "gpt-4.1-2025-04-14&OpenAI": {
-    "model": "gpt-4.1-2025-04-14",
+  "gpt-5.6-terra&OpenAI": {
+    "model": "gpt-5.6-terra",
     "provider": "OpenAI",
     "pricing": {
       "input_tokens": 2,
-      "output_tokens": 8,
+      "output_tokens": 12,
       "base_unit": 1000000
     },
     "usage_key": "usage"
   },
-  "gpt-4.1-mini-2025-04-14&OpenAI": {
-    "model": "gpt-4.1-mini-2025-04-14",
+  "gpt-5.6-luna&OpenAI": {
+    "model": "gpt-5.6-luna",
     "provider": "OpenAI",
     "pricing": {
-      "input_tokens": 0.4,
-      "output_tokens": 1.6,
-      "base_unit": 1000000
-    },
-    "usage_key": "usage"
-  },
-  "gpt-4.1-nano-2025-04-14&OpenAI": {
-    "model": "gpt-4.1-nano-2025-04-14",
-    "provider": "OpenAI",
-    "pricing": {
-      "input_tokens": 0.1,
-      "output_tokens": 0.4,
+      "input_tokens": 0.2,
+      "output_tokens": 1.2,
       "base_unit": 1000000
     },
     "usage_key": "usage"

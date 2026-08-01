@@ -18,45 +18,19 @@ sys.modules.setdefault("addonHandler", addon_handler)
 
 
 class CorrectorCatalogTests(unittest.TestCase):
-	def test_config_manager_projects_coseeing_items_under_local_and_coseeing_groups(self):
-		from configManager import ConfigManager, make_corrector_config_id
-
-		manager = ConfigManager(CORRECTOR_DIR)
-		config_id = make_corrector_config_id("gpt-5.4-mini-2026-03-17", "OpenAIResponse")
-
-		local_items = [
-			item for item in manager.endpoints["OpenAIResponse"]
-			if item.corrector_config_id == config_id
-		]
-		coseeing_items = [
-			item for item in manager.endpoints["Coseeing"]
-			if item.corrector_config_id == config_id
-		]
-
-		self.assertEqual(len(local_items), 1)
-		self.assertEqual(local_items[0].execution_channel, "local")
-		self.assertEqual(len(coseeing_items), 1)
-		self.assertEqual(coseeing_items[0].execution_channel, "Coseeing")
-
-	def test_coseeing_projection_preserves_backend_catalog_order(self):
+	def test_openai_and_anthropic_model_labels_match_replacement_catalog(self):
 		from configManager import ConfigManager
 
 		manager = ConfigManager(CORRECTOR_DIR)
-
-		projected_models = [item.config.model for item in manager.endpoints["Coseeing"]]
+		manager.provider = "Anthropic"
+		self.assertEqual(manager.model_labels, ["claude-opus-5", "claude-sonnet-5"])
+		manager.provider = "OpenAI"
 		self.assertEqual(
-			projected_models,
-			[
-				"gpt-5.4-mini-2026-03-17",
-				"gpt-5.4-nano-2026-03-17",
-				"gpt-5.1-2025-11-13",
-				"gpt-4.1-2025-04-14",
-				"gpt-4.1-mini-2025-04-14",
-				"gpt-4.1-nano-2025-04-14",
-			],
+			manager.model_labels,
+			["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"],
 		)
 
-	def test_default_selection_uses_first_coseeing_item(self):
+	def test_default_selection_uses_first_anthropic_model_locally(self):
 		from configManager import ConfigManager
 
 		manager = ConfigManager(CORRECTOR_DIR)
@@ -64,41 +38,20 @@ class CorrectorCatalogTests(unittest.TestCase):
 		self.assertEqual(
 			manager.default_selection(),
 			(
-				"gpt-5.4-mini-2026-03-17&OpenAIResponse",
-				"Coseeing",
+				"claude-opus-5&Anthropic",
+				"local",
 			),
 		)
 
-	def test_provider_groups_put_coseeing_first_and_keep_others_alphabetical(self):
+	def test_provider_groups_preserve_unaffected_providers_without_coseeing(self):
 		from configManager import ConfigManager
 
 		manager = ConfigManager(CORRECTOR_DIR)
 
 		self.assertEqual(
 			manager.provider_groups,
-			[
-				"Coseeing",
-				"Anthropic",
-				"DeepSeek",
-				"Google",
-				"OpenAIChatCompletion",
-				"OpenAIResponse",
-			],
+			["Anthropic", "DeepSeek", "Google", "OpenAI"],
 		)
-
-	def test_normalize_selection_preserves_valid_coseeing_channel(self):
-		from configManager import ConfigManager, normalize_selection
-
-		manager = ConfigManager(CORRECTOR_DIR)
-		config_id, execution_channel, config = normalize_selection(
-			manager,
-			"gpt-5.4-mini-2026-03-17&OpenAIResponse",
-			"Coseeing",
-		)
-
-		self.assertEqual(config_id, "gpt-5.4-mini-2026-03-17&OpenAIResponse")
-		self.assertEqual(execution_channel, "Coseeing")
-		self.assertTrue(config.coseeing)
 
 	def test_normalize_selection_falls_back_invalid_coseeing_channel_to_local(self):
 		from configManager import ConfigManager, normalize_selection
@@ -106,11 +59,11 @@ class CorrectorCatalogTests(unittest.TestCase):
 		manager = ConfigManager(CORRECTOR_DIR)
 		config_id, execution_channel, config = normalize_selection(
 			manager,
-			"gpt-5.4-2026-03-05&OpenAIResponse",
+			"gemini-3.1-pro-preview&Google",
 			"Coseeing",
 		)
 
-		self.assertEqual(config_id, "gpt-5.4-2026-03-05&OpenAIResponse")
+		self.assertEqual(config_id, "gemini-3.1-pro-preview&Google")
 		self.assertEqual(execution_channel, "local")
 		self.assertFalse(config.coseeing)
 
@@ -120,7 +73,7 @@ class CorrectorCatalogTests(unittest.TestCase):
 		manager = ConfigManager(CORRECTOR_DIR)
 		_, execution_channel, _ = normalize_selection(
 			manager,
-			"gpt-5.4-mini-2026-03-17&OpenAIResponse",
+			"gemini-3.1-pro-preview&Google",
 			"unexpected",
 		)
 

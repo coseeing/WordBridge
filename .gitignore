@@ -16,3 +16,7 @@ venv
 .claude
 .codex
 .gemini
+
+.superpowers
+docs
+storage
