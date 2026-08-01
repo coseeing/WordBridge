@@ -99,7 +99,10 @@ class AnthropicAdapter(ProviderModelAdapter):
 		}
 
 	def parse_response(self, response):
-		return response["content"][0]["text"]
+		for block in response["content"]:
+			if block.get("type") == "text":
+				return block["text"]
+		raise KeyError("No text block found in Anthropic API payload")
 
 
 class GoogleAdapter(ProviderModelAdapter):

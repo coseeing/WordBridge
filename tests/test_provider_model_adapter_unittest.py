@@ -102,6 +102,26 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertEqual(payload["messages"], [{"role": "user", "content": "原始文字"}])
 		self.assertEqual(payload["max_tokens"], 4096)
 
+	def test_anthropic_adapter_parses_text_after_thinking_block(self):
+		from lib.llm.adapter import get_provider_model_adapter
+
+		adapter = get_provider_model_adapter("Anthropic", "claude-sonnet-5")
+		response = {
+			"content": [
+				{"type": "thinking", "thinking": "", "signature": "signature"},
+				{"type": "text", "text": "我說我喜歡用螢幕閱讀器讀書"},
+			]
+		}
+
+		self.assertEqual(adapter.parse_response(response), "我說我喜歡用螢幕閱讀器讀書")
+
+	def test_anthropic_provider_disables_thinking(self):
+		from lib.llm.provider import get_provider
+
+		provider = get_provider("Anthropic", {"api_key": "test"})
+
+		self.assertEqual(provider.setting["thinking"], {"type": "disabled"})
+
 	def test_openai_response_adapter_builds_responses_payload_and_extracts_text_output(self):
 		from lib.llm.adapter import OpenAIAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
