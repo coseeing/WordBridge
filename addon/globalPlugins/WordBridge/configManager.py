@@ -22,7 +22,6 @@ LABEL_DICT = {
 	"OpenAI": _("OpenAI"),
 	"claude-opus-5": _("claude-opus-5"),
 	"claude-sonnet-5": _("claude-sonnet-5"),
-	"deepseek-chat": _("deepseek-chat"),
 	"deepseek-v4-flash": _("deepseek-v4-flash"),
 	"deepseek-v4-pro": _("deepseek-v4-pro"),
 	"gemini-2.5-pro": _("gemini-2.5-pro"),

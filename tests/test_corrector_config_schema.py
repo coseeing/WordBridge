@@ -67,7 +67,7 @@ def test_provider_catalogs_preserve_approved_and_unaffected_models():
 	expected = {
 		"OpenAI": {"gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"},
 		"Anthropic": {"claude-opus-5", "claude-sonnet-5"},
-		"DeepSeek": {"deepseek-chat", "deepseek-v4-flash", "deepseek-v4-pro"},
+		"DeepSeek": {"deepseek-v4-flash", "deepseek-v4-pro"},
 		"Google": {
 			"gemini-2.5-pro",
 			"gemini-3.1-pro-preview",

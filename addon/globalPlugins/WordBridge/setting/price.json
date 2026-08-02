@@ -23,17 +23,6 @@
     },
     "usage_key": "usage"
   },
-  "deepseek-chat&DeepSeek": {
-    "model": "deepseek-chat",
-    "provider": "DeepSeek",
-    "pricing": {
-      "prompt_cache_hit_tokens": 0.028,
-      "prompt_cache_miss_tokens": 0.28,
-      "completion_tokens": 0.42,
-      "base_unit": 1000000
-    },
-    "usage_key": "usage"
-  },
   "deepseek-v4-flash&DeepSeek": {
     "model": "deepseek-v4-flash",
     "provider": "DeepSeek",
@@ -49,9 +38,9 @@
     "model": "deepseek-v4-pro",
     "provider": "DeepSeek",
     "pricing": {
-      "prompt_cache_hit_tokens": 0.0145,
-      "prompt_cache_miss_tokens": 1.74,
-      "completion_tokens": 3.48,
+      "prompt_cache_hit_tokens": 0.003625,
+      "prompt_cache_miss_tokens": 0.435,
+      "completion_tokens": 0.87,
       "base_unit": 1000000
     },
     "usage_key": "usage"
