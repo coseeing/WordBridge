@@ -6,11 +6,11 @@ from test_helpers import (
 )
 
 
-PROVIDER_NAME = "OpenAIResponse"
+PROVIDER_NAME = "OpenAI"
 MODELS_TO_TEST = [
-	"gpt-5.4-mini-2026-03-17",
-	"gpt-5.2-2025-12-11",
-	"gpt-4.1-nano-2025-04-14",
+	"gpt-5.6-sol",
+	"gpt-5.6-terra",
+	"gpt-5.6-luna",
 ]
 
 

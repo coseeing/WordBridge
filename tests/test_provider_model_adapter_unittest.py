@@ -56,7 +56,12 @@ class ProviderModelAdapterTests(unittest.TestCase):
 				messages=[{"role": "user", "content": "原始文字"}],
 				system_template="系統提示",
 			),
-			{"temperature": 0.0, "top_p": 0.0, "max_output_tokens": 4096},
+			{
+				"temperature": 0.0,
+				"top_p": 0.0,
+				"max_output_tokens": 4096,
+				"reasoning": {"effort": "none"},
+			},
 		)
 
 		self.assertEqual(payload["model"], "gpt-5.6-sol")
@@ -72,15 +77,22 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.adapter import ProviderModelAdapter
 
 		with self.assertRaises(TypeError):
-			ProviderModelAdapter("OpenAIResponse", "gpt-4.1-2025-04-14")
+			ProviderModelAdapter("OpenAI", "gpt-4.1-2025-04-14")
 
 	def test_openai_factory_preserves_existing_responses_provider_contract(self):
-		from lib.llm.provider import OpenAIResponseProvider, get_provider
+		from lib.llm.provider import OpenAIProvider, get_provider
 
 		provider = get_provider("OpenAI", {"api_key": "test"})
 
-		self.assertIsInstance(provider, OpenAIResponseProvider)
+		self.assertIsInstance(provider, OpenAIProvider)
 		self.assertEqual(provider.get_api_url(), "https://api.openai.com/v1/responses")
+
+	def test_openai_provider_disables_reasoning_in_provider_settings(self):
+		from lib.llm.provider import get_provider
+
+		provider = get_provider("OpenAI", {"api_key": "test"})
+
+		self.assertEqual(provider.setting["reasoning"], {"effort": "none"})
 
 	def test_anthropic_adapter_builds_request_without_model_specific_temperature_logic(self):
 		from lib.llm.adapter import AnthropicAdapter, get_provider_model_adapter
@@ -126,7 +138,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.adapter import OpenAIAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("OpenAIResponse", "gpt-5.6-terra")
+		adapter = get_provider_model_adapter("OpenAI", "gpt-5.6-terra")
 		self.assertIsInstance(adapter, OpenAIAdapter)
 
 		payload = adapter.format_request(
@@ -137,6 +149,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			setting={
 				"max_output_tokens": 4096,
 				"store": False,
+				"reasoning": {"effort": "none"},
 				"text": {"verbosity": "low"},
 			},
 		)
@@ -173,12 +186,19 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			},
 		}
 		self.assertEqual(adapter.parse_response(response), "修正文字")
-		self.assertEqual(adapter.extract_usage(response), {"input_tokens": 11, "output_tokens": 7})
+		self.assertEqual(
+			adapter.extract_usage(response),
+			{
+				"input_tokens": 11,
+				"output_tokens": 7,
+				"input_tokens_details": {"cached_tokens": 5},
+			},
+		)
 
 	def test_provider_chat_completion_delegates_to_send(self):
-		from lib.llm.provider import OpenAIResponseProvider
+		from lib.llm.provider import OpenAIProvider
 
-		provider = OpenAIResponseProvider({"api_key": "test"})
+		provider = OpenAIProvider({"api_key": "test"})
 		payload = {"model": "gpt-5.6-sol", "input": "prepared payload"}
 
 		with patch.object(provider, "send", return_value={"output_text": "ok"}) as send:
@@ -188,7 +208,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertEqual(response, {"output_text": "ok"})
 
 	def test_provider_returns_unparsed_responses_json(self):
-		from lib.llm.provider import OpenAIResponseProvider
+		from lib.llm.provider import OpenAIProvider
 
 		class FakeResponse:
 			status_code = 200
@@ -205,7 +225,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			],
 			"usage": {"input_tokens": 11, "output_tokens": 7},
 		}
-		provider = OpenAIResponseProvider({"api_key": "test"})
+		provider = OpenAIProvider({"api_key": "test"})
 		provider.retries = 1
 
 		with patch("lib.llm.provider.requests.post", return_value=FakeResponse()):
@@ -214,7 +234,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertEqual(response, raw_response)
 
 	def test_provider_handles_http_errors_before_returning_json(self):
-		from lib.llm.provider import OpenAIResponseProvider
+		from lib.llm.provider import OpenAIProvider
 
 		class FakeResponse:
 			status_code = 429
@@ -222,7 +242,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			def json(self):
 				raise AssertionError("error responses must not be returned as JSON")
 
-		provider = OpenAIResponseProvider({"api_key": "test"})
+		provider = OpenAIProvider({"api_key": "test"})
 		provider.retries = 1
 
 		with patch("lib.llm.provider.requests.post", return_value=FakeResponse()):
@@ -230,7 +250,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 				provider.send({"model": "gpt-4.1", "input": "prepared payload"})
 
 	def test_openai_response_provider_uses_responses_endpoint(self):
-		from lib.llm.provider import OpenAIResponseProvider
+		from lib.llm.provider import OpenAIProvider
 
 		captured = {}
 
@@ -247,7 +267,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			captured["timeout"] = timeout
 			return FakeResponse()
 
-		provider = OpenAIResponseProvider({"api_key": "test"})
+		provider = OpenAIProvider({"api_key": "test"})
 		provider.retries = 1
 		provider.backoff = 1
 
@@ -345,7 +365,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.adapter import DeepSeekAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("DeepSeek", "deepseek-chat")
+		adapter = get_provider_model_adapter("DeepSeek", "deepseek-v4-flash")
 		self.assertIsInstance(adapter, DeepSeekAdapter)
 
 		payload = adapter.format_request(
@@ -361,7 +381,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			},
 		)
 
-		self.assertEqual(payload["model"], "deepseek-chat")
+		self.assertEqual(payload["model"], "deepseek-v4-flash")
 		self.assertEqual(payload["messages"][0], {"role": "system", "content": "系統提示"})
 		self.assertEqual(payload["messages"][1], {"role": "user", "content": "原始文字"})
 		self.assertFalse(payload["stream"])
@@ -371,10 +391,17 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertEqual(payload["stop"], [" =>"])
 		self.assertNotIn("options", payload)
 
+	def test_deepseek_provider_disables_thinking_in_provider_settings(self):
+		from lib.llm.provider import get_provider
+
+		provider = get_provider("DeepSeek", {"api_key": "test"})
+
+		self.assertEqual(provider.setting["thinking"], {"type": "disabled"})
+
 	def test_openai_response_adapter_calculates_terra_usage_and_cost_from_usage_history(self):
 		from lib.llm.adapter import get_provider_model_adapter
 
-		adapter = get_provider_model_adapter("OpenAIResponse", "gpt-5.6-terra")
+		adapter = get_provider_model_adapter("OpenAI", "gpt-5.6-terra")
 		usage_history = [
 			{"input_tokens": 10, "output_tokens": 5},
 			{"input_tokens": 1, "output_tokens": 2},
@@ -418,7 +445,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 				}
 
 		class FakeAdapter:
-			provider_name = "OpenAIResponse"
+			provider_name = "OpenAI"
 			model_name = "gpt-4.1-2025-04-14"
 
 			def __init__(self):
@@ -507,7 +534,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			task_factory.get_provider_model_adapter = lambda *args, **kwargs: adapter_object
 
 			workflow = task_factory.create_typo_workflow(
-				provider_name="OpenAIResponse",
+				provider_name="OpenAI",
 				model_name="gpt-4.1-2025-04-14",
 				credential={"api_key": "test"},
 				language="zh_traditional",

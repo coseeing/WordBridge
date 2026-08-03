@@ -18,8 +18,9 @@ class ProviderModelAdapter(ABC):
 	def format_request(self, prompt_bundle, setting: dict):
 		pass
 
+	@abstractmethod
 	def parse_response(self, response):
-		return response["choices"][0]["message"]["content"]
+		pass
 
 	def extract_usage(self, response):
 		usage_key = self._model_entry.get("usage_key")
@@ -40,16 +41,19 @@ class ProviderModelAdapter(ABC):
 		config_path = Path(__file__).resolve().parents[2] / "setting" / "price.json"
 		with config_path.open("r", encoding="utf8") as f:
 			config = json.load(f)
-		pricing_provider_name = {
-			"OpenAIResponse": "OpenAI",
-		}.get(self.provider_name, self.provider_name)
-		return config.get(f"{self.model_name}&{pricing_provider_name}", {})
+		return config.get(f"{self.model_name}&{self.provider_name}", {})
 
 
 class OpenAIAdapter(ProviderModelAdapter):
+	def _build_input_item(self, message: dict) -> dict:
+		content_type = "output_text" if message["role"] == "assistant" else "input_text"
+		return {
+			"role": message["role"],
+			"content": [{"type": content_type, "text": message["content"]}],
+		}
+
 	def format_request(self, prompt_bundle, setting: dict):
 		payload = deepcopy(setting)
-		payload["reasoning"] = {"effort": "none"}
 
 		payload["model"] = self.model_name
 		payload["instructions"] = prompt_bundle.system_template
@@ -58,13 +62,6 @@ class OpenAIAdapter(ProviderModelAdapter):
 			for message in deepcopy(prompt_bundle.messages)
 		]
 		return payload
-
-	def _build_input_item(self, message: dict) -> dict:
-		content_type = "output_text" if message["role"] == "assistant" else "input_text"
-		return {
-			"role": message["role"],
-			"content": [{"type": content_type, "text": message["content"]}],
-		}
 
 	def parse_response(self, response):
 		try:
@@ -81,13 +78,6 @@ class OpenAIAdapter(ProviderModelAdapter):
 				if content.get("type") == "output_text":
 					return content["text"]
 		raise KeyError("No output_text found in Responses API payload")
-
-	def extract_usage(self, response):
-		usage = response.get(self._model_entry.get("usage_key", "usage"), {})
-		return {
-			"input_tokens": usage.get("input_tokens", 0),
-			"output_tokens": usage.get("output_tokens", 0),
-		}
 
 class AnthropicAdapter(ProviderModelAdapter):
 	def format_request(self, prompt_bundle, setting: dict):
@@ -140,6 +130,9 @@ class OpenRouterAdapter(ProviderModelAdapter):
 			"options": {**deepcopy(setting)},
 		}
 
+	def parse_response(self, response):
+		return response["choices"][0]["message"]["content"]
+
 
 class DeepSeekAdapter(ProviderModelAdapter):
 	def format_request(self, prompt_bundle, setting: dict):
@@ -149,15 +142,15 @@ class DeepSeekAdapter(ProviderModelAdapter):
 			"stream": False,
 			**deepcopy(setting),
 		}
-		if self.model_name.startswith("deepseek-v4-"):
-			payload["thinking"] = {"type": "disabled"}
 		return payload
+
+	def parse_response(self, response):
+		return response["choices"][0]["message"]["content"]
 
 
 def get_provider_model_adapter(provider_name: str, model_name: str) -> ProviderModelAdapter:
 	family_mapping = {
 		"OpenAI": OpenAIAdapter,
-		"OpenAIResponse": OpenAIAdapter,
 		"Anthropic": AnthropicAdapter,
 		"Google": GoogleAdapter,
 		"OpenRouter": OpenRouterAdapter,

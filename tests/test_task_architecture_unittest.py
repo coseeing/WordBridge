@@ -188,7 +188,7 @@ class TaskArchitectureTests(unittest.TestCase):
 
 		self.assertTrue(TypoCorrectionWorkflow)
 
-	def test_task_factory_supports_openai_response_provider_contract(self):
+	def test_task_factory_passes_canonical_openai_provider_name(self):
 		from lib.application import task_factory
 		from lib.tasks.typo.workflow import TypoCorrectionWorkflow
 
@@ -216,7 +216,7 @@ class TaskArchitectureTests(unittest.TestCase):
 			task_factory.get_provider_model_adapter = fake_get_provider_model_adapter
 
 			workflow = task_factory.create_typo_workflow(
-				provider_name="OpenAIResponse",
+				provider_name="OpenAI",
 				model_name="gpt-4.1-2025-04-14",
 				credential={"api_key": "test"},
 				language="zh_traditional",
@@ -230,8 +230,8 @@ class TaskArchitectureTests(unittest.TestCase):
 			task_factory.get_provider_model_adapter = original_get_provider_model_adapter
 
 		self.assertIsInstance(workflow, TypoCorrectionWorkflow)
-		self.assertEqual(captured["provider_name"], "OpenAIResponse")
-		self.assertEqual(captured["adapter_provider_name"], "OpenAIResponse")
+		self.assertEqual(captured["provider_name"], "OpenAI")
+		self.assertEqual(captured["adapter_provider_name"], "OpenAI")
 		self.assertEqual(captured["model_name"], "gpt-4.1-2025-04-14")
 
 
