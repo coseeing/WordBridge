@@ -10,5 +10,5 @@
         "keep_non_chinese_char": false,
         "no_explanation": true
     },
-    "coseeing": false
+    "coseeing": true
 }
