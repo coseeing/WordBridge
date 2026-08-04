@@ -41,7 +41,7 @@ class TaskArchitectureTests(unittest.TestCase):
 		self.assertEqual(len(dialogs.configManager.config_by_id), 13)
 
 	def test_plugin_local_correction_uses_endpoint_and_task_configs_with_unchanged_runner_interface(self):
-		"""Catches prompt values being read from CorrectorConfig instead of task settings."""
+		"""Catches task-config reads and a local-routing regression without network calls."""
 		captured = {}
 		with _nvda_module_stubs(captured) as nvda_stubs:
 			nvda_stubs.track_corrector_task_loader()
@@ -56,7 +56,20 @@ class TaskArchitectureTests(unittest.TestCase):
 			instance.readDictionary = lambda: []
 			instance.latest_action = {}
 
-			plugin.GlobalPlugin.correctTypo(instance, "測試文字")
+			original_post = plugin.requests.post
+
+			def fail_if_coseeing_is_called(*args, **kwargs):
+				raise AssertionError("local correction unexpectedly called Coseeing")
+
+			try:
+				# If the local route regresses to Coseeing, this fails immediately instead
+				# of issuing a real request that can wait up to the production timeout.
+				plugin.requests.post = fail_if_coseeing_is_called
+				plugin.GlobalPlugin.correctTypo(instance, "測試文字")
+			finally:
+				plugin.requests.post = original_post
+
+			self.assertIs(plugin.requests.post, original_post)
 
 		self.assertEqual(
 			nvda_stubs.corrector_task_loader_paths,
@@ -273,10 +286,6 @@ class TaskArchitectureTests(unittest.TestCase):
 		self.assertEqual(captured["model_name"], "gpt-4.1-2025-04-14")
 
 
-if __name__ == "__main__":
-	unittest.main()
-
-
 class _nvda_module_stubs:
 	def __init__(self, captured_runner_args=None):
 		self.captured_runner_args = captured_runner_args
@@ -445,3 +454,7 @@ def _load_module(name, path, package=False):
 	sys.modules[name] = module
 	spec.loader.exec_module(module)
 	return module
+
+
+if __name__ == "__main__":
+	unittest.main()
