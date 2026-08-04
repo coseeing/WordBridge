@@ -55,20 +55,39 @@ class TaskArchitectureTests(unittest.TestCase):
 	def test_plugin_local_correction_uses_endpoint_and_task_configs_with_unchanged_runner_interface(self):
 		"""Catches prompt values being read from CorrectorConfig instead of task settings."""
 		captured = {}
-		with _nvda_module_stubs(captured):
+		with _nvda_module_stubs(captured) as nvda_stubs:
+			nvda_stubs.track_corrector_task_loader()
 			plugin = _load_module("WordBridge", ADDON_PATH / "__init__.py", package=True)
+			nvda_stubs.config.conf["WordBridge"]["settings"]["typo_correction_mode"] = "lite"
 			instance = object.__new__(plugin.GlobalPlugin)
 			instance.readDictionary = lambda: []
 			instance.latest_action = {}
 
 			plugin.GlobalPlugin.correctTypo(instance, "測試文字")
 
-		self.assertEqual(captured["provider_name"], "OpenAI")
-		self.assertEqual(captured["model_name"], "gpt-5.6-sol")
-		self.assertEqual(captured["template_name"], "Standard_v1.json")
 		self.assertEqual(
-			captured["optional_guidance_enable"],
-			{"keep_non_chinese_char": True, "no_explanation": True},
+			nvda_stubs.corrector_task_loader_paths,
+			[str(ADDON_PATH / "setting" / "task" / "corrector.json")],
+		)
+		self.assertEqual(
+			captured,
+			{
+				"request": "測試文字",
+				"batch_mode": True,
+				"provider_name": "OpenAI",
+				"model_name": "gpt-5.6-sol",
+				"credential": {"api_key": "test-key"},
+				"language": "zh_traditional",
+				"template_name": "Lite_v1.json",
+				"corrector_mode": "lite",
+				"optional_guidance_enable": {
+					"keep_non_chinese_char": True,
+					"no_explanation": True,
+				},
+				"customized_words": [],
+				"retries": 2,
+				"backoff": 1,
+			},
 		)
 
 	def test_llm_executor_coordinates_prompt_policy_provider_and_adapter(self):
@@ -274,21 +293,8 @@ class _nvda_module_stubs:
 		self.original_modules = {}
 
 	def __enter__(self):
-		module_names = [
-			"WordBridge",
-			"WordBridge.dialogs",
-			"WordBridge.dictionary",
-			"WordBridge.dictionary.dialog",
-			"WordBridge.lib.application.task_runner",
-			"WordBridge.lib.coseeing",
-			"WordBridge.lib.decimalUtils",
-			"WordBridge.lib.tasks.typo.utils",
-			"WordBridge.lib.viewHTML",
-			"addonHandler", "api", "config", "globalPluginHandler", "gui", "logHandler", "nvwave",
-			"scriptHandler", "textInfos", "tones", "ui", "wx", "ctypes", "hanzidentifier",
-			"configobj", "configobj.validate",
-		]
-		self.original_modules = {name: sys.modules.get(name) for name in module_names}
+		self.original_modules = sys.modules.copy()
+		self.original_sys_path = sys.path.copy()
 		self.original_translation = getattr(builtins, "_", None)
 		addon_handler_module = types.ModuleType("addonHandler")
 		addon_handler_module.initTranslation = lambda: setattr(builtins, "_", lambda text: text)
@@ -306,6 +312,7 @@ class _nvda_module_stubs:
 
 		config_module = types.ModuleType("config")
 		config_module.conf = _FakeConf()
+		self.config = config_module
 		sys.modules["config"] = config_module
 		configobj_module = types.ModuleType("configobj")
 		configobj_validate = types.ModuleType("configobj.validate")
@@ -366,20 +373,48 @@ class _nvda_module_stubs:
 		sys.modules["WordBridge.lib.tasks.typo.utils"] = types.SimpleNamespace(strings_diff=lambda request, response: [])
 		sys.modules["WordBridge.lib.viewHTML"] = types.SimpleNamespace(text2template=lambda src, dst: None)
 		if self.captured_runner_args is not None:
-			def run_typo_correction(**kwargs):
-				self.captured_runner_args.update(kwargs)
-				return types.SimpleNamespace(corrected_text=kwargs["request"], cost=Decimal("0"))
+			def run_typo_correction(
+				*, request, batch_mode, provider_name, model_name, credential, language,
+				template_name, corrector_mode, optional_guidance_enable,
+				customized_words, retries, backoff,
+			):
+				self.captured_runner_args.update({
+					"request": request,
+					"batch_mode": batch_mode,
+					"provider_name": provider_name,
+					"model_name": model_name,
+					"credential": credential,
+					"language": language,
+					"template_name": template_name,
+					"corrector_mode": corrector_mode,
+					"optional_guidance_enable": optional_guidance_enable,
+					"customized_words": customized_words,
+					"retries": retries,
+					"backoff": backoff,
+				})
+				return types.SimpleNamespace(corrected_text=request, cost=Decimal("0"))
 			sys.modules["WordBridge.lib.application.task_runner"] = types.SimpleNamespace(
 				run_typo_correction=run_typo_correction,
 			)
 		return self
 
+	def track_corrector_task_loader(self):
+		config_manager = _load_module("WordBridge.configManager", ADDON_PATH / "configManager.py")
+		real_loader = config_manager.load_corrector_task_config
+		self.corrector_task_loader_paths = []
+
+		def tracked_loader(path):
+			self.corrector_task_loader_paths.append(str(path))
+			return real_loader(path)
+
+		config_manager.load_corrector_task_config = tracked_loader
+
 	def __exit__(self, exc_type, exc, traceback):
+		for name in sorted(set(sys.modules) - set(self.original_modules)):
+			sys.modules.pop(name, None)
 		for name, module in self.original_modules.items():
-			if module is None:
-				sys.modules.pop(name, None)
-			else:
-				sys.modules[name] = module
+			sys.modules[name] = module
+		sys.path[:] = self.original_sys_path
 		if self.original_translation is None:
 			if hasattr(builtins, "_"):
 				del builtins._
