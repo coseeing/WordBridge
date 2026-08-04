@@ -66,13 +66,27 @@ def save_coseeing_credentials(settings: dict, username_controls: dict, password_
 
 
 @dataclass(frozen=True)
+class CorrectorTaskConfig:
+	template_name: dict
+	optional_guidance_enable: dict
+
+
+def load_corrector_task_config(path) -> CorrectorTaskConfig:
+	with Path(path).open("r", encoding="utf8") as f:
+		raw_config = json.load(f)
+
+	return CorrectorTaskConfig(
+		template_name=raw_config["template_name"],
+		optional_guidance_enable=raw_config["optional_guidance_enable"],
+	)
+
+
+@dataclass(frozen=True)
 class CorrectorConfig:
 	active: bool
 	model: str
 	provider: str
 	coseeing: bool
-	template_name: dict
-	optional_guidance_enable: dict
 
 	@property
 	def corrector_config_id(self) -> str:
@@ -109,8 +123,6 @@ class ConfigManager:
 				model=raw_config["model"],
 				provider=raw_config["provider"],
 				coseeing=raw_config["coseeing"],
-				template_name=raw_config["template_name"],
-				optional_guidance_enable=raw_config["optional_guidance_enable"],
 			)
 			if config.corrector_config_id in self.config_by_id:
 				raise ValueError(f"Duplicate corrector config id: {config.corrector_config_id}")

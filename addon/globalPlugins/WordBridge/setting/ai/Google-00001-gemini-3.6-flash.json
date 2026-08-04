@@ -1,0 +1,6 @@
+{
+    "active": true,
+    "model": "gemini-3.6-flash",
+    "provider": "Google",
+    "coseeing": false
+}

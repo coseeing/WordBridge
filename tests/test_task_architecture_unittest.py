@@ -1,7 +1,9 @@
 import sys
 import types
 import unittest
+import builtins
 from decimal import Decimal
+from importlib import util
 from pathlib import Path
 
 
@@ -15,18 +17,6 @@ sys.path.insert(0, str(PACKAGE_PATH))
 addon_handler = types.ModuleType("addonHandler")
 addon_handler.initTranslation = lambda: None
 sys.modules.setdefault("addonHandler", addon_handler)
-
-pypinyin_module = types.ModuleType("pypinyin")
-pypinyin_module.lazy_pinyin = lambda text, style=None: list(text)
-pypinyin_module.pinyin = lambda text, style=None, heteronym=False: [[char] for char in text]
-
-
-class _Style:
-	TONE3 = object()
-
-
-pypinyin_module.Style = _Style
-sys.modules.setdefault("pypinyin", pypinyin_module)
 
 chinese_converter_module = types.ModuleType("chinese_converter")
 chinese_converter_module.to_traditional = lambda text: text
@@ -42,6 +32,67 @@ sys.modules.setdefault("hanzidentifier", hanzidentifier_module)
 
 
 class TaskArchitectureTests(unittest.TestCase):
+	def test_dialogs_builds_the_real_thirteen_endpoint_catalog_without_legacy_corrector_directory(self):
+		"""Catches dialogs bootstrapping ConfigManager from the removed legacy directory."""
+		with _nvda_module_stubs():
+			dialogs = _load_module("WordBridge.dialogs", ADDON_PATH / "dialogs.py")
+
+		self.assertEqual(len(dialogs.configManager.configs), 13)
+		self.assertEqual(len(dialogs.configManager.config_by_id), 13)
+
+	def test_plugin_local_correction_uses_endpoint_and_task_configs_with_unchanged_runner_interface(self):
+		"""Catches task-config reads and a local-routing regression without network calls."""
+		captured = {}
+		with _nvda_module_stubs(captured) as nvda_stubs:
+			nvda_stubs.track_corrector_task_loader()
+			plugin = _load_module("WordBridge", ADDON_PATH / "__init__.py", package=True)
+			self.assertEqual(
+				nvda_stubs.corrector_task_loader_paths,
+				[str(ADDON_PATH / "setting" / "task" / "corrector.json")],
+			)
+			expected_task_config = nvda_stubs.sentinel_task_config
+			nvda_stubs.config.conf["WordBridge"]["settings"]["typo_correction_mode"] = "lite"
+			instance = object.__new__(plugin.GlobalPlugin)
+			instance.readDictionary = lambda: []
+			instance.latest_action = {}
+
+			original_post = plugin.requests.post
+
+			def fail_if_coseeing_is_called(*args, **kwargs):
+				raise AssertionError("local correction unexpectedly called Coseeing")
+
+			try:
+				# If the local route regresses to Coseeing, this fails immediately instead
+				# of issuing a real request that can wait up to the production timeout.
+				plugin.requests.post = fail_if_coseeing_is_called
+				plugin.GlobalPlugin.correctTypo(instance, "測試文字")
+			finally:
+				plugin.requests.post = original_post
+
+			self.assertIs(plugin.requests.post, original_post)
+
+		self.assertEqual(
+			nvda_stubs.corrector_task_loader_paths,
+			[str(ADDON_PATH / "setting" / "task" / "corrector.json")],
+		)
+		self.assertEqual(
+			captured,
+			{
+				"request": "測試文字",
+				"batch_mode": True,
+				"provider_name": "OpenAI",
+				"model_name": "gpt-5.6-sol",
+				"credential": {"api_key": "test-key"},
+				"language": "zh_traditional",
+				"template_name": expected_task_config.template_name["lite"],
+				"corrector_mode": "lite",
+				"optional_guidance_enable": expected_task_config.optional_guidance_enable,
+				"customized_words": [],
+				"retries": 2,
+				"backoff": 1,
+			},
+		)
+
 	def test_llm_executor_coordinates_prompt_policy_provider_and_adapter(self):
 		from lib.llm.executor import LLMExecutor
 		from lib.llm.prompt_bundle import PromptBundle
@@ -233,6 +284,176 @@ class TaskArchitectureTests(unittest.TestCase):
 		self.assertEqual(captured["provider_name"], "OpenAI")
 		self.assertEqual(captured["adapter_provider_name"], "OpenAI")
 		self.assertEqual(captured["model_name"], "gpt-4.1-2025-04-14")
+
+
+class _nvda_module_stubs:
+	def __init__(self, captured_runner_args=None):
+		self.captured_runner_args = captured_runner_args
+		self.original_modules = {}
+
+	def __enter__(self):
+		self.original_modules = sys.modules.copy()
+		self.original_sys_path = sys.path.copy()
+		self.original_translation = getattr(builtins, "_", None)
+		addon_handler_module = types.ModuleType("addonHandler")
+		addon_handler_module.initTranslation = lambda: setattr(builtins, "_", lambda text: text)
+		sys.modules["addonHandler"] = addon_handler_module
+
+		package = types.ModuleType("WordBridge")
+		package.__path__ = [str(ADDON_PATH)]
+		sys.modules["WordBridge"] = package
+
+		ctypes_module = types.ModuleType("ctypes")
+		ctypes_module.windll = types.SimpleNamespace(
+			kernel32=types.SimpleNamespace(GetUserDefaultUILanguage=lambda: 1033)
+		)
+		sys.modules["ctypes"] = ctypes_module
+
+		config_module = types.ModuleType("config")
+		config_module.conf = _FakeConf()
+		self.config = config_module
+		sys.modules["config"] = config_module
+		configobj_module = types.ModuleType("configobj")
+		configobj_validate = types.ModuleType("configobj.validate")
+		configobj_validate.VdtValueTooBigError = type("VdtValueTooBigError", (Exception,), {})
+		configobj_validate.VdtValueTooSmallError = type("VdtValueTooSmallError", (Exception,), {})
+		sys.modules["configobj"] = configobj_module
+		sys.modules["configobj.validate"] = configobj_validate
+
+		wx_module = types.ModuleType("wx")
+		wx_module.Choice = type("Choice", (), {})
+		wx_module.TextCtrl = type("TextCtrl", (), {})
+		wx_module.CheckBox = type("CheckBox", (), {})
+		wx_module.Button = type("Button", (), {})
+		wx_module.Dialog = type("Dialog", (), {})
+		wx_module.ToolTip = lambda value: value
+		wx_module.EVT_CHOICE = object()
+		wx_module.EVT_BUTTON = object()
+		wx_module.TE_PASSWORD = 1
+		wx_module.TE_PROCESS_ENTER = 2
+		wx_module.VERTICAL = 1
+		wx_module.StaticBoxSizer = object
+		wx_module.CallAfter = lambda callback, *args, **kwargs: callback(*args, **kwargs)
+		sys.modules["wx"] = wx_module
+
+		gui_module = types.ModuleType("gui")
+		gui_module.guiHelper = types.SimpleNamespace(BoxSizerHelper=object)
+		gui_module.nvdaControls = types.SimpleNamespace(SelectOnFocusSpinCtrl=object)
+		gui_module.settingsDialogs = types.SimpleNamespace(
+			NVDASettingsDialog=types.SimpleNamespace(categoryClasses=[])
+		)
+		gui_module.mainFrame = types.SimpleNamespace()
+		sys.modules["gui"] = gui_module
+		gui_context_help = types.ModuleType("gui.contextHelp")
+		gui_context_help.ContextHelpMixin = type("ContextHelpMixin", (), {})
+		sys.modules["gui.contextHelp"] = gui_context_help
+		gui_settings_dialogs = types.ModuleType("gui.settingsDialogs")
+		gui_settings_dialogs.SettingsPanel = object
+		sys.modules["gui.settingsDialogs"] = gui_settings_dialogs
+
+		global_plugin_handler = types.ModuleType("globalPluginHandler")
+		global_plugin_handler.GlobalPlugin = object
+		sys.modules["globalPluginHandler"] = global_plugin_handler
+		sys.modules["api"] = types.SimpleNamespace(copyToClip=lambda text: None, getFocusObject=lambda: None)
+		sys.modules["logHandler"] = types.SimpleNamespace(log=types.SimpleNamespace(warning=lambda message: None))
+		sys.modules["nvwave"] = types.SimpleNamespace(playWaveFile=lambda *args, **kwargs: None)
+		sys.modules["scriptHandler"] = types.SimpleNamespace(script=lambda **kwargs: lambda function: function)
+		sys.modules["textInfos"] = types.SimpleNamespace(POSITION_SELECTION=object())
+		sys.modules["tones"] = types.SimpleNamespace(beep=lambda *args: None)
+		sys.modules["ui"] = types.SimpleNamespace(message=lambda message: None)
+		sys.modules["hanzidentifier"] = types.SimpleNamespace(has_chinese=lambda text: True)
+
+		dictionary_package = types.ModuleType("WordBridge.dictionary")
+		dictionary_package.__path__ = []
+		sys.modules["WordBridge.dictionary"] = dictionary_package
+		sys.modules["WordBridge.dictionary.dialog"] = types.SimpleNamespace(DictionaryEntryDialog=object)
+		sys.modules["WordBridge.lib.coseeing"] = types.SimpleNamespace(obtain_openai_key=lambda *args: "")
+		sys.modules["WordBridge.lib.decimalUtils"] = types.SimpleNamespace(decimal_to_str_0=lambda cost: str(cost))
+		sys.modules["WordBridge.lib.tasks.typo.utils"] = types.SimpleNamespace(strings_diff=lambda request, response: [])
+		sys.modules["WordBridge.lib.viewHTML"] = types.SimpleNamespace(text2template=lambda src, dst: None)
+		if self.captured_runner_args is not None:
+			def run_typo_correction(
+				*, request, batch_mode, provider_name, model_name, credential, language,
+				template_name, corrector_mode, optional_guidance_enable,
+				customized_words, retries, backoff,
+			):
+				self.captured_runner_args.update({
+					"request": request,
+					"batch_mode": batch_mode,
+					"provider_name": provider_name,
+					"model_name": model_name,
+					"credential": credential,
+					"language": language,
+					"template_name": template_name,
+					"corrector_mode": corrector_mode,
+					"optional_guidance_enable": optional_guidance_enable,
+					"customized_words": customized_words,
+					"retries": retries,
+					"backoff": backoff,
+				})
+				return types.SimpleNamespace(corrected_text=request, cost=Decimal("0"))
+			sys.modules["WordBridge.lib.application.task_runner"] = types.SimpleNamespace(
+				run_typo_correction=run_typo_correction,
+			)
+		return self
+
+	def track_corrector_task_loader(self):
+		config_manager = _load_module("WordBridge.configManager", ADDON_PATH / "configManager.py")
+		real_loader = config_manager.load_corrector_task_config
+		self.corrector_task_loader_paths = []
+
+		def tracked_loader(path):
+			self.corrector_task_loader_paths.append(str(path))
+			real_task_config = real_loader(path)
+			self.sentinel_task_config = type(real_task_config)(
+				template_name={
+					mode: f"sentinel-template:{template_name}"
+					for mode, template_name in real_task_config.template_name.items()
+				},
+				optional_guidance_enable={
+					key: f"sentinel-guidance:{key}:{value}"
+					for key, value in real_task_config.optional_guidance_enable.items()
+				},
+			)
+			return self.sentinel_task_config
+
+		config_manager.load_corrector_task_config = tracked_loader
+
+	def __exit__(self, exc_type, exc, traceback):
+		for name in sorted(set(sys.modules) - set(self.original_modules)):
+			sys.modules.pop(name, None)
+		for name, module in self.original_modules.items():
+			sys.modules[name] = module
+		sys.path[:] = self.original_sys_path
+		if self.original_translation is None:
+			if hasattr(builtins, "_"):
+				del builtins._
+		else:
+			builtins._ = self.original_translation
+
+
+class _FakeConf(dict):
+	def __init__(self):
+		super().__init__({
+			"WordBridge": {"settings": {
+				"corrector_config_id": "gpt-5.6-sol&OpenAI",
+				"execution_channel": "local",
+				"language": "zh_traditional",
+				"typo_correction_mode": "standard",
+				"api_key": {"OpenAI": "test-key"},
+				"customized_words_enable": False,
+				"auto_display_report": False,
+				"sound_effects_enable": False,
+			}}})
+		self.spec = {}
+
+
+def _load_module(name, path, package=False):
+	spec = util.spec_from_file_location(name, path, submodule_search_locations=[] if package else None)
+	module = util.module_from_spec(spec)
+	sys.modules[name] = module
+	spec.loader.exec_module(module)
+	return module
 
 
 if __name__ == "__main__":

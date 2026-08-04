@@ -1,0 +1,6 @@
+{
+    "active": true,
+    "model": "gpt-5.6-sol",
+    "provider": "OpenAI",
+    "coseeing": false
+}
