@@ -58,6 +58,11 @@ class TaskArchitectureTests(unittest.TestCase):
 		with _nvda_module_stubs(captured) as nvda_stubs:
 			nvda_stubs.track_corrector_task_loader()
 			plugin = _load_module("WordBridge", ADDON_PATH / "__init__.py", package=True)
+			self.assertEqual(
+				nvda_stubs.corrector_task_loader_paths,
+				[str(ADDON_PATH / "setting" / "task" / "corrector.json")],
+			)
+			expected_task_config = nvda_stubs.sentinel_task_config
 			nvda_stubs.config.conf["WordBridge"]["settings"]["typo_correction_mode"] = "lite"
 			instance = object.__new__(plugin.GlobalPlugin)
 			instance.readDictionary = lambda: []
@@ -78,12 +83,9 @@ class TaskArchitectureTests(unittest.TestCase):
 				"model_name": "gpt-5.6-sol",
 				"credential": {"api_key": "test-key"},
 				"language": "zh_traditional",
-				"template_name": "Lite_v1.json",
+				"template_name": expected_task_config.template_name["lite"],
 				"corrector_mode": "lite",
-				"optional_guidance_enable": {
-					"keep_non_chinese_char": True,
-					"no_explanation": True,
-				},
+				"optional_guidance_enable": expected_task_config.optional_guidance_enable,
 				"customized_words": [],
 				"retries": 2,
 				"backoff": 1,
@@ -405,7 +407,18 @@ class _nvda_module_stubs:
 
 		def tracked_loader(path):
 			self.corrector_task_loader_paths.append(str(path))
-			return real_loader(path)
+			real_task_config = real_loader(path)
+			self.sentinel_task_config = type(real_task_config)(
+				template_name={
+					mode: f"sentinel-template:{template_name}"
+					for mode, template_name in real_task_config.template_name.items()
+				},
+				optional_guidance_enable={
+					key: f"sentinel-guidance:{key}:{value}"
+					for key, value in real_task_config.optional_guidance_enable.items()
+				},
+			)
+			return self.sentinel_task_config
 
 		config_manager.load_corrector_task_config = tracked_loader
 
