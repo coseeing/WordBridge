@@ -45,7 +45,7 @@ sys.modules.setdefault("hanzidentifier", hanzidentifier_module)
 
 class TaskArchitectureTests(unittest.TestCase):
 	def test_dialogs_builds_the_real_thirteen_endpoint_catalog_without_legacy_corrector_directory(self):
-		"""Catches dialogs bootstrapping ConfigManager from the removed setting/corrector path."""
+		"""Catches dialogs bootstrapping ConfigManager from the removed legacy directory."""
 		with _nvda_module_stubs():
 			dialogs = _load_module("WordBridge.dialogs", ADDON_PATH / "dialogs.py")
 
