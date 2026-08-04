@@ -1,7 +1,9 @@
 import sys
 import types
 import unittest
+import builtins
 from decimal import Decimal
+from importlib import util
 from pathlib import Path
 
 
@@ -42,6 +44,33 @@ sys.modules.setdefault("hanzidentifier", hanzidentifier_module)
 
 
 class TaskArchitectureTests(unittest.TestCase):
+	def test_dialogs_builds_the_real_thirteen_endpoint_catalog_without_legacy_corrector_directory(self):
+		"""Catches dialogs bootstrapping ConfigManager from the removed setting/corrector path."""
+		with _nvda_module_stubs():
+			dialogs = _load_module("WordBridge.dialogs", ADDON_PATH / "dialogs.py")
+
+		self.assertEqual(len(dialogs.configManager.configs), 13)
+		self.assertEqual(len(dialogs.configManager.config_by_id), 13)
+
+	def test_plugin_local_correction_uses_endpoint_and_task_configs_with_unchanged_runner_interface(self):
+		"""Catches prompt values being read from CorrectorConfig instead of task settings."""
+		captured = {}
+		with _nvda_module_stubs(captured):
+			plugin = _load_module("WordBridge", ADDON_PATH / "__init__.py", package=True)
+			instance = object.__new__(plugin.GlobalPlugin)
+			instance.readDictionary = lambda: []
+			instance.latest_action = {}
+
+			plugin.GlobalPlugin.correctTypo(instance, "測試文字")
+
+		self.assertEqual(captured["provider_name"], "OpenAI")
+		self.assertEqual(captured["model_name"], "gpt-5.6-sol")
+		self.assertEqual(captured["template_name"], "Standard_v1.json")
+		self.assertEqual(
+			captured["optional_guidance_enable"],
+			{"keep_non_chinese_char": True, "no_explanation": True},
+		)
+
 	def test_llm_executor_coordinates_prompt_policy_provider_and_adapter(self):
 		from lib.llm.executor import LLMExecutor
 		from lib.llm.prompt_bundle import PromptBundle
@@ -237,3 +266,146 @@ class TaskArchitectureTests(unittest.TestCase):
 
 if __name__ == "__main__":
 	unittest.main()
+
+
+class _nvda_module_stubs:
+	def __init__(self, captured_runner_args=None):
+		self.captured_runner_args = captured_runner_args
+		self.original_modules = {}
+
+	def __enter__(self):
+		module_names = [
+			"WordBridge",
+			"WordBridge.dialogs",
+			"WordBridge.dictionary",
+			"WordBridge.dictionary.dialog",
+			"WordBridge.lib.application.task_runner",
+			"WordBridge.lib.coseeing",
+			"WordBridge.lib.decimalUtils",
+			"WordBridge.lib.tasks.typo.utils",
+			"WordBridge.lib.viewHTML",
+			"addonHandler", "api", "config", "globalPluginHandler", "gui", "logHandler", "nvwave",
+			"scriptHandler", "textInfos", "tones", "ui", "wx", "ctypes", "hanzidentifier",
+			"configobj", "configobj.validate",
+		]
+		self.original_modules = {name: sys.modules.get(name) for name in module_names}
+		self.original_translation = getattr(builtins, "_", None)
+		addon_handler_module = types.ModuleType("addonHandler")
+		addon_handler_module.initTranslation = lambda: setattr(builtins, "_", lambda text: text)
+		sys.modules["addonHandler"] = addon_handler_module
+
+		package = types.ModuleType("WordBridge")
+		package.__path__ = [str(ADDON_PATH)]
+		sys.modules["WordBridge"] = package
+
+		ctypes_module = types.ModuleType("ctypes")
+		ctypes_module.windll = types.SimpleNamespace(
+			kernel32=types.SimpleNamespace(GetUserDefaultUILanguage=lambda: 1033)
+		)
+		sys.modules["ctypes"] = ctypes_module
+
+		config_module = types.ModuleType("config")
+		config_module.conf = _FakeConf()
+		sys.modules["config"] = config_module
+		configobj_module = types.ModuleType("configobj")
+		configobj_validate = types.ModuleType("configobj.validate")
+		configobj_validate.VdtValueTooBigError = type("VdtValueTooBigError", (Exception,), {})
+		configobj_validate.VdtValueTooSmallError = type("VdtValueTooSmallError", (Exception,), {})
+		sys.modules["configobj"] = configobj_module
+		sys.modules["configobj.validate"] = configobj_validate
+
+		wx_module = types.ModuleType("wx")
+		wx_module.Choice = type("Choice", (), {})
+		wx_module.TextCtrl = type("TextCtrl", (), {})
+		wx_module.CheckBox = type("CheckBox", (), {})
+		wx_module.Button = type("Button", (), {})
+		wx_module.Dialog = type("Dialog", (), {})
+		wx_module.ToolTip = lambda value: value
+		wx_module.EVT_CHOICE = object()
+		wx_module.EVT_BUTTON = object()
+		wx_module.TE_PASSWORD = 1
+		wx_module.TE_PROCESS_ENTER = 2
+		wx_module.VERTICAL = 1
+		wx_module.StaticBoxSizer = object
+		wx_module.CallAfter = lambda callback, *args, **kwargs: callback(*args, **kwargs)
+		sys.modules["wx"] = wx_module
+
+		gui_module = types.ModuleType("gui")
+		gui_module.guiHelper = types.SimpleNamespace(BoxSizerHelper=object)
+		gui_module.nvdaControls = types.SimpleNamespace(SelectOnFocusSpinCtrl=object)
+		gui_module.settingsDialogs = types.SimpleNamespace(
+			NVDASettingsDialog=types.SimpleNamespace(categoryClasses=[])
+		)
+		gui_module.mainFrame = types.SimpleNamespace()
+		sys.modules["gui"] = gui_module
+		gui_context_help = types.ModuleType("gui.contextHelp")
+		gui_context_help.ContextHelpMixin = type("ContextHelpMixin", (), {})
+		sys.modules["gui.contextHelp"] = gui_context_help
+		gui_settings_dialogs = types.ModuleType("gui.settingsDialogs")
+		gui_settings_dialogs.SettingsPanel = object
+		sys.modules["gui.settingsDialogs"] = gui_settings_dialogs
+
+		global_plugin_handler = types.ModuleType("globalPluginHandler")
+		global_plugin_handler.GlobalPlugin = object
+		sys.modules["globalPluginHandler"] = global_plugin_handler
+		sys.modules["api"] = types.SimpleNamespace(copyToClip=lambda text: None, getFocusObject=lambda: None)
+		sys.modules["logHandler"] = types.SimpleNamespace(log=types.SimpleNamespace(warning=lambda message: None))
+		sys.modules["nvwave"] = types.SimpleNamespace(playWaveFile=lambda *args, **kwargs: None)
+		sys.modules["scriptHandler"] = types.SimpleNamespace(script=lambda **kwargs: lambda function: function)
+		sys.modules["textInfos"] = types.SimpleNamespace(POSITION_SELECTION=object())
+		sys.modules["tones"] = types.SimpleNamespace(beep=lambda *args: None)
+		sys.modules["ui"] = types.SimpleNamespace(message=lambda message: None)
+		sys.modules["hanzidentifier"] = types.SimpleNamespace(has_chinese=lambda text: True)
+
+		dictionary_package = types.ModuleType("WordBridge.dictionary")
+		dictionary_package.__path__ = []
+		sys.modules["WordBridge.dictionary"] = dictionary_package
+		sys.modules["WordBridge.dictionary.dialog"] = types.SimpleNamespace(DictionaryEntryDialog=object)
+		sys.modules["WordBridge.lib.coseeing"] = types.SimpleNamespace(obtain_openai_key=lambda *args: "")
+		sys.modules["WordBridge.lib.decimalUtils"] = types.SimpleNamespace(decimal_to_str_0=lambda cost: str(cost))
+		sys.modules["WordBridge.lib.tasks.typo.utils"] = types.SimpleNamespace(strings_diff=lambda request, response: [])
+		sys.modules["WordBridge.lib.viewHTML"] = types.SimpleNamespace(text2template=lambda src, dst: None)
+		if self.captured_runner_args is not None:
+			def run_typo_correction(**kwargs):
+				self.captured_runner_args.update(kwargs)
+				return types.SimpleNamespace(corrected_text=kwargs["request"], cost=Decimal("0"))
+			sys.modules["WordBridge.lib.application.task_runner"] = types.SimpleNamespace(
+				run_typo_correction=run_typo_correction,
+			)
+		return self
+
+	def __exit__(self, exc_type, exc, traceback):
+		for name, module in self.original_modules.items():
+			if module is None:
+				sys.modules.pop(name, None)
+			else:
+				sys.modules[name] = module
+		if self.original_translation is None:
+			if hasattr(builtins, "_"):
+				del builtins._
+		else:
+			builtins._ = self.original_translation
+
+
+class _FakeConf(dict):
+	def __init__(self):
+		super().__init__({
+			"WordBridge": {"settings": {
+				"corrector_config_id": "gpt-5.6-sol&OpenAI",
+				"execution_channel": "local",
+				"language": "zh_traditional",
+				"typo_correction_mode": "standard",
+				"api_key": {"OpenAI": "test-key"},
+				"customized_words_enable": False,
+				"auto_display_report": False,
+				"sound_effects_enable": False,
+			}}})
+		self.spec = {}
+
+
+def _load_module(name, path, package=False):
+	spec = util.spec_from_file_location(name, path, submodule_search_locations=[] if package else None)
+	module = util.module_from_spec(spec)
+	sys.modules[name] = module
+	spec.loader.exec_module(module)
+	return module

@@ -32,7 +32,7 @@ if os_language_code in ["zh_TW", "zh_MO", "zh_HK"]:
 	LANGUAGE_DEFAULT = "zh_traditional"
 else:
 	LANGUAGE_DEFAULT = "zh_simplified"
-CORRECTOR_CONFIG_FOLDER_PATH = os.path.join(os.path.dirname(__file__), "setting", "corrector")
+AI_CONFIG_FOLDER_PATH = os.path.join(os.path.dirname(__file__), "setting", "ai")
 TYPO_CORRECTION_MODE_DEFAULT = "standard"
 
 LANGUAGE_VALUES = ["zh_traditional", "zh_simplified"]
@@ -43,7 +43,7 @@ TYPO_CORRECTION_MODE_LABELS = [LABEL_DICT[val] for val in TYPO_CORRECTION_MODE_V
 
 SOUND_EFFECTS_URL = "https://www.zapsplat.com/music/medium-underwater-movement-whoosh-pass-by-1/"
 
-configManager = ConfigManager(CORRECTOR_CONFIG_FOLDER_PATH)
+configManager = ConfigManager(AI_CONFIG_FOLDER_PATH)
 CORRECTOR_CONFIG_ID_DEFAULT, EXECUTION_CHANNEL_DEFAULT = configManager.default_selection()
 
 

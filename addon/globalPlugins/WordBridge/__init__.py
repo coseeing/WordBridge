@@ -28,7 +28,7 @@ import requests
 
 from .dialogs import CORRECTOR_CONFIG_ID_DEFAULT, EXECUTION_CHANNEL_DEFAULT, LANGUAGE_DEFAULT, TYPO_CORRECTION_MODE_DEFAULT, configManager
 from .dialogs import LLMSettingsPanel, FeedbackDialog
-from .configManager import normalize_selection
+from .configManager import load_corrector_task_config, normalize_selection
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.application.task_runner import run_typo_correction
 from .lib.coseeing import obtain_openai_key
@@ -41,6 +41,8 @@ from hanzidentifier import has_chinese
 DEBUG_MODE = False
 addonHandler.initTranslation()
 ADDON_SUMMARY = "WordBridge"
+CORRECTOR_TASK_CONFIG_PATH = os.path.join(PATH, "setting", "task", "corrector.json")
+correctorTaskConfig = load_corrector_task_config(CORRECTOR_TASK_CONFIG_PATH)
 
 config.conf.spec["WordBridge"] = {
 	"settings": {
@@ -199,8 +201,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		provider = corrector_config.provider
 		model_name = corrector_config.model
-		template_name = corrector_config.template_name[corrector_mode]
-		optional_guidance_enable = corrector_config.optional_guidance_enable
+		template_name = correctorTaskConfig.template_name[corrector_mode]
+		optional_guidance_enable = correctorTaskConfig.optional_guidance_enable
 
 		if config.conf["WordBridge"]["settings"]["customized_words_enable"]:
 			customized_words = [row["text"] for row in self.readDictionary()]
