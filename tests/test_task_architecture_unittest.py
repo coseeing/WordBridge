@@ -18,18 +18,6 @@ addon_handler = types.ModuleType("addonHandler")
 addon_handler.initTranslation = lambda: None
 sys.modules.setdefault("addonHandler", addon_handler)
 
-pypinyin_module = types.ModuleType("pypinyin")
-pypinyin_module.lazy_pinyin = lambda text, style=None: list(text)
-pypinyin_module.pinyin = lambda text, style=None, heteronym=False: [[char] for char in text]
-
-
-class _Style:
-	TONE3 = object()
-
-
-pypinyin_module.Style = _Style
-sys.modules.setdefault("pypinyin", pypinyin_module)
-
 chinese_converter_module = types.ModuleType("chinese_converter")
 chinese_converter_module.to_traditional = lambda text: text
 chinese_converter_module.to_simplified = lambda text: text
