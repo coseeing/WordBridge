@@ -47,7 +47,7 @@ class CorrectorCatalogTests(unittest.TestCase):
 			["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"],
 		)
 
-	def test_default_selection_uses_first_anthropic_model_locally(self):
+	def test_default_selection_uses_first_coseeing_endpoint(self):
 		from configManager import ConfigManager
 
 		manager = ConfigManager(AI_CONFIG_DIR)
@@ -55,19 +55,19 @@ class CorrectorCatalogTests(unittest.TestCase):
 		self.assertEqual(
 			manager.default_selection(),
 			(
-				"claude-opus-5&Anthropic",
-				"local",
+				"deepseek-v4-flash&DeepSeek",
+				"Coseeing",
 			),
 		)
 
-	def test_provider_groups_preserve_unaffected_providers_without_coseeing(self):
+	def test_provider_groups_include_coseeing_when_enabled_endpoints_exist(self):
 		from configManager import ConfigManager
 
 		manager = ConfigManager(AI_CONFIG_DIR)
 
 		self.assertEqual(
 			manager.provider_groups,
-			["Anthropic", "DeepSeek", "Google", "OpenAI"],
+			["Anthropic", "DeepSeek", "Google", "OpenAI", "Coseeing"],
 		)
 
 	def test_normalize_selection_falls_back_invalid_coseeing_channel_to_local(self):
