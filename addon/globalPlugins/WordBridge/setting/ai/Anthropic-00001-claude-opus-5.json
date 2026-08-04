@@ -1,0 +1,6 @@
+{
+    "active": true,
+    "model": "claude-opus-5",
+    "provider": "Anthropic",
+    "coseeing": false
+}
