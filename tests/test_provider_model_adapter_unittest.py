@@ -105,6 +105,32 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertNotIn("top_p", payload)
 		self.assertNotIn("reasoning", payload)
 
+	def test_openai_adapter_sets_reasoning_none_for_gpt56_family(self):
+		from lib.llm.adapter import OpenAIAdapter, get_provider_model_adapter
+		from lib.llm.prompt_bundle import PromptBundle
+
+		adapter = get_provider_model_adapter("OpenAI", "gpt-5.6-luna")
+
+		self.assertIsInstance(adapter, OpenAIAdapter)
+		payload = adapter.format_request(
+			prompt_bundle=PromptBundle(
+				messages=[{"role": "user", "content": "原始文字"}],
+				system_template="系統提示",
+			),
+			setting={
+				"max_output_tokens": 4096,
+				"store": False,
+				"temperature": 0.0,
+				"top_p": 0.0,
+				"text": {"verbosity": "low"},
+			},
+		)
+
+		self.assertEqual(payload["model"], "gpt-5.6-luna")
+		self.assertEqual(payload["reasoning"], {"effort": "none"})
+		self.assertIn("temperature", payload)
+		self.assertIn("top_p", payload)
+
 	def test_openai_response_adapter_builds_responses_payload_and_extracts_text_output(self):
 		from lib.llm.adapter import OpenAIAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle

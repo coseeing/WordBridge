@@ -51,7 +51,7 @@ class OpenAIAdapter(ProviderModelAdapter):
 	def _supports_sampling_with_reasoning_none(self) -> bool:
 		return any(
 			self.model_name.startswith(prefix)
-			for prefix in ("gpt-5.1", "gpt-5.2", "gpt-5.4", "gpt-5.5")
+			for prefix in ("gpt-5.1", "gpt-5.2", "gpt-5.4", "gpt-5.5", "gpt-5.6")
 		)
 
 	def _supports_low_verbosity(self) -> bool:

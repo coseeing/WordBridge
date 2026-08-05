@@ -45,7 +45,7 @@ providers:
     config:
       provider: "OpenAI"
       local: false
-      model: "gpt-5.4-mini-2026-03-17"
+      model: "gpt-5.6-luna"
       language: "zh_traditional"
       corrector_mode: "standard"
 
