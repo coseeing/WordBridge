@@ -20,34 +20,19 @@ LABEL_DICT = {
 	"DeepSeek": _("DeepSeek"),
 	"Google": _("Google"),
 	"OpenAI": _("OpenAI"),
-	"claude-opus-4-7": _("claude-opus-4.7"),
-	"claude-opus-4-6": _("claude-opus-4.6"),
-	"claude-opus-4-5-20251101": _("claude-opus-4.5"),
-	"claude-sonnet-4-6": _("claude-sonnet-4.6"),
-	"claude-sonnet-4-5-20250929": _("claude-sonnet-4.5"),
-	"claude-haiku-4-5-20251001": _("claude-haiku-4.5"),
-	"deepseek-chat": _("deepseek-chat"),
+	"claude-opus-5": _("claude-opus-5"),
+	"claude-sonnet-5": _("claude-sonnet-5"),
 	"deepseek-v4-flash": _("deepseek-v4-flash"),
 	"deepseek-v4-pro": _("deepseek-v4-pro"),
-	"gemini-2.5-flash": _("gemini-2.5-flash"),
-	"gemini-2.5-flash-lite": _("gemini-2.5-flash-lite"),
 	"gemini-2.5-pro": _("gemini-2.5-pro"),
-	"gemini-3-flash-preview": _("gemini-3-flash"),
-	"gemini-3.1-flash-lite-preview": _("gemini-3.1-flash-lite"),
 	"gemini-3.1-pro-preview": _("gemini-3.1-pro"),
-	"gpt-4.1-2025-04-14": _("gpt-4.1"),
-	"gpt-4.1-mini-2025-04-14": _("gpt-4.1-mini"),
-	"gpt-4.1-nano-2025-04-14": _("gpt-4.1-nano"),
+	"gemini-3.1-flash-lite": _("gemini-3.1-flash-lite"),
+	"gemini-3.5-flash": _("gemini-3.5-flash"),
+	"gemini-3.5-flash-lite": _("gemini-3.5-flash-lite"),
+	"gemini-3.6-flash": _("gemini-3.6-flash"),
+	"gpt-5.6-sol": _("gpt-5.6-sol"),
+	"gpt-5.6-terra": _("gpt-5.6-terra"),
 	"gpt-5.6-luna": _("gpt-5.6-luna"),
-	"gpt-5.5-2026-04-23": _("gpt-5.5"),
-	"gpt-5.4-2026-03-05": _("gpt-5.4"),
-	"gpt-5.4-mini-2026-03-17": _("gpt-5.4-mini"),
-	"gpt-5.4-nano-2026-03-17": _("gpt-5.4-nano"),
-	"gpt-5.2-2025-12-11": _("gpt-5.2"),
-	"gpt-5.1-2025-11-13": _("gpt-5.1"),
-	"gpt-5-2025-08-07": _("gpt-5"),
-	"gpt-5-mini-2025-08-07": _("gpt-5-mini"),
-	"gpt-5-nano-2025-08-07": _("gpt-5-nano"),
 }
 
 
@@ -72,14 +57,36 @@ def normalize_selection(config_manager, corrector_config_id: str, execution_chan
 	return corrector_config_id, execution_channel, config
 
 
+def save_coseeing_credentials(settings: dict, username_controls: dict, password_controls: dict) -> None:
+	if "Coseeing" not in username_controls:
+		return
+
+	settings["coseeing_username"] = username_controls["Coseeing"].GetValue()
+	settings["coseeing_password"] = password_controls["Coseeing"].GetValue()
+
+
+@dataclass(frozen=True)
+class CorrectorTaskConfig:
+	template_name: dict
+	optional_guidance_enable: dict
+
+
+def load_corrector_task_config(path) -> CorrectorTaskConfig:
+	with Path(path).open("r", encoding="utf8") as f:
+		raw_config = json.load(f)
+
+	return CorrectorTaskConfig(
+		template_name=raw_config["template_name"],
+		optional_guidance_enable=raw_config["optional_guidance_enable"],
+	)
+
+
 @dataclass(frozen=True)
 class CorrectorConfig:
 	active: bool
 	model: str
 	provider: str
 	coseeing: bool
-	template_name: dict
-	optional_guidance_enable: dict
 
 	@property
 	def corrector_config_id(self) -> str:
@@ -116,8 +123,6 @@ class ConfigManager:
 				model=raw_config["model"],
 				provider=raw_config["provider"],
 				coseeing=raw_config["coseeing"],
-				template_name=raw_config["template_name"],
-				optional_guidance_enable=raw_config["optional_guidance_enable"],
 			)
 			if config.corrector_config_id in self.config_by_id:
 				raise ValueError(f"Duplicate corrector config id: {config.corrector_config_id}")

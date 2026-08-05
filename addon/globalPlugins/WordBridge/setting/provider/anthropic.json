@@ -3,7 +3,9 @@
 	"url": "https://api.anthropic.com/v1/messages",
 	"setting": {
 		"max_tokens": 4096,
-		"temperature": 0.0
+		"thinking": {
+			"type": "disabled"
+		}
 	},
 	"timeout0": 10,
 	"timeout_max": 20

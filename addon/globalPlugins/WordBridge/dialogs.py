@@ -13,7 +13,7 @@ from gui import guiHelper, nvdaControls
 from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
 
-from . configManager import ConfigManager, normalize_selection
+from . configManager import ConfigManager, normalize_selection, save_coseeing_credentials
 from .dictionary.dialog import DictionaryEntryDialog
 
 addonHandler.initTranslation()
@@ -32,7 +32,7 @@ if os_language_code in ["zh_TW", "zh_MO", "zh_HK"]:
 	LANGUAGE_DEFAULT = "zh_traditional"
 else:
 	LANGUAGE_DEFAULT = "zh_simplified"
-CORRECTOR_CONFIG_FOLDER_PATH = os.path.join(os.path.dirname(__file__), "setting", "corrector")
+AI_CONFIG_FOLDER_PATH = os.path.join(os.path.dirname(__file__), "setting", "ai")
 TYPO_CORRECTION_MODE_DEFAULT = "standard"
 
 LANGUAGE_VALUES = ["zh_traditional", "zh_simplified"]
@@ -43,7 +43,7 @@ TYPO_CORRECTION_MODE_LABELS = [LABEL_DICT[val] for val in TYPO_CORRECTION_MODE_V
 
 SOUND_EFFECTS_URL = "https://www.zapsplat.com/music/medium-underwater-movement-whoosh-pass-by-1/"
 
-configManager = ConfigManager(CORRECTOR_CONFIG_FOLDER_PATH)
+configManager = ConfigManager(AI_CONFIG_FOLDER_PATH)
 CORRECTOR_CONFIG_ID_DEFAULT, EXECUTION_CHANNEL_DEFAULT = configManager.default_selection()
 
 
@@ -259,8 +259,11 @@ class LLMSettingsPanel(SettingsPanel):
 		config.conf["WordBridge"]["settings"]["customized_words_enable"] = self.customizedWordEnable.GetValue()
 		config.conf["WordBridge"]["settings"]["sound_effects_enable"] = self.soundEffectsEnable.GetValue()
 
-		config.conf["WordBridge"]["settings"]["coseeing_username"] = self.accountTextCtrlMap1["Coseeing"].GetValue()
-		config.conf["WordBridge"]["settings"]["coseeing_password"] = self.accountTextCtrlMap2["Coseeing"].GetValue()
+		save_coseeing_credentials(
+			config.conf["WordBridge"]["settings"],
+			self.accountTextCtrlMap1,
+			self.accountTextCtrlMap2,
+		)
 		for ep in configManager.endpoints.keys():
 			if ep == "Coseeing":
 				continue

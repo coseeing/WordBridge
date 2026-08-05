@@ -1,0 +1,6 @@
+{
+    "active": true,
+    "model": "claude-sonnet-5",
+    "provider": "Anthropic",
+    "coseeing": false
+}

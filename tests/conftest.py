@@ -37,7 +37,7 @@ def credentials():
 			api_key = os.getenv("TEST_GOOGLE_API_KEY")
 			if not api_key:
 				pytest.skip("TEST_GOOGLE_API_KEY not found in environment")
-		elif provider in ["OpenAI", "OpenAIChatCompletion", "OpenAIResponse"]:
+		elif provider == "OpenAI":
 			api_key = os.getenv("TEST_OPENAI_API_KEY")
 			if not api_key:
 				pytest.skip("TEST_OPENAI_API_KEY not found in environment")

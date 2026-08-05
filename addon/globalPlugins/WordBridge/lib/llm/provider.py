@@ -26,7 +26,13 @@ class Provider:
 		self.retries = retries
 		self.backoff = backoff
 
-		setting_path = Path(__file__).resolve().parents[2] / "setting" / "provider" / f"{self.name}.json"
+		setting_dir = Path(__file__).resolve().parents[2] / "setting" / "provider"
+		setting_path = setting_dir / f"{getattr(self, 'setting_name', self.name)}.json"
+		if not setting_path.exists():
+			setting_path = next(
+				(path for path in setting_dir.glob("*.json") if path.stem.casefold() == self.name.casefold()),
+				setting_path,
+			)
 		with setting_path.open("r", encoding="utf8") as f:
 			data = json.load(f)
 			self.url = data["url"]

@@ -1,0 +1,6 @@
+{
+    "active": true,
+    "model": "deepseek-v4-pro",
+    "provider": "DeepSeek",
+    "coseeing": false
+}

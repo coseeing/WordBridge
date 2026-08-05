@@ -2,6 +2,7 @@ import importlib.util
 import sys
 import types
 import unittest
+from copy import deepcopy
 from decimal import Decimal
 from pathlib import Path
 from unittest.mock import patch
@@ -45,97 +46,99 @@ sys.modules.setdefault("chinese_converter", chinese_converter_module)
 
 
 class ProviderModelAdapterTests(unittest.TestCase):
+	def test_gpt_5_6_uses_reasoning_none_and_retains_sampling_settings(self):
+		from lib.llm.adapter import get_provider_model_adapter
+		from lib.llm.prompt_bundle import PromptBundle
+
+		adapter = get_provider_model_adapter("OpenAI", "gpt-5.6-sol")
+		payload = adapter.format_request(
+			PromptBundle(
+				messages=[{"role": "user", "content": "原始文字"}],
+				system_template="系統提示",
+			),
+			{
+				"temperature": 0.0,
+				"top_p": 0.0,
+				"max_output_tokens": 4096,
+				"reasoning": {"effort": "none"},
+			},
+		)
+
+		self.assertEqual(payload["model"], "gpt-5.6-sol")
+		self.assertEqual(payload["reasoning"], {"effort": "none"})
+		self.assertEqual(payload["temperature"], 0.0)
+		self.assertEqual(payload["top_p"], 0.0)
+
 	def test_provider_model_adapter_module_exists(self):
 		spec = importlib.util.find_spec("lib.llm.adapter")
 		self.assertIsNotNone(spec)
 
-	def test_openai_chat_completion_models_use_chat_completion_adapter(self):
-		from lib.llm.adapter import OpenAIAdapter, get_provider_model_adapter
+	def test_provider_model_adapter_requires_request_formatting_implementation(self):
+		from lib.llm.adapter import ProviderModelAdapter
+
+		with self.assertRaises(TypeError):
+			ProviderModelAdapter("OpenAI", "gpt-4.1-2025-04-14")
+
+	def test_openai_factory_preserves_existing_responses_provider_contract(self):
+		from lib.llm.provider import OpenAIProvider, get_provider
+
+		provider = get_provider("OpenAI", {"api_key": "test"})
+
+		self.assertIsInstance(provider, OpenAIProvider)
+		self.assertEqual(provider.get_api_url(), "https://api.openai.com/v1/responses")
+
+	def test_openai_provider_disables_reasoning_in_provider_settings(self):
+		from lib.llm.provider import get_provider
+
+		provider = get_provider("OpenAI", {"api_key": "test"})
+
+		self.assertEqual(provider.setting["reasoning"], {"effort": "none"})
+
+	def test_anthropic_adapter_builds_request_without_model_specific_temperature_logic(self):
+		from lib.llm.adapter import AnthropicAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("OpenAI", "gpt-4.1-2025-04-14")
+		adapter = get_provider_model_adapter("Anthropic", "claude-opus-5")
 
-		self.assertIsInstance(adapter, OpenAIAdapter)
+		self.assertIsInstance(adapter, AnthropicAdapter)
 		payload = adapter.format_request(
-			prompt_bundle=PromptBundle(
+			PromptBundle(
 				messages=[{"role": "user", "content": "原始文字"}],
 				system_template="系統提示",
 			),
-			setting={
-				"max_output_tokens": 4096,
-				"store": False,
-				"temperature": 0.0,
-				"top_p": 0.0,
-				"text": {"verbosity": "low"},
-			},
+			{"max_tokens": 4096},
 		)
 
-		self.assertEqual(payload["model"], "gpt-4.1-2025-04-14")
-		self.assertEqual(payload["instructions"], "系統提示")
-		self.assertEqual(payload["input"][0], {"role": "user", "content": [{"type": "input_text", "text": "原始文字"}]})
-		self.assertIn("temperature", payload)
-		self.assertIn("top_p", payload)
-		self.assertIn("text", payload)
+		self.assertEqual(payload["model"], "claude-opus-5")
+		self.assertEqual(payload["system"], "系統提示")
+		self.assertEqual(payload["messages"], [{"role": "user", "content": "原始文字"}])
+		self.assertEqual(payload["max_tokens"], 4096)
 
-	def test_openai_chat_completion_adapter_omits_unsupported_settings_for_gpt5_family(self):
-		from lib.llm.adapter import OpenAIAdapter, get_provider_model_adapter
-		from lib.llm.prompt_bundle import PromptBundle
+	def test_anthropic_adapter_parses_text_after_thinking_block(self):
+		from lib.llm.adapter import get_provider_model_adapter
 
-		adapter = get_provider_model_adapter("OpenAI", "gpt-5-2025-08-07")
+		adapter = get_provider_model_adapter("Anthropic", "claude-sonnet-5")
+		response = {
+			"content": [
+				{"type": "thinking", "thinking": "", "signature": "signature"},
+				{"type": "text", "text": "我說我喜歡用螢幕閱讀器讀書"},
+			]
+		}
 
-		self.assertIsInstance(adapter, OpenAIAdapter)
-		payload = adapter.format_request(
-			prompt_bundle=PromptBundle(
-				messages=[{"role": "user", "content": "原始文字"}],
-				system_template="系統提示",
-			),
-			setting={
-				"max_output_tokens": 4096,
-				"store": False,
-				"temperature": 0.0,
-				"top_p": 0.0,
-				"text": {"verbosity": "low"},
-			},
-		)
+		self.assertEqual(adapter.parse_response(response), "我說我喜歡用螢幕閱讀器讀書")
 
-		self.assertEqual(payload["model"], "gpt-5-2025-08-07")
-		self.assertEqual(payload["instructions"], "系統提示")
-		self.assertEqual(payload["input"][0]["role"], "user")
-		self.assertNotIn("temperature", payload)
-		self.assertNotIn("top_p", payload)
-		self.assertNotIn("reasoning", payload)
+	def test_anthropic_provider_disables_thinking(self):
+		from lib.llm.provider import get_provider
 
-	def test_openai_adapter_sets_reasoning_none_for_gpt56_family(self):
-		from lib.llm.adapter import OpenAIAdapter, get_provider_model_adapter
-		from lib.llm.prompt_bundle import PromptBundle
+		provider = get_provider("Anthropic", {"api_key": "test"})
 
-		adapter = get_provider_model_adapter("OpenAI", "gpt-5.6-luna")
-
-		self.assertIsInstance(adapter, OpenAIAdapter)
-		payload = adapter.format_request(
-			prompt_bundle=PromptBundle(
-				messages=[{"role": "user", "content": "原始文字"}],
-				system_template="系統提示",
-			),
-			setting={
-				"max_output_tokens": 4096,
-				"store": False,
-				"temperature": 0.0,
-				"top_p": 0.0,
-				"text": {"verbosity": "low"},
-			},
-		)
-
-		self.assertEqual(payload["model"], "gpt-5.6-luna")
-		self.assertEqual(payload["reasoning"], {"effort": "none"})
-		self.assertIn("temperature", payload)
-		self.assertIn("top_p", payload)
+		self.assertEqual(provider.setting["thinking"], {"type": "disabled"})
 
 	def test_openai_response_adapter_builds_responses_payload_and_extracts_text_output(self):
 		from lib.llm.adapter import OpenAIAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("OpenAI", "gpt-4.1-2025-04-14")
+		adapter = get_provider_model_adapter("OpenAI", "gpt-5.6-terra")
 		self.assertIsInstance(adapter, OpenAIAdapter)
 
 		payload = adapter.format_request(
@@ -146,10 +149,12 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			setting={
 				"max_output_tokens": 4096,
 				"store": False,
+				"reasoning": {"effort": "none"},
+				"text": {"verbosity": "low"},
 			},
 		)
 
-		self.assertEqual(payload["model"], "gpt-4.1-2025-04-14")
+		self.assertEqual(payload["model"], "gpt-5.6-terra")
 		self.assertEqual(payload["instructions"], "系統提示")
 		self.assertEqual(
 			payload["input"],
@@ -162,6 +167,8 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		)
 		self.assertEqual(payload["max_output_tokens"], 4096)
 		self.assertIs(payload["store"], False)
+		self.assertEqual(payload["reasoning"], {"effort": "none"})
+		self.assertEqual(payload["text"], {"verbosity": "low"})
 
 		response = {
 			"output": [
@@ -179,40 +186,68 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			},
 		}
 		self.assertEqual(adapter.parse_response(response), "修正文字")
-		self.assertEqual(adapter.extract_usage(response), {"input_tokens": 11, "output_tokens": 7})
+		self.assertEqual(
+			adapter.extract_usage(response),
+			{
+				"input_tokens": 11,
+				"output_tokens": 7,
+				"input_tokens_details": {"cached_tokens": 5},
+			},
+		)
 
-	def test_provider_sends_preformatted_payload_without_reformatting(self):
+	def test_provider_chat_completion_delegates_to_send(self):
 		from lib.llm.provider import OpenAIProvider
 
-		captured = {}
+		provider = OpenAIProvider({"api_key": "test"})
+		payload = {"model": "gpt-5.6-sol", "input": "prepared payload"}
+
+		with patch.object(provider, "send", return_value={"output_text": "ok"}) as send:
+			response = provider.chat_completion(payload)
+
+		send.assert_called_once_with(payload)
+		self.assertEqual(response, {"output_text": "ok"})
+
+	def test_provider_returns_unparsed_responses_json(self):
+		from lib.llm.provider import OpenAIProvider
 
 		class FakeResponse:
 			status_code = 200
 
 			def json(self):
-				return {"choices": [{"message": {"content": "ok"}}]}
+				return raw_response
 
-		def fake_post(api_url, headers, json, timeout):
-			captured["api_url"] = api_url
-			captured["headers"] = headers
-			captured["json"] = json
-			captured["timeout"] = timeout
-			return FakeResponse()
+		raw_response = {
+			"output": [
+				{
+					"type": "message",
+					"content": [{"type": "output_text", "text": "adapter must parse this"}],
+				}
+			],
+			"usage": {"input_tokens": 11, "output_tokens": 7},
+		}
+		provider = OpenAIProvider({"api_key": "test"})
+		provider.retries = 1
+
+		with patch("lib.llm.provider.requests.post", return_value=FakeResponse()):
+			response = provider.send({"model": "gpt-4.1", "input": "prepared payload"})
+
+		self.assertEqual(response, raw_response)
+
+	def test_provider_handles_http_errors_before_returning_json(self):
+		from lib.llm.provider import OpenAIProvider
+
+		class FakeResponse:
+			status_code = 429
+
+			def json(self):
+				raise AssertionError("error responses must not be returned as JSON")
 
 		provider = OpenAIProvider({"api_key": "test"})
-		payload = {
-			"model": "gpt-5",
-			"messages": [{"role": "user", "content": "已格式化內容"}],
-		}
-
 		provider.retries = 1
-		provider.backoff = 1
 
-		with patch("lib.llm.provider.requests.post", side_effect=fake_post):
-			response = provider.chat_completion(payload)
-
-		self.assertEqual(captured["json"], payload)
-		self.assertEqual(response["choices"][0]["message"]["content"], "ok")
+		with patch("lib.llm.provider.requests.post", return_value=FakeResponse()):
+			with self.assertRaisesRegex(Exception, "Rate limit reached"):
+				provider.send({"model": "gpt-4.1", "input": "prepared payload"})
 
 	def test_openai_response_provider_uses_responses_endpoint(self):
 		from lib.llm.provider import OpenAIProvider
@@ -311,11 +346,26 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			},
 		)
 
+	def test_google_adapter_restores_gemini_25_pro_thinking_default(self):
+		from lib.llm.adapter import get_provider_model_adapter
+		from lib.llm.prompt_bundle import PromptBundle
+
+		adapter = get_provider_model_adapter("Google", "gemini-2.5-pro")
+		payload = adapter.format_request(
+			prompt_bundle=PromptBundle(messages=[], system_template="系統提示"),
+			setting={"maxOutputTokens": 4096},
+		)
+
+		self.assertEqual(
+			payload["generationConfig"],
+			{"maxOutputTokens": 4096, "thinkingConfig": {"thinkingBudget": 128}},
+		)
+
 	def test_deepseek_adapter_applies_provider_settings_at_top_level(self):
 		from lib.llm.adapter import DeepSeekAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("DeepSeek", "deepseek-chat")
+		adapter = get_provider_model_adapter("DeepSeek", "deepseek-v4-flash")
 		self.assertIsInstance(adapter, DeepSeekAdapter)
 
 		payload = adapter.format_request(
@@ -331,7 +381,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			},
 		)
 
-		self.assertEqual(payload["model"], "deepseek-chat")
+		self.assertEqual(payload["model"], "deepseek-v4-flash")
 		self.assertEqual(payload["messages"][0], {"role": "system", "content": "系統提示"})
 		self.assertEqual(payload["messages"][1], {"role": "user", "content": "原始文字"})
 		self.assertFalse(payload["stream"])
@@ -341,10 +391,17 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertEqual(payload["stop"], [" =>"])
 		self.assertNotIn("options", payload)
 
-	def test_adapter_calculates_total_usage_and_cost_from_usage_history(self):
+	def test_deepseek_provider_disables_thinking_in_provider_settings(self):
+		from lib.llm.provider import get_provider
+
+		provider = get_provider("DeepSeek", {"api_key": "test"})
+
+		self.assertEqual(provider.setting["thinking"], {"type": "disabled"})
+
+	def test_openai_response_adapter_calculates_terra_usage_and_cost_from_usage_history(self):
 		from lib.llm.adapter import get_provider_model_adapter
 
-		adapter = get_provider_model_adapter("OpenAI", "gpt-4.1-2025-04-14")
+		adapter = get_provider_model_adapter("OpenAI", "gpt-5.6-terra")
 		usage_history = [
 			{"input_tokens": 10, "output_tokens": 5},
 			{"input_tokens": 1, "output_tokens": 2},
@@ -354,22 +411,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			adapter.get_total_usage(usage_history),
 			{"input_tokens": 11, "output_tokens": 7},
 		)
-		self.assertEqual(adapter.get_total_cost(usage_history), Decimal("0.000078"))
-
-	def test_openai_response_adapter_calculates_total_usage_and_cost_from_usage_history(self):
-		from lib.llm.adapter import get_provider_model_adapter
-
-		adapter = get_provider_model_adapter("OpenAI", "gpt-4.1-2025-04-14")
-		usage_history = [
-			{"input_tokens": 10, "output_tokens": 5},
-			{"input_tokens": 1, "output_tokens": 2},
-		]
-
-		self.assertEqual(
-			adapter.get_total_usage(usage_history),
-			{"input_tokens": 11, "output_tokens": 7},
-		)
-		self.assertEqual(adapter.get_total_cost(usage_history), Decimal("0.000078"))
+		self.assertEqual(adapter.get_total_cost(usage_history), Decimal("0.000106"))
 
 	def test_workflow_uses_executor_for_format_parse_and_usage(self):
 		from lib.llm.executor import LLMExecutor
@@ -403,7 +445,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 				}
 
 		class FakeAdapter:
-			provider_name = "OpenAIChatCompletion"
+			provider_name = "OpenAI"
 			model_name = "gpt-4.1-2025-04-14"
 
 			def __init__(self):
@@ -484,6 +526,33 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertEqual(executor.get_total_cost(), Decimal("0.000078"))
 		self.assertEqual(len(executor.get_execution_metrics()), 1)
 		self.assertEqual(executor.get_execution_metrics()[0]["request_cost"], "0.000078")
+
+	def test_task_factory_passes_provider_and_adapter_objects_to_executor(self):
+		from lib.application import task_factory
+
+		provider_object = object()
+		adapter_object = object()
+		original_get_provider = task_factory.get_provider
+		original_get_provider_model_adapter = task_factory.get_provider_model_adapter
+		try:
+			task_factory.get_provider = lambda *args, **kwargs: provider_object
+			task_factory.get_provider_model_adapter = lambda *args, **kwargs: adapter_object
+
+			workflow = task_factory.create_typo_workflow(
+				provider_name="OpenAI",
+				model_name="gpt-4.1-2025-04-14",
+				credential={"api_key": "test"},
+				language="zh_traditional",
+				template_name="Lite_v1.json",
+				corrector_mode="lite",
+				optional_guidance_enable={},
+			)
+		finally:
+			task_factory.get_provider = original_get_provider
+			task_factory.get_provider_model_adapter = original_get_provider_model_adapter
+
+		self.assertIs(workflow.executor.provider_object, provider_object)
+		self.assertIs(workflow.executor.adapter_object, adapter_object)
 
 
 if __name__ == "__main__":
