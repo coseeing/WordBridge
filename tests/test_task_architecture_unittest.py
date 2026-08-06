@@ -138,6 +138,9 @@ class TaskArchitectureTests(unittest.TestCase):
 			def get_total_cost(self, usage_history):
 				return Decimal("0.001")
 
+			def get_cost_for_usage(self, usage):
+				return Decimal("0.0003")
+
 		class FakePromptStrategy:
 			def compose(self, input_text, response_text_history, text_policy):
 				return PromptBundle(
@@ -166,8 +169,12 @@ class TaskArchitectureTests(unittest.TestCase):
 		self.assertEqual(result.original_text, "測試文字")
 		self.assertEqual(result.output_text, "模型輸出:測試文字")
 		self.assertEqual(result.usage, {"prompt_tokens": 3, "completion_tokens": 2})
+		self.assertEqual(result.raw_usage, {"prompt_tokens": 3, "completion_tokens": 2})
+		self.assertEqual(result.request_cost, Decimal("0.0003"))
+		self.assertGreaterEqual(result.latency_ms, 0)
 		self.assertEqual(executor.get_total_usage(), {"prompt_tokens": 3})
 		self.assertEqual(executor.get_total_cost(), Decimal("0.001"))
+		self.assertEqual(len(executor.get_execution_metrics()), 1)
 
 	def test_typo_workflow_uses_executor_and_returns_task_result(self):
 		from lib.tasks.typo.result import TypoCorrectionResult
@@ -176,8 +183,12 @@ class TaskArchitectureTests(unittest.TestCase):
 		class FakeExecutionResult:
 			def __init__(self, output_text):
 				self.output_text = output_text
+				self.request_payload = {"payload": output_text}
 				self.raw_response = {"raw": output_text}
 				self.usage = {"prompt_tokens": 1, "completion_tokens": 1}
+				self.raw_usage = {"prompt_tokens": 1, "completion_tokens": 1}
+				self.latency_ms = 12.5
+				self.request_cost = Decimal("0.0001")
 
 		class FakeExecutor:
 			def __init__(self):
@@ -197,6 +208,18 @@ class TaskArchitectureTests(unittest.TestCase):
 			def get_total_cost(self):
 				return Decimal("0.0001")
 
+			def get_execution_metrics(self):
+				return [{
+					"original_text": "天器真好",
+					"output_text": "天氣真好",
+					"request_payload": {"payload": "天氣真好"},
+					"raw_response": {"raw": "天氣真好"},
+					"usage": {"prompt_tokens": 1, "completion_tokens": 1},
+					"raw_usage": {"prompt_tokens": 1, "completion_tokens": 1},
+					"latency_ms": 12.5,
+					"request_cost": "0.0001",
+				}]
+
 		workflow = TypoCorrectionWorkflow(
 			executor=FakeExecutor(),
 			prompt_strategy=object(),
@@ -211,6 +234,11 @@ class TaskArchitectureTests(unittest.TestCase):
 		self.assertEqual(result.corrected_text, "天氣真好")
 		self.assertEqual(result.usage_summary, {"prompt_tokens": 1, "completion_tokens": 1})
 		self.assertEqual(result.cost, Decimal("0.0001"))
+		self.assertEqual(result.raw_data["usage_summary"], {"prompt_tokens": 1, "completion_tokens": 1})
+		self.assertEqual(result.raw_data["cost"], "0.0001")
+		self.assertEqual(result.raw_data["metrics"]["request_count"], 1)
+		self.assertEqual(result.raw_data["metrics"]["llm_latency_ms"], 12.5)
+		self.assertEqual(len(result.raw_data["requests"]), 1)
 
 	def test_task_factory_and_runner_build_and_execute_typo_workflow(self):
 		from lib.application import task_factory, task_runner
@@ -284,6 +312,82 @@ class TaskArchitectureTests(unittest.TestCase):
 		self.assertEqual(captured["provider_name"], "OpenAI")
 		self.assertEqual(captured["adapter_provider_name"], "OpenAI")
 		self.assertEqual(captured["model_name"], "gpt-4.1-2025-04-14")
+
+	def test_eval_provider_formats_raw_cost_latency_and_token_usage(self):
+		from workspace.evals import provider as eval_provider
+		from lib.tasks.typo.result import TypoCorrectionResult
+
+		result = TypoCorrectionResult(
+			corrected_text="修正結果",
+			diff=[],
+			usage_summary={
+				"prompt_cache_hit_tokens": 12,
+				"prompt_cache_miss_tokens": 34,
+				"completion_tokens": 5,
+			},
+			cost=Decimal("0.00123"),
+			raw_data={
+				"metrics": {
+					"request_count": 2,
+					"total_latency_ms": 456.7,
+					"llm_latency_ms": 321.0,
+				},
+				"requests": [{"latency_ms": 111.0}],
+			},
+		)
+
+		formatted = eval_provider._format_result(result)
+
+		self.assertEqual(formatted["output"], "修正結果")
+		self.assertEqual(
+			formatted["tokenUsage"],
+			{"total": 51, "prompt": 46, "completion": 5, "cached": 0},
+		)
+		self.assertEqual(formatted["cost"], 0.00123)
+		self.assertEqual(formatted["latencyMs"], 456.7)
+		self.assertEqual(formatted["metadata"], result.raw_data)
+
+	def test_eval_provider_estimates_local_cost_when_usage_is_missing(self):
+		from workspace.evals import provider as eval_provider
+		from lib.tasks.typo.result import TypoCorrectionResult
+
+		result = TypoCorrectionResult(
+			corrected_text="修正結果",
+			diff=[],
+			usage_summary={},
+			cost=Decimal("0"),
+			raw_data={
+				"metrics": {
+					"request_count": 1,
+					"total_latency_ms": 123.4,
+				},
+				"requests": [{
+					"request_payload": {
+						"messages": [
+							{"role": "system", "content": "你是校正器"},
+							{"role": "user", "content": "原始文字"},
+						],
+					},
+					"output_text": "修正結果",
+				}],
+			},
+		)
+
+		formatted = eval_provider._format_result(
+			result,
+			config={
+				"local": True,
+				"estimated_cost_input_per_million": "0.14",
+				"estimated_cost_output_per_million": "0.28",
+			},
+		)
+
+		self.assertGreater(formatted["tokenUsage"]["prompt"], 0)
+		self.assertGreater(formatted["tokenUsage"]["completion"], 0)
+		self.assertGreater(formatted["tokenUsage"]["total"], 0)
+		self.assertGreater(formatted["cost"], 0)
+		self.assertEqual(formatted["metadata"]["estimated_cost_source"], "local_heuristic")
+		self.assertEqual(formatted["metadata"]["estimated_usage"], formatted["tokenUsage"])
 
 
 class _nvda_module_stubs:

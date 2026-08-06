@@ -484,6 +484,9 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			def get_total_cost(self, usage_history):
 				return Decimal("0.000078")
 
+			def get_cost_for_usage(self, usage):
+				return Decimal("0.000078")
+
 		provider = FakeProvider()
 		adapter = FakeAdapter()
 		prompt_strategy = LiteTypoPromptStrategy(
@@ -521,6 +524,8 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			{"prompt_tokens": 11, "completion_tokens": 7},
 		)
 		self.assertEqual(executor.get_total_cost(), Decimal("0.000078"))
+		self.assertEqual(len(executor.get_execution_metrics()), 1)
+		self.assertEqual(executor.get_execution_metrics()[0]["request_cost"], "0.000078")
 
 	def test_task_factory_passes_provider_and_adapter_objects_to_executor(self):
 		from lib.application import task_factory

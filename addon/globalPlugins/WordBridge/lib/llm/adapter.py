@@ -37,6 +37,9 @@ class ProviderModelAdapter(ABC):
 	def get_total_cost(self, usage_history: list) -> Decimal:
 		return self._cost_calculator.get_total_cost(usage_history)
 
+	def get_cost_for_usage(self, usage: dict) -> Decimal:
+		return self._cost_calculator.get_total_cost([usage])
+
 	def _load_model_entry(self) -> dict:
 		config_path = Path(__file__).resolve().parents[2] / "setting" / "price.json"
 		with config_path.open("r", encoding="utf8") as f:
