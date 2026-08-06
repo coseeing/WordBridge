@@ -1,5 +1,4 @@
 import sys
-import json
 import math
 import os
 import re
@@ -79,13 +78,7 @@ def _get_credential(provider_name, is_local):
         if api_key:
             return {"api_key": api_key}
 
-    config_path = PROJECT_ROOT / "workspace" / "eval_legacy" / "config.json"
-    if not config_path.exists():
-        return None
-
-    with open(config_path, "r", encoding="utf8") as f:
-        creds = json.load(f)
-        return creds.get(provider_name)
+    return None
 
 
 def _resolve_provider_name(provider_name, is_local):

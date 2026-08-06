@@ -8,8 +8,8 @@ from typing import NamedTuple
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SOURCE = PROJECT_ROOT / "workspace" / "eval_legacy" / "data" / "gpt4_250_sentence_gt.txt"
-DEFAULT_OUTPUT = PROJECT_ROOT / "workspace" / "evals" / "datasets" / "zhuyin_top1_from_legacy.csv"
+DEFAULT_SOURCE = PROJECT_ROOT / "workspace" / "evals" / "datasets" / "gpt4_250_sentence_gt.txt"
+DEFAULT_OUTPUT = PROJECT_ROOT / "workspace" / "evals" / "datasets" / "zhuyin_1_error_top1_seed0.csv"
 DEFAULT_DICTIONARY = (
 	PROJECT_ROOT
 	/ "addon"
@@ -332,7 +332,7 @@ def parse_args() -> argparse.Namespace:
 	parser.add_argument(
 		"--selection",
 		choices=["top1", "weighted"],
-		default="weighted",
+		default="top1",
 		help="How to choose a candidate from ranked same-pronunciation characters.",
 	)
 	parser.add_argument(

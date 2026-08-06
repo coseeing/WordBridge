@@ -4,11 +4,11 @@ prompts:
 defaultTest:
   assert:
     - type: cost
-      threshold: 0.002
+      threshold: 0.01
     - type: latency
-      threshold: 10000
+      threshold: 15000
     - type: python
-      value: file://assertions.py
+      value: file://../assertions.py
 
 derivedMetrics:
   - name: mean_case_f2
@@ -40,16 +40,14 @@ derivedMetrics:
       }
 
 providers:
-  - id: "python:provider.py"
-    label: "WordBridge Double Error"
+  - id: "python:../provider.py"
+    label: "WordBridge OpenAI Full Eval"
     config:
-      provider: "Ollama"
-      local: true
-      model: "qwen2"
-      estimated_cost_input_per_million: 0.14
-      estimated_cost_output_per_million: 0.28
+      provider: "OpenAI"
+      local: false
+      model: "gpt-5.6-luna"
       language: "zh_traditional"
       corrector_mode: "standard"
 
 tests:
-  - datasets/zhuyin_two_error_seed0.csv
+  - ../datasets/zhuyin_1_error_top1_seed0.csv

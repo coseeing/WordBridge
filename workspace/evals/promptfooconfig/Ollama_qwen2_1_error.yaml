@@ -8,7 +8,7 @@ defaultTest:
     - type: latency
       threshold: 10000
     - type: python
-      value: file://assertions.py
+      value: file://../assertions.py
 
 derivedMetrics:
   - name: mean_case_f2
@@ -40,8 +40,8 @@ derivedMetrics:
       }
 
 providers:
-  - id: "python:provider.py"
-    label: "WordBridge Triple Error"
+  - id: "python:../provider.py"
+    label: "WordBridge Single Error"
     config:
       provider: "Ollama"
       local: true
@@ -52,4 +52,4 @@ providers:
       corrector_mode: "standard"
 
 tests:
-  - datasets/zhuyin_three_error_seed0.csv
+  - ../datasets/zhuyin_1_error_top1_seed0.csv

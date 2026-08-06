@@ -8,7 +8,7 @@ defaultTest:
     - type: latency
       threshold: 15000
     - type: python
-      value: file://assertions.py
+      value: file://../assertions.py
 
 derivedMetrics:
   - name: mean_case_f2
@@ -40,14 +40,14 @@ derivedMetrics:
       }
 
 providers:
-  - id: "python:provider.py"
-    label: "WordBridge OpenAI Smoke"
+  - id: "python:../provider.py"
+    label: "WordBridge Anthropic 1 Error"
     config:
-      provider: "OpenAI"
+      provider: "Anthropic"
       local: false
-      model: "gpt-5.6-luna"
+      model: "claude-sonnet-5"
       language: "zh_traditional"
       corrector_mode: "standard"
 
 tests:
-  - datasets/smoke_test.csv
+  - ../datasets/zhuyin_1_error_top1_seed0.csv

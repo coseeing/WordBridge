@@ -18,7 +18,7 @@ WordBridge/
 │   ├── prompts/                       # 不同版本的 Prompt 模板 (.txt)
 │   ├── provider.py                    # Promptfoo 與 WordBridge 的橋接腳本
 │   ├── assertions.py                  # 自定義 F2 與 NED 計算腳本
-│   └── promptfooconfig.yaml           # Promptfoo 總配置文件
+│   └── promptfooconfig/               # 依 provider、model 與錯字數分類的設定檔
 ```
 
 ## 3. 實作階段 (Phases)
@@ -114,7 +114,7 @@ def get_assert(output, context):
 Promptfoo 這邊主要負責設定門檻與觀測：
 
 ```yaml
-# promptfooconfig.yaml
+# promptfooconfig/Ollama_qwen2_full_error.yaml
 defaultTest:
   assert:
     - type: cost
@@ -135,7 +135,7 @@ defaultTest:
 pip install requests pypinyin chinese_converter hanzidentifier jiwer tqdm
 ```
 
-1. **啟動測試**：執行 `npx promptfoo eval -c workspace/evals/promptfooconfig.yaml`。
+1. **啟動測試**：執行 `npx promptfoo eval -c workspace/evals/promptfooconfig/Ollama_qwen2_full_error.yaml`。
 2. **查看矩陣**：執行 `npx promptfoo view`，觀察 `F_2`、`NED`、`cost`、`latencyMs`。
 3. **檢查 Raw Data**：展開 provider 回傳內容，確認 `metadata.metrics`、`metadata.usage_summary`、`metadata.requests[*]` 都有值。本地模式若是估算成本，還應看到 `metadata.estimated_usage`、`metadata.estimated_cost`、`metadata.estimated_cost_source`。
 4. **快取驗證**：第二次執行相同測試，只有在供應商明確回傳快取欄位時，才檢查 `tokenUsage.cached` 或 `metadata.usage_summary` 中的快取數值。

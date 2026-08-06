@@ -39,9 +39,9 @@ input,expected,f2_threshold,ned_threshold
 ## Files
 
 - Generator: [workspace/evals/generate_zhuyin_dataset.py](/Users/simone/side-project/WordBridge/workspace/evals/generate_zhuyin_dataset.py)
-- Generated eval dataset: [workspace/evals/datasets/zhuyin_top1_from_legacy.csv](/Users/simone/side-project/WordBridge/workspace/evals/datasets/zhuyin_top1_from_legacy.csv)
-- Two-error dataset: [workspace/evals/datasets/zhuyin_two_error_seed0.csv](/Users/simone/side-project/WordBridge/workspace/evals/datasets/zhuyin_two_error_seed0.csv)
-- Three-error dataset: [workspace/evals/datasets/zhuyin_three_error_seed0.csv](/Users/simone/side-project/WordBridge/workspace/evals/datasets/zhuyin_three_error_seed0.csv)
+- One-error top1 dataset: [workspace/evals/datasets/zhuyin_1_error_top1_seed0.csv](/Users/simone/side-project/WordBridge/workspace/evals/datasets/zhuyin_1_error_top1_seed0.csv)
+- Two-error weighted dataset: [workspace/evals/datasets/zhuyin_2_error_weighted_seed0.csv](/Users/simone/side-project/WordBridge/workspace/evals/datasets/zhuyin_2_error_weighted_seed0.csv)
+- Three-error weighted dataset: [workspace/evals/datasets/zhuyin_3_error_weighted_seed0.csv](/Users/simone/side-project/WordBridge/workspace/evals/datasets/zhuyin_3_error_weighted_seed0.csv)
 - Source corpus: [workspace/eval_legacy/data/gpt4_250_sentence_gt.txt](/Users/simone/side-project/WordBridge/workspace/eval_legacy/data/gpt4_250_sentence_gt.txt)
 
 ## Generation Rules
@@ -94,9 +94,9 @@ After the first dataset is stable, add:
    Single-character confusion pairs.
 2. `zhuyin_weighted_sentence.csv`
    Sentence-level data with weighted random candidate selection.
-3. `zhuyin_two_error_seed0.csv`
+3. `zhuyin_2_error_weighted_seed0.csv`
    Sentences with 2 errors for moderate stress testing.
-4. `zhuyin_three_error_seed0.csv`
+4. `zhuyin_3_error_weighted_seed0.csv`
    Sentences with 3 errors for harder stress testing.
 5. `manual_hard_cases.csv`
    Curated real-world mistakes collected from testing.
@@ -113,8 +113,9 @@ Generate a rich CSV:
 
 ```bash
 python workspace/evals/generate_zhuyin_dataset.py \
-  --format rich \
-  --output workspace/evals/datasets/zhuyin_top1_from_legacy_rich.csv
+	--selection top1 \
+	--format rich \
+	--output workspace/evals/datasets/zhuyin_1_error_top1_seed0_rich.csv
 ```
 
 Generate a weighted-random variant:
@@ -131,7 +132,8 @@ Generate a two-error stress set:
 ```bash
 python workspace/evals/generate_zhuyin_dataset.py \
   --errors-per-sentence 2 \
-  --output workspace/evals/datasets/zhuyin_two_error_seed0.csv
+  --selection weighted \
+  --output workspace/evals/datasets/zhuyin_2_error_weighted_seed0.csv
 ```
 
 Generate a three-error stress set:
@@ -139,7 +141,8 @@ Generate a three-error stress set:
 ```bash
 python workspace/evals/generate_zhuyin_dataset.py \
   --errors-per-sentence 3 \
-  --output workspace/evals/datasets/zhuyin_three_error_seed0.csv
+  --selection weighted \
+  --output workspace/evals/datasets/zhuyin_3_error_weighted_seed0.csv
 ```
 
 Run the dataset unit tests with the repo venv:
@@ -151,13 +154,13 @@ venv/bin/python -m pytest -q tests/test_generate_zhuyin_dataset_unittest.py
 Run Promptfoo by difficulty:
 
 ```bash
-promptfoo eval -c workspace/evals/promptfooconfig.single.yaml
-promptfoo eval -c workspace/evals/promptfooconfig.double.yaml
-promptfoo eval -c workspace/evals/promptfooconfig.triple.yaml
+promptfoo eval -c workspace/evals/promptfooconfig/Ollama_qwen2_1_error.yaml
+promptfoo eval -c workspace/evals/promptfooconfig/Ollama_qwen2_2_error.yaml
+promptfoo eval -c workspace/evals/promptfooconfig/Ollama_qwen2_3_error.yaml
 ```
 
 Run the combined benchmark:
 
 ```bash
-promptfoo eval -c workspace/evals/promptfooconfig.yaml
+promptfoo eval -c workspace/evals/promptfooconfig/Ollama_qwen2_full_error.yaml
 ```

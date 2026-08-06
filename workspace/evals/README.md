@@ -33,7 +33,7 @@ python -m pip install -r workspace/evals/requirements.txt python-dotenv
 py -3.11 -m venv venv
 .\venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r workspace/eval_legacy/requirements.txt python-dotenv
+python -m pip install -r workspace/evals/requirements.txt python-dotenv
 ```
 
 本專案目前以 Promptfoo 0.120.19 驗證。第一次使用時可先確認 CLI 能正常執行：
@@ -53,7 +53,7 @@ ollama serve
 
 若 Ollama 已由桌面程式或系統服務啟動，不需要再次執行 `ollama serve`。Provider 預設連線至 `http://localhost:11434/v1/chat/completions`。
 
-`promptfooconfig.yaml` 明確指定 `venv/bin/python`。在 Windows 上執行本機評估時，請將其中的 `pythonExecutable` 改為 `venv\\Scripts\\python.exe`；其他 config 會使用目前已啟用 virtual environment 的 Python。
+`Ollama_qwen2_full_error.yaml` 明確指定 `venv/bin/python`。在 Windows 上執行本機評估時，請將其中的 `pythonExecutable` 改為 `venv\\Scripts\\python.exe`；其他 config 會使用目前已啟用 virtual environment 的 Python。
 
 ### 使用 OpenAI API
 
@@ -69,13 +69,23 @@ TEST_OPENAI_API_KEY=your_api_key_here
 - `TEST_GOOGLE_API_KEY`
 - `TEST_DEEPSEEK_API_KEY`
 
+## 資料與封存
+
+新版評估流程使用的原始語料已放在 `workspace/evals/datasets/gpt4_250_sentence_gt.txt`。API credential 只從 `.env` 或系統環境變數讀取；原本的 `workspace/archive/eval/` 保留作為歷史封存，不再是新版流程的必要路徑。
+
+產生 Zhuyin 評估資料集：
+
+```bash
+python workspace/evals/generate_zhuyin_dataset.py
+```
+
 ## 執行評估
 
 先啟用 virtual environment，再從 repository 根目錄執行。建議先跑小型 smoke test：
 
 ```bash
 npx promptfoo@0.120.19 eval \
-  -c workspace/evals/promptfooconfig.openai.smoke.yaml \
+  -c workspace/evals/promptfooconfig/OpenAI_gpt-5.6-luna_smoke.yaml \
   -j 1
 ```
 
@@ -83,7 +93,7 @@ OpenAI 完整評估包含三份資料集，目前共 743 筆案例（單錯 249�
 
 ```bash
 npx promptfoo@0.120.19 eval \
-  -c workspace/evals/promptfooconfig.openai.full.yaml \
+  -c workspace/evals/promptfooconfig/OpenAI_gpt-5.6-luna_full_error.yaml \
   -j 1
 ```
 
@@ -91,28 +101,34 @@ npx promptfoo@0.120.19 eval \
 
 ```bash
 npx promptfoo@0.120.19 eval \
-  -c workspace/evals/promptfooconfig.yaml \
+  -c workspace/evals/promptfooconfig/Ollama_qwen2_full_error.yaml \
   -j 1
 ```
 
 只評估特定錯誤數量時，可改用：
 
 ```bash
-npx promptfoo@0.120.19 eval -c workspace/evals/promptfooconfig.single.yaml -j 1
-npx promptfoo@0.120.19 eval -c workspace/evals/promptfooconfig.double.yaml -j 1
-npx promptfoo@0.120.19 eval -c workspace/evals/promptfooconfig.triple.yaml -j 1
+npx promptfoo@0.120.19 eval -c workspace/evals/promptfooconfig/Ollama_qwen2_1_error.yaml -j 1
+npx promptfoo@0.120.19 eval -c workspace/evals/promptfooconfig/Ollama_qwen2_2_error.yaml -j 1
+npx promptfoo@0.120.19 eval -c workspace/evals/promptfooconfig/Ollama_qwen2_3_error.yaml -j 1
 ```
 
 各 config 的用途如下：
 
 | Config | Provider | 資料範圍 |
 | --- | --- | --- |
-| `promptfooconfig.openai.smoke.yaml` | OpenAI / GPT-5.6 Luna | 少量 smoke cases |
-| `promptfooconfig.openai.full.yaml` | OpenAI / GPT-5.6 Luna | 單錯、雙錯、三錯，目前共 743 cases |
-| `promptfooconfig.yaml` | 本機 Ollama / qwen2 | smoke、單錯、雙錯、三錯 |
-| `promptfooconfig.single.yaml` | 本機 Ollama / qwen2 | 單錯資料集 |
-| `promptfooconfig.double.yaml` | 本機 Ollama / qwen2 | 雙錯資料集 |
-| `promptfooconfig.triple.yaml` | 本機 Ollama / qwen2 | 三錯資料集 |
+| `Ollama_qwen2_1_error.yaml` | 本機 Ollama / qwen2 | 單錯資料集 |
+| `Ollama_qwen2_2_error.yaml` | 本機 Ollama / qwen2 | 雙錯資料集 |
+| `Ollama_qwen2_3_error.yaml` | 本機 Ollama / qwen2 | 三錯資料集 |
+| `Ollama_qwen2_full_error.yaml` | 本機 Ollama / qwen2 | 單錯、雙錯、三錯 |
+| `OpenAI_gpt-5.6-luna_1_error.yaml` | OpenAI / gpt-5.6-luna | 單錯資料集 |
+| `OpenAI_gpt-5.6-luna_2_error.yaml` | OpenAI / gpt-5.6-luna | 雙錯資料集 |
+| `OpenAI_gpt-5.6-luna_3_error.yaml` | OpenAI / gpt-5.6-luna | 三錯資料集 |
+| `OpenAI_gpt-5.6-luna_full_error.yaml` | OpenAI / gpt-5.6-luna | 單錯、雙錯、三錯 |
+| `Anthropic_claude-sonnet-5_1_error.yaml` | Anthropic / claude-sonnet-5 | 單錯資料集 |
+| `Anthropic_claude-sonnet-5_2_error.yaml` | Anthropic / claude-sonnet-5 | 雙錯資料集 |
+| `Anthropic_claude-sonnet-5_3_error.yaml` | Anthropic / claude-sonnet-5 | 三錯資料集 |
+| `Anthropic_claude-sonnet-5_full_error.yaml` | Anthropic / claude-sonnet-5 | 單錯、雙錯、三錯 |
 
 若只想先驗證一筆資料流，可在任一指令後加上 `--filter-first-n 1`。若要重新發出所有模型請求並重新量測成本與延遲，請加上 `--no-cache`。
 
@@ -128,7 +144,7 @@ npx promptfoo@0.120.19 view
 
 ```bash
 npx promptfoo@0.120.19 eval \
-  -c workspace/evals/promptfooconfig.openai.smoke.yaml \
+  -c workspace/evals/promptfooconfig/OpenAI_gpt-5.6-luna_smoke.yaml \
   -j 1 \
   -o workspace/evals/report.json
 ```

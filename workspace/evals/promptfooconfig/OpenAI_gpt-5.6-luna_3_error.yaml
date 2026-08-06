@@ -1,0 +1,53 @@
+prompts:
+  - "Standard_v3"
+
+defaultTest:
+  assert:
+    - type: cost
+      threshold: 0.01
+    - type: latency
+      threshold: 15000
+    - type: python
+      value: file://../assertions.py
+
+derivedMetrics:
+  - name: mean_case_f2
+    value: "case_f2 / __count"
+  - name: mean_case_ned
+    value: "case_ned / __count"
+  - name: overall_precision
+    value: |
+      function(namedScores) {
+        const tp = namedScores.true_positives || 0;
+        const fp = namedScores.false_positives || 0;
+        return tp + fp === 0 ? 1 : tp / (tp + fp);
+      }
+  - name: overall_recall
+    value: |
+      function(namedScores) {
+        const tp = namedScores.true_positives || 0;
+        const fn = namedScores.false_negatives || 0;
+        return tp + fn === 0 ? 1 : tp / (tp + fn);
+      }
+  - name: overall_f2
+    value: |
+      function(namedScores) {
+        const tp = namedScores.true_positives || 0;
+        const fp = namedScores.false_positives || 0;
+        const fn = namedScores.false_negatives || 0;
+        const denominator = 5 * tp + fp + 4 * fn;
+        return denominator === 0 ? 1 : (5 * tp) / denominator;
+      }
+
+providers:
+  - id: "python:../provider.py"
+    label: "WordBridge OpenAI Full Eval"
+    config:
+      provider: "OpenAI"
+      local: false
+      model: "gpt-5.6-luna"
+      language: "zh_traditional"
+      corrector_mode: "standard"
+
+tests:
+  - ../datasets/zhuyin_3_error_weighted_seed0.csv
