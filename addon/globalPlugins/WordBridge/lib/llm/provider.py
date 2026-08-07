@@ -182,11 +182,16 @@ class DeepseekProvider(Provider):
 	name = "DeepSeek"
 
 
+class OllamaProvider(Provider):
+	name = "Ollama"
+
+
 def get_provider(provider_name: str, credential: dict, retries: int = 2, backoff: int = 1) -> Provider:
 	provider_mapping = {
 		"OpenAI": OpenAIProvider,
 		"Anthropic": AnthropicProvider,
 		"DeepSeek": DeepseekProvider,
+		"Ollama": OllamaProvider,
 		"Google": GoogleProvider,
 		"OpenRouter": OpenrouterProvider,
 	}

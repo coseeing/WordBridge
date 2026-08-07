@@ -158,6 +158,7 @@ def get_provider_model_adapter(provider_name: str, model_name: str) -> ProviderM
 		"Google": GoogleAdapter,
 		"OpenRouter": OpenRouterAdapter,
 		"DeepSeek": DeepSeekAdapter,
+		"Ollama": DeepSeekAdapter,
 	}
 	adapter_class = family_mapping.get(provider_name)
 	if not adapter_class:

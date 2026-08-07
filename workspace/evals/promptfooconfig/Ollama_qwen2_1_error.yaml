@@ -1,5 +1,5 @@
 prompts:
-  - "Standard_v3"
+  - "WordBridge"
 
 defaultTest:
   assert:
@@ -43,13 +43,17 @@ providers:
   - id: "python:../provider.py"
     label: "WordBridge Single Error"
     config:
-      provider: "Ollama"
+      provider_name: "Ollama"
       local: true
-      model: "qwen2"
+      model_name: "qwen2"
       estimated_cost_input_per_million: 0.14
       estimated_cost_output_per_million: 0.28
       language: "zh_traditional"
+      template_name: "Standard_v3.json"
       corrector_mode: "standard"
+      optional_guidance_enable:
+        no_explanation: true
+        keep_non_chinese_char: false
 
 tests:
   - ../datasets/zhuyin_1_error_top1_seed0.csv

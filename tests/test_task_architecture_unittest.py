@@ -32,13 +32,13 @@ sys.modules.setdefault("hanzidentifier", hanzidentifier_module)
 
 
 class TaskArchitectureTests(unittest.TestCase):
-	def test_dialogs_builds_the_real_thirteen_endpoint_catalog_without_legacy_corrector_directory(self):
+	def test_dialogs_builds_the_real_fourteen_endpoint_catalog_without_legacy_corrector_directory(self):
 		"""Catches dialogs bootstrapping ConfigManager from the removed legacy directory."""
 		with _nvda_module_stubs():
 			dialogs = _load_module("WordBridge.dialogs", ADDON_PATH / "dialogs.py")
 
-		self.assertEqual(len(dialogs.configManager.configs), 13)
-		self.assertEqual(len(dialogs.configManager.config_by_id), 13)
+		self.assertEqual(len(dialogs.configManager.configs), 14)
+		self.assertEqual(len(dialogs.configManager.config_by_id), 14)
 
 	def test_plugin_local_correction_uses_endpoint_and_task_configs_with_unchanged_runner_interface(self):
 		"""Catches task-config reads and a local-routing regression without network calls."""

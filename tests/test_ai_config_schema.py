@@ -14,7 +14,7 @@ def test_ai_configs_use_endpoint_only_schema():
 	allowed_keys = required_keys | {"active"}
 	ai_paths = sorted(AI_CONFIG_DIR.glob("*.json"))
 
-	assert len(ai_paths) == 13
+	assert len(ai_paths) == 14
 	for path in ai_paths:
 		with path.open("r", encoding="utf-8") as f:
 			config = json.load(f)

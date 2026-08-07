@@ -89,6 +89,37 @@ npx promptfoo@0.120.19 eval \
   -j 1
 ```
 
+Anthropic smoke test：
+
+```bash
+npx promptfoo@0.120.19 eval \
+  -c workspace/evals/promptfooconfig/Anthropic_claude-sonnet-5_smoke.yaml \
+  -j 1
+```
+
+### Promptfoo 設定欄位
+
+`prompts` 是 Promptfoo 的固定欄位；本專案使用 `WordBridge` 作為單一佔位值。WordBridge 實際執行設定統一放在 `providers[].config`：
+
+```yaml
+prompts:
+  - "WordBridge"
+
+providers:
+  - id: "python:../provider.py"
+    config:
+      provider_name: "OpenAI"
+      model_name: "gpt-5.6-luna"
+      language: "zh_traditional"
+      template_name: "Standard_v3.json"
+      corrector_mode: "standard"
+      optional_guidance_enable:
+        no_explanation: true
+        keep_non_chinese_char: false
+```
+
+API credential 仍由 `provider.py` 依 provider 名稱從環境變數取得；不要寫入 YAML。`template_name` 必須包含 `.json` 副檔名，並對應 `addon/globalPlugins/WordBridge/setting/templates/` 下的 JSON 檔案。
+
 OpenAI 完整評估包含三份資料集，目前共 743 筆案例（單錯 249、雙錯 247、三錯 247）：
 
 ```bash

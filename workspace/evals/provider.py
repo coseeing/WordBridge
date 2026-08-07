@@ -34,10 +34,8 @@ def _bootstrap_addon_env():
 
 _bootstrap_addon_env()
 
-from lib.application import task_factory
+from lib.application.task_runner import run_typo_correction
 
-DEFAULT_PROVIDER = "Ollama"
-DEFAULT_MODEL = "qwen2"
 DEFAULT_LANGUAGE = "zh_traditional"
 DEFAULT_CORRECTOR_MODE = "standard"
 DEFAULT_ESTIMATED_COST_INPUT_PER_MILLION = Decimal("0.14")
@@ -54,10 +52,18 @@ PROVIDER_ENV_KEYS = {
 def _get_config(options):
     config = options.get("config", {})
     return {
-        "provider": config.get("provider", DEFAULT_PROVIDER),
-        "model": config.get("model", DEFAULT_MODEL),
+        "provider_name": config["provider_name"],
+        "model_name": config["model_name"],
         "language": config.get("language", DEFAULT_LANGUAGE),
+        "template_name": config.get("template_name", "Standard_v3.json"),
         "corrector_mode": config.get("corrector_mode", DEFAULT_CORRECTOR_MODE),
+        "optional_guidance_enable": config.get(
+            "optional_guidance_enable",
+            {
+                "no_explanation": True,
+                "keep_non_chinese_char": False,
+            },
+        ),
         "local": config.get("local"),
         "estimated_cost_input_per_million": str(
             config.get("estimated_cost_input_per_million", DEFAULT_ESTIMATED_COST_INPUT_PER_MILLION)
@@ -79,51 +85,6 @@ def _get_credential(provider_name, is_local):
             return {"api_key": api_key}
 
     return None
-
-
-def _resolve_provider_name(provider_name, is_local):
-    if not is_local:
-        return provider_name
-
-    if provider_name.strip().lower() == "ollama":
-        return "DeepSeek"
-
-    return provider_name
-
-
-def _normalize_template_name(prompt):
-    template_name = prompt.strip()
-    if not template_name.endswith(".json"):
-        template_name += ".json"
-    return template_name
-
-
-def _create_workflow(
-    provider_name,
-    model_name,
-    credential,
-    language,
-    template_name,
-    corrector_mode,
-):
-    return task_factory.create_typo_workflow(
-        provider_name=provider_name,
-        model_name=model_name,
-        credential=credential,
-        language=language,
-        template_name=template_name,
-        corrector_mode=corrector_mode,
-        optional_guidance_enable={
-            "no_explanation": True,
-            "keep_non_chinese_char": False,
-        },
-        max_correction_attempts=3,
-    )
-
-
-def _set_local_ollama_url(workflow, is_local):
-    if is_local:
-        workflow.executor.provider_object.url = "http://localhost:11434/v1/chat/completions"
 
 
 def _normalize_token_usage(usage_summary):
@@ -241,28 +202,29 @@ def _format_result(result, config=None):
     }
 
 
-def call_api(prompt, options, context):
+def call_api(_prompt, options, context):
     """
     Promptfoo 呼叫 Python Provider 的進入點
     """
     input_text = context["vars"].get("input", "")
     config = _get_config(options)
-    provider_name = _resolve_provider_name(config["provider"], config["local"])
-    credential = _get_credential(provider_name, config["local"])
+    credential = _get_credential(config["provider_name"], config["local"])
 
     try:
-        template_name = _normalize_template_name(prompt)
-        workflow = _create_workflow(
-            provider_name=provider_name,
-            model_name=config["model"],
+        result = run_typo_correction(
+            request=input_text,
+            batch_mode=False,
+            provider_name=config["provider_name"],
+            model_name=config["model_name"],
             credential=credential,
             language=config["language"],
-            template_name=template_name,
+            template_name=config["template_name"],
             corrector_mode=config["corrector_mode"],
+            optional_guidance_enable=config["optional_guidance_enable"],
+            customized_words=[],
+            retries=2,
+            backoff=1,
         )
-        _set_local_ollama_url(workflow, config["local"])
-
-        result = workflow.run(input_text, batch_mode=False)
         return _format_result(result, config=config)
     except Exception as e:
         return {"error": str(e)}

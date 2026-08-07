@@ -1,5 +1,5 @@
 prompts:
-  - "Standard_v3"
+  - "WordBridge"
 
 defaultTest:
   assert:
@@ -43,11 +43,15 @@ providers:
   - id: "python:../provider.py"
     label: "WordBridge Anthropic 3 Error"
     config:
-      provider: "Anthropic"
+      provider_name: "Anthropic"
       local: false
-      model: "claude-sonnet-5"
+      model_name: "claude-sonnet-5"
       language: "zh_traditional"
+      template_name: "Standard_v3.json"
       corrector_mode: "standard"
+      optional_guidance_enable:
+        no_explanation: true
+        keep_non_chinese_char: false
 
 tests:
   - ../datasets/zhuyin_3_error_weighted_seed0.csv

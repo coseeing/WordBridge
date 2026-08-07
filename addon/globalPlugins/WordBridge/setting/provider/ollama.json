@@ -1,0 +1,10 @@
+{
+	"name": "Ollama",
+	"url": "http://localhost:11434/v1/chat/completions",
+	"setting": {
+		"temperature": 0.0,
+		"top_p": 1.0
+	},
+	"timeout0": 30,
+	"timeout_max": 60
+}

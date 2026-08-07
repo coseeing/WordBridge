@@ -4,9 +4,9 @@ prompts:
 defaultTest:
   assert:
     - type: cost
-      threshold: 0.002
+      threshold: 0.01
     - type: latency
-      threshold: 10000
+      threshold: 15000
     - type: python
       value: file://../assertions.py
 
@@ -41,13 +41,11 @@ derivedMetrics:
 
 providers:
   - id: "python:../provider.py"
-    label: "WordBridge Triple Error"
+    label: "WordBridge Anthropic Smoke"
     config:
-      provider_name: "Ollama"
-      local: true
-      model_name: "qwen2"
-      estimated_cost_input_per_million: 0.14
-      estimated_cost_output_per_million: 0.28
+      provider_name: "Anthropic"
+      local: false
+      model_name: "claude-sonnet-5"
       language: "zh_traditional"
       template_name: "Standard_v3.json"
       corrector_mode: "standard"
@@ -56,4 +54,4 @@ providers:
         keep_non_chinese_char: false
 
 tests:
-  - ../datasets/zhuyin_3_error_weighted_seed0.csv
+  - ../datasets/smoke_test.csv
