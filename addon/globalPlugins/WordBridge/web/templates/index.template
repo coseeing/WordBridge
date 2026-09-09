@@ -9,11 +9,36 @@
 		<script src="modules/sweetalert2.all.min.js"></script>
 		<script src="modules/vue.js"></script>
 		<style>
-			body {
-				font-size: 16px;
+			html {
+				font-size: 62.5%;
 			}
-			span {
-				line-height: 30px;
+			:root {
+				--color-teal-primary: #1f4147;
+				--color-teal-500: #1a373e;
+				--color-teal-700: #10242a;
+				--color-orange-100: #ffe099;
+				--color-orange-primary: #fea400;
+				--color-bg-light-off-white: #f6f7f1;
+				--color-bg-light-beige: #eee6d8;
+				--color-bg-warm-gray: #dad5c2;
+				--color-neutral-white: #ffffff;
+				--color-red-100: #f7bab1;
+				--color-red-700: #902d2a;
+				--color-green-100: #cbe8a3;
+				--color-green-800: #3a7018;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				min-height: 100vh;
+				margin: 0;
+				padding: 3.2rem 2rem;
+				background: var(--color-bg-light-off-white);
+				color: var(--color-teal-700);
+				font-family: "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
+				font-size: 1.6rem;
+				-webkit-font-smoothing: antialiased;
 			}
 			.sr-only {
 				position: absolute;
@@ -29,33 +54,185 @@
 				text-align: left;
 			}
 			#app {
-				max-width: 80%;
-				margin: 30px auto;
+				width: min(100%, 96rem);
+				margin: 0 auto;
+				padding: 2.4rem;
+				border: 1px solid var(--color-bg-warm-gray);
+				border-radius: 2.4rem;
+				background: var(--color-neutral-white);
+			}
+			.report-line {
+				min-height: 1.8em;
+				margin: 0 0 1.2rem;
+				line-height: 1.9;
+				letter-spacing: 0.04em;
+			}
+			.report-line:last-child {
+				margin-bottom: 0;
+			}
+			del,
+			ins {
+				text-decoration: none;
+			}
+			.correction-button {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				margin: 0 0.05em;
+				padding: 0.05em 0.3em;
+				border: 0;
+				border-radius: 0.4rem;
+				background: var(--color-orange-100);
+				color: var(--color-teal-700);
+				font: inherit;
+				font-weight: 500;
+				line-height: 1.5;
+				vertical-align: baseline;
+				cursor: pointer;
+				transition: background-color 0.2s ease, color 0.2s ease;
+			}
+			.correction-button:hover {
+				background: var(--color-bg-light-beige);
+			}
+			.correction-button:focus-visible,
+			.correction-dialog__confirm:focus-visible {
+				outline: 3px solid var(--color-orange-primary);
+				outline-offset: 2px;
+			}
+			.correction-button--delete {
+				background: var(--color-red-100);
+				color: var(--color-red-700);
+				text-decoration: line-through;
+			}
+			.correction-button--insert {
+				background: var(--color-green-100);
+				color: var(--color-green-800);
+				text-decoration: underline;
+			}
+			.swal2-popup.correction-dialog {
+				padding: 2.4rem;
+				border-top: 0.6rem solid var(--color-orange-primary);
+				border-radius: 2.4rem;
+				background: var(--color-neutral-white);
+				box-shadow: 0 1.6rem 4rem rgba(16, 36, 42, 0.25);
+				color: var(--color-teal-700);
+				text-align: left;
+			}
+			.correction-dialog__title,
+			.correction-dialog__content {
+				width: 100%;
+				padding: 0;
+				color: var(--color-teal-700);
+				text-align: left;
+			}
+			.correction-dialog__title {
+				margin: 0;
+			}
+			.correction-dialog__content {
+				margin: 1.6rem 0 0;
+				line-height: 1.7;
+			}
+			.correction-dialog__content ul {
+				margin: 0.4rem 0;
+				padding-inline-start: 2.4rem;
+			}
+			.correction-dialog .swal2-actions {
+				width: 100%;
+				justify-content: flex-end;
+			}
+			.correction-dialog__confirm {
+				padding: 0.8rem 1.6rem;
+				border: 0;
+				border-radius: 0.8rem;
+				background: var(--color-teal-primary);
+				color: var(--color-bg-light-off-white);
+				font: inherit;
+				font-weight: 700;
+				cursor: pointer;
+			}
+			.correction-dialog__confirm:hover {
+				background: var(--color-teal-500);
+			}
+			@media (max-width: 48rem) {
+				body {
+					padding: 1.6rem 1.2rem;
+				}
+				#app {
+					padding: 2rem;
+					border-radius: 1.6rem;
+				}
 			}
 		</style>
 	</head>
 	<body>
 		<div id="app">
-			<span v-for="item in data">
-				<span v-if="item.operation == 'equal'">
-					{{ item.before_text }}
-				</span>
-				<span v-else>
-					<span v-if="item.operation == 'delete'">
-						<del><button @click="openInfos({'operation': '文字刪除', 'descs_before': item.before_descs, 'descs_after': ''})">{{ item.before_text }}</button></del>
-					</span>
-					<span v-else-if="item.operation == 'insert'">
-						<ins><button @click="openInfos({'operation': '文字插入', 'descs_before': '', 'descs_after': item.after_descs})">{{ item.after_text }}</button></ins>
-					</span>
-					<span v-else-if="item.operation == 'replace'">
-						<div :aria-description="'已修正'"><button @click="openInfos({'operation': '文字替換', 'descs_before': item.before_descs, 'descs_after': item.after_descs})">{{ item.after_text }}</button></div>
-					</span>
-				</span>
-			</span>
+			<p v-for="(line, lineIndex) in lines" :key="lineIndex" class="report-line">
+				<template v-for="(item, itemIndex) in line" :key="itemIndex">
+					<span v-if="item.operation == 'equal'">{{ item.display_text }}</span>
+					<del v-else-if="item.operation == 'delete'"><button type="button" class="correction-button correction-button--delete" @click="openInfos({'operation': '文字刪除', 'descs_before': item.before_descs, 'descs_after': ''})">{{ item.display_text }}</button></del>
+					<ins v-else-if="item.operation == 'insert'"><button type="button" class="correction-button correction-button--insert" @click="openInfos({'operation': '文字插入', 'descs_before': '', 'descs_after': item.after_descs})">{{ item.display_text }}</button></ins>
+					<span v-else-if="item.operation == 'replace'" aria-description="已修正"><button type="button" class="correction-button" @click="openInfos({'operation': '文字替換', 'descs_before': item.before_descs, 'descs_after': item.after_descs})">{{ item.display_text }}</button></span>
+				</template>
+				<br v-if="line.length === 0" aria-hidden="true" />
+			</p>
 		</div>
 		<script>
 			const {createApp, ref} = Vue;
 			document.title = window.contentConfig.title || "WordBridge";
+
+			const getDisplayText = (item) => {
+				if (item.operation === "insert" || item.operation === "replace") {
+					return String(item.after_text || "");
+				}
+				return String(item.before_text || "");
+			};
+
+			const splitItemAtOriginalNewlines = (item) => {
+				if (item.operation === "insert") {
+					return [{...item, display_text: getDisplayText(item)}];
+				}
+
+				const sourceText = String(item.before_text || "").replace(/\r\n/g, "\n");
+				const sourceParts = sourceText.split("\n");
+				const displayText = getDisplayText(item).replace(/\r\n/g, "\n");
+				let displayParts = displayText.split("\n");
+
+				if (displayParts.length !== sourceParts.length) {
+					const displayCharacters = Array.from(displayText.replace(/\n/g, ""));
+					let offset = 0;
+					displayParts = sourceParts.map((sourcePart, index) => {
+						if (index === sourceParts.length - 1) {
+							return displayCharacters.slice(offset).join("");
+						}
+						const partLength = Array.from(sourcePart).length;
+						const part = displayCharacters.slice(offset, offset + partLength).join("");
+						offset += partLength;
+						return part;
+					});
+				}
+
+				return displayParts.map((displayTextPart) => ({
+					...item,
+					display_text: displayTextPart,
+				}));
+			};
+
+			const splitIntoOriginalLines = (items) => {
+				const lines = [[]];
+				items.forEach((item) => {
+					const segments = splitItemAtOriginalNewlines(item);
+					segments.forEach((segment, segmentIndex) => {
+						if (segment.display_text !== "") {
+							lines[lines.length - 1].push(segment);
+						}
+						if (segmentIndex < segments.length - 1) {
+							lines.push([]);
+						}
+					});
+				});
+				return lines;
+			};
+
 			const Content = {
 				setup() {
 					const openInfos = (data) => {
@@ -66,15 +243,15 @@
 							}
 							e.setAttribute("aria-live", x);
 						}
-						descs_before = data.descs_before || [];
-						descs_after = data.descs_after || [];
+						const descs_before = data.descs_before || [];
+						const descs_after = data.descs_after || [];
 
 						const html = "<ul>" + descs_before.reduce((a, b) => {
 							let chr = "";
 							let desc = "";
 							try{
 								chr = b[0];
-								descs = b[1].slice(",");
+								const descs = b[1].slice(",");
 								desc = "<ul>" + descs.reduce((a, b) => `${a}<li>${b}</li>`, "") + "</ul>";
 							} catch(e){
 							}
@@ -84,7 +261,7 @@
 							let desc = "";
 							try{
 								chr = b[0];
-								descs = b[1].slice(",");
+								const descs = b[1].slice(",");
 								desc = "<ul>" + descs.reduce((a, b) => `${a}<li>${b}</li>`, "") + "</ul>";
 							} catch(e){
 							}
@@ -93,17 +270,23 @@
 						Swal.fire({
 							title: data.operation,
 							html,
-							confirmButtonColor: "#3085d6",
-							confirmButtonText: "close",
+							buttonsStyling: false,
+							confirmButtonText: "關閉",
+							customClass: {
+								popup: "correction-dialog",
+								title: "correction-dialog__title",
+								htmlContainer: "correction-dialog__content",
+								confirmButton: "correction-dialog__confirm",
+							},
 							width: 'fit-content',
 							didRender: ariaHandler,
 						});
 					}
 					const raw = ref(JSON.parse(window.contentConfig.raw));
-					const data = ref(JSON.parse(window.contentConfig.data));
+					const lines = ref(splitIntoOriginalLines(JSON.parse(window.contentConfig.data)));
 
 					return {
-						data, raw, openInfos,
+						lines, raw, openInfos,
 					}
 				},
 			}
