@@ -104,7 +104,7 @@ class CoseeingAuthSession:
 			except Exception as retry_error:
 				if client is not None:
 					self._record_close_schedule_failure(retry_error)
-					self._finish(error=ClientClosedError("access_token"))
+					self._finish_handoff(error=ClientClosedError("access_token"))
 					self._start_cleanup_once(client, cleanup)
 				elif not creating:
 					self._record_close_schedule_failure(retry_error)
@@ -122,10 +122,13 @@ class CoseeingAuthSession:
 			if cleanup is None or cleanup.done():
 				return
 			cleanup_error = error or self._cleanup_error
-		if cleanup_error is None:
-			cleanup.set_result(None)
-		else:
-			cleanup.set_exception(cleanup_error)
+			try:
+				if cleanup_error is None:
+					cleanup.set_result(None)
+				else:
+					cleanup.set_exception(cleanup_error)
+			except InvalidStateError:
+				pass
 
 	def _close_ui(self, cleanup: Future[None]) -> None:
 		self._closed = True
@@ -157,20 +160,30 @@ class CoseeingAuthSession:
 			self._complete_cleanup()
 
 	def _request(self, waiter: Future[str | None], reconsider_guest: bool) -> None:
-		if self._closed or self._is_closing():
+		with self._state_lock:
+			if self._closed or self._close_requested:
+				closed = True
+				guest = False
+			else:
+				closed = False
+				if reconsider_guest:
+					self._guest = False
+				if self._active:
+					self._waiters.append(waiter)
+					return
+				if self._guest:
+					guest = True
+				else:
+					guest = False
+					self._waiters.append(waiter)
+					self._active = True
+		if closed:
 			self._complete(waiter, error=ClientClosedError("access_token"))
 			return
-		if reconsider_guest:
-			self._guest = False
-		if self._active:
-			self._waiters.append(waiter)
-			return
-		if self._guest:
+		if guest:
 			self._complete(waiter, value=None)
 			return
 
-		self._waiters.append(waiter)
-		self._active = True
 		if self._session_ready:
 			self._start_access_token()
 			return
@@ -284,7 +297,7 @@ class CoseeingAuthSession:
 					try:
 						self._post_ui(deliver_scheduler_error, retry_error)
 					except Exception:
-						self._finish(error=retry_error)
+						self._finish_handoff(error=retry_error)
 
 		def deliver_scheduler_error(error: Exception) -> None:
 			if self._closed:
@@ -329,6 +342,9 @@ class CoseeingAuthSession:
 		self._finish(error=error)
 
 	def _finish(self, *, value: str | None = None, error: Exception | None = None) -> None:
+		self._finish_handoff(value=value, error=error)
+
+	def _finish_handoff(self, *, value: str | None = None, error: Exception | None = None) -> None:
 		with self._state_lock:
 			self._active = False
 			waiters, self._waiters = self._waiters, []

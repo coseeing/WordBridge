@@ -146,6 +146,57 @@ exit=0
   `addon/globalPlugins/WordBridge/package/coseeing-auth-dependencies.md` was
   left untouched and unstaged.
 
+## Review fix round 5 report (2026-09-13)
+
+### Findings addressed
+
+- High: close scheduler fallback and persistent watcher scheduler fallback
+  now use `_finish_handoff()`, which serializes terminalization under the
+  state lock without invoking the UI-owned finisher from a background thread.
+  Cleanup still starts exactly once for an existing client, and every waiter
+  present at the handoff is completed.
+- High: `_request()` now checks closing state, guest state, active state, and
+  waiter registration while holding one lock. A caller cannot append after
+  `_finish_handoff()` has drained the active waiters.
+- Medium: cleanup Future completion is serialized and cancellation-safe when
+  close/factory/cleanup completion races overlap.
+- Added deterministic tests for the append-versus-drain interleaving, a
+  background watcher callback scheduler failure, and overlapping waiters on
+  existing-client close scheduler failure.
+
+### Verification commands and exact output
+
+#### `python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_bundle.py -q`
+
+```text
+.....................................s                                   [100%]
+37 passed, 1 skipped in 0.37s
+exit=0
+```
+
+#### `python3 -m compileall -q addon/globalPlugins/WordBridge/lib/coseeing_auth.py tests/coseeing_auth_helpers.py tests/test_coseeing_auth.py`
+
+```text
+<no output>
+exit=0
+```
+
+#### `git diff --check`
+
+```text
+<no output>
+exit=0
+```
+
+### Concerns
+
+- The combined suite retains one expected Windows native dependency skip on
+  this Linux host.
+- `python` is unavailable on PATH; the requested checks used `python3`.
+- The pre-existing modification to
+  `addon/globalPlugins/WordBridge/package/coseeing-auth-dependencies.md` and
+  untracked `WordBridge(include-auth)/` were left untouched.
+
 ## Review fix round 4 report (2026-09-13)
 
 ### Findings addressed

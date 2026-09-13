@@ -2,12 +2,13 @@ from lib.coseeing_auth import CoseeingAuthSession
 import lib.coseeing_auth as auth_module
 from coseeing_auth import LoginError, RestoreError, TokenUnavailableError, TokenValidationError
 from coseeing_auth.errors import ClientClosedError
-from concurrent.futures import CancelledError
+from concurrent.futures import CancelledError, Future
 import shutil
 import struct
 import subprocess
 import sys
-from threading import Event, Thread
+from threading import Event, Thread, current_thread
+import threading
 from pathlib import Path
 
 import pytest
@@ -535,7 +536,7 @@ def test_close_scheduling_failure_does_not_mutate_ui_state_off_thread():
 	assert auth.calls == []
 
 
-def test_close_schedule_and_retry_failure_finishes_existing_client_waiters_and_reports_error():
+def test_close_schedule_and_retry_failure_finishes_existing_client_waiters_and_reports_error(monkeypatch):
 	queue = []
 	post_count = 0
 
@@ -558,9 +559,18 @@ def test_close_schedule_and_retry_failure_finishes_existing_client_waiters_and_r
 	result = session.get_access_token()
 	fn, args = queue.pop(0)
 	fn(*args)
+	second = Future()
+	session._request(second, False)
+	monkeypatch.setattr(
+		session,
+		"_finish",
+		lambda **kwargs: pytest.fail("close fallback called UI finisher from background thread"),
+	)
 	cleanup = session.close()
 	with pytest.raises(ClientClosedError):
 		result.result(timeout=1)
+	with pytest.raises(ClientClosedError):
+		second.result(timeout=1)
 	with pytest.raises(RuntimeError, match="UI scheduler stopped"):
 		cleanup.result(timeout=1)
 	assert auth.calls == [("login", (), {}), ("close", (), {})]
@@ -633,6 +643,84 @@ def test_persistent_watch_scheduler_failure_finishes_waiters_and_clears_operatio
 		result.result(timeout=1)
 	assert not session._active
 	assert session._waiters == []
+
+
+def test_request_admission_is_atomic_with_waiter_drain():
+	entered_append = Event()
+	release_append = Event()
+
+	class BlockingWaiters(list):
+		def append(self, waiter):
+			entered_append.set()
+			release_append.wait(timeout=1)
+			super().append(waiter)
+
+	session = CoseeingAuthSession(
+		client_factory=lambda: FakeAuth(),
+		post_ui=lambda fn, *args: None,
+		read_refresh_token=lambda: None,
+		save_refresh_token=lambda value: None,
+		prompt_login=lambda: "guest",
+	)
+	waiter = session.get_access_token()
+	session._active = True
+	session._waiters = BlockingWaiters()
+	request = Thread(target=session._request, args=(waiter, False))
+	request.start()
+	assert entered_append.wait(timeout=1)
+	finisher = Thread(target=session._finish, kwargs={"error": RuntimeError("finished")})
+	finisher.start()
+	release_append.set()
+	request.join(timeout=1)
+	finisher.join(timeout=1)
+	assert not request.is_alive()
+	assert not finisher.is_alive()
+	with pytest.raises(RuntimeError, match="finished"):
+		waiter.result(timeout=1)
+	assert not session._active
+	assert session._waiters == []
+
+
+def test_watch_scheduler_fallback_uses_synchronized_handoff(monkeypatch):
+	queue = []
+	post_count = 0
+
+	def post_ui(fn, *args):
+		nonlocal post_count
+		post_count += 1
+		if post_count == 1:
+			queue.append((fn, args))
+		else:
+			raise RuntimeError("UI scheduler stopped")
+
+	auth = FakeAuth()
+	session = CoseeingAuthSession(
+		client_factory=lambda: auth,
+		post_ui=post_ui,
+		read_refresh_token=lambda: "old",
+		save_refresh_token=lambda value: None,
+		prompt_login=lambda: "guest",
+	)
+	finish_threads = []
+	original_finish = session._finish
+
+	def fail_if_called_from_callback(*, value=None, error=None):
+		finish_threads.append(current_thread().name)
+		if current_thread() is not threading.main_thread():
+			raise AssertionError("background callback called UI finisher")
+		original_finish(value=value, error=error)
+
+	monkeypatch.setattr(session, "_finish", fail_if_called_from_callback)
+	result = session.get_access_token()
+	fn, args = queue.pop(0)
+	fn(*args)
+	callback = Thread(target=lambda: auth.pending.popleft().set_result(object()))
+	callback.start()
+	callback.join(timeout=1)
+	assert not callback.is_alive()
+	with pytest.raises(RuntimeError, match="UI scheduler stopped"):
+		result.result(timeout=1)
+	assert finish_threads == []
 
 
 def test_cancel_prompt_completes_with_cancelled_error():
