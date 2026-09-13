@@ -97,18 +97,18 @@ class CoseeingAuthSession:
 		try:
 			self._post_ui(self._close_ui, cleanup)
 		except Exception:
-			with self._state_lock:
-				client = self._client
-				creating = self._client_creation_in_progress
 			try:
 				self._post_ui(self._close_ui, cleanup)
 			except Exception as retry_error:
-				if client is not None:
-					self._record_close_schedule_failure(retry_error)
-					self._finish_handoff(error=ClientClosedError("access_token"))
-					self._start_cleanup_once(client, cleanup)
-				else:
-					if not creating and not self._admitted_requests:
+				with self._state_lock:
+					client = self._client
+					creating = self._client_creation_in_progress
+					admitted = self._admitted_requests
+					if client is not None:
+						self._record_close_schedule_failure(retry_error)
+						self._finish_handoff(error=ClientClosedError("access_token"))
+						self._start_cleanup_once(client, cleanup)
+					elif not creating and not admitted:
 						self._record_close_schedule_failure(retry_error)
 						self._complete_cleanup(error=retry_error)
 		return cleanup
@@ -224,7 +224,8 @@ class CoseeingAuthSession:
 			except Exception:
 				with self._state_lock:
 					close_requested = self._close_requested
-				if close_requested:
+					admitted = self._admitted_requests
+				if close_requested and not admitted:
 					self._complete_cleanup()
 				raise
 			finally:
@@ -423,11 +424,11 @@ class _NvdaAuthAdapter:
 	def prompt_login(self) -> str:
 		dialog = self._gui.message.MessageDialog(
 			self._gui.mainFrame,
-			self._translate("Sign in to Coseeing to use this service, or continue as a guest."),
-			self._translate("Coseeing authentication"),
+			_("Sign in to Coseeing to use this service, or continue as a guest."),
+			_("Coseeing authentication"),
 			style=self._gui.message.DefaultButtonSet.YES_NO,
 		)
-		dialog.setYesNoLabels(self._translate("Sign in"), self._translate("Continue as guest"))
+		dialog.setYesNoLabels(_("Sign in"), _("Continue as guest"))
 		with self._dialog_lock:
 			self._active_dialog = dialog
 		try:
@@ -450,14 +451,11 @@ class _NvdaAuthAdapter:
 			return
 		try:
 			dialog.EndModal(self._wx.ID_CANCEL)
-		except Exception:
+		except Exception as error:
 			self._log.warning(
 				"Coseeing auth dialog close failed type=%s operation=%s stage=%s code=%s",
-				type(dialog).__name__, "shutdown", "dialog", "close_failed",
+				type(error).__name__, "shutdown", "dialog", "close_failed",
 			)
-
-	def _translate(self, text: str) -> str:
-		return globals().get("_", lambda value: value)(text)
 
 	def session(self) -> CoseeingAuthSession:
 		return CoseeingAuthSession(
@@ -485,14 +483,21 @@ class _NvdaAuthAdapter:
 				type(error).__name__, operation, stage, code,
 			)
 			try:
-				self.post_ui(self._ui.message, self._translate("Coseeing authentication failed."))
+				self.post_ui(self._deliver_notification)
 			except Exception:
 				return
+
+	def _deliver_notification(self) -> None:
+		with self._dialog_lock:
+			if self._shutting_down:
+				return
+		self._ui.message(_("Coseeing authentication failed."))
 
 
 _singleton_lock = threading.RLock()
 _singleton_session: CoseeingAuthSession | None = None
 _singleton_adapter: _NvdaAuthAdapter | None = None
+_shutdown_future: Future[None] | None = None
 
 
 def _get_singleton() -> CoseeingAuthSession:
@@ -531,19 +536,26 @@ def _completed_future(error: Exception) -> Future:
 
 
 def shutdown_coseeing_auth() -> Future[None]:
-	global _singleton_adapter, _singleton_session
+	global _shutdown_future, _singleton_adapter, _singleton_session
 	with _singleton_lock:
+		if _shutdown_future is not None:
+			return _shutdown_future
 		adapter = _singleton_adapter
 		session = _singleton_session
+		if adapter is not None:
+			adapter._shutting_down = True
 		_singleton_adapter = None
 		_singleton_session = None
 	if adapter is None or session is None:
 		completed: Future[None] = Future()
 		completed.set_result(None)
-		return completed
-	adapter._shutting_down = True
+		with _singleton_lock:
+			_shutdown_future = completed
+			return _shutdown_future
+	with _singleton_lock:
+		_shutdown_future = session.close()
 	try:
 		adapter.post_ui(adapter.close_active_dialog)
 	except Exception:
 		adapter.close_active_dialog()
-	return session.close()
+	return _shutdown_future

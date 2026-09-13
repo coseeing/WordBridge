@@ -236,6 +236,24 @@ def test_save_failure_is_returned_to_waiter():
 		result.result(timeout=1)
 
 
+def test_save_failure_does_not_discard_authenticated_session():
+	h = AuthHarness(CoseeingAuthSession, choice="login", save_error=OSError("disk"))
+	first = h.session.get_access_token()
+	h.drain()
+	h.resolve(object())
+	h.resolve("access")
+	h.resolve("refresh")
+	with pytest.raises(OSError):
+		first.result(timeout=1)
+	h.save_error = None
+	second = h.session.get_access_token()
+	h.drain()
+	h.resolve("access-again")
+	h.resolve("refresh-again")
+	assert second.result(timeout=1) == "access-again"
+	assert h.prompts == 1
+
+
 def test_overlapping_callers_share_one_operation_and_cancel_independently():
 	h = AuthHarness(CoseeingAuthSession, refresh="old")
 	first = h.session.get_access_token()
@@ -618,6 +636,10 @@ def test_close_schedule_failure_and_factory_error_finish_waiter_and_cleanup():
 def test_close_schedule_failure_waits_for_admitted_request_client_handoff():
 	started = Event()
 	release = Event()
+	published = Event()
+	close_started = Event()
+	close_release = Event()
+	second_attempt = Event()
 	queue = []
 	post_count = 0
 	created = []
@@ -627,20 +649,28 @@ def test_close_schedule_failure_waits_for_admitted_request_client_handoff():
 		post_count += 1
 		if post_count == 1:
 			queue.append((fn, args))
+		elif post_count == 2:
+			second_attempt.set()
+			published.wait(timeout=5)
+			raise RuntimeError("UI scheduler stopped")
 		else:
 			raise RuntimeError("UI scheduler stopped")
 
-	def make_client():
+	def read_refresh_token():
 		started.set()
 		release.wait(timeout=5)
-		client = FakeAuth()
+		return "old"
+
+	def make_client():
+		client = FakeAuth(close_started, close_release)
 		created.append(client)
+		published.set()
 		return client
 
 	session = CoseeingAuthSession(
 		client_factory=make_client,
 		post_ui=post_ui,
-		read_refresh_token=lambda: "old",
+		read_refresh_token=read_refresh_token,
 		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "guest",
 	)
@@ -648,15 +678,23 @@ def test_close_schedule_failure_waits_for_admitted_request_client_handoff():
 	request_thread = Thread(target=lambda: (lambda item: item[0](*item[1]))(queue.pop(0)))
 	request_thread.start()
 	assert started.wait(timeout=1)
-	cleanup = session.close()
-	with pytest.raises(TimeoutError):
-		cleanup.result(timeout=0.05)
+	cleanup_holder = []
+	close_thread = Thread(target=lambda: cleanup_holder.append(session.close()))
+	close_thread.start()
+	assert second_attempt.wait(timeout=1)
 	release.set()
 	request_thread.join(timeout=1)
+	close_thread.join(timeout=1)
 	assert not request_thread.is_alive()
+	assert not close_thread.is_alive()
+	cleanup = cleanup_holder[0]
+	assert close_started.wait(timeout=1)
+	assert not cleanup.done()
 	with pytest.raises(ClientClosedError):
 		result.result(timeout=1)
-	assert cleanup.result(timeout=1) is None
+	close_release.set()
+	with pytest.raises(RuntimeError, match="UI scheduler stopped"):
+		cleanup.result(timeout=1)
 	assert created and created[0].calls == [("close", (), {})]
 
 

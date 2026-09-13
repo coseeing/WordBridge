@@ -9,13 +9,23 @@ legacy NVDA authentication dialog, public auth hooks, and shutdown lifecycle in
 The adapter imports NVDA modules only when constructed. It reads and writes
 only `WordBridge.settings.api_key.Coseeing`, uses `FutureAuthClient` over
 `CoseeingAuthClient(build_auth_config())`, maps YES/NO/other dialog results to
-login/guest/cancel, destroys dialogs in `finally`, and suppresses shutdown-time
-error notifications. Logs contain only type, operation, stage, and code.
+login/guest/cancel, destroys dialogs in `finally`, and uses direct `_()` calls
+for extractable user strings.
 
 Carried the Task 2 parked issue forward with a lock-protected admitted-request
-counter. Close cleanup now waits for an admitted request to finish the client
-creation handoff before completing cleanup, and the regression verifies that a
-client created during the race is closed exactly once.
+counter. After both close UI scheduling attempts fail, the session re-reads
+`client`, client creation, and admitted-request state atomically. Cleanup stays
+pending until an admitted request either publishes a client and closes it or
+finishes without creating one. The regression pauses after admission and
+interleaves scheduler failure with client publication while client close is
+blocked.
+
+Shutdown sets the adapter shutdown flag before clearing singleton references,
+retains one in-flight cleanup future for repeated shutdown calls, and wraps
+queued failure notification delivery with a second shutdown check. Dialog
+close logging records the exception type and fixed operation/stage/code fields
+without exception text or dialog type. Authenticated session state remains
+usable after a refresh persistence failure.
 
 ## Files
 
@@ -28,6 +38,12 @@ Unrelated user changes were left untouched:
 - `addon/globalPlugins/WordBridge/package/coseeing-auth-dependencies.md`
 - `WordBridge(include-auth)/`
 
+## Review findings
+
+All High, Medium, and Low findings from the Task 3 review are addressed and
+covered by focused tests in `tests/test_coseeing_auth.py` and
+`tests/test_coseeing_auth_nvda.py`.
+
 ## Commit
 
 Commit message: `feat: connect Coseeing auth to NVDA settings and dialogs`
@@ -37,7 +53,7 @@ Commit message: `feat: connect Coseeing auth to NVDA settings and dialogs`
 ```text
 $ python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py -q
 .........................................                                [100%]
-41 passed in 0.35s
+50 passed in 0.35s
 exit=0
 ```
 

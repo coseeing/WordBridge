@@ -1,7 +1,29 @@
 from concurrent.futures import Future
+from threading import Event, Thread
 from types import SimpleNamespace
+import sys
 
 import lib.coseeing_auth as module
+
+
+def _install_nvda(monkeypatch, *, dialog, wx, config=None, ui=None, log=None, call_after=None):
+	if config is None:
+		config = SimpleNamespace(conf={})
+	if ui is None:
+		ui = SimpleNamespace(message=lambda text: None)
+	if log is None:
+		log = SimpleNamespace(warning=lambda *args: None)
+	if call_after is None:
+		call_after = lambda function, *args: function(*args)
+	monkeypatch.setitem(sys.modules, "config", config)
+	monkeypatch.setitem(sys.modules, "wx", SimpleNamespace(CallAfter=call_after, **vars(wx)))
+	monkeypatch.setitem(sys.modules, "gui", SimpleNamespace(
+		mainFrame="frame",
+		message=SimpleNamespace(MessageDialog=dialog, DefaultButtonSet=wx.DefaultButtonSet),
+	))
+	monkeypatch.setitem(sys.modules, "ui", ui)
+	monkeypatch.setitem(sys.modules, "logHandler", SimpleNamespace(log=log))
+	monkeypatch.setattr(module, "_", lambda text: text, raising=False)
 
 
 def test_local_channel_does_not_request_auth(monkeypatch):
@@ -101,6 +123,7 @@ def test_nvda_dialog_is_destroyed_after_each_choice(monkeypatch):
 	))
 	monkeypatch.setitem(__import__("sys").modules, "ui", SimpleNamespace(message=lambda text: None))
 	monkeypatch.setitem(__import__("sys").modules, "logHandler", SimpleNamespace(log=SimpleNamespace(warning=lambda *args: None)))
+	monkeypatch.setattr(module, "_", lambda text: text, raising=False)
 	adapter = module._NvdaAuthAdapter()
 	Dialog.result = Wx.ID_CANCEL
 	assert adapter.prompt_login() == "cancel"
@@ -111,4 +134,195 @@ def test_nvda_dialog_is_destroyed_after_each_choice(monkeypatch):
 def test_shutdown_without_singleton_is_already_complete(monkeypatch):
 	monkeypatch.setattr(module, "_singleton_session", None)
 	monkeypatch.setattr(module, "_singleton_adapter", None)
+	monkeypatch.setattr(module, "_shutdown_future", None)
 	assert module.shutdown_coseeing_auth().result(timeout=1) is None
+
+
+def test_dialog_uses_translatable_labels_and_legacy_yes_no_style(monkeypatch):
+	created = []
+	class Dialog:
+		def __init__(self, *args, **kwargs):
+			created.append((args, kwargs))
+		def setYesNoLabels(self, yes, no):
+			self.labels = (yes, no)
+		def ShowModal(self):
+			return 3
+		def Destroy(self):
+			pass
+	class Wx:
+		ID_YES = 1
+		ID_NO = 2
+		ID_CANCEL = 3
+		class DefaultButtonSet:
+			YES_NO = 4
+	_install_nvda(monkeypatch, dialog=Dialog, wx=Wx)
+	adapter = module._NvdaAuthAdapter()
+	assert adapter.prompt_login() == "cancel"
+	assert created[0][1]["style"] == 4
+	assert created[0][0][1] == "Sign in to Coseeing to use this service, or continue as a guest."
+	assert created[0][0][2] == "Coseeing authentication"
+
+
+def test_shutdown_cancels_only_active_dialog(monkeypatch):
+	shown = Event()
+	finish = Event()
+	class Dialog:
+		def __init__(self, *args, **kwargs):
+			pass
+		def setYesNoLabels(self, yes, no):
+			pass
+		def ShowModal(self):
+			shown.set()
+			finish.wait(timeout=1)
+			return 3
+		def EndModal(self, result):
+			assert result == 3
+			finish.set()
+		def Destroy(self):
+			self.destroyed = True
+	class Wx:
+		ID_YES = 1
+		ID_NO = 2
+		ID_CANCEL = 3
+		class DefaultButtonSet:
+			YES_NO = 4
+	_install_nvda(monkeypatch, dialog=Dialog, wx=Wx)
+	adapter = module._NvdaAuthAdapter()
+	thread = Thread(target=adapter.prompt_login)
+	thread.start()
+	assert shown.wait(timeout=1)
+	adapter.close_active_dialog()
+	thread.join(timeout=1)
+	assert not thread.is_alive()
+	assert adapter._active_dialog is None
+
+
+def test_save_refresh_token_reports_config_save_failure(monkeypatch):
+	class Conf(dict):
+		def save(self):
+			raise OSError("secret save details")
+	settings = {"api_key": {"Coseeing": "old", "OpenAI": "keep"}}
+	config = SimpleNamespace(conf=Conf({"WordBridge": {"settings": settings}}))
+	class Wx:
+		class DefaultButtonSet:
+			YES_NO = 4
+	_install_nvda(monkeypatch, dialog=object, wx=Wx, config=config)
+	with __import__("pytest").raises(OSError, match="secret save details"):
+		module._NvdaAuthAdapter().save_refresh_token("new")
+	assert settings["api_key"] == {"Coseeing": "new", "OpenAI": "keep"}
+
+
+def test_client_factory_builds_exact_future_client(monkeypatch):
+	constructed = []
+	class Client:
+		def __init__(self, config):
+			constructed.append(("client", config))
+	class FutureClient:
+		def __init__(self, client):
+			self._client = client
+			constructed.append(("future", client))
+	class Wx:
+		class DefaultButtonSet:
+			YES_NO = 4
+	_install_nvda(monkeypatch, dialog=object, wx=Wx)
+	monkeypatch.setitem(sys.modules, "coseeing_auth", SimpleNamespace(
+		CoseeingAuthClient=Client, FutureAuthClient=FutureClient,
+	))
+	config = object()
+	monkeypatch.setattr(module, "build_auth_config", lambda: config)
+	result = module._NvdaAuthAdapter().client_factory()
+	assert isinstance(result, FutureClient)
+	assert constructed == [("client", config), ("future", result._client)]
+
+
+def test_singleton_creation_is_locked(monkeypatch):
+	entered = Event()
+	release = Event()
+	instances = []
+	class Adapter:
+		def __init__(self):
+			entered.set()
+			release.wait(timeout=1)
+		def session(self):
+			instance = object()
+			instances.append(instance)
+			return instance
+	monkeypatch.setattr(module, "_NvdaAuthAdapter", Adapter)
+	monkeypatch.setattr(module, "_singleton_adapter", None)
+	monkeypatch.setattr(module, "_singleton_session", None)
+	results = []
+	first = Thread(target=lambda: results.append(module._get_singleton()))
+	second = Thread(target=lambda: results.append(module._get_singleton()))
+	first.start()
+	assert entered.wait(timeout=1)
+	second.start()
+	release.set()
+	first.join(timeout=1)
+	second.join(timeout=1)
+	assert results == [instances[0], instances[0]]
+
+
+def test_queued_notification_is_suppressed_after_shutdown(monkeypatch):
+	queued = []
+	messages = []
+	class Dialog:
+		pass
+	class Wx:
+		class DefaultButtonSet:
+			YES_NO = 4
+	_install_nvda(
+		monkeypatch, dialog=Dialog, wx=Wx, ui=SimpleNamespace(message=messages.append),
+		call_after=lambda function, *args: queued.append((function, args)),
+	)
+	adapter = module._NvdaAuthAdapter()
+	failed = Future()
+	failed.set_exception(RuntimeError("secret"))
+	adapter.notify_completion(failed)
+	adapter._shutting_down = True
+	function, args = queued.pop()
+	function(*args)
+	assert messages == []
+
+
+def test_dialog_close_logging_uses_exception_type_without_sensitive_text(monkeypatch):
+	logs = []
+	class Dialog:
+		def EndModal(self, result):
+			raise RuntimeError("refresh-token-secret")
+	class Wx:
+		ID_CANCEL = 3
+		class DefaultButtonSet:
+			YES_NO = 4
+	_install_nvda(
+		monkeypatch, dialog=Dialog, wx=Wx,
+		log=SimpleNamespace(warning=lambda *args: logs.append(args)),
+	)
+	adapter = module._NvdaAuthAdapter()
+	adapter._active_dialog = Dialog()
+	adapter.close_active_dialog()
+	logged = " ".join(str(value) for args in logs for value in args)
+	assert "RuntimeError" in logged
+	assert "refresh-token-secret" not in logged
+	assert "Dialog" not in logged
+
+
+def test_shutdown_reuses_existing_singleton_cleanup_future(monkeypatch):
+	cleanup = Future()
+	class Session:
+		def close(self):
+			return cleanup
+	class Adapter:
+		_shutting_down = False
+		def post_ui(self, function, *args):
+			function(*args)
+		def close_active_dialog(self):
+			pass
+	monkeypatch.setattr(module, "_singleton_session", Session())
+	monkeypatch.setattr(module, "_singleton_adapter", Adapter())
+	monkeypatch.setattr(module, "_shutdown_future", None)
+	first = module.shutdown_coseeing_auth()
+	second = module.shutdown_coseeing_auth()
+	assert first is second
+	assert not second.done()
+	cleanup.set_result(None)
+	assert first.result(timeout=1) is None
