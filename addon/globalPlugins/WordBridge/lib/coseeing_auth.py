@@ -1,7 +1,12 @@
 import struct
 import sys
+import threading
+from collections.abc import Callable
+from concurrent.futures import CancelledError, Future
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from coseeing_auth.errors import ClientClosedError, RestoreError, TokenUnavailableError
 
 if TYPE_CHECKING:
 	from coseeing_auth import AuthConfig
@@ -41,3 +46,204 @@ def build_auth_config() -> "AuthConfig":
 		logout_redirect_uri="http://127.0.0.1:8765/logout-callback",
 		callback_timeout=180,
 	)
+
+
+class CoseeingAuthSession:
+	def __init__(
+		self,
+		*,
+		client_factory: Callable[[], object],
+		post_ui: Callable[..., None],
+		read_refresh_token: Callable[[], str | None],
+		save_refresh_token: Callable[[str | None], None],
+		prompt_login: Callable[[], str],
+	) -> None:
+		self._client_factory = client_factory
+		self._post_ui = post_ui
+		self._read_refresh_token = read_refresh_token
+		self._save_refresh_token = save_refresh_token
+		self._prompt_login = prompt_login
+		self._guest = False
+		self._closed = False
+		self._session_ready = False
+		self._client = None
+		self._waiters: list[Future[str | None]] = []
+		self._active = False
+		self._cleanup_future: Future[None] | None = None
+		self._state_lock = threading.RLock()
+
+	def get_access_token(self, *, reconsider_guest: bool = False) -> Future[str | None]:
+		result: Future[str | None] = Future()
+		try:
+			self._post_ui(self._request, result, reconsider_guest)
+		except Exception as error:
+			result.set_exception(error)
+		return result
+
+	def close(self) -> Future[None]:
+		with self._state_lock:
+			if self._cleanup_future is not None:
+				return self._cleanup_future
+			self._closed = True
+			self._finish(error=ClientClosedError("access_token"))
+			client = self._client
+			cleanup: Future[None] = Future()
+			self._cleanup_future = cleanup
+
+		if client is None:
+			cleanup.set_result(None)
+		else:
+			threading.Thread(
+				target=self._close_client,
+				args=(client, cleanup),
+				name="coseeing-auth-session-cleanup",
+				daemon=True,
+			).start()
+		return cleanup
+
+	def _close_client(self, client: object, cleanup: Future[None]) -> None:
+		try:
+			client.close()
+		except Exception as error:
+			cleanup.set_exception(error)
+		else:
+			cleanup.set_result(None)
+
+	def _request(self, waiter: Future[str | None], reconsider_guest: bool) -> None:
+		if self._closed:
+			self._complete(waiter, error=ClientClosedError("access_token"))
+			return
+		if reconsider_guest:
+			self._guest = False
+		if self._active:
+			self._waiters.append(waiter)
+			return
+		if self._guest:
+			self._complete(waiter, value=None)
+			return
+
+		self._waiters.append(waiter)
+		self._active = True
+		if self._session_ready:
+			self._start_access_token()
+			return
+		try:
+			refresh_token = self._read_refresh_token()
+		except Exception as error:
+			self._fail(error)
+			return
+		if refresh_token:
+			self._start_restore(refresh_token)
+		else:
+			self._start_prompt()
+
+	def _get_client(self):
+		if self._client is None:
+			self._client = self._client_factory()
+		return self._client
+
+	def _start_restore(self, refresh_token: str) -> None:
+		try:
+			future = self._get_client().restore(refresh_token)
+			self._watch(future, self._restore_succeeded)
+		except Exception as error:
+			self._fail(error)
+
+	def _restore_succeeded(self, _result: object) -> None:
+		self._session_ready = True
+		self._start_access_token()
+
+	def _start_access_token(self) -> None:
+		try:
+			future = self._get_client().get_access_token(auto_login=False)
+			self._watch(future, self._token_succeeded)
+		except Exception as error:
+			self._fail(error)
+
+	def _start_prompt(self) -> None:
+		try:
+			choice = self._prompt_login()
+		except Exception as error:
+			self._fail(error)
+			return
+		if choice == "guest":
+			self._guest = True
+			self._finish(value=None)
+		elif choice == "cancel":
+			self._finish(error=CancelledError())
+		elif choice == "login":
+			try:
+				future = self._get_client().login()
+				self._watch(future, self._login_succeeded)
+			except Exception as error:
+				self._fail(error)
+		else:
+			self._fail(ValueError(f"unknown login choice: {choice!r}"))
+
+	def _login_succeeded(self, _result: object) -> None:
+		self._session_ready = True
+		self._start_access_token()
+
+	def _token_succeeded(self, access_token: str) -> None:
+		try:
+			future = self._get_client().get_refresh_token()
+			self._watch(future, lambda refresh: self._refresh_succeeded(access_token, refresh))
+		except Exception as error:
+			self._fail(error)
+
+	def _refresh_succeeded(self, access_token: str, refresh_token: str | None) -> None:
+		try:
+			self._save_refresh_token(refresh_token)
+		except Exception as error:
+			self._fail(error)
+		else:
+			self._finish(value=access_token)
+
+	def _watch(self, future: Future, succeeded: Callable[[object], None]) -> None:
+		def completed(done: Future) -> None:
+			self._post_ui(deliver, done)
+
+		def deliver(done: Future) -> None:
+			if self._closed:
+				return
+			try:
+				value = done.result()
+			except Exception as error:
+				self._fail(error)
+			else:
+				succeeded(value)
+
+		future.add_done_callback(completed)
+
+	def _fail(self, error: Exception) -> None:
+		if isinstance(error, (RestoreError, TokenUnavailableError)) and error.code in {
+			"refresh_rejected",
+			"refresh_unavailable",
+		}:
+			if error.code == "refresh_rejected":
+				self._session_ready = False
+				try:
+					self._save_refresh_token(None)
+				except Exception as save_error:
+					self._finish(error=save_error)
+					return
+			self._start_prompt()
+			return
+		self._finish(error=error)
+
+	def _finish(self, *, value: str | None = None, error: Exception | None = None) -> None:
+		self._active = False
+		waiters, self._waiters = self._waiters, []
+		for waiter in waiters:
+			self._complete(waiter, value=value, error=error)
+
+	@staticmethod
+	def _complete(
+		waiter: Future[str | None], *, value: str | None = None, error: Exception | None = None
+	) -> None:
+		if waiter.done():
+			return
+		if error is None:
+			waiter.set_result(value)
+		else:
+			waiter.set_exception(error)
