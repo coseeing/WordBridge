@@ -201,3 +201,60 @@ No Linux `.so` files are included.
 - The isolated subprocess validation for the native modules remains skipped on
   Linux and must be run with both corresponding NVDA Windows runtimes before
   release. The test does not claim live Windows validation.
+
+## Review fix report, round 3 (2026-09-13)
+
+### Findings addressed
+
+- Windows subprocesses now receive an explicit sanitized environment containing
+  only available `SystemRoot`/`SystemDrive` values and a `PATH` consisting only
+  of the selected dependency bundle and addon package. `PYTHONPATH` is omitted,
+  and the subprocess asserts it is absent.
+- The Windows configuration contract runs fully in the isolated subprocess,
+  including all approved URI, scope, client, and timeout assertions. The same
+  process selects and validates `py311-win32` or `py313-win_amd64`, then
+  `build_auth_config()` selects the matching dependency directory.
+- The non-Windows test no longer adds `sysconfig` `purelib` or any host
+  site-packages to `sys.path`. It explicitly skips the complete configuration
+  and native import checks because the supplied bundles contain Windows native
+  modules that cannot execute on Linux.
+- `coseeing_auth/__init__.py` remains byte-for-byte identical to the supplied
+  package source.
+
+### Fix commit
+
+- The round-3 fix commit is recorded after this report is staged.
+
+### Covering tests and checks
+
+#### `python3 -m pytest tests/test_coseeing_auth_bundle.py -q`
+
+```text
+s.s                                                                      [100%]
+1 passed, 2 skipped in 0.02s
+```
+
+The passing test verifies both runtime bundle layouts and native backend file
+presence. The first skip is the complete Windows configuration contract, and
+the second is the Windows dependency import test. Both are explicitly skipped
+on Linux with clear Windows runtime reasons; no live native validation is
+claimed.
+
+#### `python3 -m compileall -q addon/globalPlugins/WordBridge/lib/coseeing_auth.py tests/test_coseeing_auth_bundle.py`
+
+```text
+<no output; exit status 0>
+```
+
+#### Source preservation check
+
+```text
+coseeing_auth/__init__.py byte-for-byte-match
+```
+
+### Unresolved platform limitations
+
+- The complete contract and all native origin checks require execution under
+  both CPython 3.11 win32 and CPython 3.13 win_amd64 NVDA runtimes. Those
+  runtimes are unavailable on this Linux host, so Windows acceptance remains
+  pending.

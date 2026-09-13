@@ -1,7 +1,7 @@
 import subprocess
 import sys
 import struct
-import sysconfig
+import os
 from pathlib import Path
 
 import pytest
@@ -24,62 +24,50 @@ RUNTIME_BUNDLES = {
 }
 
 
-def _explicit_linux_test_dependency_path() -> Path:
-	path = Path(sysconfig.get_paths()["purelib"]).resolve()
-	assert path.is_dir()
-	for package in ("authlib", "requests", "jwt", "cryptography"):
-		assert (path / package).exists()
-	if str(path) not in sys.path:
-		sys.path.insert(0, str(path))
-	return path
+def _sanitized_windows_environment(dependencies: Path, bundle: Path) -> dict[str, str]:
+	env = {
+		key: os.environ[key]
+		for key in ("SystemRoot", "SystemDrive")
+		if key in os.environ
+	}
+	env["PATH"] = os.pathsep.join((str(dependencies), str(bundle)))
+	return env
 
 
 def test_sso_configuration_matches_approved_demo():
 	if sys.platform != "win32":
-		_explicit_linux_test_dependency_path()
-	from lib.coseeing_auth import build_auth_config
-
-	value = build_auth_config()
-	assert value.issuer == "https://sso.coseeing.org"
-	assert value.client_id == "a11yvillage"
-	assert set(value.scopes) == {"openid", "profile", "email", "offline_access"}
-	assert value.login_redirect_uri == "http://127.0.0.1:8765/auth-callback"
-	assert value.logout_redirect_uri == "http://127.0.0.1:8765/logout-callback"
-	assert value.callback_timeout == 180
-
-
-def test_non_windows_configuration_uses_explicit_test_dependency_setup():
-	if sys.platform == "win32":
-		pytest.skip("Non-Windows test dependency setup is only for development hosts")
+		pytest.skip("The supplied Windows native dependency bundles cannot run on this host")
 
 	bundle = PACKAGE_ROOT.resolve()
-	dependencies = _explicit_linux_test_dependency_path()
+	dependencies = bundle / "_coseeing_auth_deps"
 	code = """
 import sys
 from pathlib import Path
 
 bundle = Path(sys.argv[1]).resolve()
-dependencies = Path(sys.argv[2]).resolve()
-sys.path.insert(0, str(dependencies))
+assert "PYTHONPATH" not in __import__("os").environ
+runtime = f"py{sys.version_info.major}{sys.version_info.minor}-{'win32' if __import__('struct').calcsize('P') == 4 else 'win_amd64'}"
+assert runtime in {"py311-win32", "py313-win_amd64"}
+deps = bundle / "_coseeing_auth_deps" / runtime
 sys.path.insert(0, str(bundle.parent))
-sys.path.insert(0, str(bundle))
 from lib.coseeing_auth import build_auth_config
 import coseeing_auth
 
 value = build_auth_config()
 assert value.issuer == "https://sso.coseeing.org"
+assert value.client_id == "a11yvillage"
+assert set(value.scopes) == {"openid", "profile", "email", "offline_access"}
+assert value.login_redirect_uri == "http://127.0.0.1:8765/auth-callback"
+assert value.logout_redirect_uri == "http://127.0.0.1:8765/logout-callback"
+assert value.callback_timeout == 180
 assert Path(coseeing_auth.__file__).resolve().is_relative_to(bundle)
-assert Path(sys.modules["authlib"].__file__).resolve().is_relative_to(dependencies)
-assert Path(sys.modules["requests"].__file__).resolve().is_relative_to(dependencies)
-assert Path(sys.modules["jwt"].__file__).resolve().is_relative_to(dependencies)
-assert Path(sys.modules["cryptography"].__file__).resolve().is_relative_to(dependencies)
 """
 	subprocess.run(
-		[sys.executable, "-I", "-S", "-c", code, str(bundle), str(dependencies)],
+		[sys.executable, "-I", "-S", "-c", code, str(bundle)],
 		check=True,
 		capture_output=True,
 		text=True,
-		env={},
+		env=_sanitized_windows_environment(dependencies, bundle),
 	)
 
 
@@ -96,12 +84,15 @@ def test_windows_bundle_imports_dependencies_from_addon_package():
 		pytest.skip("Windows NVDA bundle import requires a Windows target runtime")
 
 	bundle = PACKAGE_ROOT.resolve()
+	dependencies = bundle / "_coseeing_auth_deps"
 	code = """
 import sys
 import struct
+import os
 from pathlib import Path
 
 bundle = Path(sys.argv[1]).resolve()
+assert "PYTHONPATH" not in os.environ
 runtime = f"py{sys.version_info.major}{sys.version_info.minor}-{'win32' if struct.calcsize('P') == 4 else 'win_amd64'}"
 assert runtime in {"py311-win32", "py313-win_amd64"}
 deps = bundle / "_coseeing_auth_deps" / runtime
@@ -136,4 +127,5 @@ for module in (authlib, jwt, requests, cryptography, cffi, _cffi_backend,
 		check=True,
 		capture_output=True,
 		text=True,
+		env=_sanitized_windows_environment(dependencies, bundle),
 	)
