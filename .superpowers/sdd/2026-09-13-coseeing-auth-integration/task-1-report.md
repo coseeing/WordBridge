@@ -78,3 +78,63 @@ charset-normalizer and no Linux `.so` files.
   2026.1.1 range.
 - The bundle includes the full Authlib and cryptography distributions supplied
   or selected for the auth client, so the package addition is large.
+
+## Review fix report (2026-09-13)
+
+### Findings addressed
+
+- Added runtime-specific dependency bundles for CPython 3.11 win32 and
+  CPython 3.13 win_amd64, and updated the integration layer to select the
+  bundle from the running Python version and pointer width.
+- Added the complete cffi backend for both runtimes:
+  `_cffi_backend.cp311-win32.pyd` and `_cffi_backend.cp313-win_amd64.pyd`.
+  Matching native cryptography and charset-normalizer files are also present
+  in each runtime bundle.
+- Hardened the Windows import check with `-I -S`, an explicit supported
+  runtime matrix, runtime-specific dependency selection, and source checks for
+  coseeing_auth plus all direct and transitive dependency modules.
+- Restored `addon/globalPlugins/WordBridge/package/coseeing_auth/__init__.py`
+  byte-for-byte from the supplied auth package source. Runtime dependency
+  selection is implemented in the integration layer instead.
+
+### Fix commit
+
+- `c39758c fix: make Coseeing auth bundle runtime-specific`
+
+### Covering tests and checks
+
+#### `python3 -m pytest tests/test_coseeing_auth_bundle.py -q`
+
+```text
+..s                                                                      [100%]
+2 passed, 1 skipped in 0.25s
+```
+
+The skipped test is the Windows-only isolated import test; no Windows NVDA
+runtime is available in this workspace.
+
+#### `python3 -m compileall -q addon/globalPlugins/WordBridge/lib/coseeing_auth.py tests/test_coseeing_auth_bundle.py`
+
+```text
+<no output; exit status 0>
+```
+
+#### Native bundle inventory
+
+```text
+py311-win32/_cffi_backend.cp311-win32.pyd
+py313-win_amd64/_cffi_backend.cp313-win_amd64.pyd
+```
+
+Both runtime directories also contain their matching cryptography and
+charset-normalizer native files, complete `.dist-info` metadata, and license
+files. No Linux `.so` files are included.
+
+### Remaining concerns
+
+- The two native import paths still require execution on the corresponding
+  Windows NVDA runtimes for final acceptance; this Linux workspace cannot load
+  Windows `.pyd` files.
+- The runtime-specific bundles duplicate pure Python dependencies, increasing
+  the addon package size, to keep each supported NVDA runtime independent of
+  host-installed packages.
