@@ -2,11 +2,9 @@ import struct
 import sys
 import threading
 from collections.abc import Callable
-from concurrent.futures import CancelledError, Future
+from concurrent.futures import CancelledError, Future, InvalidStateError
 from pathlib import Path
 from typing import TYPE_CHECKING
-
-from coseeing_auth.errors import ClientClosedError, RestoreError, TokenUnavailableError
 
 if TYPE_CHECKING:
 	from coseeing_auth import AuthConfig
@@ -32,6 +30,10 @@ def _prepare_auth_dependencies() -> None:
 		raise ImportError(f"Coseeing auth dependencies are unavailable for Python {sys.version_info[:2]}")
 	if path is not None and str(path) not in sys.path:
 		sys.path.insert(0, str(path))
+
+
+_prepare_auth_dependencies()
+from coseeing_auth.errors import ClientClosedError, RestoreError, TokenUnavailableError
 
 
 def build_auth_config() -> "AuthConfig":
@@ -69,6 +71,7 @@ class CoseeingAuthSession:
 		self._client = None
 		self._waiters: list[Future[str | None]] = []
 		self._active = False
+		self._close_requested = False
 		self._cleanup_future: Future[None] | None = None
 		self._state_lock = threading.RLock()
 
@@ -84,22 +87,38 @@ class CoseeingAuthSession:
 		with self._state_lock:
 			if self._cleanup_future is not None:
 				return self._cleanup_future
-			self._closed = True
-			self._finish(error=ClientClosedError("access_token"))
-			client = self._client
 			cleanup: Future[None] = Future()
 			self._cleanup_future = cleanup
+			self._close_requested = True
+		try:
+			self._post_ui(self._close_ui, cleanup)
+		except Exception as error:
+			with self._state_lock:
+				self._closed = True
+				self._finish(error=ClientClosedError("access_token"))
+				client = self._client
+			if client is None:
+				cleanup.set_exception(error)
+			else:
+				self._start_cleanup(client, cleanup)
+		return cleanup
 
+	def _close_ui(self, cleanup: Future[None]) -> None:
+		self._closed = True
+		self._finish(error=ClientClosedError("access_token"))
+		client = self._client
 		if client is None:
 			cleanup.set_result(None)
 		else:
-			threading.Thread(
-				target=self._close_client,
-				args=(client, cleanup),
-				name="coseeing-auth-session-cleanup",
-				daemon=True,
-			).start()
-		return cleanup
+			self._start_cleanup(client, cleanup)
+
+	def _start_cleanup(self, client: object, cleanup: Future[None]) -> None:
+		threading.Thread(
+			target=self._close_client,
+			args=(client, cleanup),
+			name="coseeing-auth-session-cleanup",
+			daemon=True,
+		).start()
 
 	def _close_client(self, client: object, cleanup: Future[None]) -> None:
 		try:
@@ -110,7 +129,7 @@ class CoseeingAuthSession:
 			cleanup.set_result(None)
 
 	def _request(self, waiter: Future[str | None], reconsider_guest: bool) -> None:
-		if self._closed:
+		if self._closed or self._is_closing():
 			self._complete(waiter, error=ClientClosedError("access_token"))
 			return
 		if reconsider_guest:
@@ -139,8 +158,17 @@ class CoseeingAuthSession:
 
 	def _get_client(self):
 		if self._client is None:
-			self._client = self._client_factory()
+			client = self._client_factory()
+			self._client = client
+			if self._is_closing():
+				raise ClientClosedError("access_token")
+		if self._is_closing():
+			raise ClientClosedError("access_token")
 		return self._client
+
+	def _is_closing(self) -> bool:
+		with self._state_lock:
+			return self._close_requested
 
 	def _start_restore(self, refresh_token: str) -> None:
 		try:
@@ -201,10 +229,15 @@ class CoseeingAuthSession:
 
 	def _watch(self, future: Future, succeeded: Callable[[object], None]) -> None:
 		def completed(done: Future) -> None:
-			self._post_ui(deliver, done)
+			try:
+				self._post_ui(deliver, done)
+			except Exception as error:
+				with self._state_lock:
+					if not self._closed:
+						self._finish(error=error)
 
 		def deliver(done: Future) -> None:
-			if self._closed:
+			if self._closed or self._is_closing():
 				return
 			try:
 				value = done.result()
@@ -216,7 +249,16 @@ class CoseeingAuthSession:
 		future.add_done_callback(completed)
 
 	def _fail(self, error: Exception) -> None:
-		if isinstance(error, (RestoreError, TokenUnavailableError)) and error.code in {
+		if isinstance(error, RestoreError) and error.code == "refresh_rejected":
+			self._session_ready = False
+			try:
+				self._save_refresh_token(None)
+			except Exception as save_error:
+				self._finish(error=save_error)
+				return
+			self._start_prompt()
+			return
+		if isinstance(error, TokenUnavailableError) and error.code in {
 			"refresh_rejected",
 			"refresh_unavailable",
 		}:
@@ -241,9 +283,10 @@ class CoseeingAuthSession:
 	def _complete(
 		waiter: Future[str | None], *, value: str | None = None, error: Exception | None = None
 	) -> None:
-		if waiter.done():
-			return
-		if error is None:
-			waiter.set_result(value)
-		else:
-			waiter.set_exception(error)
+		try:
+			if error is None:
+				waiter.set_result(value)
+			else:
+				waiter.set_exception(error)
+		except InvalidStateError:
+			pass

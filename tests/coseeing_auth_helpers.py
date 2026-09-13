@@ -1,11 +1,15 @@
 from collections import deque
 from concurrent.futures import Future
+from threading import Event, current_thread
 
 
 class FakeAuth:
-	def __init__(self):
+	def __init__(self, close_started=None, close_release=None):
 		self.calls = []
 		self.pending = deque()
+		self.close_started = close_started
+		self.close_release = close_release
+		self.close_thread_name = None
 
 	def _submit(self, name, *args, **kwargs):
 		result = Future()
@@ -27,18 +31,29 @@ class FakeAuth:
 
 	def close(self):
 		self.calls.append(("close", (), {}))
+		self.close_thread_name = current_thread().name
+		if self.close_started is not None:
+			self.close_started.set()
+		if self.close_release is not None:
+			self.close_release.wait(timeout=5)
 
 
 class AuthHarness:
-	def __init__(self, session_class, refresh=None, choice="guest", save_error=None):
-		self.auth = FakeAuth()
+	def __init__(self, session_class, refresh=None, choice="guest", save_error=None, close_blocked=False):
+		self.auth = None
+		self.close_started = Event() if close_blocked else None
+		self.close_release = Event() if close_blocked else None
 		self.queue = deque()
 		self.saved = refresh
 		self.choice = choice
 		self.save_error = save_error
 		self.prompts = 0
+		def make_auth():
+			self.auth = FakeAuth(self.close_started, self.close_release)
+			return self.auth
+
 		self.session = session_class(
-			client_factory=lambda: self.auth,
+			client_factory=make_auth,
 			post_ui=lambda fn, *args: self.queue.append((fn, args)),
 			read_refresh_token=lambda: self.saved,
 			save_refresh_token=self.save,
@@ -60,9 +75,11 @@ class AuthHarness:
 			fn(*args)
 
 	def resolve(self, value):
+		assert self.auth is not None
 		self.auth.pending.popleft().set_result(value)
 		self.drain()
 
 	def reject(self, error):
+		assert self.auth is not None
 		self.auth.pending.popleft().set_exception(error)
 		self.drain()
