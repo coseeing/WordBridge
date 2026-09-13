@@ -148,7 +148,7 @@ def test_global_plugin_starts_normalized_coseeing_auth_and_guards_queued_callbac
 	auth_calls = []
 	queued = []
 	settings = {
-		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"corrector_config_id": "gemini-3.1-pro-preview&Google",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 	}
@@ -156,17 +156,25 @@ def test_global_plugin_starts_normalized_coseeing_auth_and_guards_queued_callbac
 
 	instance = plugin.GlobalPlugin()
 	assert len(queued) == 1
-	instance.terminate()
 	callback, args = queued.pop(0)
 	callback(*args)
+	assert auth_calls == []
+	instance.terminate()
 	assert auth_calls == ["shutdown"]
+
+	settings["corrector_config_id"] = "deepseek-v4-flash&DeepSeek"
+	instance = plugin.GlobalPlugin()
+	callback, args = queued.pop(0)
+	instance.terminate()
+	callback(*args)
+	assert auth_calls == ["shutdown", "shutdown"]
 
 	instance = plugin.GlobalPlugin()
 	callback, args = queued.pop(0)
 	callback(*args)
-	assert auth_calls == ["shutdown", "Coseeing"]
+	assert auth_calls == ["shutdown", "shutdown", "Coseeing"]
 	instance.terminate()
-	assert auth_calls == ["shutdown", "Coseeing", "shutdown"]
+	assert auth_calls == ["shutdown", "shutdown", "Coseeing", "shutdown"]
 	assert gui.settingsDialogs.NVDASettingsDialog.categoryClasses == []
 	assert config.conf["WordBridge"]["settings"]["execution_channel"] == "Coseeing"
 
