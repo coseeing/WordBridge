@@ -49,6 +49,7 @@ covered by focused tests in `tests/test_coseeing_auth.py` and
 - `fdfc273` — `feat: connect Coseeing auth to NVDA settings and dialogs`
 - `bae1a32` — `fix: address Coseeing auth Task 3 review findings`
 - `4836d7b` — `docs: append Task 3 review verification`
+- `aef56d5` — `fix: serialize concurrent Coseeing shutdown publication`
 
 ## Review round 2
 
