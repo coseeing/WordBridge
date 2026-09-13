@@ -32,6 +32,7 @@ from .configManager import load_corrector_task_config, normalize_selection
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.application.task_runner import run_typo_correction
 from .lib.coseeing import obtain_openai_key
+from .lib.coseeing_auth import shutdown_coseeing_auth, start_coseeing_auth
 from .lib.decimalUtils import decimal_to_str_0
 from .lib.tasks.typo.utils import strings_diff
 from .lib.viewHTML import text2template
@@ -67,6 +68,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(LLMSettingsPanel)
+		self._coseeing_auth_terminated = False
+		settings = config.conf["WordBridge"]["settings"]
+		_, channel, _ = normalize_selection(
+			configManager,
+			settings["corrector_config_id"],
+			settings["execution_channel"],
+		)
+		wx.CallAfter(self._start_coseeing_auth, channel)
 		self.latest_action = {
 			"request": None,
 			"response": None,
@@ -75,9 +84,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		}
 		self.correct_typo_thread = None
 
+	def _start_coseeing_auth(self, channel):
+		if not self._coseeing_auth_terminated:
+			start_coseeing_auth(channel)
+
 	def terminate(self, *args, **kwargs):
-		super().terminate(*args, **kwargs)
+		self._coseeing_auth_terminated = True
+		shutdown_coseeing_auth()
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(LLMSettingsPanel)
+		super().terminate(*args, **kwargs)
 
 	def onSettings(self, evt):
 		wx.CallAfter(

@@ -97,18 +97,18 @@ class CorrectorCatalogTests(unittest.TestCase):
 
 		self.assertEqual(execution_channel, "local")
 
-	def test_save_coseeing_credentials_skips_when_coseeing_controls_are_absent(self):
-		from configManager import save_coseeing_credentials
-
+	def test_legacy_coseeing_credentials_remain_unmodified_in_settings_data(self):
 		settings = {
 			"coseeing_username": "existing-user",
 			"coseeing_password": "existing-password",
+			"api_key": {"Coseeing": "existing-refresh"},
 		}
 
-		save_coseeing_credentials(settings, {}, {})
+		settings["api_key"]["OpenAI"] = "updated-key"
 
 		self.assertEqual(settings["coseeing_username"], "existing-user")
 		self.assertEqual(settings["coseeing_password"], "existing-password")
+		self.assertEqual(settings["api_key"]["Coseeing"], "existing-refresh")
 
 
 if __name__ == "__main__":

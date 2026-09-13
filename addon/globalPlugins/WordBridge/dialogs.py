@@ -13,8 +13,9 @@ from gui import guiHelper, nvdaControls
 from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
 
-from . configManager import ConfigManager, normalize_selection, save_coseeing_credentials
+from . configManager import ConfigManager, normalize_selection
 from .dictionary.dialog import DictionaryEntryDialog
+from .lib.coseeing_auth import start_coseeing_auth
 
 addonHandler.initTranslation()
 
@@ -102,14 +103,6 @@ class LLMSettingsPanel(SettingsPanel):
 			if endpoint not in config.conf["WordBridge"]["settings"]["api_key"]:
 				config.conf["WordBridge"]["settings"]["api_key"][endpoint] = ""
 
-			firstInfoText = _("Username:") if endpoint == "Coseeing" else _("API Key:")
-			secondInfoText = _("Password:") if endpoint == "Coseeing" else _("Secret Key:")
-			if endpoint == "Coseeing":
-				firstInfo = config.conf["WordBridge"]["settings"]["coseeing_username"]
-				secondInfo = config.conf["WordBridge"]["settings"]["coseeing_password"]
-			else:
-				firstInfo = config.conf["WordBridge"]["settings"]["api_key"][endpoint]
-
 			accountBoxSizer = wx.StaticBoxSizer(
 				wx.VERTICAL,
 				self,
@@ -118,20 +111,19 @@ class LLMSettingsPanel(SettingsPanel):
 			self.accountGroupSizerMap[endpoint] = accountBoxSizer
 			self.accountGroupSizerHelper = guiHelper.BoxSizerHelper(self, sizer=accountBoxSizer)
 			settingsSizerHelper.addItem(self.accountGroupSizerHelper)
+			if endpoint == "Coseeing":
+				self.accountGroupSizerHelper.addItem(wx.StaticText(
+					self,
+					label=_("Sign in to Coseeing in your browser, or choose to continue as a guest when saving settings."),
+				))
+				continue
+
 			self.accountTextCtrlMap1[endpoint] = self.accountGroupSizerHelper.addLabeledControl(
-				firstInfoText,
+				_("API Key:"),
 				wx.TextCtrl,
 				size=(self.scaleSize(375), -1),
-				value=firstInfo,
+				value=config.conf["WordBridge"]["settings"]["api_key"][endpoint],
 			)
-			if endpoint == "Coseeing":
-				self.accountTextCtrlMap2[endpoint] = self.accountGroupSizerHelper.addLabeledControl(
-					secondInfoText,
-					wx.TextCtrl,
-					size=(self.scaleSize(375), -1),
-					value=secondInfo,
-					style=wx.TE_PASSWORD if endpoint == "Coseeing" else wx.TE_PROCESS_ENTER,
-				)
 
 		self._refreshAccountInfo()
 
@@ -259,18 +251,12 @@ class LLMSettingsPanel(SettingsPanel):
 		config.conf["WordBridge"]["settings"]["customized_words_enable"] = self.customizedWordEnable.GetValue()
 		config.conf["WordBridge"]["settings"]["sound_effects_enable"] = self.soundEffectsEnable.GetValue()
 
-		save_coseeing_credentials(
-			config.conf["WordBridge"]["settings"],
-			self.accountTextCtrlMap1,
-			self.accountTextCtrlMap2,
-		)
 		for ep in configManager.endpoints.keys():
-			if ep == "Coseeing":
-				continue
 			provider_tmp = ep
 			if provider_tmp in self.accountTextCtrlMap1:
 				api_key_tmp = self.accountTextCtrlMap1[provider_tmp].GetValue()
 				config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = api_key_tmp
+		wx.CallAfter(start_coseeing_auth, selected_item.execution_channel)
 
 	def onChangeProviderChoice(self, evt):
 		provider_index = self.providerList.GetSelection()

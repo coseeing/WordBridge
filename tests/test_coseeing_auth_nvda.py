@@ -1,11 +1,319 @@
 from concurrent.futures import Future
+import importlib.util
+import ctypes
 from threading import Event, RLock, Thread, current_thread
 from types import SimpleNamespace
+from pathlib import Path
 import sys
 
 import lib.coseeing_auth as module
 from coseeing_auth_helpers import FakeAuth
 from lib.coseeing_auth import CoseeingAuthSession
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
+
+
+def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued):
+	class Config(dict):
+		def save(self):
+			pass
+
+	config = SimpleNamespace(conf=Config({"WordBridge": {"settings": settings}}))
+	config.conf.spec = {}
+
+	class ParentPlugin:
+		initialized = 0
+		terminated = 0
+
+		def __init__(self, *args, **kwargs):
+			self.__class__.initialized += 1
+
+		def terminate(self, *args, **kwargs):
+			self.__class__.terminated += 1
+
+	class Choice:
+		def __init__(self, *args, **kwargs):
+			self.selection = 0
+
+		def SetSelection(self, value):
+			self.selection = value
+
+		def GetSelection(self):
+			return self.selection
+
+	wx_choice = Choice
+	class Wx:
+		CallAfter = staticmethod(lambda function, *args: queued.append((function, args)))
+		Choice = wx_choice
+		TE_PASSWORD = 1
+		TE_PROCESS_ENTER = 2
+		VERTICAL = 3
+		HORIZONTAL = 4
+		ALL = 5
+		EVT_CHOICE = object()
+		EVT_BUTTON = object()
+		OK = 6
+		CANCEL = 7
+		StaticText = type("StaticText", (), {})
+		StaticBoxSizer = type("StaticBoxSizer", (), {})
+		BoxSizer = type("BoxSizer", (), {})
+		Dialog = type("Dialog", (), {})
+		TextCtrl = type("TextCtrl", (), {})
+		CheckBox = type("CheckBox", (), {})
+		Button = type("Button", (), {})
+		ToolTip = staticmethod(lambda value: value)
+		Size = staticmethod(lambda width, height: (width, height))
+
+	gui = SimpleNamespace(
+		settingsDialogs=SimpleNamespace(
+			NVDASettingsDialog=type(
+				"NVDASettingsDialog",
+				(),
+				{"categoryClasses": []},
+			)
+		),
+		guiHelper=SimpleNamespace(
+			BoxSizerHelper=type("BoxSizerHelper", (), {}),
+			BORDER_FOR_DIALOGS=0,
+		),
+		nvdaControls=SimpleNamespace(SelectOnFocusSpinCtrl=object),
+		mainFrame=SimpleNamespace(),
+		contextHelp=SimpleNamespace(ContextHelpMixin=type("ContextHelpMixin", (), {})),
+	)
+	monkeypatch.setitem(sys.modules, "config", config)
+	monkeypatch.setitem(sys.modules, "wx", Wx)
+	monkeypatch.setitem(sys.modules, "gui", gui)
+	monkeypatch.setitem(sys.modules, "gui.settingsDialogs", SimpleNamespace(SettingsPanel=object))
+	monkeypatch.setitem(sys.modules, "gui.contextHelp", SimpleNamespace(ContextHelpMixin=type("ContextHelpMixin", (), {})))
+	monkeypatch.setitem(sys.modules, "globalPluginHandler", SimpleNamespace(GlobalPlugin=ParentPlugin))
+	monkeypatch.setitem(sys.modules, "addonHandler", SimpleNamespace(initTranslation=lambda: None))
+	monkeypatch.setitem(sys.modules, "api", SimpleNamespace())
+	monkeypatch.setitem(sys.modules, "logHandler", SimpleNamespace(log=SimpleNamespace()))
+	monkeypatch.setitem(sys.modules, "nvwave", SimpleNamespace())
+	monkeypatch.setitem(sys.modules, "scriptHandler", SimpleNamespace(script=lambda **kwargs: lambda function: function))
+	monkeypatch.setitem(sys.modules, "textInfos", SimpleNamespace(POSITION_SELECTION=object()))
+	monkeypatch.setitem(sys.modules, "tones", SimpleNamespace(beep=lambda *args: None))
+	monkeypatch.setitem(sys.modules, "ui", SimpleNamespace(message=lambda *args: None))
+	monkeypatch.setitem(sys.modules, "hanzidentifier", SimpleNamespace(has_chinese=lambda text: True))
+	monkeypatch.setitem(sys.modules, "configobj.validate", SimpleNamespace(
+		VdtValueTooBigError=ValueError,
+		VdtValueTooSmallError=ValueError,
+	))
+	monkeypatch.setitem(sys.modules, "configobj", SimpleNamespace(validate=sys.modules["configobj.validate"]))
+	monkeypatch.setitem(sys.modules, "requests", SimpleNamespace())
+	monkeypatch.setattr(
+		ctypes,
+		"windll",
+		SimpleNamespace(kernel32=SimpleNamespace(GetUserDefaultUILanguage=lambda: 1033)),
+		raising=False,
+	)
+
+	package_name = f"task4_wordbridge_{id(auth_calls)}"
+	package = type(sys)(package_name)
+	package.__path__ = [str(ADDON_PATH)]
+	monkeypatch.setitem(sys.modules, package_name, package)
+	auth_module = type(sys)(f"{package_name}.lib.coseeing_auth")
+	auth_module.start_coseeing_auth = lambda channel: auth_calls.append(channel) if channel == "Coseeing" else None
+	auth_module.shutdown_coseeing_auth = lambda: auth_calls.append("shutdown")
+	lib_package = type(sys)(f"{package_name}.lib")
+	lib_package.__path__ = [str(ADDON_PATH / "lib")]
+	monkeypatch.setitem(sys.modules, f"{package_name}.lib", lib_package)
+	monkeypatch.setitem(sys.modules, auth_module.__name__, auth_module)
+	monkeypatch.setitem(sys.modules, f"{package_name}.lib.coseeing", SimpleNamespace(obtain_openai_key=lambda *args: ""))
+	monkeypatch.setitem(sys.modules, f"{package_name}.lib.decimalUtils", SimpleNamespace(decimal_to_str_0=str))
+	monkeypatch.setitem(sys.modules, f"{package_name}.lib.tasks.typo.utils", SimpleNamespace(strings_diff=lambda *args: []))
+	monkeypatch.setitem(sys.modules, f"{package_name}.lib.viewHTML", SimpleNamespace(text2template=lambda *args: None))
+	monkeypatch.setitem(sys.modules, f"{package_name}.lib.application.task_runner", SimpleNamespace(run_typo_correction=lambda *args, **kwargs: None))
+	dictionary_package = type(sys)(f"{package_name}.dictionary")
+	dictionary_package.__path__ = [str(ADDON_PATH / "dictionary")]
+	monkeypatch.setitem(sys.modules, dictionary_package.__name__, dictionary_package)
+	monkeypatch.setitem(sys.modules, f"{package_name}.dictionary.dialog", SimpleNamespace(DictionaryEntryDialog=object))
+
+	monkeypatch.setattr("builtins._", lambda text: text, raising=False)
+	spec = importlib.util.spec_from_file_location(
+		package_name,
+		ADDON_PATH / "__init__.py",
+		submodule_search_locations=[str(ADDON_PATH)],
+	)
+	plugin = importlib.util.module_from_spec(spec)
+	sys.modules[package_name] = plugin
+	spec.loader.exec_module(plugin)
+	plugin.dialogs = sys.modules[f"{package_name}.dialogs"]
+	return plugin, config, gui
+
+
+def test_global_plugin_starts_normalized_coseeing_auth_and_guards_queued_callback(monkeypatch):
+	auth_calls = []
+	queued = []
+	settings = {
+		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"execution_channel": "Coseeing",
+		"api_key": {},
+	}
+	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
+
+	instance = plugin.GlobalPlugin()
+	assert len(queued) == 1
+	instance.terminate()
+	callback, args = queued.pop(0)
+	callback(*args)
+	assert auth_calls == ["shutdown"]
+
+	instance = plugin.GlobalPlugin()
+	callback, args = queued.pop(0)
+	callback(*args)
+	assert auth_calls == ["shutdown", "Coseeing"]
+	instance.terminate()
+	assert auth_calls == ["shutdown", "Coseeing", "shutdown"]
+	assert gui.settingsDialogs.NVDASettingsDialog.categoryClasses == []
+	assert config.conf["WordBridge"]["settings"]["execution_channel"] == "Coseeing"
+
+
+def test_settings_save_preserves_coseeing_refresh_token_and_starts_selected_channel(monkeypatch):
+	auth_calls = []
+	queued = []
+	settings = {
+		"corrector_config_id": "old&OpenAI",
+		"execution_channel": "local",
+		"api_key": {"Coseeing": "saved-refresh", "OpenAI": "old-key"},
+		"language": "zh_traditional",
+		"typo_correction_mode": "standard",
+		"max_char_count": 512,
+		"auto_display_report": False,
+		"customized_words_enable": True,
+		"sound_effects_enable": True,
+		"coseeing_username": "legacy-user",
+		"coseeing_password": "legacy-password",
+	}
+	plugin, config, _ = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
+	dialogs = plugin.dialogs
+
+	class Control:
+		def __init__(self, value):
+			self.value = value
+
+		def GetSelection(self):
+			return self.value
+
+		def GetValue(self):
+			return self.value
+
+	class Manager:
+		endpoints = {"OpenAI": [object()], "Coseeing": [object()]}
+		channel = "Coseeing"
+
+		def get_item_by_index(self, provider_index, model_index):
+			return SimpleNamespace(corrector_config_id="deepseek&DeepSeek", execution_channel=self.channel)
+
+	dialogs.configManager = Manager()
+	assert dialogs.configManager.get_item_by_index(0, 0).execution_channel == "Coseeing"
+	panel = object.__new__(dialogs.LLMSettingsPanel)
+	panel.providerList = Control(0)
+	panel.modelList = Control(0)
+	panel.languageList = Control(0)
+	panel.typoCorrectionModeList = Control(0)
+	panel.maxCharCountSpinCtrl = Control(512)
+	panel.autoDisplayReportEnable = Control(False)
+	panel.customizedWordEnable = Control(True)
+	panel.soundEffectsEnable = Control(True)
+	panel.accountTextCtrlMap1 = {"OpenAI": Control("updated-key")}
+	panel.accountTextCtrlMap2 = {}
+
+	panel.onSave()
+	assert config.conf["WordBridge"]["settings"]["execution_channel"] == "Coseeing"
+	assert settings["api_key"] == {"Coseeing": "saved-refresh", "OpenAI": "updated-key"}
+	assert settings["coseeing_username"] == "legacy-user"
+	assert settings["coseeing_password"] == "legacy-password"
+	assert len(queued) == 1
+	callback, args = queued.pop()
+	callback(*args)
+	assert auth_calls == ["Coseeing"]
+
+	Manager.channel = "local"
+	panel.onSave()
+	callback, args = queued.pop()
+	callback(*args)
+	assert config.conf["WordBridge"]["settings"]["execution_channel"] == "local"
+	assert auth_calls == ["Coseeing"]
+
+
+def test_settings_panel_keeps_coseeing_sizer_without_legacy_credential_controls(monkeypatch):
+	auth_calls = []
+	queued = []
+	settings = {
+		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"execution_channel": "Coseeing",
+		"api_key": {},
+		"language": "zh_traditional",
+		"typo_correction_mode": "standard",
+		"max_char_count": 512,
+		"auto_display_report": False,
+		"customized_words_enable": True,
+		"sound_effects_enable": True,
+		"coseeing_username": "legacy-user",
+		"coseeing_password": "legacy-password",
+	}
+	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
+	dialogs = plugin.dialogs
+
+	class Widget:
+		def __init__(self, *args, value="", **kwargs):
+			self.value = value
+
+		def SetSelection(self, value):
+			self.value = value
+
+		def GetSelection(self):
+			return self.value
+
+		def SetValue(self, value):
+			self.value = value
+
+		def GetValue(self):
+			return self.value
+
+		def SetToolTip(self, value):
+			pass
+
+		def Bind(self, event, callback):
+			pass
+
+	class Sizer:
+		def Show(self, item, recursive=True):
+			pass
+
+		def Hide(self, item, recursive=True):
+			pass
+
+	class Helper:
+		def __init__(self, owner, sizer=None, **kwargs):
+			self.sizer = sizer or Sizer()
+
+		def addLabeledControl(self, label, control_type, **kwargs):
+			return control_type(None, **kwargs)
+
+		def addItem(self, item):
+			return item
+
+	monkeypatch.setattr(gui.guiHelper, "BoxSizerHelper", Helper)
+	monkeypatch.setattr(plugin.wx, "Choice", Widget)
+	monkeypatch.setattr(plugin.wx, "TextCtrl", Widget)
+	monkeypatch.setattr(plugin.wx, "CheckBox", Widget)
+	monkeypatch.setattr(plugin.wx, "Button", Widget)
+	monkeypatch.setattr(plugin.wx, "StaticText", Widget)
+	monkeypatch.setattr(plugin.wx, "StaticBoxSizer", lambda *args, **kwargs: Sizer())
+	monkeypatch.setattr(gui.nvdaControls, "SelectOnFocusSpinCtrl", Widget)
+	config.conf.getConfigValidation = lambda path: SimpleNamespace(kwargs={"min": 256, "max": 4096})
+	panel = object.__new__(dialogs.LLMSettingsPanel)
+	panel.scaleSize = lambda value: value
+	panel._refreshAccountInfo = lambda: None
+	panel.makeSettings(Sizer())
+
+	assert "Coseeing" in panel.accountGroupSizerMap
+	assert "Coseeing" not in panel.accountTextCtrlMap1
+	assert "Coseeing" not in panel.accountTextCtrlMap2
 
 
 def _install_nvda(monkeypatch, *, dialog, wx, config=None, ui=None, log=None, call_after=None):
