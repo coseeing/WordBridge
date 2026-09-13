@@ -138,3 +138,66 @@ files. No Linux `.so` files are included.
 - The runtime-specific bundles duplicate pure Python dependencies, increasing
   the addon package size, to keep each supported NVDA runtime independent of
   host-installed packages.
+
+## Review fix report, round 2 (2026-09-13)
+
+### Findings addressed
+
+- The Windows bundle subprocess now runs with `-I -S` and `env={}`, derives
+  the runtime directory from Python major/minor version and pointer width, and
+  rejects runtimes outside `py311-win32` and `py313-win_amd64`.
+- The subprocess imports and origin-checks `coseeing_auth`, Authlib, requests,
+  PyJWT, cryptography, cffi, `_cffi_backend`, charset-normalizer, certifi,
+  idna, urllib3, and pycparser. Each dependency must resolve from the selected
+  runtime bundle; `coseeing_auth` must resolve from the addon package.
+- The non-Windows configuration check now explicitly supplies the development
+  test dependency directory in an isolated `-I -S` subprocess with an empty
+  environment. This makes the test setup visible and prevents accidental
+  masking by inherited `PYTHONPATH` or site initialization.
+- The test also explicitly provisions that same test-only dependency path for
+  the contract assertion. Deployment selection remains Windows-only and
+  runtime-specific in `build_auth_config()`.
+- `coseeing_auth/__init__.py` remains byte-for-byte identical to the supplied
+  package source; no lazy export change was reintroduced.
+
+### Fix commit
+
+- `c39758c fix: make Coseeing auth bundle runtime-specific` (runtime bundle,
+  dependency selection, and first-round validation fixes)
+- The round-2 test/report commit is recorded after this report is staged.
+
+### Covering tests and checks
+
+#### `python3 -m pytest tests/test_coseeing_auth_bundle.py -q`
+
+```text
+...s                                                                     [100%]
+3 passed, 1 skipped in 0.41s
+```
+
+The skipped test is the Windows-only import validation. No CPython 3.11 win32
+or CPython 3.13 win_amd64 NVDA runtime is available on this Linux host, so the
+test records the supported matrix and leaves live native import validation as
+a pending Windows acceptance item.
+
+#### `python3 -m compileall -q addon/globalPlugins/WordBridge/lib/coseeing_auth.py tests/test_coseeing_auth_bundle.py`
+
+```text
+<no output; exit status 0>
+```
+
+#### Source and native bundle checks
+
+```text
+coseeing_auth/__init__.py byte-for-byte-match
+py311-win32/_cffi_backend.cp311-win32.pyd
+py313-win_amd64/_cffi_backend.cp313-win_amd64.pyd
+```
+
+No Linux `.so` files are included.
+
+### Unresolved platform limitations
+
+- The isolated subprocess validation for the native modules remains skipped on
+  Linux and must be run with both corresponding NVDA Windows runtimes before
+  release. The test does not claim live Windows validation.

@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import struct
+import sysconfig
 from pathlib import Path
 
 import pytest
@@ -23,7 +24,19 @@ RUNTIME_BUNDLES = {
 }
 
 
+def _explicit_linux_test_dependency_path() -> Path:
+	path = Path(sysconfig.get_paths()["purelib"]).resolve()
+	assert path.is_dir()
+	for package in ("authlib", "requests", "jwt", "cryptography"):
+		assert (path / package).exists()
+	if str(path) not in sys.path:
+		sys.path.insert(0, str(path))
+	return path
+
+
 def test_sso_configuration_matches_approved_demo():
+	if sys.platform != "win32":
+		_explicit_linux_test_dependency_path()
 	from lib.coseeing_auth import build_auth_config
 
 	value = build_auth_config()
@@ -33,6 +46,41 @@ def test_sso_configuration_matches_approved_demo():
 	assert value.login_redirect_uri == "http://127.0.0.1:8765/auth-callback"
 	assert value.logout_redirect_uri == "http://127.0.0.1:8765/logout-callback"
 	assert value.callback_timeout == 180
+
+
+def test_non_windows_configuration_uses_explicit_test_dependency_setup():
+	if sys.platform == "win32":
+		pytest.skip("Non-Windows test dependency setup is only for development hosts")
+
+	bundle = PACKAGE_ROOT.resolve()
+	dependencies = _explicit_linux_test_dependency_path()
+	code = """
+import sys
+from pathlib import Path
+
+bundle = Path(sys.argv[1]).resolve()
+dependencies = Path(sys.argv[2]).resolve()
+sys.path.insert(0, str(dependencies))
+sys.path.insert(0, str(bundle.parent))
+sys.path.insert(0, str(bundle))
+from lib.coseeing_auth import build_auth_config
+import coseeing_auth
+
+value = build_auth_config()
+assert value.issuer == "https://sso.coseeing.org"
+assert Path(coseeing_auth.__file__).resolve().is_relative_to(bundle)
+assert Path(sys.modules["authlib"].__file__).resolve().is_relative_to(dependencies)
+assert Path(sys.modules["requests"].__file__).resolve().is_relative_to(dependencies)
+assert Path(sys.modules["jwt"].__file__).resolve().is_relative_to(dependencies)
+assert Path(sys.modules["cryptography"].__file__).resolve().is_relative_to(dependencies)
+"""
+	subprocess.run(
+		[sys.executable, "-I", "-S", "-c", code, str(bundle), str(dependencies)],
+		check=True,
+		capture_output=True,
+		text=True,
+		env={},
+	)
 
 
 def test_runtime_bundles_contain_native_backend_for_each_supported_runtime():
