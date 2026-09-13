@@ -41,7 +41,7 @@ Task 3: complete (commits f91c9f5..e8b4425, review clean)
 Task 4: fix round 1/5 (1 addressed, 3 minor deferred; commit 5b78b57)
 Task 4: complete (commits e8b4425..5b78b57, review clean; 3 minor deferred)
 
-Task 6: complete (commit 918fccb; focused suite 86 passed, 1 skipped; packaging and Windows/NVDA manual acceptance unavailable in this Linux environment)
+Task 6: complete (commits 918fccb, a564dfa, 41ac560; focused suite 86 passed, 1 skipped; full suite has 7 unrelated live/catalog failures; packaging and Windows/NVDA manual acceptance unavailable in this Linux environment)
 
 ## Task 6 verification ledger
 
@@ -52,3 +52,5 @@ Task 6: complete (commit 918fccb; focused suite 86 passed, 1 skipped; packaging 
 - Source bundle audit: 9 `coseeing_auth` Python modules; both `py311-win32` and `py313-win_amd64` have all 10 required dependency roots, 10 METADATA files, 12 license files, and zero forbidden deployable secret files.
 - Windows/NVDA: not run; no Windows NVDA or supported native runtime is available.
 - Task 6 fix: updated the stale architecture test from 14 to the current 13 catalog entries; committed as `918fccb`.
+- Full repository `python3 -m pytest -q`: 146 passed, 1 skipped, 7 unrelated failures (six live provider cost assertions and the stale Ollama filename assertion); no provider test or catalog file was changed.
+- Pytest discovery hygiene: `testpaths = ["tests"]` committed as `41ac560`, preventing vendored dependency tests from changing import order.

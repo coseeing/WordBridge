@@ -25,6 +25,22 @@ python -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py te
 `git diff --check` produced no output and exited 0. The targeted regression after
 the fix produced `1 passed in 0.18s`.
 
+The finishing workflow also ran the repository-wide command:
+
+```text
+python3 -m pytest -q
+..........................................................s............. [ 46%]
+................................FFFFFF.............................F.... [ 93%]
+..........                                                               [100%]
+7 failed, 146 passed, 1 skipped in 23.68s
+```
+
+The seven failures are six live provider integration assertions with zero
+reported cost and the pre-existing provider naming assertion that still expects
+the removed `ollama.json`. They are outside the Coseeing auth scope and were not
+changed. The pytest discovery hygiene fix that prevents vendored dependency
+tests from contaminating collection is `41ac560`.
+
 Packaging and translation checks were attempted exactly as requested:
 
 ```text
@@ -102,3 +118,8 @@ e12df36 feat: authorize Coseeing proofreader and feedback requests with SSO
 cb143c8 test: cover proofreader authentication failure
 918fccb test: align architecture catalog count
 ```
+
+The Task 6 delivery record is `a564dfa`; it records the implementation list
+above and is followed by `41ac560` for pytest discovery hygiene. The pre-existing
+worktree changes remain uncommitted: `addon/globalPlugins/WordBridge/package/coseeing-auth-dependencies.md`
+is modified and `WordBridge(include-auth)/` is untracked.
