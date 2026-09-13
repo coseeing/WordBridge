@@ -146,6 +146,63 @@ exit=0
   `addon/globalPlugins/WordBridge/package/coseeing-auth-dependencies.md` was
   left untouched and unstaged.
 
+## Review fix round 3 report (2026-09-13)
+
+### Findings addressed
+
+- High: client construction now tracks its in-progress UI operation. If close
+  is requested while the factory is paused and the close callback cannot be
+  scheduled, publication hands the client to the one-time cleanup owner before
+  rejecting the operation, so the client is closed exactly once and cleanup
+  completion reflects the real close call.
+- High: close scheduling retries the UI close transition before reporting an
+  unrecoverable scheduling error. An active waiter is completed by the queued
+  UI transition before cleanup completes; cleanup is not reported successful
+  merely because a client cleanup thread finished.
+- Medium: watcher delivery retries scheduler-error delivery through the UI
+  queue after a second scheduling failure. The test uses a deterministic
+  repeated-failure schedule and verifies the final error delivery completes the
+  waiter on the UI queue without callback-thread state mutation.
+- Added deterministic tests for both close race paths and repeated watcher
+  scheduler failure. All prior behavior tests remain green.
+
+### Fix commit
+
+- `24a3f62` (`24a3f624cc568b8b34b36c994eb9e3153ad2ab37`):
+  `fix: harden Coseeing auth close handoff`
+
+### Verification commands and exact output
+
+#### `python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_bundle.py -q`
+
+```text
+................................s                                        [100%]
+32 passed, 1 skipped in 0.33s
+exit=0
+```
+
+#### `python3 -m compileall -q addon/globalPlugins/WordBridge/lib/coseeing_auth.py tests/coseeing_auth_helpers.py tests/test_coseeing_auth.py`
+
+```text
+<no output>
+exit=0
+```
+
+#### `git diff --check`
+
+```text
+<no output>
+exit=0
+```
+
+### Concerns
+
+- The combined suite retains one expected Windows native dependency skip on
+  this Linux host.
+- The pre-existing modification to
+  `addon/globalPlugins/WordBridge/package/coseeing-auth-dependencies.md` was
+  left untouched and unstaged.
+
 ## Review fix round 2 report (2026-09-13)
 
 ### Findings addressed
