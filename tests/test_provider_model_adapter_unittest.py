@@ -302,11 +302,11 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		provider.backoff = 1
 
 		with patch("lib.llm.provider.requests.post", side_effect=fake_post):
-			provider.send(payload, model_name="gemini-2.5-flash")
+			provider.send(payload, model_name="gemini-3.8-flash")
 
 		self.assertEqual(
 			captured["api_url"],
-			"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=google-key",
+			"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=google-key",
 		)
 		self.assertEqual(captured["json"], payload)
 
@@ -314,7 +314,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.adapter import GoogleAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("Google", "gemini-2.5-flash")
+		adapter = get_provider_model_adapter("Google", "gemini-3.8-flash")
 		self.assertIsInstance(adapter, GoogleAdapter)
 
 		payload = adapter.format_request(
@@ -342,23 +342,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 				"temperature": 0.0,
 				"topP": 0.0,
 				"stopSequences": [" =>"],
-				"thinkingConfig": {"thinkingBudget": 0},
 			},
-		)
-
-	def test_google_adapter_restores_gemini_25_pro_thinking_default(self):
-		from lib.llm.adapter import get_provider_model_adapter
-		from lib.llm.prompt_bundle import PromptBundle
-
-		adapter = get_provider_model_adapter("Google", "gemini-2.5-pro")
-		payload = adapter.format_request(
-			prompt_bundle=PromptBundle(messages=[], system_template="系統提示"),
-			setting={"maxOutputTokens": 4096},
-		)
-
-		self.assertEqual(
-			payload["generationConfig"],
-			{"maxOutputTokens": 4096, "thinkingConfig": {"thinkingBudget": 128}},
 		)
 
 	def test_deepseek_adapter_applies_provider_settings_at_top_level(self):

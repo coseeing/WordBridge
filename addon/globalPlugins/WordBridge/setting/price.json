@@ -45,16 +45,6 @@
     },
     "usage_key": "usage"
   },
-  "gemini-2.5-pro&Google": {
-    "model": "gemini-2.5-pro",
-    "provider": "Google",
-    "pricing": {
-      "promptTokenCount": 1.25,
-      "candidatesTokenCount": 10.0,
-      "base_unit": 1000000
-    },
-    "usage_key": "usageMetadata"
-  },
   "gemini-3.1-pro-preview&Google": {
     "model": "gemini-3.1-pro-preview",
     "provider": "Google",
@@ -75,16 +65,6 @@
     },
     "usage_key": "usageMetadata"
   },
-  "gemini-3.5-flash&Google": {
-    "model": "gemini-3.5-flash",
-    "provider": "Google",
-    "pricing": {
-      "promptTokenCount": 1.5,
-      "candidatesTokenCount": 9.0,
-      "base_unit": 1000000
-    },
-    "usage_key": "usageMetadata"
-  },
   "gemini-3.5-flash-lite&Google": {
     "model": "gemini-3.5-flash-lite",
     "provider": "Google",
@@ -95,12 +75,22 @@
     },
     "usage_key": "usageMetadata"
   },
-  "gemini-3.6-flash&Google": {
-    "model": "gemini-3.6-flash",
+  "gemini-3.7-flash&Google": {
+    "model": "gemini-3.7-flash",
     "provider": "Google",
     "pricing": {
-      "promptTokenCount": 1.5,
-      "candidatesTokenCount": 7.5,
+      "promptTokenCount": 0.75,
+      "candidatesTokenCount": 3.75,
+      "base_unit": 1000000
+    },
+    "usage_key": "usageMetadata"
+  },
+  "gemini-3.8-flash&Google": {
+    "model": "gemini-3.8-flash",
+    "provider": "Google",
+    "pricing": {
+      "promptTokenCount": 0.75,
+      "candidatesTokenCount": 3.75,
       "base_unit": 1000000
     },
     "usage_key": "usageMetadata"
@@ -109,8 +99,8 @@
     "model": "gpt-5.6-sol",
     "provider": "OpenAI",
     "pricing": {
-      "input_tokens": 5,
-      "output_tokens": 30,
+      "input_tokens": 4,
+      "output_tokens": 20,
       "base_unit": 1000000
     },
     "usage_key": "usage"

@@ -100,14 +100,7 @@ class AnthropicAdapter(ProviderModelAdapter):
 
 class GoogleAdapter(ProviderModelAdapter):
 	def _build_generation_config(self, setting: dict) -> dict:
-		generation_config = deepcopy(setting)
-
-		if self.model_name.startswith("gemini-2.5-pro"):
-			generation_config["thinkingConfig"] = {"thinkingBudget": 128}
-		elif self.model_name.startswith("gemini-2.5-flash"):
-			generation_config["thinkingConfig"] = {"thinkingBudget": 0}
-
-		return generation_config
+		return deepcopy(setting)
 
 	def format_request(self, prompt_bundle, setting: dict):
 		contents = []

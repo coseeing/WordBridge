@@ -136,6 +136,47 @@
 				margin: 0.4rem 0;
 				padding-inline-start: 2.4rem;
 			}
+			.correction-dialog__entry {
+				display: grid;
+				grid-template-columns: 4rem minmax(0, 1fr);
+				column-gap: 1.2rem;
+				align-items: start;
+			}
+			.correction-dialog__entry + .correction-dialog__entry {
+				margin-top: 1.2rem;
+			}
+			.correction-dialog__text {
+				grid-column: 1;
+				align-self: center;
+				margin: 0;
+				font-size: 2.8rem;
+				font-weight: 700;
+				line-height: 1.2;
+				text-align: center;
+			}
+			.correction-dialog__entry ul {
+				grid-column: 2;
+				margin: 0;
+			}
+			.correction-dialog__section + .correction-dialog__section {
+				margin-top: 1.6rem;
+			}
+			.correction-dialog__label {
+				display: inline-block;
+				margin: 0;
+				padding: 0.25rem 0.75rem;
+				border-radius: 999px;
+				font-size: 1.4rem;
+				font-weight: 700;
+			}
+			.correction-dialog__label--original {
+				background: #eee6d8;
+				color: #4a4439;
+			}
+			.correction-dialog__label--corrected {
+				background: #dce9e6;
+				color: var(--color-teal-primary);
+			}
 			.correction-dialog .swal2-actions {
 				width: 100%;
 				justify-content: flex-end;
@@ -246,27 +287,22 @@
 						const descs_before = data.descs_before || [];
 						const descs_after = data.descs_after || [];
 
-						const html = "<ul>" + descs_before.reduce((a, b) => {
+						const buildDescriptionList = (descriptions) => descriptions.reduce((a, b) => {
 							let chr = "";
-							let desc = "";
+							let descs = [];
 							try{
 								chr = b[0];
-								const descs = b[1].slice(",");
-								desc = "<ul>" + descs.reduce((a, b) => `${a}<li>${b}</li>`, "") + "</ul>";
+								descs = b[1].slice(",");
 							} catch(e){
 							}
-							return `${a}<li>${chr}:${desc}</li>`;
-						}, "") + descs_after.reduce((a, b) => {
-							let chr = "";
-							let desc = "";
-							try{
-								chr = b[0];
-								const descs = b[1].slice(",");
-								desc = "<ul>" + descs.reduce((a, b) => `${a}<li>${b}</li>`, "") + "</ul>";
-							} catch(e){
-							}
-							return `${a}<li>${chr}:${desc}</li>`;
-						}, "") + "</ul>"
+							const descriptionsHtml = descs.length
+								? "<ul>" + descs.reduce((a, b) => `${a}<li>${b}</li>`, "") + "</ul>"
+								: "";
+							return `${a}<div class="correction-dialog__entry"><p class="correction-dialog__text">${chr}</p>${descriptionsHtml}</div>`;
+						}, "");
+						const html = data.operation === "文字替換"
+							? `<section class="correction-dialog__section"><h3 class="correction-dialog__label correction-dialog__label--original">原始文字</h3>${buildDescriptionList(descs_before)}</section><section class="correction-dialog__section"><h3 class="correction-dialog__label correction-dialog__label--corrected">修正文字</h3>${buildDescriptionList(descs_after)}</section>`
+							: buildDescriptionList([...descs_before, ...descs_after]);
 						Swal.fire({
 							title: data.operation,
 							html,

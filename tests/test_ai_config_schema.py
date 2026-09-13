@@ -14,7 +14,7 @@ def test_ai_configs_use_endpoint_only_schema():
 	allowed_keys = required_keys | {"active"}
 	ai_paths = sorted(AI_CONFIG_DIR.glob("*.json"))
 
-	assert len(ai_paths) == 14
+	assert len(ai_paths) == 13
 	for path in ai_paths:
 		with path.open("r", encoding="utf-8") as f:
 			config = json.load(f)
@@ -65,12 +65,11 @@ def test_provider_catalogs_preserve_approved_and_unaffected_models():
 		"Anthropic": {"claude-opus-5", "claude-sonnet-5"},
 		"DeepSeek": {"deepseek-v4-flash", "deepseek-v4-pro"},
 		"Google": {
-			"gemini-2.5-pro",
 			"gemini-3.1-pro-preview",
 			"gemini-3.1-flash-lite",
-			"gemini-3.5-flash",
 			"gemini-3.5-flash-lite",
-			"gemini-3.6-flash",
+			"gemini-3.7-flash",
+			"gemini-3.8-flash",
 		},
 	}
 	price_models = {

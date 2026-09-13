@@ -218,14 +218,6 @@ msgstr "deepseek-chat-0528(free)"
 msgid "deepseek-chat-0528-qwen3-8b(free)"
 msgstr "deepseek-chat-0528-qwen3-8b(free)"
 
-#: addon\globalPlugins\WordBridge\configManager.py:25
-msgid "gemini-2.5-flash"
-msgstr "gemini-2.5-flash"
-
-#: addon\globalPlugins\WordBridge\configManager.py:26
-msgid "gemini-2.5-pro"
-msgstr "gemini-2.5-pro"
-
 #: addon\globalPlugins\WordBridge\configManager.py:27
 msgid "gpt-4o"
 msgstr "gpt-4o"
@@ -594,9 +586,6 @@ msgstr "協助使用者辨識並修正中文中的同音錯字。"
 
 #~ msgid "gemini-2.0-flash-lite"
 #~ msgstr "gemini-2.0-flash-lite"
-
-#~ msgid "gemini-2.5-pro-exp-03-25(free)"
-#~ msgstr "gemini-2.5-pro-exp-03-25(free)"
 
 #~ msgid "o1"
 #~ msgstr "o1"
