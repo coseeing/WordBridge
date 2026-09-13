@@ -639,6 +639,7 @@ def test_close_schedule_failure_waits_for_admitted_request_client_handoff():
 	published = Event()
 	close_started = Event()
 	close_release = Event()
+	first_failure = Event()
 	second_attempt = Event()
 	queue = []
 	post_count = 0
@@ -650,6 +651,9 @@ def test_close_schedule_failure_waits_for_admitted_request_client_handoff():
 		if post_count == 1:
 			queue.append((fn, args))
 		elif post_count == 2:
+			first_failure.set()
+			raise RuntimeError("UI scheduler stopped")
+		elif post_count == 3:
 			second_attempt.set()
 			published.wait(timeout=5)
 			raise RuntimeError("UI scheduler stopped")
@@ -681,6 +685,12 @@ def test_close_schedule_failure_waits_for_admitted_request_client_handoff():
 	cleanup_holder = []
 	close_thread = Thread(target=lambda: cleanup_holder.append(session.close()))
 	close_thread.start()
+	assert first_failure.wait(timeout=1)
+	with session._state_lock:
+		cleanup_before_publication = session._cleanup_future
+	assert cleanup_before_publication is not None
+	assert not cleanup_before_publication.done()
+	assert created == []
 	assert second_attempt.wait(timeout=1)
 	release.set()
 	request_thread.join(timeout=1)

@@ -50,6 +50,7 @@ covered by focused tests in `tests/test_coseeing_auth.py` and
 - `bae1a32` — `fix: address Coseeing auth Task 3 review findings`
 - `4836d7b` — `docs: append Task 3 review verification`
 - `aef56d5` — `fix: serialize concurrent Coseeing shutdown publication`
+- `5273cc5` — `docs: record concurrent shutdown fix commit`
 
 ## Review round 2
 
@@ -59,9 +60,8 @@ gate test holds a real client close and proves concurrent callers receive the
 same pending cleanup future. The admitted-request test now pauses after
 admission in `read_refresh_token`, forces both close scheduling attempts to
 fail around client publication, and blocks client close while asserting cleanup
-remains pending. Against the prior publication ordering, the gate makes the
-second caller observe cleared singleton state and return a separate completed
-future; the current test prevents that outcome.
+remains pending. The concurrent shutdown test uses a separate lock gate to
+prove that publication is atomic with singleton clearing.
 
 The report and verification claims below distinguish historical Task 3 output
 from the current review-round evidence.
@@ -71,7 +71,7 @@ from the current review-round evidence.
 ```text
 $ python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py -q
 .........................................                                [100%]
-50 passed in 0.35s
+41 passed in 0.35s
 exit=0
 ```
 
@@ -109,12 +109,55 @@ $ python3 -m compileall -q addon/globalPlugins/WordBridge/lib/coseeing_auth.py t
 exit=0
 ```
 
-## Current review-round verification and exact output
+## Review round 2 verification and exact output
 
 ```text
 $ python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py -q
 ...................................................                      [100%]
 51 passed in 0.28s
+exit=0
+```
+
+```text
+$ python3 -m compileall -q addon/globalPlugins/WordBridge/lib/coseeing_auth.py tests/coseeing_auth_helpers.py tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py
+<no output>
+exit=0
+```
+
+```text
+$ git diff --check
+<no output>
+exit=0
+```
+
+## Review round 3 regression evidence
+
+The prior admitted-request test waited for client publication before making
+its cleanup assertion, so it did not distinguish the pre-fix ordering. It now
+asserts cleanup is pending immediately after the first close scheduling
+failure, while the admitted request remains blocked in `read_refresh_token`,
+then keeps client close blocked across the second failure.
+
+The same deterministic test was run against the pre-fix `f91c9f5` source in an
+isolated temporary worktree and failed at the early-completion assertion:
+
+```text
+FAILED tests/test_review_round3_handoff.py::test_pre_fix_close_does_not_complete_before_admitted_client_close
+E   assert not True
+E    +  where True = done()
+1 failed in 5.22s
+exit=1
+```
+
+The current implementation passes that timing contract in the focused suite
+reported above.
+
+## Review round 3 current verification and exact output
+
+```text
+$ python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py -q
+...................................................                      [100%]
+51 passed in 0.29s
 exit=0
 ```
 
