@@ -145,3 +145,66 @@ exit=0
 - The pre-existing modification to
   `addon/globalPlugins/WordBridge/package/coseeing-auth-dependencies.md` was
   left untouched and unstaged.
+
+## Review fix round 2 report (2026-09-13)
+
+### Findings addressed
+
+- Close and client submission are now serialized. Client construction remains
+  on the UI operation, and the final method submission is guarded against the
+  atomic close request, so a paused factory cannot submit restore or login
+  after close. A client created during that race is retained by the UI state
+  and closed exactly once by the queued close transition.
+- Close scheduling failures no longer fall back to mutating `_closed`,
+  `_active`, or `_waiters` from the caller thread. The cleanup future reports
+  the scheduler failure when no UI close transition can be posted.
+- Auth Future callbacks never mutate coordinator state directly. Normal
+  completion and scheduler-error delivery are both posted to the UI queue;
+  scheduler errors are retried through a UI delivery callback.
+- Cancellation-safe waiter completion remains protected against
+  `InvalidStateError`, allowing later waiters to complete after a caller
+  cancels.
+- Error classification remains exact: `RestoreError(refresh_rejected)` and
+  `TokenUnavailableError(refresh_rejected|refresh_unavailable)` recover;
+  `RestoreError(refresh_unavailable)` propagates.
+- Added deterministic tests for pending login Future cancellation, close
+  scheduling failure, paused-factory shutdown, and both pointer-width runtime
+  directory selections. Existing overlap, asynchronous cleanup, and import
+  ordering tests continue to run.
+
+### Fix commit
+
+- `182597f` (`182597ff1cd265da4746081daf9ce3b5d0179f12`):
+  `fix: serialize Coseeing auth shutdown`
+
+### Verification commands and exact output
+
+#### `python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_bundle.py -q`
+
+```text
+.............................s                                           [100%]
+29 passed, 1 skipped in 0.36s
+exit=0
+```
+
+#### `python3 -m compileall -q addon/globalPlugins/WordBridge/lib/coseeing_auth.py tests/coseeing_auth_helpers.py tests/test_coseeing_auth.py`
+
+```text
+<no output>
+exit=0
+```
+
+#### `git diff --check`
+
+```text
+<no output>
+exit=0
+```
+
+### Concerns
+
+- The combined suite retains one expected Windows native dependency skip on
+  this Linux host.
+- The pre-existing modification to
+  `addon/globalPlugins/WordBridge/package/coseeing-auth-dependencies.md` was
+  left untouched and unstaged.
