@@ -33,6 +33,7 @@ Review validation:
 ```text
 python3 -m pytest tests/test_coseeing_requests.py -q
 11 passed in 0.26s
+```
 
 Focused suite after the review follow-up:
 
@@ -42,4 +43,15 @@ python3 -m pytest tests/test_coseeing_requests.py tests/test_coseeing_auth.py te
 ```
 
 The additional architecture suite was also attempted; its unrelated catalog assertion currently reports 13 configs where it expects 14.
+
+## Fix round 2
+
+- Added proofreader auth-Future failure coverage asserting no POST and a queued UI notification.
+- Repaired the validation code fences in this report.
+
+Round 2 validation:
+
+```text
+python3 -m pytest tests/test_coseeing_requests.py -q
+12 passed in 0.22s
 ```

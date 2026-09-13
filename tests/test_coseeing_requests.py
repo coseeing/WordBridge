@@ -77,6 +77,40 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 	}
 
 
+def test_proofreader_auth_failure_skips_post_and_queues_ui_notification(monkeypatch):
+	from test_coseeing_auth_nvda import _load_nvda_plugin
+
+	queued = []
+	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
+		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"execution_channel": "Coseeing",
+		"api_key": {},
+		"language": "zh_traditional",
+		"typo_correction_mode": "standard",
+		"customized_words_enable": False,
+		"auto_display_report": False,
+	}, [], queued)
+	instance = object.__new__(plugin_module.GlobalPlugin)
+	instance.latest_action = {}
+	instance.readDictionary = lambda: []
+	instance._coseeing_auth_terminated = False
+	future = Future()
+	future.set_exception(RuntimeError("auth failed"))
+	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
+	posted = []
+	monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: posted.append(args), raising=False)
+	messages = []
+	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
+
+	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
+
+	assert posted == []
+	assert len(queued) == 1
+	callback, args = queued.pop()
+	callback(*args)
+	assert "auth failed" in messages[0]
+
+
 def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeypatch):
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
