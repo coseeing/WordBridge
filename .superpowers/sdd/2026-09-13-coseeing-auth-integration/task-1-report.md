@@ -258,3 +258,42 @@ coseeing_auth/__init__.py byte-for-byte-match
   both CPython 3.11 win32 and CPython 3.13 win_amd64 NVDA runtimes. Those
   runtimes are unavailable on this Linux host, so Windows acceptance remains
   pending.
+
+## Review fix report, round 4 (2026-09-13)
+
+### Findings addressed
+
+- Restored the non-Windows `-I -S` subprocess for the complete AuthConfig
+  contract. It uses an empty environment and only the addon `lib` source plus
+  a temporary controlled `coseeing_auth` fixture.
+- The fixture copies the supplied `models.py` and `errors.py` source, so the
+  real AuthConfig validation runs without importing Windows-native or
+  host-installed dependencies. The user-supplied `coseeing_auth` package
+  source and existing Windows sanitized-runtime checks remain unchanged.
+- The subprocess asserts issuer, client ID, all scopes, both callback URIs,
+  callback timeout, absent `PYTHONPATH`, and fixture import origin.
+
+### Covering checks
+
+#### `python3 -m pytest tests/test_coseeing_auth_bundle.py -q`
+
+```text
+..s                                                                      [100%]
+2 passed, 1 skipped in 0.07s
+```
+
+#### `python3 -m compileall -q addon/globalPlugins/WordBridge/lib/coseeing_auth.py tests/test_coseeing_auth_bundle.py`
+
+```text
+<no output>
+```
+
+Exit status: `0`.
+
+#### `git diff --check`
+
+```text
+<no output>
+```
+
+Exit status: `0`.

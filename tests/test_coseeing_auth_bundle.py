@@ -2,6 +2,7 @@ import subprocess
 import sys
 import struct
 import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -34,11 +35,45 @@ def _sanitized_windows_environment(dependencies: Path, bundle: Path) -> dict[str
 	return env
 
 
-def test_sso_configuration_matches_approved_demo():
-	if sys.platform != "win32":
-		pytest.skip("The supplied Windows native dependency bundles cannot run on this host")
-
+def test_sso_configuration_matches_approved_demo(tmp_path):
 	bundle = PACKAGE_ROOT.resolve()
+	if sys.platform != "win32":
+		addon = bundle.parent
+		fixture = tmp_path / "coseeing_auth"
+		fixture.mkdir()
+		shutil.copy2(bundle / "coseeing_auth" / "errors.py", fixture / "errors.py")
+		shutil.copy2(bundle / "coseeing_auth" / "models.py", fixture / "models.py")
+		(fixture / "__init__.py").write_text("from .models import AuthConfig\n", encoding="utf-8")
+		code = """
+import sys
+from pathlib import Path
+
+addon = Path(sys.argv[1]).resolve()
+fixture = Path(sys.argv[2]).resolve()
+assert "PYTHONPATH" not in __import__("os").environ
+sys.path.insert(0, str(fixture.parent))
+sys.path.insert(0, str(addon))
+from lib.coseeing_auth import build_auth_config
+import coseeing_auth
+
+value = build_auth_config()
+assert value.issuer == "https://sso.coseeing.org"
+assert value.client_id == "a11yvillage"
+assert set(value.scopes) == {"openid", "profile", "email", "offline_access"}
+assert value.login_redirect_uri == "http://127.0.0.1:8765/auth-callback"
+assert value.logout_redirect_uri == "http://127.0.0.1:8765/logout-callback"
+assert value.callback_timeout == 180
+assert Path(coseeing_auth.__file__).resolve().is_relative_to(fixture)
+"""
+		subprocess.run(
+			[sys.executable, "-I", "-S", "-c", code, str(addon), str(fixture)],
+			check=True,
+			capture_output=True,
+			text=True,
+			env={},
+		)
+		return
+
 	dependencies = bundle / "_coseeing_auth_deps"
 	code = """
 import sys
