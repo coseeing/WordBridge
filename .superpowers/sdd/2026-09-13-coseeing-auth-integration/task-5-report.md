@@ -21,3 +21,25 @@ git diff --check
 ```
 
 The environment does not provide a `python` executable, so the equivalent `python3` command was used.
+
+## Review follow-up
+
+- Fixed feedback HTTP 401 handling so the worker schedules the authentication error with `wx.CallAfter(ui.message, ...)` instead of returning silently.
+- Added recorder/Future coverage for signed-in feedback Bearer authorization, proofreader auth failure with no POST, feedback 401, timeout, and invalid JSON.
+- Updated NVDA test doubles to expose the real `build_coseeing_headers` helper and removed the production ImportError fallback.
+
+Review validation:
+
+```text
+python3 -m pytest tests/test_coseeing_requests.py -q
+11 passed in 0.26s
+
+Focused suite after the review follow-up:
+
+```text
+python3 -m pytest tests/test_coseeing_requests.py tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py -q
+65 passed in 0.35s
+```
+
+The additional architecture suite was also attempted; its unrelated catalog assertion currently reports 13 configs where it expects 14.
+```

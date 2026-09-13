@@ -9,6 +9,7 @@ import sys
 import lib.coseeing_auth as module
 from coseeing_auth_helpers import FakeAuth
 from lib.coseeing_auth import CoseeingAuthSession
+from lib.coseeing import build_coseeing_headers
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -121,7 +122,7 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued):
 	lib_package.__path__ = [str(ADDON_PATH / "lib")]
 	monkeypatch.setitem(sys.modules, f"{package_name}.lib", lib_package)
 	monkeypatch.setitem(sys.modules, auth_module.__name__, auth_module)
-	monkeypatch.setitem(sys.modules, f"{package_name}.lib.coseeing", SimpleNamespace(obtain_openai_key=lambda *args: ""))
+	monkeypatch.setitem(sys.modules, f"{package_name}.lib.coseeing", SimpleNamespace(build_coseeing_headers=build_coseeing_headers))
 	monkeypatch.setitem(sys.modules, f"{package_name}.lib.decimalUtils", SimpleNamespace(decimal_to_str_0=str))
 	monkeypatch.setitem(sys.modules, f"{package_name}.lib.tasks.typo.utils", SimpleNamespace(strings_diff=lambda *args: []))
 	monkeypatch.setitem(sys.modules, f"{package_name}.lib.viewHTML", SimpleNamespace(text2template=lambda *args: None))

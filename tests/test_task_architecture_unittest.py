@@ -471,7 +471,7 @@ class _nvda_module_stubs:
 		dictionary_package.__path__ = []
 		sys.modules["WordBridge.dictionary"] = dictionary_package
 		sys.modules["WordBridge.dictionary.dialog"] = types.SimpleNamespace(DictionaryEntryDialog=object)
-		sys.modules["WordBridge.lib.coseeing"] = types.SimpleNamespace(obtain_openai_key=lambda *args: "")
+		sys.modules["WordBridge.lib.coseeing"] = types.SimpleNamespace(build_coseeing_headers=lambda token: {} if token is None else {"Authorization": f"Bearer {token}"})
 		sys.modules["WordBridge.lib.decimalUtils"] = types.SimpleNamespace(decimal_to_str_0=lambda cost: str(cost))
 		sys.modules["WordBridge.lib.tasks.typo.utils"] = types.SimpleNamespace(strings_diff=lambda request, response: [])
 		sys.modules["WordBridge.lib.viewHTML"] = types.SimpleNamespace(text2template=lambda src, dst: None)

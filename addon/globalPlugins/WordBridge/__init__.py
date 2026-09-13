@@ -31,16 +31,7 @@ from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .configManager import load_corrector_task_config, normalize_selection
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.application.task_runner import run_typo_correction
-try:
-	from .lib.coseeing import build_coseeing_headers
-except ImportError:
-	# Keep lightweight NVDA test doubles from older integrations importable.
-	def build_coseeing_headers(access_token):
-		if access_token is None:
-			return {}
-		if not access_token:
-			raise ValueError("access token must not be empty")
-		return {"Authorization": f"Bearer {access_token}"}
+from .lib.coseeing import build_coseeing_headers
 from .lib import coseeing_auth
 from .lib.coseeing_auth import shutdown_coseeing_auth, start_coseeing_auth
 from .lib.decimalUtils import decimal_to_str_0
@@ -448,6 +439,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		wx.CallAfter(show)
 
 	def _send_coseeing_feedback(self, interaction_id, feedback_value):
+		message = None
 		try:
 			access_token = get_coseeing_access_token().result()
 			headers = build_coseeing_headers(access_token)
@@ -469,7 +461,5 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			message = _("Sorry, an error occurred during the feedback request, the details are: {e}").format(e=e)
 		except Exception as e:
 			message = _("Sorry, an error occurred during the feedback request, the details are: {e}").format(e=e)
-		else:
-			return
-		if not self._coseeing_auth_terminated:
+		if message is not None and not self._coseeing_auth_terminated:
 			wx.CallAfter(ui.message, message)
