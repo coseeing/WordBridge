@@ -615,6 +615,51 @@ def test_close_schedule_failure_and_factory_error_finish_waiter_and_cleanup():
 	assert cleanup.result(timeout=1) is None
 
 
+def test_close_schedule_failure_waits_for_admitted_request_client_handoff():
+	started = Event()
+	release = Event()
+	queue = []
+	post_count = 0
+	created = []
+
+	def post_ui(fn, *args):
+		nonlocal post_count
+		post_count += 1
+		if post_count == 1:
+			queue.append((fn, args))
+		else:
+			raise RuntimeError("UI scheduler stopped")
+
+	def make_client():
+		started.set()
+		release.wait(timeout=5)
+		client = FakeAuth()
+		created.append(client)
+		return client
+
+	session = CoseeingAuthSession(
+		client_factory=make_client,
+		post_ui=post_ui,
+		read_refresh_token=lambda: "old",
+		save_refresh_token=lambda value: None,
+		prompt_login=lambda: "guest",
+	)
+	result = session.get_access_token()
+	request_thread = Thread(target=lambda: (lambda item: item[0](*item[1]))(queue.pop(0)))
+	request_thread.start()
+	assert started.wait(timeout=1)
+	cleanup = session.close()
+	with pytest.raises(TimeoutError):
+		cleanup.result(timeout=0.05)
+	release.set()
+	request_thread.join(timeout=1)
+	assert not request_thread.is_alive()
+	with pytest.raises(ClientClosedError):
+		result.result(timeout=1)
+	assert cleanup.result(timeout=1) is None
+	assert created and created[0].calls == [("close", (), {})]
+
+
 def test_persistent_watch_scheduler_failure_finishes_waiters_and_clears_operation():
 	queue = []
 	post_count = 0
