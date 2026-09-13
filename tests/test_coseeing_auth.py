@@ -248,9 +248,7 @@ def test_save_failure_does_not_discard_authenticated_session():
 	h.save_error = None
 	second = h.session.get_access_token()
 	h.drain()
-	h.resolve("access-again")
-	h.resolve("refresh-again")
-	assert second.result(timeout=1) == "access-again"
+	assert second.result(timeout=1) == "access"
 	assert h.prompts == 1
 
 
@@ -521,6 +519,32 @@ def test_close_before_ui_drain_does_not_prompt_or_create_client():
 	assert cleanup.result(timeout=1) is None
 	assert h.auth is None
 	assert h.prompts == 0
+
+
+def test_refresh_save_failure_retries_same_rotated_token_without_reauthenticating():
+	saves = []
+	failed = [True]
+	h = AuthHarness(CoseeingAuthSession, refresh="old")
+	def save(value):
+		saves.append(value)
+		if failed[0]:
+			failed[0] = False
+			raise OSError("save failed")
+		h.saved = value
+	h.save = save
+	h.session._save_refresh_token = h.save
+	first = h.session.get_access_token()
+	h.drain()
+	h.resolve(object())
+	h.resolve("access")
+	h.resolve("rotated")
+	with pytest.raises(OSError, match="save failed"):
+		first.result(timeout=1)
+	second = h.session.get_access_token()
+	h.drain()
+	assert second.result(timeout=1) == "access"
+	assert saves == ["rotated", "rotated"]
+	assert [call[0] for call in h.auth.calls] == ["restore", "get_access_token", "get_refresh_token"]
 
 
 def test_close_scheduling_failure_does_not_mutate_ui_state_off_thread():

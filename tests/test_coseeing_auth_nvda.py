@@ -5,6 +5,7 @@ from threading import Event, RLock, Thread, current_thread
 from types import SimpleNamespace
 from pathlib import Path
 import sys
+import pytest
 
 import lib.coseeing_auth as module
 from coseeing_auth_helpers import FakeAuth
@@ -455,6 +456,17 @@ def test_shutdown_without_singleton_is_already_complete(monkeypatch):
 	monkeypatch.setattr(module, "_singleton_adapter", None)
 	monkeypatch.setattr(module, "_shutdown_future", None)
 	assert module.shutdown_coseeing_auth().result(timeout=1) is None
+
+
+def test_shutdown_permanently_blocks_singleton_resurrection(monkeypatch):
+	monkeypatch.setattr(module, "_singleton_session", None)
+	monkeypatch.setattr(module, "_singleton_adapter", None)
+	monkeypatch.setattr(module, "_shutdown_future", None)
+	assert module.shutdown_coseeing_auth().result(timeout=1) is None
+
+	monkeypatch.setattr(module, "_NvdaAuthAdapter", lambda: pytest.fail("singleton resurrected"))
+	with pytest.raises(module.ClientClosedError):
+		module.get_coseeing_access_token().result(timeout=1)
 
 
 def test_dialog_uses_translatable_labels_and_legacy_yes_no_style(monkeypatch):

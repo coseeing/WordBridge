@@ -108,7 +108,101 @@ def test_proofreader_auth_failure_skips_post_and_queues_ui_notification(monkeypa
 	assert len(queued) == 1
 	callback, args = queued.pop()
 	callback(*args)
-	assert "auth failed" in messages[0]
+	assert messages[0] == "Sorry, an error occurred while authenticating with Coseeing."
+
+
+def test_proofreader_termination_before_worker_request_skips_post_and_ui(monkeypatch):
+	from test_coseeing_auth_nvda import _load_nvda_plugin
+
+	queued = []
+	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
+		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"execution_channel": "Coseeing",
+		"api_key": {},
+		"language": "zh_traditional",
+		"typo_correction_mode": "standard",
+		"customized_words_enable": False,
+		"auto_display_report": False,
+	}, [], queued)
+	instance = object.__new__(plugin_module.GlobalPlugin)
+	instance.latest_action = {}
+	instance.readDictionary = lambda: []
+	instance._coseeing_auth_terminated = True
+	future = Future()
+	future.set_result("access")
+	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
+	posted = []
+	monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: posted.append(args), raising=False)
+	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=lambda message: pytest.fail("UI updated")))
+	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
+	assert posted == []
+	assert queued == []
+
+
+@pytest.mark.parametrize("failure", ["status", "connection", "response"])
+def test_proofreader_failures_use_stable_notification(monkeypatch, failure):
+	from test_coseeing_auth_nvda import _load_nvda_plugin
+
+	queued = []
+	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
+		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"execution_channel": "Coseeing",
+		"api_key": {},
+		"language": "zh_traditional",
+		"typo_correction_mode": "standard",
+		"customized_words_enable": False,
+		"auto_display_report": False,
+	}, [], queued)
+	instance = object.__new__(plugin_module.GlobalPlugin)
+	instance.latest_action = {}
+	instance.readDictionary = lambda: []
+	instance._coseeing_auth_terminated = False
+	future = Future()
+	future.set_result("access")
+	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
+	messages = []
+	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
+	if failure == "status":
+		response = SimpleNamespace(status_code=503, json=lambda: {"detail": "secret"})
+		monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: response, raising=False)
+	elif failure == "connection":
+		monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("secret")), raising=False)
+	else:
+		response = SimpleNamespace(status_code=200, json=lambda: {})
+		monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: response, raising=False)
+
+	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
+	callback, args = queued.pop()
+	callback(*args)
+	assert messages == [
+		"The Coseeing request failed. Please try again later."
+		if failure != "response"
+		else "The Coseeing response was invalid. Please try again later."
+	]
+
+
+def test_feedback_connection_and_malformed_response_use_stable_messages(monkeypatch):
+	class ConnectionError(Exception):
+		pass
+	plugin_module, instance, queued, _, messages = _feedback_worker_fixture(
+		monkeypatch,
+		SimpleNamespace(status_code=500, json=lambda: {"unexpected": True}),
+	)
+	monkeypatch.setattr(plugin_module.requests, "exceptions", SimpleNamespace(
+		Timeout=type("Timeout", (Exception,), {}), RequestException=ConnectionError,
+	))
+	monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: (_ for _ in ()).throw(ConnectionError("secret")), raising=False)
+	instance._send_coseeing_feedback("i-1", "回饋")
+	callback, args = queued.pop()
+	callback(*args)
+	assert messages == ["Sorry, the Coseeing feedback request failed. Please try again later."]
+
+	plugin_module, instance, queued, _, messages = _feedback_worker_fixture(
+		monkeypatch,
+		SimpleNamespace(status_code=200, json=lambda: {}),
+	)
+	instance._send_coseeing_feedback("i-1", "回饋")
+	assert messages == []
 
 
 def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeypatch):
@@ -194,7 +288,7 @@ def test_feedback_auth_failure_skips_post_and_notifies_on_ui(monkeypatch):
 	assert len(queued) == 1
 	callback, args = queued.pop()
 	callback(*args)
-	assert "auth failed" in messages[0]
+	assert messages[0] == "The Coseeing authentication failed. Please try again later."
 
 
 def _feedback_worker_fixture(monkeypatch, response, access_token="access"):
@@ -267,7 +361,7 @@ def test_feedback_invalid_json_notifies_on_ui(monkeypatch, response):
 	assert len(queued) == 1
 	callback, args = queued.pop()
 	callback(*args)
-	assert "invalid json" in messages[0]
+	assert messages[0] == "The Coseeing feedback response was invalid. Please try again later."
 
 
 def test_feedback_timeout_notifies_on_ui(monkeypatch):

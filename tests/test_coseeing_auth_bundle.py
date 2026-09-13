@@ -89,6 +89,7 @@ from lib.coseeing_auth import build_auth_config
 import coseeing_auth
 
 value = build_auth_config()
+assert sys.path.index(str(deps)) < sys.path.index(str(bundle.parent))
 assert value.issuer == "https://sso.coseeing.org"
 assert value.client_id == "a11yvillage"
 assert set(value.scopes) == {"openid", "profile", "email", "offline_access"}

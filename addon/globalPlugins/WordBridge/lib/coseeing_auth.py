@@ -77,6 +77,7 @@ class CoseeingAuthSession:
 		self._cleanup_started = False
 		self._cleanup_future: Future[None] | None = None
 		self._cleanup_error: Exception | None = None
+		self._pending_refresh: tuple[str, str | None] | None = None
 		self._state_lock = threading.RLock()
 
 	def get_access_token(self, *, reconsider_guest: bool = False) -> Future[str | None]:
@@ -193,6 +194,9 @@ class CoseeingAuthSession:
 
 		try:
 			if self._session_ready:
+				if self._pending_refresh is not None:
+					self._retry_pending_refresh()
+					return
 				self._start_access_token()
 				return
 			try:
@@ -206,6 +210,7 @@ class CoseeingAuthSession:
 				self._start_prompt()
 		finally:
 			with self._state_lock:
+				closing = self._close_requested
 				self._admitted_requests -= 1
 				if (
 					self._close_requested
@@ -214,31 +219,28 @@ class CoseeingAuthSession:
 					and self._client is None
 				):
 					self._complete_cleanup()
+			if closing:
+				self._finish_handoff(error=ClientClosedError("access_token"))
 
 	def _call_client(self, method: str, *args, **kwargs):
-		if self._client is None:
-			with self._state_lock:
+		with self._state_lock:
+			client = self._client
+			if client is None:
 				self._client_creation_in_progress = True
+		if client is None:
 			try:
 				client = self._client_factory()
 			except Exception:
 				with self._state_lock:
-					close_requested = self._close_requested
-					admitted = self._admitted_requests
-				if close_requested and not admitted:
-					self._complete_cleanup()
-				raise
-			finally:
-				with self._state_lock:
 					self._client_creation_in_progress = False
+				raise
 			with self._state_lock:
+				self._client_creation_in_progress = False
 				self._client = client
 				if self._close_requested:
 					cleanup = self._cleanup_future
 					if cleanup is not None:
 						self._start_cleanup_once(client, cleanup)
-		else:
-			client = self._client
 		with self._state_lock:
 			if self._close_requested:
 				raise ClientClosedError("access_token")
@@ -298,11 +300,26 @@ class CoseeingAuthSession:
 			self._fail(error)
 
 	def _refresh_succeeded(self, access_token: str, refresh_token: str | None) -> None:
+		self._pending_refresh = (access_token, refresh_token)
 		try:
 			self._save_refresh_token(refresh_token)
 		except Exception as error:
 			self._fail(error)
 		else:
+			self._pending_refresh = None
+			self._finish(value=access_token)
+
+	def _retry_pending_refresh(self) -> None:
+		pending = self._pending_refresh
+		if pending is None:
+			return
+		access_token, refresh_token = pending
+		try:
+			self._save_refresh_token(refresh_token)
+		except Exception as error:
+			self._finish(error=error)
+		else:
+			self._pending_refresh = None
 			self._finish(value=access_token)
 
 	def _watch(self, future: Future, succeeded: Callable[[object], None]) -> None:
@@ -503,6 +520,8 @@ _shutdown_future: Future[None] | None = None
 def _get_singleton() -> CoseeingAuthSession:
 	global _singleton_adapter, _singleton_session
 	with _singleton_lock:
+		if _shutdown_future is not None:
+			raise ClientClosedError("access_token")
 		if _singleton_session is None:
 			adapter = _NvdaAuthAdapter()
 			_singleton_adapter = adapter
@@ -511,7 +530,10 @@ def _get_singleton() -> CoseeingAuthSession:
 
 
 def get_coseeing_access_token(*, reconsider_guest: bool = False) -> Future[str | None]:
-	return _get_singleton().get_access_token(reconsider_guest=reconsider_guest)
+	try:
+		return _get_singleton().get_access_token(reconsider_guest=reconsider_guest)
+	except Exception as error:
+		return _completed_future(error)
 
 
 def start_coseeing_auth(execution_channel: str) -> None:

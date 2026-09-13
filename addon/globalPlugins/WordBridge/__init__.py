@@ -74,6 +74,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		super().__init__(*args, **kwargs)
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(LLMSettingsPanel)
 		self._coseeing_auth_terminated = False
+		self._coseeing_request_lock = threading.RLock()
 		settings = config.conf["WordBridge"]["settings"]
 		_, channel, _ = normalize_selection(
 			configManager,
@@ -94,10 +95,30 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			start_coseeing_auth(channel)
 
 	def terminate(self, *args, **kwargs):
-		self._coseeing_auth_terminated = True
+		with self._coseeing_request_lock:
+			self._coseeing_auth_terminated = True
 		shutdown_coseeing_auth()
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(LLMSettingsPanel)
 		super().terminate(*args, **kwargs)
+
+	def _post_coseeing_ui(self, function, *args):
+		if self._coseeing_auth_terminated:
+			return
+		def deliver():
+			if not self._coseeing_auth_terminated:
+				function(*args)
+		try:
+			wx.CallAfter(deliver)
+		except Exception:
+			return
+
+	def _post_coseeing_request(self, url, **kwargs):
+		if not hasattr(self, "_coseeing_request_lock"):
+			self._coseeing_request_lock = threading.RLock()
+		with self._coseeing_request_lock:
+			if self._coseeing_auth_terminated:
+				return None
+			return requests.post(url, **kwargs)
 
 	def onSettings(self, evt):
 		wx.CallAfter(
@@ -260,11 +281,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			interaction_id = None
 			cost = result.cost
 		else:
+			if self._coseeing_auth_terminated:
+				return
 			try:
 				access_token = get_coseeing_access_token().result()
 				headers = build_coseeing_headers(access_token)
-			except Exception as e:
-				wx.CallAfter(ui.message, _("Sorry, an error occurred while authenticating with Coseeing, the details are: {e}").format(e=e))
+			except Exception:
+				self._post_coseeing_ui(ui.message, _("Sorry, an error occurred while authenticating with Coseeing."))
 				return
 
 			data = {
@@ -275,27 +298,39 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				"customized_words": customized_words,
 			}
 			try:
-				data = requests.post(f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data, timeout=120)
-			except requests.exceptions.Timeout:
-				ui.message(_("The request has not responded for over 2 minutes, possibly because the Coseeing server is busy. Please try again later."))
+				data = self._post_coseeing_request(f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data, timeout=120)
+			except Exception as error:
+				timeout_type = getattr(getattr(requests, "exceptions", None), "Timeout", None)
+				message = (
+					_("The Coseeing request timed out. Please try again later.")
+					if timeout_type is not None and isinstance(error, timeout_type)
+					else _("The Coseeing request failed. Please try again later.")
+				)
+				self._post_coseeing_ui(ui.message, message)
+				return
+			if data is None or self._coseeing_auth_terminated:
 				return
 			if data.status_code == 401:
-				ui.message(_("Authentication error. Please sign in to Coseeing or check your account permissions."))
+				self._post_coseeing_ui(ui.message, _("Authentication error. Please sign in to Coseeing or check your account permissions."))
 				return
 			elif data.status_code == 429:
-				ui.message(
+				self._post_coseeing_ui(
+					ui.message,
 					_("Rate limit reached for requests or you exceeded your current quota. ") +\
 					_("Please reduce the frequency of sending requests or check your account balance.")
 				)
 				return
+			elif data.status_code >= 400:
+				self._post_coseeing_ui(ui.message, _("The Coseeing request failed. Please try again later."))
+				return
 			try:
 				result = data.json()
-			except ValueError as e:
-				ui.message(_("Sorry, an error occurred while decode Coseeing response, the details are: {e}").format(e=e))
+				response = result["response"]
+				interaction_id = result["interaction_id"]
+				cost = result["cost"]
+			except (ValueError, KeyError, TypeError):
+				self._post_coseeing_ui(ui.message, _("The Coseeing response was invalid. Please try again later."))
 				return
-			response = result["response"]
-			interaction_id = result["interaction_id"]
-			cost = result["cost"]
 
 		diff = strings_diff(request, response)
 
@@ -307,19 +342,28 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		}
 
 		if request == response:
-			ui.message(_("No errors in the selected text."))
+			if execution_channel == "Coseeing":
+				self._post_coseeing_ui(ui.message, _("No errors in the selected text."))
+			else:
+				ui.message(_("No errors in the selected text."))
 			log.warning(_("No errors in the selected text."))
 			return
 
 		api.copyToClip(response)
-		ui.message(_("The corrected text has been copied to the clipboard."))
+		if execution_channel == "Coseeing":
+			self._post_coseeing_ui(ui.message, _("The corrected text has been copied to the clipboard."))
+		else:
+			ui.message(_("The corrected text has been copied to the clipboard."))
 		log.warning(_("The corrected text has been copied to the clipboard."))
 
 		try:
 			cost = decimal_to_str_0(cost)
 		except:
 			pass
-		ui.message(_("This task costs {cost} USD.").format(cost=cost))
+		if execution_channel == "Coseeing":
+			self._post_coseeing_ui(ui.message, _("This task costs {cost} USD.").format(cost=cost))
+		else:
+			ui.message(_("This task costs {cost} USD.").format(cost=cost))
 		log.warning(_("This task costs {cost} USD.").format(cost=cost))
 
 		if config.conf["WordBridge"]["settings"]["auto_display_report"]:
@@ -439,27 +483,34 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		wx.CallAfter(show)
 
 	def _send_coseeing_feedback(self, interaction_id, feedback_value):
-		message = None
 		try:
 			access_token = get_coseeing_access_token().result()
 			headers = build_coseeing_headers(access_token)
-			if self._coseeing_auth_terminated:
-				return
-			data = {"interaction_id": interaction_id, "review_content": feedback_value}
-			response = requests.post(
-				f"{COSEEING_BASE_URL}/feedback", headers=headers, json=data, timeout=120
+		except Exception as error:
+			message = _("The Coseeing authentication failed. Please try again later.")
+			self._post_coseeing_ui(ui.message, message)
+			return
+		message = None
+		try:
+			response = self._post_coseeing_request(
+				f"{COSEEING_BASE_URL}/feedback", headers=headers,
+				json={"interaction_id": interaction_id, "review_content": feedback_value}, timeout=120
 			)
+			if response is None or self._coseeing_auth_terminated:
+				return
 			if response.status_code == 401:
 				message = _("Authentication error. Please sign in to Coseeing or check your account permissions.")
 			elif response.status_code >= 400:
-				response.raise_for_status()
+				message = _("Sorry, the Coseeing feedback request failed. Please try again later.")
 			else:
 				response.json()
-		except requests.exceptions.Timeout:
-			message = _("The feedback request timed out. Please try again later.")
-		except ValueError as e:
-			message = _("Sorry, an error occurred during the feedback request, the details are: {e}").format(e=e)
-		except Exception as e:
-			message = _("Sorry, an error occurred during the feedback request, the details are: {e}").format(e=e)
-		if message is not None and not self._coseeing_auth_terminated:
-			wx.CallAfter(ui.message, message)
+		except Exception as error:
+			timeout_type = getattr(getattr(requests, "exceptions", None), "Timeout", None)
+			if timeout_type is not None and isinstance(error, timeout_type):
+				message = _("The Coseeing feedback request timed out. Please try again later.")
+			elif isinstance(error, ValueError):
+				message = _("The Coseeing feedback response was invalid. Please try again later.")
+			else:
+				message = _("Sorry, the Coseeing feedback request failed. Please try again later.")
+		if message is not None:
+			self._post_coseeing_ui(ui.message, message)
