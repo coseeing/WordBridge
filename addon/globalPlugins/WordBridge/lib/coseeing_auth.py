@@ -72,6 +72,8 @@ class CoseeingAuthSession:
 		self._waiters: list[Future[str | None]] = []
 		self._active = False
 		self._close_requested = False
+		self._client_creation_in_progress = False
+		self._cleanup_started = False
 		self._cleanup_future: Future[None] | None = None
 		self._state_lock = threading.RLock()
 
@@ -92,13 +94,18 @@ class CoseeingAuthSession:
 			self._close_requested = True
 		try:
 			self._post_ui(self._close_ui, cleanup)
-		except Exception as error:
+		except Exception:
 			with self._state_lock:
 				client = self._client
-			if client is None:
-				cleanup.set_exception(error)
-			else:
-				self._start_cleanup(client, cleanup)
+				creating = self._client_creation_in_progress
+			if client is not None:
+				self._start_cleanup_once(client, cleanup)
+			try:
+				self._post_ui(self._close_ui, cleanup)
+			except Exception as retry_error:
+				if client is None and not creating:
+					cleanup.set_exception(retry_error)
+					return cleanup
 		return cleanup
 
 	def _close_ui(self, cleanup: Future[None]) -> None:
@@ -108,9 +115,13 @@ class CoseeingAuthSession:
 		if client is None:
 			cleanup.set_result(None)
 		else:
-			self._start_cleanup(client, cleanup)
+			self._start_cleanup_once(client, cleanup)
 
-	def _start_cleanup(self, client: object, cleanup: Future[None]) -> None:
+	def _start_cleanup_once(self, client: object, cleanup: Future[None]) -> None:
+		with self._state_lock:
+			if self._cleanup_started:
+				return
+			self._cleanup_started = True
 		threading.Thread(
 			target=self._close_client,
 			args=(client, cleanup),
@@ -156,9 +167,19 @@ class CoseeingAuthSession:
 
 	def _call_client(self, method: str, *args, **kwargs):
 		if self._client is None:
-			client = self._client_factory()
+			with self._state_lock:
+				self._client_creation_in_progress = True
+			try:
+				client = self._client_factory()
+			finally:
+				with self._state_lock:
+					self._client_creation_in_progress = False
 			with self._state_lock:
 				self._client = client
+				if self._close_requested:
+					cleanup = self._cleanup_future
+					if cleanup is not None:
+						self._start_cleanup_once(client, cleanup)
 		else:
 			client = self._client
 		with self._state_lock:
@@ -234,8 +255,11 @@ class CoseeingAuthSession:
 			except Exception as error:
 				try:
 					self._post_ui(deliver_scheduler_error, error)
-				except Exception:
-					return
+				except Exception as retry_error:
+					try:
+						self._post_ui(deliver_scheduler_error, retry_error)
+					except Exception:
+						return
 
 		def deliver_scheduler_error(error: Exception) -> None:
 			if self._closed:
