@@ -71,3 +71,5 @@ Regression additions cover singleton resurrection, admitted close handoff, rotat
 Previously deferred minors are now explicit: legacy `coseeing_username`/`coseeing_password` schema keys remain for settings compatibility but are unused; packaging/translation remains blocked by unavailable SCons/gettext tools; Windows native import and NVDA manual acceptance remain pending because this host is Linux. No additional review minor is undocumented.
 
 Review-wave verification: focused command → `93 passed, 1 skipped in 0.85s`; full `python3 -m pytest -q` → `153 passed, 1 skipped, 7 failed` from existing live provider cost assertions and the stale Ollama filename assertion; compileall → exit 0; `git diff --check` → exit 0.
+
+Final rerun after commit `742f4ac`: focused suite `93 passed, 1 skipped in 0.88s`; full suite `153 passed, 1 skipped, 7 failed in 23.94s`; compileall exit 0; `git diff --check` exit 0.

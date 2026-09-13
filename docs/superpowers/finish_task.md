@@ -154,3 +154,21 @@ exit 0
 ```
 
 The seven full-suite failures are the existing six live provider cost assertions and the existing stale `ollama.json` provider filename assertion. The review-wave implementation and regression tests are committed as `d416e55` (`fix: close Coseeing auth review gaps`).
+
+Final rerun after the report commit `742f4ac`:
+
+```text
+python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py tests/test_coseeing_requests.py tests/test_coseeing_auth_bundle.py tests/test_corrector_catalog_unittest.py tests/test_corrector_task_config.py tests/test_task_architecture_unittest.py -q
+93 passed, 1 skipped in 0.88s
+
+python3 -m pytest -q
+153 passed, 1 skipped, 7 failed in 23.94s
+
+python3 -m compileall -q [changed auth/plugin/test files]
+compileall_exit=0
+
+git diff --check
+diff_check_exit=0
+```
+
+This final report update is committed as `742f4ac`.
