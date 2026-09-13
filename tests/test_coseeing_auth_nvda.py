@@ -1,9 +1,11 @@
 from concurrent.futures import Future
-from threading import Event, Thread
+from threading import Event, RLock, Thread, current_thread
 from types import SimpleNamespace
 import sys
 
 import lib.coseeing_auth as module
+from coseeing_auth_helpers import FakeAuth
+from lib.coseeing_auth import CoseeingAuthSession
 
 
 def _install_nvda(monkeypatch, *, dialog, wx, config=None, ui=None, log=None, call_after=None):
@@ -326,3 +328,59 @@ def test_shutdown_reuses_existing_singleton_cleanup_future(monkeypatch):
 	assert not second.done()
 	cleanup.set_result(None)
 	assert first.result(timeout=1) is None
+
+
+def test_concurrent_shutdown_callers_share_blocked_client_cleanup(monkeypatch):
+	close_started = Event()
+	close_release = Event()
+	client = FakeAuth(close_started, close_release)
+	session = CoseeingAuthSession(
+		client_factory=lambda: client,
+		post_ui=lambda function, *args: function(*args),
+		read_refresh_token=lambda: None,
+		save_refresh_token=lambda value: None,
+		prompt_login=lambda: "guest",
+	)
+	session._client = client
+
+	class Adapter:
+		_shutting_down = False
+		def post_ui(self, function, *args):
+			function(*args)
+		def close_active_dialog(self):
+			pass
+
+	first_released = Event()
+	second_returned = Event()
+	base_lock = RLock()
+	first_thread = None
+	class PublicationGate:
+		def __enter__(self):
+			base_lock.acquire()
+			return self
+		def __exit__(self, exc_type, exc_value, traceback):
+			base_lock.release()
+			if current_thread() is first_thread and not first_released.is_set():
+				first_released.set()
+				assert second_returned.wait(timeout=1)
+
+	monkeypatch.setattr(module, "_singleton_session", session)
+	monkeypatch.setattr(module, "_singleton_adapter", Adapter())
+	monkeypatch.setattr(module, "_shutdown_future", None)
+	monkeypatch.setattr(module, "_singleton_lock", PublicationGate())
+	results = []
+	first = Thread(target=lambda: results.append(module.shutdown_coseeing_auth()))
+	first_thread = first
+	second = Thread(target=lambda: (results.append(module.shutdown_coseeing_auth()), second_returned.set()))
+	first.start()
+	assert close_started.wait(timeout=1)
+	second.start()
+	assert first_released.wait(timeout=1)
+	second.join(timeout=1)
+	assert not second.is_alive()
+	first.join(timeout=1)
+	assert not first.is_alive()
+	assert results[0] is results[1]
+	assert not results[0].done()
+	close_release.set()
+	assert results[0].result(timeout=1) is None

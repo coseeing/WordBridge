@@ -44,11 +44,28 @@ All High, Medium, and Low findings from the Task 3 review are addressed and
 covered by focused tests in `tests/test_coseeing_auth.py` and
 `tests/test_coseeing_auth_nvda.py`.
 
-## Commit
+## Commits
 
-Commit message: `feat: connect Coseeing auth to NVDA settings and dialogs`
+- `fdfc273` — `feat: connect Coseeing auth to NVDA settings and dialogs`
+- `bae1a32` — `fix: address Coseeing auth Task 3 review findings`
+- `4836d7b` — `docs: append Task 3 review verification`
 
-## Verification commands and exact output
+## Review round 2
+
+Concurrent shutdown now publishes `_shutdown_future` while holding the
+singleton lock, before clearing singleton references. A deterministic lock
+gate test holds a real client close and proves concurrent callers receive the
+same pending cleanup future. The admitted-request test now pauses after
+admission in `read_refresh_token`, forces both close scheduling attempts to
+fail around client publication, and blocks client close while asserting cleanup
+remains pending. Against the prior publication ordering, the gate makes the
+second caller observe cleared singleton state and return a separate completed
+future; the current test prevents that outcome.
+
+The report and verification claims below distinguish historical Task 3 output
+from the current review-round evidence.
+
+## Historical Task 3 verification and exact output
 
 ```text
 $ python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py -q
@@ -76,7 +93,7 @@ exit=0
 - `python` is unavailable on PATH, so focused checks used the available
   `python3` interpreter.
 
-## Post-commit verification and exact output
+## Previous review-round verification and exact output
 
 ```text
 $ python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py -q
@@ -87,6 +104,27 @@ exit=0
 
 ```text
 $ python3 -m compileall -q addon/globalPlugins/WordBridge/lib/coseeing_auth.py tests/coseeing_auth_helpers.py tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py
+<no output>
+exit=0
+```
+
+## Current review-round verification and exact output
+
+```text
+$ python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py -q
+...................................................                      [100%]
+51 passed in 0.28s
+exit=0
+```
+
+```text
+$ python3 -m compileall -q addon/globalPlugins/WordBridge/lib/coseeing_auth.py tests/coseeing_auth_helpers.py tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py
+<no output>
+exit=0
+```
+
+```text
+$ git diff --check
 <no output>
 exit=0
 ```

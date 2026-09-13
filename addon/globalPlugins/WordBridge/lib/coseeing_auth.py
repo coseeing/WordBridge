@@ -544,16 +544,16 @@ def shutdown_coseeing_auth() -> Future[None]:
 		session = _singleton_session
 		if adapter is not None:
 			adapter._shutting_down = True
+		if adapter is None or session is None:
+			completed: Future[None] = Future()
+			completed.set_result(None)
+			_shutdown_future = completed
+			_singleton_adapter = None
+			_singleton_session = None
+			return _shutdown_future
+		_shutdown_future = session.close()
 		_singleton_adapter = None
 		_singleton_session = None
-	if adapter is None or session is None:
-		completed: Future[None] = Future()
-		completed.set_result(None)
-		with _singleton_lock:
-			_shutdown_future = completed
-			return _shutdown_future
-	with _singleton_lock:
-		_shutdown_future = session.close()
 	try:
 		adapter.post_ui(adapter.close_active_dialog)
 	except Exception:
