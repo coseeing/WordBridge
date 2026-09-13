@@ -94,8 +94,6 @@ class CoseeingAuthSession:
 			self._post_ui(self._close_ui, cleanup)
 		except Exception as error:
 			with self._state_lock:
-				self._closed = True
-				self._finish(error=ClientClosedError("access_token"))
 				client = self._client
 			if client is None:
 				cleanup.set_exception(error)
@@ -156,15 +154,17 @@ class CoseeingAuthSession:
 		else:
 			self._start_prompt()
 
-	def _get_client(self):
+	def _call_client(self, method: str, *args, **kwargs):
 		if self._client is None:
 			client = self._client_factory()
-			self._client = client
-			if self._is_closing():
+			with self._state_lock:
+				self._client = client
+		else:
+			client = self._client
+		with self._state_lock:
+			if self._close_requested:
 				raise ClientClosedError("access_token")
-		if self._is_closing():
-			raise ClientClosedError("access_token")
-		return self._client
+			return getattr(client, method)(*args, **kwargs)
 
 	def _is_closing(self) -> bool:
 		with self._state_lock:
@@ -172,7 +172,7 @@ class CoseeingAuthSession:
 
 	def _start_restore(self, refresh_token: str) -> None:
 		try:
-			future = self._get_client().restore(refresh_token)
+			future = self._call_client("restore", refresh_token)
 			self._watch(future, self._restore_succeeded)
 		except Exception as error:
 			self._fail(error)
@@ -183,7 +183,7 @@ class CoseeingAuthSession:
 
 	def _start_access_token(self) -> None:
 		try:
-			future = self._get_client().get_access_token(auto_login=False)
+			future = self._call_client("get_access_token", auto_login=False)
 			self._watch(future, self._token_succeeded)
 		except Exception as error:
 			self._fail(error)
@@ -201,7 +201,7 @@ class CoseeingAuthSession:
 			self._finish(error=CancelledError())
 		elif choice == "login":
 			try:
-				future = self._get_client().login()
+				future = self._call_client("login")
 				self._watch(future, self._login_succeeded)
 			except Exception as error:
 				self._fail(error)
@@ -214,7 +214,7 @@ class CoseeingAuthSession:
 
 	def _token_succeeded(self, access_token: str) -> None:
 		try:
-			future = self._get_client().get_refresh_token()
+			future = self._call_client("get_refresh_token")
 			self._watch(future, lambda refresh: self._refresh_succeeded(access_token, refresh))
 		except Exception as error:
 			self._fail(error)
@@ -232,9 +232,15 @@ class CoseeingAuthSession:
 			try:
 				self._post_ui(deliver, done)
 			except Exception as error:
-				with self._state_lock:
-					if not self._closed:
-						self._finish(error=error)
+				try:
+					self._post_ui(deliver_scheduler_error, error)
+				except Exception:
+					return
+
+		def deliver_scheduler_error(error: Exception) -> None:
+			if self._closed:
+				return
+			self._finish(error=error)
 
 		def deliver(done: Future) -> None:
 			if self._closed or self._is_closing():

@@ -1,8 +1,10 @@
 from lib.coseeing_auth import CoseeingAuthSession
+import lib.coseeing_auth as auth_module
 from coseeing_auth import LoginError, RestoreError, TokenUnavailableError, TokenValidationError
 from coseeing_auth.errors import ClientClosedError
 from concurrent.futures import CancelledError
 import shutil
+import struct
 import subprocess
 import sys
 from threading import Event, Thread
@@ -40,8 +42,9 @@ def test_client_is_constructed_lazily_for_guest():
 def test_auth_errors_import_after_runtime_dependency_preparation(tmp_path):
 	addon = tmp_path / "addon"
 	lib = addon / "lib"
+	architecture = "win32" if struct.calcsize("P") == 4 else "win_amd64"
 	deps = addon / "package" / "_coseeing_auth_deps" / (
-		f"py{sys.version_info.major}{sys.version_info.minor}-win_amd64"
+		f"py{sys.version_info.major}{sys.version_info.minor}-{architecture}"
 	)
 	lib.mkdir(parents=True)
 	deps.mkdir(parents=True)
@@ -61,12 +64,23 @@ def test_auth_errors_import_after_runtime_dependency_preparation(tmp_path):
 	)
 	code = """
 import sys
+import struct
 sys.platform = "win32"
 sys.path.insert(0, sys.argv[1])
+architecture = "win32" if struct.calcsize("P") == 4 else "win_amd64"
 from lib.coseeing_auth import CoseeingAuthSession
 assert CoseeingAuthSession
 """
 	subprocess.run([sys.executable, "-S", "-c", code, str(addon)], check=True, capture_output=True, text=True)
+
+
+@pytest.mark.parametrize(("pointer_size", "expected_architecture"), ((4, "win32"), (8, "win_amd64")))
+def test_runtime_dependency_path_selects_pointer_width(monkeypatch, pointer_size, expected_architecture):
+	monkeypatch.setattr(auth_module.sys, "platform", "win32")
+	monkeypatch.setattr(auth_module.struct, "calcsize", lambda format_code: pointer_size)
+	assert auth_module._auth_dependency_path().name == (
+		f"py{auth_module.sys.version_info.major}{auth_module.sys.version_info.minor}-{expected_architecture}"
+	)
 
 
 def test_restore_persists_rotated_refresh_before_completing():
@@ -200,6 +214,16 @@ def test_login_error_is_returned_without_retrying_login():
 	assert [call[0] for call in h.auth.calls].count("login") == 1
 
 
+def test_pending_login_future_cancellation_reaches_caller():
+	h = AuthHarness(CoseeingAuthSession, choice="login")
+	result = h.session.get_access_token()
+	h.drain()
+	assert h.auth.pending[0].cancel()
+	h.drain()
+	with pytest.raises(CancelledError):
+		result.result(timeout=1)
+
+
 def test_save_failure_is_returned_to_waiter():
 	h = AuthHarness(CoseeingAuthSession, choice="login", save_error=OSError("disk"))
 	result = h.session.get_access_token()
@@ -299,8 +323,10 @@ def test_callback_ui_submission_failure_fails_waiters_and_clears_operation():
 		post_count += 1
 		if post_count == 1:
 			queue.append((fn, args))
-		else:
+		elif post_count == 2:
 			raise RuntimeError("UI scheduler stopped")
+		else:
+			queue.append((fn, args))
 
 	from coseeing_auth_helpers import FakeAuth
 	auth = FakeAuth()
@@ -315,12 +341,16 @@ def test_callback_ui_submission_failure_fails_waiters_and_clears_operation():
 	fn, args = queue.pop(0)
 	fn(*args)
 	auth.pending.popleft().set_result(object())
+	fn, args = queue.pop(0)
+	fn(*args)
 	with pytest.raises(RuntimeError, match="UI scheduler stopped"):
 		result.result(timeout=1)
 	second = session.get_access_token()
-	assert second.done()
-	with pytest.raises(RuntimeError):
-		second.result()
+	fn, args = queue.pop(0)
+	fn(*args)
+	assert not second.done()
+	assert [call[0] for call in auth.calls] == ["restore", "restore"]
+	second.cancel()
 
 
 def test_sync_client_factory_failure_completes_waiter():
@@ -361,6 +391,37 @@ def test_close_before_ui_drain_does_not_prompt_or_create_client():
 	assert cleanup.result(timeout=1) is None
 	assert h.auth is None
 	assert h.prompts == 0
+
+
+def test_close_scheduling_failure_does_not_mutate_ui_state_off_thread():
+	queue = []
+	post_count = 0
+
+	def post_ui(fn, *args):
+		nonlocal post_count
+		post_count += 1
+		if post_count == 1:
+			queue.append((fn, args))
+		else:
+			raise RuntimeError("UI scheduler stopped")
+
+	auth = FakeAuth()
+	session = CoseeingAuthSession(
+		client_factory=lambda: auth,
+		post_ui=post_ui,
+		read_refresh_token=lambda: None,
+		save_refresh_token=lambda value: None,
+		prompt_login=lambda: "guest",
+	)
+	result = session.get_access_token()
+	cleanup = session.close()
+	with pytest.raises(RuntimeError, match="UI scheduler stopped"):
+		cleanup.result(timeout=1)
+	fn, args = queue.pop(0)
+	fn(*args)
+	with pytest.raises(ClientClosedError):
+		result.result(timeout=1)
+	assert auth.calls == []
 
 
 def test_cancel_prompt_completes_with_cancelled_error():
