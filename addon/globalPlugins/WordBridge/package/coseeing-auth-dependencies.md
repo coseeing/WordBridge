@@ -1,8 +1,12 @@
 # Coseeing auth bundle dependencies
 
 The add-on supports the range declared in `buildVars.py`: NVDA 2024.1 through
-2026.1.1. The corresponding NVDA Windows runtime is CPython 3.11, 32-bit
-(win32). The dependency bundle was prepared for that runtime from PyPI wheels.
+2026.1.1. The dependency bundle has a runtime-specific directory for each
+supported NVDA runtime: CPython 3.11 32-bit (`py311-win32`) and CPython 3.13
+64-bit (`py313-win_amd64`). The integration layer selects the directory from
+the running Python version and pointer width.
+
+### CPython 3.11 32-bit (`py311-win32`)
 
 | Package | Version | Wheel | License |
 | --- | --- | --- | --- |
@@ -17,10 +21,20 @@ The add-on supports the range declared in `buildVars.py`: NVDA 2024.1 through
 | urllib3 | 2.7.0 | `urllib3-2.7.0-py3-none-any.whl` | MIT |
 | certifi | 2026.7.22 | `certifi-2026.7.22-py3-none-any.whl` | MPL-2.0 |
 
-The package directories and `.dist-info` metadata contain the installed
-versions and license metadata. `cryptography` and `cffi` are the only native
-dependencies; their bundle files are Windows `win32` wheels and no Linux
-`.so` files are included.
+The CPython 3.13 x64 directory contains the same package versions and pure
+Python wheels, with these runtime-specific native wheels:
 
-The Windows import test is skipped on non-Windows development hosts and must
-be run with the supported NVDA Python runtime on Windows before release.
+| Package | Wheel |
+| --- | --- |
+| cryptography | `cryptography-45.0.7-cp311-abi3-win_amd64.whl` |
+| cffi | `cffi-2.1.1-cp313-cp313-win_amd64.whl` |
+| charset-normalizer | `charset_normalizer-3.5.1-cp313-cp313-win_amd64.whl` |
+
+Both directories include `_cffi_backend` from the matching cffi wheel. The
+package directories and `.dist-info` metadata contain the installed versions
+and license metadata. No Linux `.so` files are included.
+
+The Windows import test uses isolated mode, selects the matching runtime
+directory, and verifies all direct and transitive modules resolve from that
+directory. It is skipped on non-Windows development hosts and must be run with
+both supported NVDA Python runtimes on Windows before release.
