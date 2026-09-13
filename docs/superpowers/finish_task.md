@@ -123,3 +123,34 @@ The Task 6 delivery record is `a564dfa`; it records the implementation list
 above and is followed by `41ac560` for pytest discovery hygiene. The pre-existing
 worktree changes remain uncommitted: `addon/globalPlugins/WordBridge/package/coseeing-auth-dependencies.md`
 is modified and `WordBridge(include-auth)/` is untracked.
+
+## Final review fix wave
+
+Commit `d416e55` closes all six Important findings with regression coverage:
+
+- Global shutdown is terminal; later callers and queued callbacks cannot resurrect the auth singleton.
+- An admitted request may finish client construction after close scheduling fails; its client is handed to one cleanup owner, every waiter receives `ClientClosedError`, and cleanup remains pending until the client closes.
+- Proofreader and feedback POST operations are serialized with termination, and queued UI callbacks check termination again before delivery.
+- HTTP status, connection, timeout, malformed JSON, and missing response fields produce stable user messages without raw errors or uncaught `KeyError`.
+- Failed rotated-token persistence retains the pair so the next call retries the same save and preserves the authenticated session.
+- Bundle validation reproduces production import order and verifies runtime dependencies precede addon imports.
+
+Previously deferred minors are explicit: legacy credential schema keys remain only for compatibility; SCons/gettext packaging checks remain unavailable; Windows native import and NVDA manual acceptance remain pending on this Linux host. No other review minor is left undocumented.
+
+Exact review-wave verification:
+
+```text
+python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py tests/test_coseeing_requests.py tests/test_coseeing_auth_bundle.py tests/test_corrector_catalog_unittest.py tests/test_corrector_task_config.py tests/test_task_architecture_unittest.py -q
+93 passed, 1 skipped in 0.85s
+
+python3 -m pytest -q
+153 passed, 1 skipped, 7 failed in 22.30s
+
+python3 -m compileall -q [changed auth/plugin/test files]
+exit 0
+
+git diff --check
+exit 0
+```
+
+The seven full-suite failures are the existing six live provider cost assertions and the existing stale `ollama.json` provider filename assertion. The review-wave implementation and regression tests are committed as `d416e55` (`fix: close Coseeing auth review gaps`).

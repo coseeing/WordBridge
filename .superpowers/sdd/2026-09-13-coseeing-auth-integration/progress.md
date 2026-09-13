@@ -54,3 +54,20 @@ Task 6: complete (commits 918fccb, a564dfa, 41ac560; focused suite 86 passed, 1 
 - Task 6 fix: updated the stale architecture test from 14 to the current 13 catalog entries; committed as `918fccb`.
 - Full repository `python3 -m pytest -q`: 146 passed, 1 skipped, 7 unrelated failures (six live provider cost assertions and the stale Ollama filename assertion); no provider test or catalog file was changed.
 - Pytest discovery hygiene: `testpaths = ["tests"]` committed as `41ac560`, preventing vendored dependency tests from changing import order.
+
+## Final review fix wave
+
+Commit `d416e55` addresses all six Important findings in one cohesive auth integration change:
+
+1. Global shutdown now permanently rejects later singleton/token requests with `ClientClosedError`; queued callbacks cannot reopen auth.
+2. Close scheduling failure keeps cleanup pending across an admitted request, closes any client created by that request, and completes all admitted waiters with `ClientClosedError`.
+3. Proofreader and feedback requests serialize termination against POST, and queued result/error UI callbacks re-check termination before delivery.
+4. Proofreader and feedback HTTP status, connection, timeout, malformed JSON, and missing-field failures use stable translated messages without raw exception or `KeyError` leakage.
+5. A rotated token whose persistence fails is retained for the next call; retry saves the same token and returns the original authenticated access token without reauthentication.
+6. Bundle validation asserts production import order puts the runtime-specific dependency directory ahead of addon imports.
+
+Regression additions cover singleton resurrection, admitted close handoff, rotated-token retry, terminated proofreader work, proofreader status/connection/response failures, stable feedback failures, and production import ordering.
+
+Previously deferred minors are now explicit: legacy `coseeing_username`/`coseeing_password` schema keys remain for settings compatibility but are unused; packaging/translation remains blocked by unavailable SCons/gettext tools; Windows native import and NVDA manual acceptance remain pending because this host is Linux. No additional review minor is undocumented.
+
+Review-wave verification: focused command → `93 passed, 1 skipped in 0.85s`; full `python3 -m pytest -q` → `153 passed, 1 skipped, 7 failed` from existing live provider cost assertions and the stale Ollama filename assertion; compileall → exit 0; `git diff --check` → exit 0.
