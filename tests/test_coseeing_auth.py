@@ -535,6 +535,106 @@ def test_close_scheduling_failure_does_not_mutate_ui_state_off_thread():
 	assert auth.calls == []
 
 
+def test_close_schedule_and_retry_failure_finishes_existing_client_waiters_and_reports_error():
+	queue = []
+	post_count = 0
+
+	def post_ui(fn, *args):
+		nonlocal post_count
+		post_count += 1
+		if post_count == 1:
+			queue.append((fn, args))
+		else:
+			raise RuntimeError("UI scheduler stopped")
+
+	auth = FakeAuth()
+	session = CoseeingAuthSession(
+		client_factory=lambda: auth,
+		post_ui=post_ui,
+		read_refresh_token=lambda: None,
+		save_refresh_token=lambda value: None,
+		prompt_login=lambda: "login",
+	)
+	result = session.get_access_token()
+	fn, args = queue.pop(0)
+	fn(*args)
+	cleanup = session.close()
+	with pytest.raises(ClientClosedError):
+		result.result(timeout=1)
+	with pytest.raises(RuntimeError, match="UI scheduler stopped"):
+		cleanup.result(timeout=1)
+	assert auth.calls == [("login", (), {}), ("close", (), {})]
+
+
+def test_close_schedule_failure_and_factory_error_finish_waiter_and_cleanup():
+	started = Event()
+	release = Event()
+	queue = []
+	post_count = 0
+
+	def post_ui(fn, *args):
+		nonlocal post_count
+		post_count += 1
+		if post_count == 1:
+			queue.append((fn, args))
+		else:
+			raise RuntimeError("UI scheduler stopped")
+
+	def make_client():
+		started.set()
+		release.wait(timeout=5)
+		raise OSError("factory")
+
+	session = CoseeingAuthSession(
+		client_factory=make_client,
+		post_ui=post_ui,
+		read_refresh_token=lambda: "old",
+		save_refresh_token=lambda value: None,
+		prompt_login=lambda: "guest",
+	)
+	result = session.get_access_token()
+	fn, args = queue.pop(0)
+	ui = Thread(target=lambda: fn(*args))
+	ui.start()
+	assert started.wait(timeout=1)
+	cleanup = session.close()
+	release.set()
+	ui.join(timeout=1)
+	with pytest.raises(OSError, match="factory"):
+		result.result(timeout=1)
+	assert cleanup.result(timeout=1) is None
+
+
+def test_persistent_watch_scheduler_failure_finishes_waiters_and_clears_operation():
+	queue = []
+	post_count = 0
+
+	def post_ui(fn, *args):
+		nonlocal post_count
+		post_count += 1
+		if post_count == 1:
+			queue.append((fn, args))
+		else:
+			raise RuntimeError("UI scheduler stopped")
+
+	auth = FakeAuth()
+	session = CoseeingAuthSession(
+		client_factory=lambda: auth,
+		post_ui=post_ui,
+		read_refresh_token=lambda: "old",
+		save_refresh_token=lambda value: None,
+		prompt_login=lambda: "guest",
+	)
+	result = session.get_access_token()
+	fn, args = queue.pop(0)
+	fn(*args)
+	auth.pending.popleft().set_result(object())
+	with pytest.raises(RuntimeError, match="UI scheduler stopped"):
+		result.result(timeout=1)
+	assert not session._active
+	assert session._waiters == []
+
+
 def test_cancel_prompt_completes_with_cancelled_error():
 	h = AuthHarness(CoseeingAuthSession, choice="cancel")
 	result = h.session.get_access_token()

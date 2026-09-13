@@ -146,6 +146,54 @@ exit=0
   `addon/globalPlugins/WordBridge/package/coseeing-auth-dependencies.md` was
   left untouched and unstaged.
 
+## Review fix round 4 report (2026-09-13)
+
+### Findings addressed
+
+- When both close UI scheduling attempts fail with an existing client, active
+  waiters now finish with `ClientClosedError`, the client is still closed once,
+  and the cleanup Future reports the scheduler failure instead of suppressing
+  it.
+- When close scheduling fails during client creation and the factory raises,
+  the active waiter receives the factory error and the cleanup Future completes
+  instead of remaining pending.
+- When all `_watch` UI-post attempts fail, the operation now drains its active
+  waiters and clears `_active` and `_waiters` with the final scheduler error.
+- Added deterministic regressions for all three boundaries.
+
+### Verification commands and exact output
+
+#### `python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_bundle.py -q`
+
+```text
+...................................s                                     [100%]
+35 passed, 1 skipped in 0.37s
+exit=0
+```
+
+#### `python3 -m compileall -q addon/globalPlugins/WordBridge/lib/coseeing_auth.py tests/coseeing_auth_helpers.py tests/test_coseeing_auth.py`
+
+```text
+<no output>
+exit=0
+```
+
+#### `git diff --check`
+
+```text
+<no output>
+exit=0
+```
+
+### Concerns
+
+- The combined suite retains one expected Windows native dependency skip on
+  this Linux host.
+- `python` is unavailable on PATH; the requested checks used `python3`.
+- The pre-existing modification to
+  `addon/globalPlugins/WordBridge/package/coseeing-auth-dependencies.md` and
+  untracked `WordBridge(include-auth)/` were left untouched.
+
 ## Review fix round 3 report (2026-09-13)
 
 ### Findings addressed
