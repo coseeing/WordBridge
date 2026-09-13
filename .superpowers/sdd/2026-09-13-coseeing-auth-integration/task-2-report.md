@@ -78,3 +78,70 @@ exit=0
   is claimed.
 - The combined bundle suite retains its existing one platform skip for the
   supplied Windows native dependency validation on this Linux host.
+
+## Review fix report (2026-09-13)
+
+### Findings addressed
+
+- High: runtime dependency preparation now runs before importing
+  `coseeing_auth.errors`; an isolated runtime import regression test verifies
+  that a dependency available only through the selected runtime directory is
+  found before the package initializer executes.
+- High: `close()` now posts its state transition to the UI queue and uses a
+  lock-protected close request as a guard while a UI operation is in progress.
+  A client created after the close request is still cleaned up, and cleanup is
+  started once on a background thread without waiting on the UI thread.
+- Medium: waiter completion catches `InvalidStateError`, so cancellation races
+  cannot prevent subsequent waiters from being completed.
+- Medium: synchronous UI callback scheduling failures are caught and fail the
+  active waiters while clearing the operation. Entry-point scheduling failures
+  and synchronous client factory/submission failures are covered as well.
+- Low: only `RestoreError(refresh_rejected)` and
+  `TokenUnavailableError(refresh_rejected|refresh_unavailable)` enter recovery;
+  `RestoreError(refresh_unavailable)` now propagates.
+- Medium: deterministic tests now cover lazy client construction, two live
+  overlapping waiters, paused-factory close, blocked asynchronous cleanup and
+  cleanup thread identity, callback scheduler failure, sync factory/submission
+  failures, and the import ordering contract.
+
+### Fix commit
+
+- `8657aec` (`8657aec3222e46137e78b4b8a059e7185a650caa`):
+  `fix: harden Coseeing auth session coordination`
+
+The original implementation and report commits remain:
+
+- `25843a9`: `feat: coordinate Coseeing login and guest sessions`
+- `2254e13`: `docs: report Coseeing auth session task`
+
+### Verification commands and exact output
+
+#### `python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_bundle.py -q`
+
+```text
+.........................s                                               [100%]
+25 passed, 1 skipped in 0.32s
+exit=0
+```
+
+#### `python3 -m compileall -q addon/globalPlugins/WordBridge/lib/coseeing_auth.py tests/coseeing_auth_helpers.py tests/test_coseeing_auth.py`
+
+```text
+<no output>
+exit=0
+```
+
+#### `git diff --check`
+
+```text
+<no output>
+exit=0
+```
+
+### Concerns
+
+- The combined suite retains one expected Windows native dependency skip on
+  this Linux host.
+- The pre-existing modification to
+  `addon/globalPlugins/WordBridge/package/coseeing-auth-dependencies.md` was
+  left untouched and unstaged.
