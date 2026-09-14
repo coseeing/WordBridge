@@ -1,0 +1,12 @@
+{
+	"name": "baidu",
+	"url": "https://qianfan.baidubce.com/v2/chat/completions",
+	"setting": {
+		"max_completion_tokens": 4096,
+		"temperature": 0.0,
+		"top_p": 0.0,
+		"stop": ["\n", "&"]
+	},
+	"timeout0": 30,
+	"timeout_max": 60
+}

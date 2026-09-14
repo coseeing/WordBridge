@@ -51,6 +51,7 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued):
 		Choice = wx_choice
 		TE_PASSWORD = 1
 		TE_PROCESS_ENTER = 2
+		TE_READONLY = 8
 		VERTICAL = 3
 		HORIZONTAL = 4
 		ALL = 5
@@ -255,7 +256,7 @@ def test_settings_panel_keeps_coseeing_sizer_without_legacy_credential_controls(
 	settings = {
 		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
 		"execution_channel": "Coseeing",
-		"api_key": {},
+		"api_key": {"Coseeing": "refresh-token"},
 		"language": "zh_traditional",
 		"typo_correction_mode": "standard",
 		"max_char_count": 512,
@@ -298,10 +299,13 @@ def test_settings_panel_keeps_coseeing_sizer_without_legacy_credential_controls(
 			pass
 
 	class Helper:
+		calls = []
+
 		def __init__(self, owner, sizer=None, **kwargs):
 			self.sizer = sizer or Sizer()
 
 		def addLabeledControl(self, label, control_type, **kwargs):
+			self.calls.append((label, control_type, kwargs))
 			return control_type(None, **kwargs)
 
 		def addItem(self, item):
@@ -324,6 +328,14 @@ def test_settings_panel_keeps_coseeing_sizer_without_legacy_credential_controls(
 	assert "Coseeing" in panel.accountGroupSizerMap
 	assert "Coseeing" not in panel.accountTextCtrlMap1
 	assert "Coseeing" not in panel.accountTextCtrlMap2
+	refresh_token_controls = [
+		call for call in Helper.calls if call[0] == "Refresh Token:"
+	]
+	assert len(refresh_token_controls) == 1
+	_, control_type, kwargs = refresh_token_controls[0]
+	assert control_type is plugin.wx.TextCtrl
+	assert kwargs["value"] == "refresh-token"
+	assert kwargs["style"] == plugin.wx.TE_READONLY
 
 
 def _install_nvda(monkeypatch, *, dialog, wx, config=None, ui=None, log=None, call_after=None):
@@ -469,11 +481,11 @@ def test_shutdown_permanently_blocks_singleton_resurrection(monkeypatch):
 		module.get_coseeing_access_token().result(timeout=1)
 
 
-def test_dialog_uses_translatable_labels_and_legacy_yes_no_style(monkeypatch):
+def test_dialog_uses_nvda_2026_yes_no_buttons(monkeypatch):
 	created = []
 	class Dialog:
-		def __init__(self, *args, **kwargs):
-			created.append((args, kwargs))
+		def __init__(self, parent, message, title, dialog_type=None, *, buttons=None):
+			created.append((parent, message, title, dialog_type, buttons))
 		def setYesNoLabels(self, yes, no):
 			self.labels = (yes, no)
 		def ShowModal(self):
@@ -489,9 +501,9 @@ def test_dialog_uses_translatable_labels_and_legacy_yes_no_style(monkeypatch):
 	_install_nvda(monkeypatch, dialog=Dialog, wx=Wx)
 	adapter = module._NvdaAuthAdapter()
 	assert adapter.prompt_login() == "cancel"
-	assert created[0][1]["style"] == 4
-	assert created[0][0][1] == "Sign in to Coseeing to use this service, or continue as a guest."
-	assert created[0][0][2] == "Coseeing authentication"
+	assert created == [
+		("frame", "Sign in to Coseeing to use this service, or continue as a guest.", "Coseeing authentication", None, 4),
+	]
 
 
 def test_shutdown_cancels_only_active_dialog(monkeypatch):

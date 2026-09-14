@@ -53,12 +53,14 @@ class AuthorizationServer(_AuthorizationServer):
             self._query_client = query_client
         if save_token is not None:
             self._save_token = save_token
+        self.load_config(app.config)
 
+    def load_config(self, config):
         self.register_token_generator(
-            "default", self.create_bearer_token_generator(app.config)
+            "default", self.create_bearer_token_generator(config)
         )
-        self.scopes_supported = app.config.get("OAUTH2_SCOPES_SUPPORTED")
-        self._error_uris = app.config.get("OAUTH2_ERROR_URIS")
+        self.scopes_supported = config.get("OAUTH2_SCOPES_SUPPORTED")
+        self._error_uris = config.get("OAUTH2_ERROR_URIS")
 
     def query_client(self, client_id):
         return self._query_client(client_id)

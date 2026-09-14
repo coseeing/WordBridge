@@ -112,10 +112,13 @@ class LLMSettingsPanel(SettingsPanel):
 			self.accountGroupSizerHelper = guiHelper.BoxSizerHelper(self, sizer=accountBoxSizer)
 			settingsSizerHelper.addItem(self.accountGroupSizerHelper)
 			if endpoint == "Coseeing":
-				self.accountGroupSizerHelper.addItem(wx.StaticText(
-					self,
-					label=_("Sign in to Coseeing in your browser, or choose to continue as a guest when saving settings."),
-				))
+				self.accountGroupSizerHelper.addLabeledControl(
+					_("Refresh Token:"),
+					wx.TextCtrl,
+					size=(self.scaleSize(375), -1),
+					value=config.conf["WordBridge"]["settings"]["api_key"][endpoint],
+					style=wx.TE_READONLY,
+				)
 				continue
 
 			self.accountTextCtrlMap1[endpoint] = self.accountGroupSizerHelper.addLabeledControl(

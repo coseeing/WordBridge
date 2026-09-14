@@ -1,4 +1,5 @@
-"""authlib.
+"""
+authlib
 ~~~~~~~
 
 The ultimate Python library in building OAuth 1.0, OAuth 2.0 and OpenID

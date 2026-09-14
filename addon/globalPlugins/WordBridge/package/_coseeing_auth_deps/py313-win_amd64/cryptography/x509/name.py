@@ -88,7 +88,7 @@ def _escape_dn_value(val: str | bytes) -> str:
     val = val.replace(">", "\\>")
     val = val.replace("\0", "\\00")
 
-    if val[0] in ("#", " "):
+    if val[0] == "#" or (val[0] == " " and len(val) > 1):
         val = "\\" + val
     if val[-1] == " ":
         val = val[:-1] + "\\ "
@@ -105,14 +105,15 @@ def _unescape_dn_value(val: str) -> str:
     # special = escaped / SPACE / SHARP / EQUALS
     # escaped = DQUOTE / PLUS / COMMA / SEMI / LANGLE / RANGLE
     def sub(m):
-        val = m.group(1)
-        # Regular escape
-        if len(val) == 1:
-            return val
-        # Hex-value scape
-        return chr(int(val, 16))
+        val = m.group(0)
+        # Special character escape
+        if len(val) == 2:
+            return val[1:]
 
-    return _RFC4514NameParser._PAIR_RE.sub(sub, val)
+        # Unicode string of hex
+        return binascii.unhexlify(val.replace("\\", "")).decode()
+
+    return _RFC4514NameParser._PAIR_MULTI_RE.sub(sub, val)
 
 
 NameAttributeValueType = typing.TypeVar(
@@ -144,9 +145,8 @@ class NameAttribute(typing.Generic[NameAttributeValueType]):
                 )
             if not isinstance(value, bytes):
                 raise TypeError("value must be bytes for BitString")
-        else:
-            if not isinstance(value, str):
-                raise TypeError("value argument must be a str")
+        elif not isinstance(value, str):
+            raise TypeError("value argument must be a str")
 
         length_limits = _NAMEOID_LENGTH_LIMIT.get(oid)
         if length_limits is not None:
@@ -226,7 +226,7 @@ class NameAttribute(typing.Generic[NameAttributeValueType]):
 
 
 class RelativeDistinguishedName:
-    def __init__(self, attributes: Iterable[NameAttribute]):
+    def __init__(self, attributes: Iterable[NameAttribute[str | bytes]]):
         attributes = list(attributes)
         if not attributes:
             raise ValueError("a relative distinguished name cannot be empty")
@@ -269,7 +269,7 @@ class RelativeDistinguishedName:
     def __hash__(self) -> int:
         return hash(self._attribute_set)
 
-    def __iter__(self) -> Iterator[NameAttribute]:
+    def __iter__(self) -> Iterator[NameAttribute[str | bytes]]:
         return iter(self._attributes)
 
     def __len__(self) -> int:
@@ -281,7 +281,9 @@ class RelativeDistinguishedName:
 
 class Name:
     @typing.overload
-    def __init__(self, attributes: Iterable[NameAttribute]) -> None: ...
+    def __init__(
+        self, attributes: Iterable[NameAttribute[str | bytes]]
+    ) -> None: ...
 
     @typing.overload
     def __init__(
@@ -290,7 +292,9 @@ class Name:
 
     def __init__(
         self,
-        attributes: Iterable[NameAttribute | RelativeDistinguishedName],
+        attributes: Iterable[
+            NameAttribute[str | bytes] | RelativeDistinguishedName
+        ],
     ) -> None:
         attributes = list(attributes)
         if all(isinstance(x, NameAttribute) for x in attributes):
@@ -300,7 +304,7 @@ class Name:
             ]
         elif all(isinstance(x, RelativeDistinguishedName) for x in attributes):
             self._attributes = typing.cast(
-                typing.List[RelativeDistinguishedName], attributes
+                list[RelativeDistinguishedName], attributes
             )
         else:
             raise TypeError(
@@ -315,6 +319,13 @@ class Name:
         attr_name_overrides: _NameOidMap | None = None,
     ) -> Name:
         return _RFC4514NameParser(data, attr_name_overrides or {}).parse()
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> Name:
+        """
+        Parse a DER encoded X.509 name (the inverse of ``public_bytes``).
+        """
+        return rust_x509.parse_name_bytes(data)
 
     def rfc4514_string(
         self, attr_name_overrides: _OidNameMap | None = None
@@ -358,7 +369,7 @@ class Name:
         # for you, consider optimizing!
         return hash(tuple(self._attributes))
 
-    def __iter__(self) -> Iterator[NameAttribute]:
+    def __iter__(self) -> Iterator[NameAttribute[str | bytes]]:
         for rdn in self._attributes:
             yield from rdn
 
@@ -366,16 +377,17 @@ class Name:
         return sum(len(rdn) for rdn in self._attributes)
 
     def __repr__(self) -> str:
-        rdns = ",".join(attr.rfc4514_string() for attr in self._attributes)
-        return f"<Name({rdns})>"
+        return f"<Name({self.rfc4514_string()})>"
 
 
 class _RFC4514NameParser:
     _OID_RE = re.compile(r"(0|([1-9]\d*))(\.(0|([1-9]\d*)))+")
     _DESCR_RE = re.compile(r"[a-zA-Z][a-zA-Z\d-]*")
 
-    _PAIR = r"\\([\\ #=\"\+,;<>]|[\da-zA-Z]{2})"
-    _PAIR_RE = re.compile(_PAIR)
+    _ESCAPE_SPECIAL = r"[\\ #=\"\+,;<>]"
+    _ESCAPE_HEX = r"[\da-zA-Z]{2}"
+    _PAIR = rf"\\({_ESCAPE_SPECIAL}|{_ESCAPE_HEX})"
+    _PAIR_MULTI_RE = re.compile(rf"(\\{_ESCAPE_SPECIAL})|((\\{_ESCAPE_HEX})+)")
     _LUTF1 = r"[\x01-\x1f\x21\x24-\x2A\x2D-\x3A\x3D\x3F-\x5B\x5D-\x7F]"
     _SUTF1 = r"[\x01-\x21\x23-\x2A\x2D-\x3A\x3D\x3F-\x5B\x5D-\x7F]"
     _TUTF1 = r"[\x01-\x1F\x21\x23-\x2A\x2D-\x3A\x3D\x3F-\x5B\x5D-\x7F]"
@@ -453,7 +465,7 @@ class _RFC4514NameParser:
 
         return RelativeDistinguishedName(nas)
 
-    def _parse_na(self) -> NameAttribute:
+    def _parse_na(self) -> NameAttribute[str]:
         try:
             oid_value = self._read_re(self._OID_RE)
         except ValueError:

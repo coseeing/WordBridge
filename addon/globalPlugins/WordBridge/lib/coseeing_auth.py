@@ -1,4 +1,3 @@
-import struct
 import sys
 import threading
 from collections.abc import Callable
@@ -10,26 +9,42 @@ if TYPE_CHECKING:
 	from coseeing_auth import AuthConfig
 
 
+_auth_dependencies_prepared = False
+
+
 def _auth_dependency_path() -> Path | None:
 	if sys.platform != "win32":
 		return None
 
-	python_version = f"{sys.version_info.major}{sys.version_info.minor}"
-	architecture = "win32" if struct.calcsize("P") == 4 else "win_amd64"
 	return (
 		Path(__file__).resolve().parents[1]
 		/ "package"
 		/ "_coseeing_auth_deps"
-		/ f"py{python_version}-{architecture}"
+		/ "py313-win_amd64"
 	)
 
 
 def _prepare_auth_dependencies() -> None:
+	global _auth_dependencies_prepared
 	path = _auth_dependency_path()
 	if path is not None and not path.is_dir():
 		raise ImportError(f"Coseeing auth dependencies are unavailable for Python {sys.version_info[:2]}")
-	if path is not None and str(path) not in sys.path:
-		sys.path.insert(0, str(path))
+	if path is None:
+		return
+	path_string = str(path)
+	if path_string not in sys.path:
+		sys.path.insert(0, path_string)
+	if _auth_dependencies_prepared:
+		return
+
+	# NVDA may preload its own cryptography from library.zip.  Remove that
+	# module tree before coseeing_auth imports Authlib, otherwise Python keeps
+	# resolving cryptography submodules from the preloaded NVDA package even
+	# after the addon dependency directory is first on sys.path.
+	for module_name in tuple(sys.modules):
+		if module_name == "cryptography" or module_name.startswith("cryptography."):
+			del sys.modules[module_name]
+	_auth_dependencies_prepared = True
 
 
 _prepare_auth_dependencies()
@@ -434,16 +449,17 @@ class _NvdaAuthAdapter:
 		self._wx.CallAfter(function, *args)
 
 	def client_factory(self) -> object:
+		config = build_auth_config()
 		from coseeing_auth import CoseeingAuthClient, FutureAuthClient
 
-		return FutureAuthClient(CoseeingAuthClient(build_auth_config()))
+		return FutureAuthClient(CoseeingAuthClient(config))
 
 	def prompt_login(self) -> str:
 		dialog = self._gui.message.MessageDialog(
 			self._gui.mainFrame,
 			_("Sign in to Coseeing to use this service, or continue as a guest."),
 			_("Coseeing authentication"),
-			style=self._gui.message.DefaultButtonSet.YES_NO,
+			buttons=self._gui.message.DefaultButtonSet.YES_NO,
 		)
 		dialog.setYesNoLabels(_("Sign in"), _("Continue as guest"))
 		with self._dialog_lock:

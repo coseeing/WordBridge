@@ -4,7 +4,6 @@ from coseeing_auth import LoginError, RestoreError, TokenUnavailableError, Token
 from coseeing_auth.errors import ClientClosedError
 from concurrent.futures import CancelledError, Future
 import shutil
-import struct
 import subprocess
 import sys
 from threading import Event, Thread, current_thread
@@ -43,10 +42,7 @@ def test_client_is_constructed_lazily_for_guest():
 def test_auth_errors_import_after_runtime_dependency_preparation(tmp_path):
 	addon = tmp_path / "addon"
 	lib = addon / "lib"
-	architecture = "win32" if struct.calcsize("P") == 4 else "win_amd64"
-	deps = addon / "package" / "_coseeing_auth_deps" / (
-		f"py{sys.version_info.major}{sys.version_info.minor}-{architecture}"
-	)
+	deps = addon / "package" / "_coseeing_auth_deps" / "py313-win_amd64"
 	lib.mkdir(parents=True)
 	deps.mkdir(parents=True)
 	shutil.copy2(Path("addon/globalPlugins/WordBridge/lib/coseeing_auth.py"), lib / "coseeing_auth.py")
@@ -64,24 +60,18 @@ def test_auth_errors_import_after_runtime_dependency_preparation(tmp_path):
 		"from runtime_marker import READY\nfrom .errors import *\n", encoding="utf-8"
 	)
 	code = """
-import sys
-import struct
-sys.platform = "win32"
-sys.path.insert(0, sys.argv[1])
-architecture = "win32" if struct.calcsize("P") == 4 else "win_amd64"
-from lib.coseeing_auth import CoseeingAuthSession
-assert CoseeingAuthSession
-"""
+	import sys
+	sys.platform = "win32"
+	sys.path.insert(0, sys.argv[1])
+	from lib.coseeing_auth import CoseeingAuthSession
+	assert CoseeingAuthSession
+	"""
 	subprocess.run([sys.executable, "-S", "-c", code, str(addon)], check=True, capture_output=True, text=True)
 
 
-@pytest.mark.parametrize(("pointer_size", "expected_architecture"), ((4, "win32"), (8, "win_amd64")))
-def test_runtime_dependency_path_selects_pointer_width(monkeypatch, pointer_size, expected_architecture):
+def test_runtime_dependency_path_selects_supported_runtime(monkeypatch):
 	monkeypatch.setattr(auth_module.sys, "platform", "win32")
-	monkeypatch.setattr(auth_module.struct, "calcsize", lambda format_code: pointer_size)
-	assert auth_module._auth_dependency_path().name == (
-		f"py{auth_module.sys.version_info.major}{auth_module.sys.version_info.minor}-{expected_architecture}"
-	)
+	assert auth_module._auth_dependency_path().name == "py313-win_amd64"
 
 
 def test_restore_persists_rotated_refresh_before_completing():

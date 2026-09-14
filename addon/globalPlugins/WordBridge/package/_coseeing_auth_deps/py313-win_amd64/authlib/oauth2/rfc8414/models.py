@@ -1,3 +1,4 @@
+from authlib.common.language import is_valid_language_tag
 from authlib.common.security import is_secure_transport
 from authlib.common.urls import is_valid_url
 from authlib.common.urls import urlparse
@@ -5,6 +6,14 @@ from authlib.common.urls import urlparse
 
 class AuthorizationServerMetadata(dict):
     """Define Authorization Server Metadata via `Section 2`_ in RFC8414_.
+
+    The :meth:`validate` method can compose extension classes via the
+    ``metadata_classes`` parameter::
+
+        from authlib.oauth2 import rfc8414, rfc9101
+
+        metadata = rfc8414.AuthorizationServerMetadata(data)
+        metadata.validate(metadata_classes=[rfc9101.AuthorizationServerMetadata])
 
     .. _RFC8414: https://tools.ietf.org/html/rfc8414
     .. _`Section 2`: https://tools.ietf.org/html/rfc8414#section-2
@@ -200,7 +209,7 @@ class AuthorizationServerMetadata(dict):
         [RFC5646].  If omitted, the set of supported languages and scripts
         is unspecified.
         """
-        validate_array_value(self, "ui_locales_supported")
+        validate_language_tags_array(self, "ui_locales_supported")
 
     def validate_op_policy_uri(self):
         """OPTIONAL.  URL that the authorization server provides to the
@@ -350,10 +359,28 @@ class AuthorizationServerMetadata(dict):
             "introspection_endpoint_auth_methods_supported", ["client_secret_basic"]
         )
 
-    def validate(self):
-        """Validate all server metadata value."""
+    def validate(self, metadata_classes=None):
+        """Validate all server metadata values.
+
+        :param metadata_classes: Optional list of metadata extension classes
+            to validate. Example::
+
+                from authlib.oauth2 import rfc9101
+                from authlib.oidc import discovery
+
+                metadata = discovery.OpenIDProviderMetadata(data)
+                metadata.validate(
+                    metadata_classes=[rfc9101.AuthorizationServerMetadata]
+                )
+        """
         for key in self.REGISTRY_KEYS:
             object.__getattribute__(self, f"validate_{key}")()
+
+        if metadata_classes:
+            for cls in metadata_classes:
+                instance = cls(self)
+                for key in cls.REGISTRY_KEYS:
+                    object.__getattribute__(instance, f"validate_{key}")()
 
     def __getattr__(self, key):
         try:
@@ -383,3 +410,19 @@ def validate_array_value(metadata, key):
     values = metadata.get(key)
     if values is not None and not isinstance(values, list):
         raise ValueError(f'"{key}" MUST be JSON array')
+
+
+def validate_language_tags_array(metadata, key):
+    validate_array_value(metadata, key)
+    values = metadata.get(key)
+    if values is not None:
+        for tag in values:
+            if not is_valid_language_tag(tag):
+                raise ValueError(f'"{key}" MUST contain BCP 47 language tags')
+
+
+def validate_boolean_value(metadata, key):
+    if key not in metadata:
+        return
+    if metadata[key] not in (True, False):
+        raise ValueError(f'"{key}" MUST be boolean')

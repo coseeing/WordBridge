@@ -24,11 +24,15 @@ class AuthorizationServer(_AuthorizationServer):
     """
 
     def __init__(self, client_model, token_model):
-        self.config = getattr(settings, "AUTHLIB_OAUTH2_PROVIDER", {})
+        super().__init__()
         self.client_model = client_model
         self.token_model = token_model
+        self.load_config(getattr(settings, "AUTHLIB_OAUTH2_PROVIDER", {}))
+
+    def load_config(self, config):
+        self.config = config
         scopes_supported = self.config.get("scopes_supported")
-        super().__init__(scopes_supported=scopes_supported)
+        self.scopes_supported = scopes_supported
         # add default token generator
         self.register_token_generator("default", self.create_bearer_token_generator())
 

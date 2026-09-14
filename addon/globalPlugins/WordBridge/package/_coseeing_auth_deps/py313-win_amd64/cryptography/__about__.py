@@ -10,8 +10,8 @@ __all__ = [
     "__version__",
 ]
 
-__version__ = "45.0.7"
+__version__ = "50.0.1"
 
 
 __author__ = "The Python Cryptographic Authority and individual contributors"
-__copyright__ = f"Copyright 2013-2025 {__author__}"
+__copyright__ = f"Copyright 2013-2026 {__author__}"

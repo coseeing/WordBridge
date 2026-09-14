@@ -81,6 +81,12 @@ def cryptography_has_tlsv13_hs_functions() -> list[str]:
     ]
 
 
+def cryptography_has_ssl_verify_client_post_handshake() -> list[str]:
+    return [
+        "SSL_verify_client_post_handshake",
+    ]
+
+
 def cryptography_has_engine() -> list[str]:
     return [
         "ENGINE_by_id",
@@ -114,12 +120,6 @@ def cryptography_has_srtp() -> list[str]:
     ]
 
 
-def cryptography_has_op_no_renegotiation() -> list[str]:
-    return [
-        "SSL_OP_NO_RENEGOTIATION",
-    ]
-
-
 def cryptography_has_dtls_get_data_mtu() -> list[str]:
     return [
         "DTLS_get_data_mtu",
@@ -129,6 +129,7 @@ def cryptography_has_dtls_get_data_mtu() -> list[str]:
 def cryptography_has_ssl_cookie() -> list[str]:
     return [
         "SSL_OP_COOKIE_EXCHANGE",
+        "DTLS1_COOKIE_LENGTH",
         "DTLSv1_listen",
         "SSL_CTX_set_cookie_generate_cb",
         "SSL_CTX_set_cookie_verify_cb",
@@ -155,6 +156,10 @@ def cryptography_has_get_extms_support() -> list[str]:
     return ["SSL_get_extms_support"]
 
 
+def cryptography_has_ssl_get0_group_name() -> list[str]:
+    return ["SSL_get0_group_name"]
+
+
 # This is a mapping of
 # {condition: function-returning-names-dependent-on-that-condition} so we can
 # loop over them and delete unsupported names at runtime. It will be removed
@@ -172,12 +177,12 @@ CONDITIONAL_NAMES = {
     "Cryptography_HAS_TLSv1_3_HS_FUNCTIONS": (
         cryptography_has_tlsv13_hs_functions
     ),
+    "Cryptography_HAS_SSL_VERIFY_CLIENT_POST_HANDSHAKE": (
+        cryptography_has_ssl_verify_client_post_handshake
+    ),
     "Cryptography_HAS_ENGINE": cryptography_has_engine,
     "Cryptography_HAS_VERIFIED_CHAIN": cryptography_has_verified_chain,
     "Cryptography_HAS_SRTP": cryptography_has_srtp,
-    "Cryptography_HAS_OP_NO_RENEGOTIATION": (
-        cryptography_has_op_no_renegotiation
-    ),
     "Cryptography_HAS_DTLS_GET_DATA_MTU": cryptography_has_dtls_get_data_mtu,
     "Cryptography_HAS_SSL_COOKIE": cryptography_has_ssl_cookie,
     "Cryptography_HAS_PRIME_CHECKS": cryptography_has_prime_checks,
@@ -188,4 +193,7 @@ CONDITIONAL_NAMES = {
         cryptography_has_ssl_op_ignore_unexpected_eof
     ),
     "Cryptography_HAS_GET_EXTMS_SUPPORT": cryptography_has_get_extms_support,
+    "Cryptography_HAS_SSL_GET0_GROUP_NAME": (
+        cryptography_has_ssl_get0_group_name
+    ),
 }

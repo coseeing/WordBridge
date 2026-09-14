@@ -9,6 +9,7 @@ class JWEAlgorithmBase(metaclass=ABCMeta):  # noqa: B024
 
     name = None
     description = None
+    deprecated = False
     algorithm_type = "JWE"
     algorithm_location = "alg"
 
@@ -117,10 +118,10 @@ class JWESharedHeader(dict):
 
     def __init__(self, protected, unprotected):
         obj = {}
-        if protected:
-            obj.update(protected)
         if unprotected:
             obj.update(unprotected)
+        if protected:
+            obj.update(protected)
         super().__init__(obj)
         self.protected = protected if protected else {}
         self.unprotected = unprotected if unprotected else {}
@@ -145,12 +146,12 @@ class JWEHeader(dict):
 
     def __init__(self, protected, unprotected, header):
         obj = {}
-        if protected:
-            obj.update(protected)
         if unprotected:
             obj.update(unprotected)
         if header:
             obj.update(header)
+        if protected:
+            obj.update(protected)
         super().__init__(obj)
         self.protected = protected if protected else {}
         self.unprotected = unprotected if unprotected else {}

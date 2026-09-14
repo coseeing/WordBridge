@@ -15,8 +15,12 @@ from cryptography.hazmat.bindings._rust.openssl import (
     ed25519,
     hashes,
     hmac,
+    hpke,
     kdf,
     keys,
+    keywrap,
+    mldsa,
+    mlkem,
     poly1305,
     rsa,
     x448,
@@ -34,8 +38,12 @@ __all__ = [
     "ed25519",
     "hashes",
     "hmac",
+    "hpke",
     "kdf",
     "keys",
+    "keywrap",
+    "mldsa",
+    "mlkem",
     "openssl_version",
     "openssl_version_text",
     "poly1305",
@@ -48,7 +56,6 @@ __all__ = [
 CRYPTOGRAPHY_IS_LIBRESSL: bool
 CRYPTOGRAPHY_IS_BORINGSSL: bool
 CRYPTOGRAPHY_IS_AWSLC: bool
-CRYPTOGRAPHY_OPENSSL_300_OR_GREATER: bool
 CRYPTOGRAPHY_OPENSSL_309_OR_GREATER: bool
 CRYPTOGRAPHY_OPENSSL_320_OR_GREATER: bool
 CRYPTOGRAPHY_OPENSSL_330_OR_GREATER: bool

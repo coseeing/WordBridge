@@ -1,8 +1,9 @@
 import subprocess
 import sys
-import struct
 import os
 import shutil
+from email import policy
+from email.parser import Parser
 from pathlib import Path
 
 import pytest
@@ -10,18 +11,25 @@ import pytest
 
 PACKAGE_ROOT = Path("addon/globalPlugins/WordBridge/package")
 RUNTIME_BUNDLES = {
-	"py311-win32": {
-		"_cffi_backend.cp311-win32.pyd",
-		"charset_normalizer/cd.cp311-win32.pyd",
-		"charset_normalizer/md.cp311-win32.pyd",
-		"cryptography/hazmat/bindings/_rust.pyd",
-	},
 	"py313-win_amd64": {
 		"_cffi_backend.cp313-win_amd64.pyd",
 		"charset_normalizer/cd.cp313-win_amd64.pyd",
 		"charset_normalizer/md.cp313-win_amd64.pyd",
 		"cryptography/hazmat/bindings/_rust.pyd",
 	},
+}
+EXPECTED_PACKAGE_VERSIONS = {
+	"Authlib": "1.8.0",
+	"requests": "2.34.2",
+	"PyJWT": "2.14.0",
+	"joserfc": "1.7.5",
+	"cryptography": "50.0.1",
+	"cffi": "2.1.1",
+	"pycparser": "3.0",
+	"charset-normalizer": "3.5.1",
+	"idna": "3.19",
+	"urllib3": "2.7.0",
+	"certifi": "2026.7.22",
 }
 
 
@@ -81,8 +89,9 @@ from pathlib import Path
 
 bundle = Path(sys.argv[1]).resolve()
 assert "PYTHONPATH" not in __import__("os").environ
-runtime = f"py{sys.version_info.major}{sys.version_info.minor}-{'win32' if __import__('struct').calcsize('P') == 4 else 'win_amd64'}"
-assert runtime in {"py311-win32", "py313-win_amd64"}
+assert (sys.version_info.major, sys.version_info.minor) == (3, 13)
+assert __import__('struct').calcsize('P') == 8
+runtime = "py313-win_amd64"
 deps = bundle / "_coseeing_auth_deps" / runtime
 sys.path.insert(0, str(bundle.parent))
 from lib.coseeing_auth import build_auth_config
@@ -115,6 +124,16 @@ def test_runtime_bundles_contain_native_backend_for_each_supported_runtime():
 		assert any(bundle.glob("*.dist-info/METADATA"))
 
 
+def test_runtime_bundle_contains_resolved_package_versions():
+	bundle = PACKAGE_ROOT / "_coseeing_auth_deps" / "py313-win_amd64"
+	actual = {}
+	for metadata_path in bundle.glob("*.dist-info/METADATA"):
+		metadata = Parser(policy=policy.default).parsestr(metadata_path.read_text(encoding="utf-8"))
+		actual[metadata["Name"]] = metadata["Version"]
+
+	assert actual == EXPECTED_PACKAGE_VERSIONS
+
+
 def test_windows_bundle_imports_dependencies_from_addon_package():
 	if sys.platform != "win32":
 		pytest.skip("Windows NVDA bundle import requires a Windows target runtime")
@@ -129,14 +148,16 @@ from pathlib import Path
 
 bundle = Path(sys.argv[1]).resolve()
 assert "PYTHONPATH" not in os.environ
-runtime = f"py{sys.version_info.major}{sys.version_info.minor}-{'win32' if struct.calcsize('P') == 4 else 'win_amd64'}"
-assert runtime in {"py311-win32", "py313-win_amd64"}
+assert (sys.version_info.major, sys.version_info.minor) == (3, 13)
+assert struct.calcsize('P') == 8
+runtime = "py313-win_amd64"
 deps = bundle / "_coseeing_auth_deps" / runtime
 assert deps.is_dir()
 sys.path.insert(0, str(deps))
 sys.path.insert(0, str(bundle))
 import authlib
 import coseeing_auth
+import joserfc
 from authlib.integrations.requests_client import OAuth2Session
 import jwt
 from jwt.algorithms import RSAAlgorithm
@@ -154,8 +175,9 @@ assert Path(coseeing_auth.__file__).resolve().is_relative_to(bundle)
 assert callable(OAuth2Session)
 assert callable(RSAAlgorithm)
 assert callable(requests.Session)
-for module in (authlib, jwt, requests, cryptography, cffi, _cffi_backend,
-               charset_normalizer, certifi, idna, urllib3, pycparser):
+for module in (authlib, coseeing_auth, joserfc, jwt, requests, cryptography,
+               cffi, _cffi_backend, charset_normalizer, certifi, idna, urllib3,
+               pycparser):
     assert Path(module.__file__).resolve().is_relative_to(deps)
 """
 	subprocess.run(

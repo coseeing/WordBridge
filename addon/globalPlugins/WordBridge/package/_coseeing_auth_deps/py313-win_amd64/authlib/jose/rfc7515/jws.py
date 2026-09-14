@@ -4,6 +4,7 @@ from authlib.common.encoding import to_unicode
 from authlib.common.encoding import urlsafe_b64encode
 from authlib.jose.errors import BadSignatureError
 from authlib.jose.errors import DecodeError
+from authlib.jose.errors import InvalidCritHeaderParameterNameError
 from authlib.jose.errors import InvalidHeaderParameterNameError
 from authlib.jose.errors import MissingAlgorithmError
 from authlib.jose.errors import UnsupportedAlgorithmError
@@ -32,6 +33,8 @@ class JsonWebSignature:
             "crit",
         ]
     )
+
+    MAX_CONTENT_LENGTH: int = 256000
 
     #: Defined available JWS algorithms in the registry
     ALGORITHMS_REGISTRY = {}
@@ -64,6 +67,7 @@ class JsonWebSignature:
         """
         jws_header = JWSHeader(protected, None)
         self._validate_private_headers(protected)
+        self._validate_crit_headers(protected)
         algorithm, key = self._prepare_algorithm_key(protected, payload, key)
 
         protected_segment = json_b64encode(jws_header.protected)
@@ -87,6 +91,9 @@ class JsonWebSignature:
 
         .. _`Section 7.1`: https://tools.ietf.org/html/rfc7515#section-7.1
         """
+        if len(s) > self.MAX_CONTENT_LENGTH:
+            raise ValueError("Serialization is too long.")
+
         try:
             s = to_bytes(s)
             signing_input, signature_segment = s.rsplit(b".", 1)
@@ -95,6 +102,7 @@ class JsonWebSignature:
             raise DecodeError("Not enough segments") from exc
 
         protected = _extract_header(protected_segment)
+        self._validate_crit_headers(protected)
         jws_header = JWSHeader(protected, None)
 
         payload = _extract_payload(payload_segment)
@@ -132,6 +140,11 @@ class JsonWebSignature:
 
         def _sign(jws_header):
             self._validate_private_headers(jws_header)
+            # RFC 7515 §4.1.11: 'crit' MUST be integrity-protected.
+            # Reject if present in unprotected header, and validate only
+            # against the protected header parameters.
+            self._reject_unprotected_crit(jws_header.header)
+            self._validate_crit_headers(jws_header.protected)
             _alg, _key = self._prepare_algorithm_key(jws_header, payload, key)
 
             protected_segment = json_b64encode(jws_header.protected)
@@ -248,16 +261,18 @@ class JsonWebSignature:
             raise MissingAlgorithmError()
 
         alg = header["alg"]
-        if self._algorithms is not None and alg not in self._algorithms:
-            raise UnsupportedAlgorithmError()
         if alg not in self.ALGORITHMS_REGISTRY:
             raise UnsupportedAlgorithmError()
 
         algorithm = self.ALGORITHMS_REGISTRY[alg]
+        if self._algorithms is None:
+            if algorithm.deprecated:
+                raise UnsupportedAlgorithmError()
+        elif alg not in self._algorithms:
+            raise UnsupportedAlgorithmError()
+
         if callable(key):
             key = key(header, payload)
-        elif key is None and "jwk" in header:
-            key = header["jwk"]
         key = algorithm.prepare_key(key)
         return algorithm, key
 
@@ -271,6 +286,28 @@ class JsonWebSignature:
             for k in header:
                 if k not in names:
                     raise InvalidHeaderParameterNameError(k)
+
+    def _reject_unprotected_crit(self, unprotected_header):
+        """Reject 'crit' when found in the unprotected header (RFC 7515 §4.1.11)."""
+        if unprotected_header and "crit" in unprotected_header:
+            raise InvalidHeaderParameterNameError("crit")
+
+    def _validate_crit_headers(self, header):
+        if "crit" in header:
+            crit_headers = header["crit"]
+            # Type enforcement for robustness and predictable errors
+            if not isinstance(crit_headers, list) or not all(
+                isinstance(x, str) for x in crit_headers
+            ):
+                raise InvalidHeaderParameterNameError("crit")
+            names = self.REGISTERED_HEADER_PARAMETER_NAMES.copy()
+            if self._private_headers:
+                names = names.union(self._private_headers)
+            for k in crit_headers:
+                if k not in names:
+                    raise InvalidCritHeaderParameterNameError(k)
+                elif k not in header:
+                    raise InvalidCritHeaderParameterNameError(k)
 
     def _validate_json_jws(self, payload_segment, payload, header_obj, key):
         protected_segment = header_obj.get("protected")
@@ -286,7 +323,14 @@ class JsonWebSignature:
         header = header_obj.get("header")
         if header and not isinstance(header, dict):
             raise DecodeError('Invalid "header" value')
+        # RFC 7515 §4.1.11: 'crit' MUST be integrity-protected. If present in
+        # the unprotected header object, reject the JWS.
+        self._reject_unprotected_crit(header)
 
+        # Enforce must-understand semantics for names listed in protected
+        # 'crit'. This will also ensure each listed name is present in the
+        # protected header.
+        self._validate_crit_headers(protected)
         jws_header = JWSHeader(protected, header)
         algorithm, key = self._prepare_algorithm_key(jws_header, payload, key)
         signing_input = b".".join([protected_segment, payload_segment])

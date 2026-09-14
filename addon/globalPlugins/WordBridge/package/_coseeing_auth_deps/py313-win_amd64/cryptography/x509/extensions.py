@@ -14,7 +14,7 @@ from collections.abc import Iterable, Iterator
 from cryptography import utils
 from cryptography.hazmat.bindings._rust import asn1
 from cryptography.hazmat.bindings._rust import x509 as rust_x509
-from cryptography.hazmat.primitives import constant_time, serialization
+from cryptography.hazmat.primitives import _serialization, constant_time
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from cryptography.hazmat.primitives.asymmetric.types import (
@@ -53,19 +53,19 @@ def _key_identifier_from_public_key(
 ) -> bytes:
     if isinstance(public_key, RSAPublicKey):
         data = public_key.public_bytes(
-            serialization.Encoding.DER,
-            serialization.PublicFormat.PKCS1,
+            _serialization.Encoding.DER,
+            _serialization.PublicFormat.PKCS1,
         )
     elif isinstance(public_key, EllipticCurvePublicKey):
         data = public_key.public_bytes(
-            serialization.Encoding.X962,
-            serialization.PublicFormat.UncompressedPoint,
+            _serialization.Encoding.X962,
+            _serialization.PublicFormat.UncompressedPoint,
         )
     else:
         # This is a very slow way to do this.
         serialized = public_key.public_bytes(
-            serialization.Encoding.DER,
-            serialization.PublicFormat.SubjectPublicKeyInfo,
+            _serialization.Encoding.DER,
+            _serialization.PublicFormat.SubjectPublicKeyInfo,
         )
         data = asn1.parse_spki_for_data(serialized)
 
@@ -1558,8 +1558,8 @@ class GeneralNames:
         # just one value.
         objs = (i for i in self if isinstance(i, type))
         if type != OtherName:
-            return [i.value for i in objs]
-        return list(objs)
+            return [i.value for i in objs]  # type: ignore[return-value,unused-ignore]
+        return list(objs)  # type: ignore[return-value,unused-ignore]
 
     def __repr__(self) -> str:
         return f"<GeneralNames({self._general_names})>"
@@ -2111,9 +2111,14 @@ class IssuingDistributionPoint(ExtensionType):
         )
 
     def __hash__(self) -> int:
+        if self.full_name is not None:
+            full_name: tuple[GeneralName, ...] | None = tuple(self.full_name)
+        else:
+            full_name = None
+
         return hash(
             (
-                self.full_name,
+                full_name,
                 self.relative_name,
                 self.only_contains_user_certs,
                 self.only_contains_ca_certs,

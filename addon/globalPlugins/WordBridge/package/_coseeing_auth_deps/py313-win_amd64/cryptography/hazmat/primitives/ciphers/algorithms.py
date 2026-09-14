@@ -21,6 +21,9 @@ from cryptography.hazmat.decrepit.ciphers.algorithms import (
     Blowfish as Blowfish,
 )
 from cryptography.hazmat.decrepit.ciphers.algorithms import (
+    Camellia as Camellia,
+)
+from cryptography.hazmat.decrepit.ciphers.algorithms import (
     TripleDES as TripleDES,
 )
 from cryptography.hazmat.primitives._cipheralgorithm import _verify_key_size
@@ -64,17 +67,16 @@ class AES256(BlockCipherAlgorithm):
         self.key = _verify_key_size(self, key)
 
 
-class Camellia(BlockCipherAlgorithm):
-    name = "camellia"
-    block_size = 128
-    key_sizes = frozenset([128, 192, 256])
-
-    def __init__(self, key: utils.Buffer):
-        self.key = _verify_key_size(self, key)
-
-    @property
-    def key_size(self) -> int:
-        return len(self.key) * 8
+utils.deprecated(
+    Camellia,
+    __name__,
+    "Camellia has been moved to "
+    "cryptography.hazmat.decrepit.ciphers.algorithms.Camellia and "
+    "will be removed from "
+    "cryptography.hazmat.primitives.ciphers.algorithms in 49.0.0.",
+    utils.DeprecatedIn43,
+    name="Camellia",
+)
 
 
 utils.deprecated(
@@ -98,53 +100,6 @@ utils.deprecated(
     "cryptography.hazmat.primitives.ciphers.algorithms in 48.0.0.",
     utils.DeprecatedIn43,
     name="TripleDES",
-)
-
-utils.deprecated(
-    Blowfish,
-    __name__,
-    "Blowfish has been moved to "
-    "cryptography.hazmat.decrepit.ciphers.algorithms.Blowfish and "
-    "will be removed from "
-    "cryptography.hazmat.primitives.ciphers.algorithms in 45.0.0.",
-    utils.DeprecatedIn37,
-    name="Blowfish",
-)
-
-
-utils.deprecated(
-    CAST5,
-    __name__,
-    "CAST5 has been moved to "
-    "cryptography.hazmat.decrepit.ciphers.algorithms.CAST5 and "
-    "will be removed from "
-    "cryptography.hazmat.primitives.ciphers.algorithms in 45.0.0.",
-    utils.DeprecatedIn37,
-    name="CAST5",
-)
-
-
-utils.deprecated(
-    IDEA,
-    __name__,
-    "IDEA has been moved to "
-    "cryptography.hazmat.decrepit.ciphers.algorithms.IDEA and "
-    "will be removed from "
-    "cryptography.hazmat.primitives.ciphers.algorithms in 45.0.0.",
-    utils.DeprecatedIn37,
-    name="IDEA",
-)
-
-
-utils.deprecated(
-    SEED,
-    __name__,
-    "SEED has been moved to "
-    "cryptography.hazmat.decrepit.ciphers.algorithms.SEED and "
-    "will be removed from "
-    "cryptography.hazmat.primitives.ciphers.algorithms in 45.0.0.",
-    utils.DeprecatedIn37,
-    name="SEED",
 )
 
 

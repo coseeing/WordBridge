@@ -9,7 +9,7 @@ import sys
 import types
 import typing
 import warnings
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 
 
 # We use a UserWarning subclass, instead of DeprecationWarning, because CPython
@@ -22,22 +22,19 @@ class CryptographyDeprecationWarning(UserWarning):
 # ubiquity of their use. They should not be removed until we agree on when that
 # cycle ends.
 DeprecatedIn36 = CryptographyDeprecationWarning
-DeprecatedIn37 = CryptographyDeprecationWarning
 DeprecatedIn40 = CryptographyDeprecationWarning
 DeprecatedIn41 = CryptographyDeprecationWarning
 DeprecatedIn42 = CryptographyDeprecationWarning
 DeprecatedIn43 = CryptographyDeprecationWarning
-DeprecatedIn45 = CryptographyDeprecationWarning
+DeprecatedIn47 = CryptographyDeprecationWarning
+DeprecatedIn50 = CryptographyDeprecationWarning
 
 
 # If you're wondering why we don't use `Buffer`, it's because `Buffer` would
 # be more accurately named: Bufferable. It means something which has an
 # `__buffer__`. Which means you can't actually treat the result as a buffer
 # (and do things like take a `len()`).
-if sys.version_info >= (3, 9):
-    Buffer = typing.Union[bytes, bytearray, memoryview]
-else:
-    Buffer = typing.ByteString
+Buffer = typing.Union[bytes, bytearray, memoryview]
 
 
 def _check_bytes(name: str, value: bytes) -> None:
@@ -46,6 +43,8 @@ def _check_bytes(name: str, value: bytes) -> None:
 
 
 def _check_byteslike(name: str, value: Buffer) -> None:
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return
     try:
         memoryview(value)
     except TypeError:
@@ -76,14 +75,26 @@ class _ModuleWithDeprecations(types.ModuleType):
         super().__init__(module.__name__)
         self.__dict__["_module"] = module
 
-    def __getattr__(self, attr: str) -> object:
-        obj = getattr(self._module, attr)
+    def __getattr__(self, name: str) -> typing.Any:
+        obj = getattr(self._module, name)
         if isinstance(obj, _DeprecatedValue):
             warnings.warn(obj.message, obj.warning_class, stacklevel=2)
             obj = obj.value
+        else:
+            # Cache non-deprecated attributes in our own `__dict__` so that
+            # subsequent lookups are ordinary module attribute accesses and
+            # don't pay for this `__getattr__` (which would otherwise defeat
+            # CPython's LOAD_ATTR module caching for every attribute of the
+            # module). `__setattr__` and `__delattr__` keep the cache
+            # coherent.
+            self.__dict__[name] = obj
         return obj
 
     def __setattr__(self, attr: str, value: object) -> None:
+        if isinstance(value, _DeprecatedValue):
+            self.__dict__.pop(attr, None)
+        else:
+            self.__dict__[attr] = value
         setattr(self._module, attr, value)
 
     def __delattr__(self, attr: str) -> None:
@@ -91,6 +102,7 @@ class _ModuleWithDeprecations(types.ModuleType):
         if isinstance(obj, _DeprecatedValue):
             warnings.warn(obj.message, obj.warning_class, stacklevel=2)
 
+        self.__dict__.pop(attr, None)
         delattr(self._module, attr)
 
     def __dir__(self) -> Sequence[str]:
@@ -112,21 +124,6 @@ def deprecated(
     if name is not None:
         setattr(module, name, dv)
     return dv
-
-
-def cached_property(func: Callable) -> property:
-    cached_name = f"_cached_{func}"
-    sentinel = object()
-
-    def inner(instance: object):
-        cache = getattr(instance, cached_name, sentinel)
-        if cache is not sentinel:
-            return cache
-        result = func(instance)
-        setattr(instance, cached_name, result)
-        return result
-
-    return property(inner)
 
 
 # Python 3.10 changed representation of enums. We use well-defined object

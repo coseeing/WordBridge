@@ -140,7 +140,16 @@ def extract_params(raw):
 
 
 def is_valid_url(url: str, fragments_allowed=True):
-    parsed = urlparse.urlparse(url)
-    return (
+    try:
+        parsed = urlparse.urlparse(url)
+    except ValueError:
+        return False
+
+    # The userinfo component can disguise the actual host,
+    # as in "https://provider.test@attacker.test/".
+    if "@" in parsed.netloc:
+        return False
+
+    return bool(
         parsed.scheme and parsed.hostname and (fragments_allowed or not parsed.fragment)
     )

@@ -1,13 +1,19 @@
 import logging
+import warnings
 
+from joserfc import jwt
+
+from authlib._joserfc_helpers import import_any_key
 from authlib.oauth2.rfc6749 import AccessDeniedError
 from authlib.oauth2.rfc6749 import ImplicitGrant
 from authlib.oauth2.rfc6749 import InvalidScopeError
 from authlib.oauth2.rfc6749 import OAuth2Error
+from authlib.oauth2.rfc6749.errors import InvalidRequestError
 from authlib.oauth2.rfc6749.hooks import hooked
 
+from ._legacy import LegacyMixin
+from .util import create_half_hash
 from .util import create_response_mode_response
-from .util import generate_id_token
 from .util import is_openid_scope
 from .util import validate_nonce
 from .util import validate_request_prompt
@@ -15,7 +21,7 @@ from .util import validate_request_prompt
 log = logging.getLogger(__name__)
 
 
-class OpenIDImplicitGrant(ImplicitGrant):
+class OpenIDImplicitGrant(LegacyMixin, ImplicitGrant):
     RESPONSE_TYPES = {"id_token token", "id_token"}
     DEFAULT_RESPONSE_MODE = "fragment"
 
@@ -32,23 +38,6 @@ class OpenIDImplicitGrant(ImplicitGrant):
         :param nonce: A string of "nonce" parameter in request
         :param request: OAuth2Request instance
         :return: Boolean
-        """
-        raise NotImplementedError()
-
-    def get_jwt_config(self):
-        """Get the JWT configuration for OpenIDImplicitGrant. The JWT
-        configuration will be used to generate ``id_token``. Developers
-        MUST implement this method in subclass, e.g.::
-
-            def get_jwt_config(self):
-                return {
-                    "key": read_private_key_file(key_path),
-                    "alg": "RS256",
-                    "iss": "issuer-identity",
-                    "exp": 3600,
-                }
-
-        :return: dict
         """
         raise NotImplementedError()
 
@@ -79,13 +68,13 @@ class OpenIDImplicitGrant(ImplicitGrant):
         return [client.get_client_id()]
 
     def validate_authorization_request(self):
+        redirect_uri = super().validate_authorization_request()
         if not is_openid_scope(self.request.payload.scope):
             raise InvalidScopeError(
                 "Missing 'openid' scope",
-                redirect_uri=self.request.payload.redirect_uri,
+                redirect_uri=redirect_uri,
                 redirect_fragment=True,
             )
-        redirect_uri = super().validate_authorization_request()
         try:
             validate_nonce(self.request, self.exists_nonce, required=True)
         except OAuth2Error as error:
@@ -142,13 +131,56 @@ class OpenIDImplicitGrant(ImplicitGrant):
         return params
 
     def process_implicit_token(self, token, code=None):
-        config = self.get_jwt_config()
-        config["aud"] = self.get_audiences(self.request)
-        config["nonce"] = self.request.payload.data.get("nonce")
+        alg = self.get_client_algorithm(self.request.client)
+        if alg == "none":
+            # According to oidc-registration §2 the 'none' alg is not valid in
+            # implicit flows:
+            #    The value none MUST NOT be used as the ID Token alg value unless
+            #    the Client uses only Response Types that return no ID Token from
+            #    the Authorization Endpoint (such as when only using the
+            #    Authorization Code Flow).
+            raise InvalidRequestError(
+                "id_token must be signed in implicit flows",
+                redirect_uri=self.request.payload.redirect_uri,
+                redirect_fragment=True,
+            )
+
+        claims = self.get_compatible_claims(self.request)
+        nonce = self.request.payload.data.get("nonce")
+        if nonce:
+            claims["nonce"] = nonce
+
         if code is not None:
-            config["code"] = code
+            c_hash = create_half_hash(code, alg)
+            if c_hash is not None:
+                claims["c_hash"] = c_hash.decode("utf-8")
+
+        access_token = token.get("access_token")
+        if access_token:
+            at_hash = create_half_hash(access_token, alg)
+            if at_hash is not None:
+                claims["at_hash"] = at_hash.decode("utf-8")
 
         user_info = self.generate_user_info(self.request.user, token["scope"])
-        id_token = generate_id_token(token, user_info, **config)
+        claims.update(user_info)
+        key = self.resolve_client_private_key(self.request.client)
+        private_key = import_any_key(key)
+        header = self.get_encode_header(self.request.client)
+        id_token = jwt.encode(header, claims, private_key, [alg])
         token["id_token"] = id_token
         return token
+
+    def _compatible_resolve_jwt_config(self, grant, client):
+        if not hasattr(self, "get_jwt_config"):
+            return {}
+        warnings.warn(
+            "get_jwt_config(self, client) is deprecated and will be removed in version 1.8. "
+            "Use resolve_client_private_key, get_client_claims, get_client_algorithm instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        try:
+            config = self.get_jwt_config(client)
+        except TypeError:
+            config = self.get_jwt_config()
+        return config

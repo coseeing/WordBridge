@@ -4,6 +4,9 @@
 
 from __future__ import annotations
 
+import warnings
+
+from cryptography import utils
 from cryptography.hazmat.primitives._cipheralgorithm import (
     BlockCipherAlgorithm,
     CipherAlgorithm,
@@ -29,10 +32,27 @@ class TripleDES(BlockCipherAlgorithm):
     key_sizes = frozenset([64, 128, 192])
 
     def __init__(self, key: bytes):
+        # Check the key type before the length-based deprecation warnings so
+        # an invalid key type doesn't trigger a spurious warning.
+        utils._check_byteslike("key", key)
         if len(key) == 8:
-            key += key + key
+            warnings.warn(
+                "Single-key TripleDES (8-byte keys) is deprecated and "
+                "support will be removed in a future release. Use 24-byte "
+                "keys instead (e.g., key + key + key).",
+                utils.DeprecatedIn47,
+                stacklevel=2,
+            )
+            key = key + key + key
         elif len(key) == 16:
-            key += key[:8]
+            warnings.warn(
+                "Two-key TripleDES (16-byte keys) is deprecated and "
+                "support will be removed in a future release. Use 24-byte "
+                "keys instead (e.g., key + key[:8]).",
+                utils.DeprecatedIn47,
+                stacklevel=2,
+            )
+            key = key + key[:8]
         self.key = _verify_key_size(self, key)
 
     @property
@@ -88,6 +108,19 @@ class IDEA(BlockCipherAlgorithm):
     name = "IDEA"
     block_size = 64
     key_sizes = frozenset([128])
+
+    def __init__(self, key: bytes):
+        self.key = _verify_key_size(self, key)
+
+    @property
+    def key_size(self) -> int:
+        return len(self.key) * 8
+
+
+class Camellia(BlockCipherAlgorithm):
+    name = "camellia"
+    block_size = 128
+    key_sizes = frozenset([128, 192, 256])
 
     def __init__(self, key: bytes):
         self.key = _verify_key_size(self, key)

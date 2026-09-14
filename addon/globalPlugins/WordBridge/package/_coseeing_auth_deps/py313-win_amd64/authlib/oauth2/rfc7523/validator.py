@@ -1,9 +1,10 @@
 import logging
 import time
 
-from authlib.jose import JoseError
-from authlib.jose import JWTClaims
-from authlib.jose import jwt
+from joserfc import jwt
+from joserfc.errors import JoseError
+
+from authlib._joserfc_helpers import import_any_key
 
 from ..rfc6749 import TokenMixin
 from ..rfc6750 import BearerTokenValidator
@@ -11,7 +12,7 @@ from ..rfc6750 import BearerTokenValidator
 logger = logging.getLogger(__name__)
 
 
-class JWTBearerToken(TokenMixin, JWTClaims):
+class JWTBearerToken(TokenMixin, dict):
     def check_client(self, client):
         return self["client_id"] == client.get_client_id()
 
@@ -32,9 +33,10 @@ class JWTBearerTokenValidator(BearerTokenValidator):
     TOKEN_TYPE = "bearer"
     token_cls = JWTBearerToken
 
-    def __init__(self, public_key, issuer=None, realm=None, **extra_attributes):
+    def __init__(self, public_key, issuer=None, realm=None, leeway=60, **extra_attributes):
         super().__init__(realm, **extra_attributes)
-        self.public_key = public_key
+        self.public_key = import_any_key(public_key)
+        self.leeway = leeway
         claims_options = {
             "exp": {"essential": True},
             "client_id": {"essential": True},
@@ -44,16 +46,18 @@ class JWTBearerTokenValidator(BearerTokenValidator):
             claims_options["iss"] = {"essential": True, "value": issuer}
         self.claims_options = claims_options
 
-    def authenticate_token(self, token_string):
+    def authenticate_token(self, token_string: str):
         try:
-            claims = jwt.decode(
-                token_string,
-                self.public_key,
-                claims_options=self.claims_options,
-                claims_cls=self.token_cls,
-            )
-            claims.validate()
-            return claims
+            token = jwt.decode(token_string, self.public_key)
         except JoseError as error:
             logger.debug("Authenticate token failed. %r", error)
             return None
+
+        claims_requests = jwt.JWTClaimsRegistry(leeway=self.leeway, **self.claims_options)
+        try:
+            claims_requests.validate(token.claims)
+        except JoseError as error:
+            logger.debug("Authenticate token failed. %r", error)
+            return None
+
+        return JWTBearerToken(token.claims)

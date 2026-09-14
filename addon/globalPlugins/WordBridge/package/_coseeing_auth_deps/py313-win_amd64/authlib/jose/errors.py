@@ -33,6 +33,14 @@ class InvalidHeaderParameterNameError(JoseError):
         super().__init__(description=description)
 
 
+class InvalidCritHeaderParameterNameError(JoseError):
+    error = "invalid_crit_header_parameter_name"
+
+    def __init__(self, name):
+        description = f"Invalid Header Parameter Name: {name}"
+        super().__init__(description=description)
+
+
 class InvalidEncryptionAlgorithmForECDH1PUWithKeyWrappingError(JoseError):
     error = "invalid_encryption_algorithm_for_ECDH_1PU_with_key_wrapping"
 

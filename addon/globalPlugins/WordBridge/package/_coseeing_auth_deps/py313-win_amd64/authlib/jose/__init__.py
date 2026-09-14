@@ -5,6 +5,8 @@ JOSE implementation in Authlib. Tracking the status of JOSE specs at
 https://tools.ietf.org/wg/jose/
 """
 
+from authlib.deprecate import deprecate
+
 from .errors import JoseError
 from .rfc7515 import JsonWebSignature
 from .rfc7515 import JWSAlgorithm
@@ -29,6 +31,10 @@ from .rfc7519 import JWTClaims
 from .rfc8037 import OKPKey
 from .rfc8037 import register_jws_rfc8037
 
+deprecate(
+    "authlib.jose module is deprecated, please use joserfc instead.", version="2.0.0"
+)
+
 # register algorithms
 register_jws_rfc7518(JsonWebSignature)
 register_jws_rfc8037(JsonWebSignature)
@@ -46,7 +52,24 @@ JsonWebKey.JWK_KEY_CLS = {
     OKPKey.kty: OKPKey,
 }
 
-jwt = JsonWebToken(list(JsonWebSignature.ALGORITHMS_REGISTRY.keys()))
+jwt = JsonWebToken(
+    [
+        "HS256",
+        "HS384",
+        "HS512",
+        "RS256",
+        "RS384",
+        "RS512",
+        "ES256",
+        "ES256K",
+        "ES384",
+        "ES512",
+        "PS256",
+        "PS384",
+        "PS512",
+        "EdDSA",
+    ]
+)
 
 
 __all__ = [
