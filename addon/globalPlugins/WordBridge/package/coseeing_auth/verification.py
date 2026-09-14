@@ -125,7 +125,7 @@ class IdTokenVerifier:
                 leeway=self.leeway,
             )
         except (jwt.PyJWTError, jwt.PyJWKClientError, ValueError):
-            raise _validation_error("id_token", "id_token_invalid") from None
+            raise _validation_error("id_token", "jwt_invalid") from None
 
         try:
             audience = claims.get("aud")
@@ -140,7 +140,7 @@ class IdTokenVerifier:
             if authorized_party is not None and authorized_party != self.client_id:
                 raise ValueError("authorized party does not match client")
         except (TypeError, ValueError):
-            raise _validation_error("id_token", "id_token_invalid") from None
+            raise _validation_error("id_token", "jwt_invalid") from None
 
         if nonce is not None and claims.get("nonce") != nonce:
             raise TokenValidationError(
@@ -154,7 +154,7 @@ class IdTokenVerifier:
         try:
             return _to_verified_claims(claims, frozenset())
         except ValueError:
-            raise _validation_error("id_token", "id_token_invalid") from None
+            raise _validation_error("id_token", "jwt_invalid") from None
 
 
 class IntrospectionVerifier:

@@ -2,6 +2,7 @@ from lib.coseeing_auth import CoseeingAuthSession
 import lib.coseeing_auth as auth_module
 from coseeing_auth import LoginError, RestoreError, TokenUnavailableError, TokenValidationError
 from coseeing_auth.errors import ClientClosedError
+from authlib.integrations.base_client.errors import OAuthError
 from concurrent.futures import CancelledError, Future
 import shutil
 import subprocess
@@ -184,14 +185,34 @@ def test_restore_refresh_unavailable_is_not_recoverable():
 	assert h.prompts == 0
 
 
-def test_token_validation_error_is_returned_without_prompt():
-	h = AuthHarness(CoseeingAuthSession, choice="login")
+@pytest.mark.parametrize("error", [
+	OAuthError(error="invalid_grant"),
+	TokenValidationError("synthetic", code="jwt_invalid", operation="access_token"),
+	TokenValidationError("synthetic", code="jwt_invalid", operation="id_token"),
+	TokenValidationError("synthetic", code="scope_missing", operation="access_token"),
+	TokenValidationError("synthetic", code="nonce_mismatch", operation="id_token"),
+])
+def test_invalid_authentication_error_clears_refresh_and_prompts(error):
+	h = AuthHarness(CoseeingAuthSession, refresh="old", choice="login")
+	_login_session(h)
+	h.choice = "guest"
 	result = h.session.get_access_token()
 	h.drain()
-	h.resolve(object())
-	h.reject(TokenValidationError("synthetic"))
-	with pytest.raises(TokenValidationError):
+	h.reject(error)
+	assert h.saved is None
+	assert result.result(timeout=1) is None
+	assert h.prompts == 2
+
+
+def test_unknown_oauth_error_preserves_refresh_without_prompt():
+	h = AuthHarness(CoseeingAuthSession, refresh="old", choice="login")
+	_login_session(h)
+	result = h.session.get_access_token()
+	h.drain()
+	h.reject(OAuthError(error="server_error"))
+	with pytest.raises(OAuthError):
 		result.result(timeout=1)
+	assert h.saved == "old"
 	assert h.prompts == 1
 
 

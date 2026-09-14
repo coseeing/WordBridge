@@ -15,7 +15,7 @@ from gui.settingsDialogs import SettingsPanel
 
 from . configManager import ConfigManager, normalize_selection
 from .dictionary.dialog import DictionaryEntryDialog
-from .lib.coseeing_auth import start_coseeing_auth
+from .lib.coseeing_auth import reset_coseeing_auth, start_coseeing_auth
 
 addonHandler.initTranslation()
 
@@ -97,8 +97,8 @@ class LLMSettingsPanel(SettingsPanel):
 
 		# For setting account information
 		self.accountGroupSizerMap = {}
-		self.accountTextCtrlMap1 = {}
-		self.accountTextCtrlMap2 = {}
+		self.accountTextCtrlMap = {}
+		self._coseeingRefreshTokenOnOpen = config.conf["WordBridge"]["settings"]["api_key"].get("Coseeing", "")
 		for endpoint, label in zip(configManager.provider_groups, configManager.endpoint_labels):
 			if endpoint not in config.conf["WordBridge"]["settings"]["api_key"]:
 				config.conf["WordBridge"]["settings"]["api_key"][endpoint] = ""
@@ -112,16 +112,15 @@ class LLMSettingsPanel(SettingsPanel):
 			self.accountGroupSizerHelper = guiHelper.BoxSizerHelper(self, sizer=accountBoxSizer)
 			settingsSizerHelper.addItem(self.accountGroupSizerHelper)
 			if endpoint == "Coseeing":
-				self.accountGroupSizerHelper.addLabeledControl(
+				self.accountTextCtrlMap[endpoint] = self.accountGroupSizerHelper.addLabeledControl(
 					_("Refresh Token:"),
 					wx.TextCtrl,
 					size=(self.scaleSize(375), -1),
 					value=config.conf["WordBridge"]["settings"]["api_key"][endpoint],
-					style=wx.TE_READONLY,
 				)
 				continue
 
-			self.accountTextCtrlMap1[endpoint] = self.accountGroupSizerHelper.addLabeledControl(
+			self.accountTextCtrlMap[endpoint] = self.accountGroupSizerHelper.addLabeledControl(
 				_("API Key:"),
 				wx.TextCtrl,
 				size=(self.scaleSize(375), -1),
@@ -254,12 +253,23 @@ class LLMSettingsPanel(SettingsPanel):
 		config.conf["WordBridge"]["settings"]["customized_words_enable"] = self.customizedWordEnable.GetValue()
 		config.conf["WordBridge"]["settings"]["sound_effects_enable"] = self.soundEffectsEnable.GetValue()
 
+		coseeing_refresh_token_changed = False
 		for ep in configManager.endpoints.keys():
 			provider_tmp = ep
-			if provider_tmp in self.accountTextCtrlMap1:
-				api_key_tmp = self.accountTextCtrlMap1[provider_tmp].GetValue()
+			if provider_tmp in self.accountTextCtrlMap:
+				api_key_tmp = self.accountTextCtrlMap[provider_tmp].GetValue()
+				if provider_tmp == "Coseeing" and api_key_tmp != self._coseeingRefreshTokenOnOpen:
+					coseeing_refresh_token_changed = True
 				config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = api_key_tmp
-		wx.CallAfter(start_coseeing_auth, selected_item.execution_channel)
+
+		def start_auth():
+			wx.CallAfter(start_coseeing_auth, selected_item.execution_channel)
+
+		if coseeing_refresh_token_changed:
+			reset_future = reset_coseeing_auth()
+			reset_future.add_done_callback(lambda _done: start_auth())
+		else:
+			start_auth()
 
 	def onChangeProviderChoice(self, evt):
 		provider_index = self.providerList.GetSelection()

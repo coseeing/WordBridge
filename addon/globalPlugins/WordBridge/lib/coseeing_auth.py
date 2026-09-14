@@ -48,7 +48,8 @@ def _prepare_auth_dependencies() -> None:
 
 
 _prepare_auth_dependencies()
-from coseeing_auth.errors import ClientClosedError, RestoreError, TokenUnavailableError
+from authlib.integrations.base_client.errors import OAuthError
+from coseeing_auth.errors import ClientClosedError, RestoreError, TokenUnavailableError, TokenValidationError
 
 
 def build_auth_config() -> "AuthConfig":
@@ -57,7 +58,7 @@ def build_auth_config() -> "AuthConfig":
 
 	return AuthConfig(
 		issuer="https://sso.coseeing.org",
-		client_id="a11yvillage",
+		client_id="wordbridge",
 		scopes=("openid", "profile", "email", "offline_access"),
 		login_redirect_uri="http://127.0.0.1:8765/auth-callback",
 		logout_redirect_uri="http://127.0.0.1:8765/logout-callback",
@@ -368,6 +369,28 @@ class CoseeingAuthSession:
 		future.add_done_callback(completed)
 
 	def _fail(self, error: Exception) -> None:
+		if isinstance(error, OAuthError) and getattr(error, "error", None) in {
+			"invalid_grant",
+			"invalid_token",
+			"token_invalid",
+		}:
+			self._session_ready = False
+			try:
+				self._save_refresh_token(None)
+			except Exception as save_error:
+				self._finish(error=save_error)
+				return
+			self._start_prompt()
+			return
+		if isinstance(error, TokenValidationError):
+			self._session_ready = False
+			try:
+				self._save_refresh_token(None)
+			except Exception as save_error:
+				self._finish(error=save_error)
+				return
+			self._start_prompt()
+			return
 		if isinstance(error, RestoreError) and error.code == "refresh_rejected":
 			self._session_ready = False
 			try:
@@ -565,6 +588,28 @@ def start_coseeing_auth(execution_channel: str) -> None:
 	adapter = _singleton_adapter
 	if adapter is not None:
 		future.add_done_callback(adapter.notify_completion)
+
+
+def reset_coseeing_auth() -> Future[None]:
+	global _singleton_adapter, _singleton_session
+	with _singleton_lock:
+		if _shutdown_future is not None:
+			return _shutdown_future
+		adapter = _singleton_adapter
+		session = _singleton_session
+		if adapter is None or session is None:
+			completed: Future[None] = Future()
+			completed.set_result(None)
+			return completed
+		adapter._shutting_down = True
+		cleanup = session.close()
+		_singleton_adapter = None
+		_singleton_session = None
+	try:
+		adapter.post_ui(adapter.close_active_dialog)
+	except Exception:
+		adapter.close_active_dialog()
+	return cleanup
 
 
 def _completed_future(error: Exception) -> Future:

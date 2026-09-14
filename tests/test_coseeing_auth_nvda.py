@@ -119,6 +119,9 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued):
 	monkeypatch.setitem(sys.modules, package_name, package)
 	auth_module = type(sys)(f"{package_name}.lib.coseeing_auth")
 	auth_module.start_coseeing_auth = lambda channel: auth_calls.append(channel) if channel == "Coseeing" else None
+	reset_future = Future()
+	reset_future.set_result(None)
+	auth_module.reset_coseeing_auth = lambda: auth_calls.append("reset") or reset_future
 	auth_module.shutdown_coseeing_auth = lambda: auth_calls.append("shutdown")
 	lib_package = type(sys)(f"{package_name}.lib")
 	lib_package.__path__ = [str(ADDON_PATH / "lib")]
@@ -229,25 +232,30 @@ def test_settings_save_preserves_coseeing_refresh_token_and_starts_selected_chan
 	panel.autoDisplayReportEnable = Control(False)
 	panel.customizedWordEnable = Control(True)
 	panel.soundEffectsEnable = Control(True)
-	panel.accountTextCtrlMap1 = {"OpenAI": Control("updated-key")}
-	panel.accountTextCtrlMap2 = {}
+	panel._coseeingRefreshTokenOnOpen = "saved-refresh"
+	panel.accountTextCtrlMap = {
+		"Coseeing": Control("updated-refresh"),
+		"OpenAI": Control("updated-key"),
+	}
 
 	panel.onSave()
 	assert config.conf["WordBridge"]["settings"]["execution_channel"] == "Coseeing"
-	assert settings["api_key"] == {"Coseeing": "saved-refresh", "OpenAI": "updated-key"}
+	assert settings["api_key"] == {"Coseeing": "updated-refresh", "OpenAI": "updated-key"}
 	assert settings["coseeing_username"] == "legacy-user"
 	assert settings["coseeing_password"] == "legacy-password"
 	assert len(queued) == 1
 	callback, args = queued.pop()
+	assert auth_calls == ["reset"]
 	callback(*args)
-	assert auth_calls == ["Coseeing"]
+	assert auth_calls == ["reset", "Coseeing"]
 
 	Manager.channel = "local"
+	panel.accountTextCtrlMap["Coseeing"].value = "saved-refresh"
 	panel.onSave()
 	callback, args = queued.pop()
 	callback(*args)
 	assert config.conf["WordBridge"]["settings"]["execution_channel"] == "local"
-	assert auth_calls == ["Coseeing"]
+	assert auth_calls == ["reset", "Coseeing"]
 
 
 def test_settings_panel_keeps_coseeing_sizer_without_legacy_credential_controls(monkeypatch):
@@ -326,8 +334,7 @@ def test_settings_panel_keeps_coseeing_sizer_without_legacy_credential_controls(
 	panel.makeSettings(Sizer())
 
 	assert "Coseeing" in panel.accountGroupSizerMap
-	assert "Coseeing" not in panel.accountTextCtrlMap1
-	assert "Coseeing" not in panel.accountTextCtrlMap2
+	assert "Coseeing" in panel.accountTextCtrlMap
 	refresh_token_controls = [
 		call for call in Helper.calls if call[0] == "Refresh Token:"
 	]
@@ -335,7 +342,7 @@ def test_settings_panel_keeps_coseeing_sizer_without_legacy_credential_controls(
 	_, control_type, kwargs = refresh_token_controls[0]
 	assert control_type is plugin.wx.TextCtrl
 	assert kwargs["value"] == "refresh-token"
-	assert kwargs["style"] == plugin.wx.TE_READONLY
+	assert "style" not in kwargs
 
 
 def _install_nvda(monkeypatch, *, dialog, wx, config=None, ui=None, log=None, call_after=None):
