@@ -118,7 +118,7 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued):
 	package.__path__ = [str(ADDON_PATH)]
 	monkeypatch.setitem(sys.modules, package_name, package)
 	auth_module = type(sys)(f"{package_name}.lib.coseeing_auth")
-	auth_module.start_coseeing_auth = lambda channel: auth_calls.append(channel) if channel == "Coseeing" else None
+	auth_module.start_coseeing_auth = lambda channel, **kwargs: auth_calls.append(channel) if channel == "Coseeing" else None
 	reset_future = Future()
 	reset_future.set_result(None)
 	auth_module.reset_coseeing_auth = lambda: auth_calls.append("reset") or reset_future
@@ -378,7 +378,7 @@ def test_coseeing_channel_reconsiders_guest(monkeypatch):
 	completed.set_result(None)
 	monkeypatch.setattr(module, "get_coseeing_access_token", lambda **kw: calls.append(kw) or completed, raising=False)
 	module.start_coseeing_auth("Coseeing")
-	assert calls == [{"reconsider_guest": True}]
+	assert calls == [{"reconsider_guest": True, "silent": True}]
 
 
 def test_nvda_adapter_maps_dialog_choices_and_only_saves_coseeing(monkeypatch):
@@ -593,7 +593,7 @@ def test_singleton_creation_is_locked(monkeypatch):
 		def __init__(self):
 			entered.set()
 			release.wait(timeout=1)
-		def session(self):
+		def session(self, **kwargs):
 			instance = object()
 			instances.append(instance)
 			return instance

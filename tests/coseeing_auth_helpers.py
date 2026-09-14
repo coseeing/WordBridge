@@ -39,7 +39,7 @@ class FakeAuth:
 
 
 class AuthHarness:
-	def __init__(self, session_class, refresh=None, choice="guest", save_error=None, close_blocked=False):
+	def __init__(self, session_class, refresh=None, choice="guest", save_error=None, close_blocked=False, auth_state=None):
 		self.auth = None
 		self.close_started = Event() if close_blocked else None
 		self.close_release = Event() if close_blocked else None
@@ -58,6 +58,7 @@ class AuthHarness:
 			read_refresh_token=lambda: self.saved,
 			save_refresh_token=self.save,
 			prompt_login=self.prompt,
+			auth_state=auth_state,
 		)
 
 	def save(self, value):

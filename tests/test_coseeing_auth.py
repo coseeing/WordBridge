@@ -1,4 +1,4 @@
-from lib.coseeing_auth import CoseeingAuthSession
+from lib.coseeing_auth import AuthSessionState, CoseeingAuthSession
 import lib.coseeing_auth as auth_module
 from coseeing_auth import LoginError, RestoreError, TokenUnavailableError, TokenValidationError
 from coseeing_auth.errors import ClientClosedError
@@ -185,6 +185,60 @@ def test_restore_refresh_unavailable_is_not_recoverable():
 	assert h.prompts == 0
 
 
+def test_silent_invalid_refresh_clears_token_without_prompting():
+	h = AuthHarness(CoseeingAuthSession, refresh="old", choice="login")
+	result = h.session.get_access_token(silent=True)
+	h.drain()
+	h.reject(RestoreError("synthetic", code="refresh_rejected"))
+
+	assert h.saved is None
+	assert result.result(timeout=1) is None
+	assert h.prompts == 0
+
+
+def test_silent_missing_refresh_does_not_prompt():
+	h = AuthHarness(CoseeingAuthSession, choice="login")
+	result = h.session.get_access_token(silent=True)
+	h.drain()
+
+	assert result.result(timeout=1) is None
+	assert h.prompts == 0
+
+
+def test_successful_restore_marks_shared_auth_state_as_valid():
+	state = AuthSessionState()
+	h = AuthHarness(CoseeingAuthSession, refresh="old", auth_state=state)
+	result = h.session.get_access_token(silent=True)
+	h.drain()
+	h.resolve(object())
+	h.resolve("access")
+	h.resolve("refresh")
+
+	assert result.result(timeout=1) == "access"
+	assert state.refresh_token_was_valid is True
+
+
+def test_default_access_token_mode_follows_shared_validity_history(monkeypatch):
+	state = AuthSessionState()
+	calls = []
+	completed = Future()
+	completed.set_result(None)
+
+	class Session:
+		def get_access_token(self, **kwargs):
+			calls.append(kwargs)
+			return completed
+
+	monkeypatch.setattr(auth_module, "_auth_state", state)
+	monkeypatch.setattr(auth_module, "_get_singleton", lambda: Session())
+
+	auth_module.get_coseeing_access_token()
+	state.refresh_token_was_valid = True
+	auth_module.get_coseeing_access_token()
+
+	assert calls == [{"reconsider_guest": False, "silent": True}, {"reconsider_guest": False, "silent": False}]
+
+
 @pytest.mark.parametrize("error", [
 	OAuthError(error="invalid_grant"),
 	TokenValidationError("synthetic", code="jwt_invalid", operation="access_token"),
@@ -201,7 +255,7 @@ def test_invalid_authentication_error_clears_refresh_and_prompts(error):
 	h.reject(error)
 	assert h.saved is None
 	assert result.result(timeout=1) is None
-	assert h.prompts == 2
+	assert h.prompts == 1
 
 
 def test_unknown_oauth_error_preserves_refresh_without_prompt():
@@ -212,8 +266,8 @@ def test_unknown_oauth_error_preserves_refresh_without_prompt():
 	h.reject(OAuthError(error="server_error"))
 	with pytest.raises(OAuthError):
 		result.result(timeout=1)
-	assert h.saved == "old"
-	assert h.prompts == 1
+	assert h.saved == "refresh"
+	assert h.prompts == 0
 
 
 def test_login_error_is_returned_without_retrying_login():

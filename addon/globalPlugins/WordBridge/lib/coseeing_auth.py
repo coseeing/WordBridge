@@ -52,6 +52,11 @@ from authlib.integrations.base_client.errors import OAuthError
 from coseeing_auth.errors import ClientClosedError, RestoreError, TokenUnavailableError, TokenValidationError
 
 
+class AuthSessionState:
+	def __init__(self) -> None:
+		self.refresh_token_was_valid = False
+
+
 def build_auth_config() -> "AuthConfig":
 	_prepare_auth_dependencies()
 	from coseeing_auth import AuthConfig
@@ -60,8 +65,8 @@ def build_auth_config() -> "AuthConfig":
 		issuer="https://sso.coseeing.org",
 		client_id="wordbridge",
 		scopes=("openid", "profile", "email", "offline_access"),
-		login_redirect_uri="http://127.0.0.1:8765/auth-callback",
-		logout_redirect_uri="http://127.0.0.1:8765/logout-callback",
+		login_redirect_uri="http://127.0.0.1:8000/auth-callback",
+		logout_redirect_uri="http://127.0.0.1:8000/logout-callback",
 		callback_timeout=180,
 	)
 
@@ -75,12 +80,14 @@ class CoseeingAuthSession:
 		read_refresh_token: Callable[[], str | None],
 		save_refresh_token: Callable[[str | None], None],
 		prompt_login: Callable[[], str],
+		auth_state: AuthSessionState | None = None,
 	) -> None:
 		self._client_factory = client_factory
 		self._post_ui = post_ui
 		self._read_refresh_token = read_refresh_token
 		self._save_refresh_token = save_refresh_token
 		self._prompt_login = prompt_login
+		self._auth_state = auth_state or AuthSessionState()
 		self._guest = False
 		self._closed = False
 		self._session_ready = False
@@ -96,10 +103,10 @@ class CoseeingAuthSession:
 		self._pending_refresh: tuple[str, str | None] | None = None
 		self._state_lock = threading.RLock()
 
-	def get_access_token(self, *, reconsider_guest: bool = False) -> Future[str | None]:
+	def get_access_token(self, *, reconsider_guest: bool = False, silent: bool = False) -> Future[str | None]:
 		result: Future[str | None] = Future()
 		try:
-			self._post_ui(self._request, result, reconsider_guest)
+			self._post_ui(self._request, result, reconsider_guest, silent)
 		except Exception as error:
 			result.set_exception(error)
 		return result
@@ -182,7 +189,7 @@ class CoseeingAuthSession:
 		else:
 			self._complete_cleanup()
 
-	def _request(self, waiter: Future[str | None], reconsider_guest: bool) -> None:
+	def _request(self, waiter: Future[str | None], reconsider_guest: bool, silent: bool = False) -> None:
 		with self._state_lock:
 			if self._closed or self._close_requested:
 				closed = True
@@ -213,17 +220,17 @@ class CoseeingAuthSession:
 				if self._pending_refresh is not None:
 					self._retry_pending_refresh()
 					return
-				self._start_access_token()
+				self._start_access_token(silent=silent)
 				return
 			try:
 				refresh_token = self._read_refresh_token()
 			except Exception as error:
-				self._fail(error)
+				self._fail(error, silent=silent)
 				return
 			if refresh_token:
-				self._start_restore(refresh_token)
+				self._start_restore(refresh_token, silent)
 			else:
-				self._start_prompt()
+				self._start_prompt(silent)
 		finally:
 			with self._state_lock:
 				closing = self._close_requested
@@ -266,29 +273,33 @@ class CoseeingAuthSession:
 		with self._state_lock:
 			return self._close_requested
 
-	def _start_restore(self, refresh_token: str) -> None:
+	def _start_restore(self, refresh_token: str, silent: bool) -> None:
 		try:
 			future = self._call_client("restore", refresh_token)
-			self._watch(future, self._restore_succeeded)
+			self._watch(future, lambda result: self._restore_succeeded(result, silent=silent), silent=silent)
 		except Exception as error:
-			self._fail(error)
+			self._fail(error, silent=silent)
 
-	def _restore_succeeded(self, _result: object) -> None:
+	def _restore_succeeded(self, _result: object, *, silent: bool = False) -> None:
+		self._auth_state.refresh_token_was_valid = True
 		self._session_ready = True
-		self._start_access_token()
+		self._start_access_token(silent=silent)
 
-	def _start_access_token(self) -> None:
+	def _start_access_token(self, *, silent: bool = False) -> None:
 		try:
 			future = self._call_client("get_access_token", auto_login=False)
-			self._watch(future, self._token_succeeded)
+			self._watch(future, self._token_succeeded, silent=silent)
 		except Exception as error:
-			self._fail(error)
+			self._fail(error, silent=silent)
 
-	def _start_prompt(self) -> None:
+	def _start_prompt(self, silent: bool = False) -> None:
+		if silent:
+			self._finish(value=None)
+			return
 		try:
 			choice = self._prompt_login()
 		except Exception as error:
-			self._fail(error)
+			self._fail(error, silent=silent)
 			return
 		if choice == "guest":
 			self._guest = True
@@ -298,15 +309,16 @@ class CoseeingAuthSession:
 		elif choice == "login":
 			try:
 				future = self._call_client("login")
-				self._watch(future, self._login_succeeded)
+				self._watch(future, lambda result: self._login_succeeded(result, silent=silent), silent=silent)
 			except Exception as error:
-				self._fail(error)
+				self._fail(error, silent=silent)
 		else:
 			self._fail(ValueError(f"unknown login choice: {choice!r}"))
 
-	def _login_succeeded(self, _result: object) -> None:
+	def _login_succeeded(self, _result: object, *, silent: bool = False) -> None:
+		self._auth_state.refresh_token_was_valid = True
 		self._session_ready = True
-		self._start_access_token()
+		self._start_access_token(silent=silent)
 
 	def _token_succeeded(self, access_token: str) -> None:
 		try:
@@ -338,7 +350,7 @@ class CoseeingAuthSession:
 			self._pending_refresh = None
 			self._finish(value=access_token)
 
-	def _watch(self, future: Future, succeeded: Callable[[object], None]) -> None:
+	def _watch(self, future: Future, succeeded: Callable[[object], None], *, silent: bool = False) -> None:
 		def completed(done: Future) -> None:
 			try:
 				self._post_ui(deliver, done)
@@ -362,13 +374,13 @@ class CoseeingAuthSession:
 			try:
 				value = done.result()
 			except Exception as error:
-				self._fail(error)
+				self._fail(error, silent=silent)
 			else:
 				succeeded(value)
 
 		future.add_done_callback(completed)
 
-	def _fail(self, error: Exception) -> None:
+	def _fail(self, error: Exception, *, silent: bool = False) -> None:
 		if isinstance(error, OAuthError) and getattr(error, "error", None) in {
 			"invalid_grant",
 			"invalid_token",
@@ -380,7 +392,7 @@ class CoseeingAuthSession:
 			except Exception as save_error:
 				self._finish(error=save_error)
 				return
-			self._start_prompt()
+			self._start_prompt(silent)
 			return
 		if isinstance(error, TokenValidationError):
 			self._session_ready = False
@@ -389,7 +401,7 @@ class CoseeingAuthSession:
 			except Exception as save_error:
 				self._finish(error=save_error)
 				return
-			self._start_prompt()
+			self._start_prompt(silent)
 			return
 		if isinstance(error, RestoreError) and error.code == "refresh_rejected":
 			self._session_ready = False
@@ -398,7 +410,7 @@ class CoseeingAuthSession:
 			except Exception as save_error:
 				self._finish(error=save_error)
 				return
-			self._start_prompt()
+			self._start_prompt(silent)
 			return
 		if isinstance(error, TokenUnavailableError) and error.code in {
 			"refresh_rejected",
@@ -411,7 +423,7 @@ class CoseeingAuthSession:
 				except Exception as save_error:
 					self._finish(error=save_error)
 					return
-			self._start_prompt()
+			self._start_prompt(silent)
 			return
 		self._finish(error=error)
 
@@ -513,13 +525,14 @@ class _NvdaAuthAdapter:
 				type(error).__name__, "shutdown", "dialog", "close_failed",
 			)
 
-	def session(self) -> CoseeingAuthSession:
+	def session(self, *, auth_state: AuthSessionState | None = None) -> CoseeingAuthSession:
 		return CoseeingAuthSession(
 			client_factory=self.client_factory,
 			post_ui=self.post_ui,
 			read_refresh_token=self.read_refresh_token,
 			save_refresh_token=self.save_refresh_token,
 			prompt_login=self.prompt_login,
+			auth_state=auth_state,
 		)
 
 	def notify_completion(self, done: Future) -> None:
@@ -554,6 +567,7 @@ _singleton_lock = threading.RLock()
 _singleton_session: CoseeingAuthSession | None = None
 _singleton_adapter: _NvdaAuthAdapter | None = None
 _shutdown_future: Future[None] | None = None
+_auth_state = AuthSessionState()
 
 
 def _get_singleton() -> CoseeingAuthSession:
@@ -564,22 +578,28 @@ def _get_singleton() -> CoseeingAuthSession:
 		if _singleton_session is None:
 			adapter = _NvdaAuthAdapter()
 			_singleton_adapter = adapter
-			_singleton_session = adapter.session()
+			_singleton_session = adapter.session(auth_state=_auth_state)
 		return _singleton_session
 
 
-def get_coseeing_access_token(*, reconsider_guest: bool = False) -> Future[str | None]:
+def has_seen_valid_refresh_token() -> bool:
+	return _auth_state.refresh_token_was_valid
+
+
+def get_coseeing_access_token(*, reconsider_guest: bool = False, silent: bool | None = None) -> Future[str | None]:
+	if silent is None:
+		silent = not has_seen_valid_refresh_token()
 	try:
-		return _get_singleton().get_access_token(reconsider_guest=reconsider_guest)
+		return _get_singleton().get_access_token(reconsider_guest=reconsider_guest, silent=silent)
 	except Exception as error:
 		return _completed_future(error)
 
 
-def start_coseeing_auth(execution_channel: str) -> None:
+def start_coseeing_auth(execution_channel: str, *, silent: bool = True) -> None:
 	if execution_channel != "Coseeing":
 		return
 	try:
-		future = get_coseeing_access_token(reconsider_guest=True)
+		future = get_coseeing_access_token(reconsider_guest=True, silent=silent)
 	except Exception as error:
 		adapter = _singleton_adapter
 		if adapter is not None:

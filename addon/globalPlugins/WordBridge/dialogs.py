@@ -263,7 +263,7 @@ class LLMSettingsPanel(SettingsPanel):
 				config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = api_key_tmp
 
 		def start_auth():
-			wx.CallAfter(start_coseeing_auth, selected_item.execution_channel)
+			wx.CallAfter(lambda: start_coseeing_auth(selected_item.execution_channel, silent=False))
 
 		if coseeing_refresh_token_changed:
 			reset_future = reset_coseeing_auth()
