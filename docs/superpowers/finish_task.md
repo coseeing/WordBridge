@@ -172,3 +172,7 @@ diff_check_exit=0
 ```
 
 This final report update is committed as `742f4ac`.
+
+## Final scoped review status
+
+The final scoped reviewer confirmed singleton resurrection and ordinary HTTP/connection error handling are fixed, but requested another fix wave for four remaining Important findings: the admitted close race/error semantics, proofreader UI and clipboard work after termination, retrying failed refresh-token persistence, and validating production bundle import order. These findings remain open; this document does not claim the branch is release-ready. The final reviewer also could not verify Windows/NVDA runtime acceptance, SCons/gettext packaging, or the generated addon artifact in this Linux environment.

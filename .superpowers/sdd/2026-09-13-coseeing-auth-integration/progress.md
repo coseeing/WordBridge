@@ -40,6 +40,16 @@ Task 3: fix round 3/5 (2 addressed, 0 open; commit e8b4425)
 Task 3: complete (commits f91c9f5..e8b4425, review clean)
 Task 4: fix round 1/5 (1 addressed, 3 minor deferred; commit 5b78b57)
 Task 4: complete (commits e8b4425..5b78b57, review clean; 3 minor deferred)
+Task 5: fix round 1/5 (2 addressed, 1 open; commits e12df36..5200902)
+Task 5: fix round 2/5 (1 addressed, 0 open; commit cb143c8)
+Task 5: complete (commits 5b78b57..cb143c8, review clean)
+Task 6: complete (commits cb143c8..e6ca30f, focused verification complete; final review required follow-up)
+
+## Final review residuals
+
+- Final review fix wave: commits d416e55, 742f4ac, e6ca30f; focused suite 93 passed, 1 skipped.
+- Parked: final scoped re-review reports four Important findings still open: admitted close race/error semantics, proofreader termination UI/clipboard guard, refresh-token persistence retry, and production bundle import-order validation. Ruling: do not claim the branch is release-ready; these are load-bearing and require a new authorized fix wave after this handoff. Cost if wrong: shutdown, privacy, persistence, or packaging regressions remain possible.
+- Final review also confirms singleton resurrection and ordinary proofreader HTTP/connection error handling are addressed.
 
 Task 6: complete (commits 918fccb, a564dfa, 41ac560; focused suite 86 passed, 1 skipped; full suite has 7 unrelated live/catalog failures; packaging and Windows/NVDA manual acceptance unavailable in this Linux environment)
 
