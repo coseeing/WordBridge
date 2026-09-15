@@ -8,6 +8,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
 	from coseeing_auth import AuthConfig
 
+import addonHandler
+
+addonHandler.initTranslation()
 
 _auth_dependencies_prepared = False
 
