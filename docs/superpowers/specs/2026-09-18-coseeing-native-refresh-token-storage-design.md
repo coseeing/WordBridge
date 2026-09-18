@@ -59,9 +59,27 @@ dialog, and presenting a generic failure notification.
 
 ### Settings UI and configuration
 
-The Coseeing-specific Refresh Token field is removed from the settings panel,
-including the change-detection/reset behavior that existed only to react to
-manual edits.  Other provider API-key controls are unchanged.
+The Coseeing-specific Refresh Token field is replaced with a button labelled
+`clean`.  Other provider API-key controls are unchanged.
+
+When the settings panel opens, the button is enabled only if
+`WindowsCredentialStore("org.coseeing.wordbridge/refresh").load()` returns a
+token.  This is a local existence check, not a network validation: an absent
+token or a storage-read failure leaves the button disabled.  This avoids
+making the settings UI depend on SSO availability, while still allowing a
+locally stored but expired or revoked credential to be cleared.
+
+Selecting `clean` runs `logout_local()`.  It clears both the client's in-memory
+token state and the Windows Credential Manager credential, then closes and
+resets WordBridge's auth singleton.  A successful operation disables the
+button immediately.  A failed delete retains the enabled state and follows the
+existing generic authentication-failure notification path.  The
+change-detection/reset behavior that existed only to react to manual token
+edits is removed.
+
+Saving the panel after a successful clean still starts Coseeing authentication
+when Coseeing is the selected execution channel.  With no native credential,
+the existing sign-in-or-guest prompt is shown again.
 
 The existing `api_key["Coseeing"]` configuration value is left untouched for
 this release.  It is not displayed, loaded, saved, cleared, or migrated by the
@@ -84,7 +102,11 @@ Update the auth-session and NVDA-panel tests to cover:
   established login/guest prompt;
 - a restored native session proceeding to access-token acquisition without
   config-token callbacks or `get_refresh_token()`;
-- removal of the Refresh Token UI control and its reset-on-edit behavior;
+- a `clean` button that is enabled only when a native credential exists;
+- local logout clearing the native credential and in-memory session, disabling
+  the button on success, and retaining its enabled state on a delete failure;
+- a clean followed by a settings save for the Coseeing channel reopening the
+  sign-in-or-guest prompt;
 - continued generic handling of persistence errors without logging a token.
 
 The package bundle test should also include the new `coseeing_auth/storage`
