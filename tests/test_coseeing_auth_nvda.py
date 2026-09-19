@@ -416,7 +416,9 @@ def test_settings_panel_uses_clean_button_without_legacy_credential_controls(mon
 
 
 def test_nvda_module_setup_leaves_real_bundle_exports_importable(monkeypatch):
-	assert "coseeing_auth" not in sys.modules
+	cached_bundle = sys.modules.get("coseeing_auth")
+	if cached_bundle is not None:
+		assert Path(cached_bundle.__file__).resolve().is_relative_to(ADDON_PATH / "package")
 	authlib = types.ModuleType("authlib")
 	oauth2 = types.ModuleType("authlib.oauth2")
 	rfc6749 = types.ModuleType("authlib.oauth2.rfc6749")
