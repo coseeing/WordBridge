@@ -55,11 +55,22 @@ def test_sso_configuration_matches_approved_demo(tmp_path):
 		(fixture / "__init__.py").write_text("from .models import AuthConfig\n", encoding="utf-8")
 		code = """
 import sys
+import types
 from pathlib import Path
 
 addon = Path(sys.argv[1]).resolve()
 fixture = Path(sys.argv[2]).resolve()
 assert "PYTHONPATH" not in __import__("os").environ
+addon_handler = types.ModuleType("addonHandler")
+addon_handler.initTranslation = lambda: None
+sys.modules["addonHandler"] = addon_handler
+authlib = types.ModuleType("authlib")
+integrations = types.ModuleType("authlib.integrations")
+base_client = types.ModuleType("authlib.integrations.base_client")
+errors = types.ModuleType("authlib.integrations.base_client.errors")
+errors.OAuthError = type("OAuthError", (Exception,), {})
+for module in (authlib, integrations, base_client, errors):
+    sys.modules[module.__name__] = module
 sys.path.insert(0, str(fixture.parent))
 sys.path.insert(0, str(addon))
 from lib.coseeing_auth import build_auth_config
