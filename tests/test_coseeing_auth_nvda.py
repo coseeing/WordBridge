@@ -381,7 +381,7 @@ def test_coseeing_channel_reconsiders_guest(monkeypatch):
 	assert calls == [{"reconsider_guest": True, "silent": True}]
 
 
-def test_nvda_adapter_maps_dialog_choices_and_only_saves_coseeing(monkeypatch):
+def test_nvda_adapter_maps_dialog_choices(monkeypatch):
 	settings = {"api_key": {"Coseeing": "old", "OpenAI": "keep"}}
 	saved = []
 	class Conf(dict):
@@ -428,10 +428,6 @@ def test_nvda_adapter_maps_dialog_choices_and_only_saves_coseeing(monkeypatch):
 	for result, expected in ((Wx.ID_YES, "login"), (Wx.ID_NO, "guest"), (Wx.ID_CANCEL, "cancel")):
 		Dialog.result = result
 		assert adapter.prompt_login() == expected
-	assert adapter.read_refresh_token() == "old"
-	adapter.save_refresh_token("new")
-	assert settings["api_key"] == {"Coseeing": "new", "OpenAI": "keep"}
-	assert saved == [True]
 
 
 def test_nvda_dialog_is_destroyed_after_each_choice(monkeypatch):
@@ -545,21 +541,6 @@ def test_shutdown_cancels_only_active_dialog(monkeypatch):
 	thread.join(timeout=1)
 	assert not thread.is_alive()
 	assert adapter._active_dialog is None
-
-
-def test_save_refresh_token_reports_config_save_failure(monkeypatch):
-	class Conf(dict):
-		def save(self):
-			raise OSError("secret save details")
-	settings = {"api_key": {"Coseeing": "old", "OpenAI": "keep"}}
-	config = SimpleNamespace(conf=Conf({"WordBridge": {"settings": settings}}))
-	class Wx:
-		class DefaultButtonSet:
-			YES_NO = 4
-	_install_nvda(monkeypatch, dialog=object, wx=Wx, config=config)
-	with __import__("pytest").raises(OSError, match="secret save details"):
-		module._NvdaAuthAdapter().save_refresh_token("new")
-	assert settings["api_key"] == {"Coseeing": "new", "OpenAI": "keep"}
 
 
 def test_client_factory_builds_exact_future_client(monkeypatch):
@@ -685,8 +666,6 @@ def test_concurrent_shutdown_callers_share_blocked_client_cleanup(monkeypatch):
 	session = CoseeingAuthSession(
 		client_factory=lambda: client,
 		post_ui=lambda function, *args: function(*args),
-		read_refresh_token=lambda: None,
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "guest",
 	)
 	session._client = client

@@ -1,8 +1,69 @@
+import sys
+import types
+
+
+class OAuthError(Exception):
+	def __init__(self, *args, error=None, **kwargs):
+		super().__init__(*args)
+		self.error = error
+
+
+class AuthError(Exception):
+	def __init__(self, message, *, code=None, **kwargs):
+		super().__init__(message)
+		self.code = code
+
+
+class LoginError(AuthError):
+	pass
+
+
+class RestoreError(AuthError):
+	pass
+
+
+class TokenUnavailableError(AuthError):
+	pass
+
+
+class TokenValidationError(AuthError):
+	pass
+
+
+class ClientClosedError(AuthError):
+	pass
+
+
+addon_handler = types.ModuleType("addonHandler")
+addon_handler.initTranslation = lambda: None
+authlib = types.ModuleType("authlib")
+authlib_integrations = types.ModuleType("authlib.integrations")
+authlib_base_client = types.ModuleType("authlib.integrations.base_client")
+authlib_errors = types.ModuleType("authlib.integrations.base_client.errors")
+authlib_errors.OAuthError = OAuthError
+coseeing_auth = types.ModuleType("coseeing_auth")
+coseeing_errors = types.ModuleType("coseeing_auth.errors")
+for error in (LoginError, RestoreError, TokenUnavailableError, TokenValidationError, ClientClosedError):
+	setattr(coseeing_auth, error.__name__, error)
+	setattr(coseeing_errors, error.__name__, error)
+sys.modules.update({
+	"addonHandler": addon_handler,
+	"authlib": authlib,
+	"authlib.integrations": authlib_integrations,
+	"authlib.integrations.base_client": authlib_base_client,
+	"authlib.integrations.base_client.errors": authlib_errors,
+	"coseeing_auth": coseeing_auth,
+	"coseeing_auth.errors": coseeing_errors,
+})
+
 from lib.coseeing_auth import AuthSessionState, CoseeingAuthSession
 import lib.coseeing_auth as auth_module
-from coseeing_auth import LoginError, RestoreError, TokenUnavailableError, TokenValidationError
-from coseeing_auth.errors import ClientClosedError
-from authlib.integrations.base_client.errors import OAuthError
+
+for module_name in (
+	"addonHandler", "authlib", "authlib.integrations", "authlib.integrations.base_client",
+	"authlib.integrations.base_client.errors", "coseeing_auth", "coseeing_auth.errors",
+):
+	sys.modules.pop(module_name, None)
 from concurrent.futures import CancelledError, Future
 import shutil
 import subprocess
@@ -20,6 +81,7 @@ def test_guest_is_remembered_until_reconsidered():
 	h = AuthHarness(CoseeingAuthSession)
 	first = h.session.get_access_token()
 	h.drain()
+	h.resolve(None)
 	assert first.result(timeout=1) is None
 	second = h.session.get_access_token()
 	h.drain()
@@ -27,17 +89,10 @@ def test_guest_is_remembered_until_reconsidered():
 	assert h.prompts == 1
 	third = h.session.get_access_token(reconsider_guest=True)
 	h.drain()
+	h.resolve(None)
 	assert third.result(timeout=1) is None
 	assert h.prompts == 2
-	assert h.auth is None
-
-
-def test_client_is_constructed_lazily_for_guest():
-	h = AuthHarness(CoseeingAuthSession)
-	result = h.session.get_access_token()
-	h.drain()
-	assert result.result(timeout=1) is None
-	assert h.auth is None
+	assert h.auth is not None
 
 
 def test_auth_errors_import_after_runtime_dependency_preparation(tmp_path):
@@ -54,7 +109,8 @@ def test_auth_errors_import_after_runtime_dependency_preparation(tmp_path):
 		"from runtime_marker import READY\n"
 		"class ClientClosedError(Exception):\n pass\n"
 		"class RestoreError(Exception):\n pass\n"
-		"class TokenUnavailableError(Exception):\n pass\n",
+		"class TokenUnavailableError(Exception):\n pass\n"
+		"class TokenValidationError(Exception):\n pass\n",
 		encoding="utf-8",
 	)
 	(deps / "coseeing_auth" / "__init__.py").write_text(
@@ -62,8 +118,18 @@ def test_auth_errors_import_after_runtime_dependency_preparation(tmp_path):
 	)
 	code = """
 	import sys
+	import types
 	sys.platform = "win32"
 	sys.path.insert(0, sys.argv[1])
+	addon_handler = types.ModuleType("addonHandler")
+	addon_handler.initTranslation = lambda: None
+	sys.modules["addonHandler"] = addon_handler
+	authlib_errors = types.ModuleType("authlib.integrations.base_client.errors")
+	authlib_errors.OAuthError = type("OAuthError", (Exception,), {})
+	sys.modules["authlib"] = types.ModuleType("authlib")
+	sys.modules["authlib.integrations"] = types.ModuleType("authlib.integrations")
+	sys.modules["authlib.integrations.base_client"] = types.ModuleType("authlib.integrations.base_client")
+	sys.modules["authlib.integrations.base_client.errors"] = authlib_errors
 	from lib.coseeing_auth import CoseeingAuthSession
 	assert CoseeingAuthSession
 	"""
@@ -75,30 +141,40 @@ def test_runtime_dependency_path_selects_supported_runtime(monkeypatch):
 	assert auth_module._auth_dependency_path().name == "py313-win_amd64"
 
 
-def test_restore_persists_rotated_refresh_before_completing():
-	h = AuthHarness(CoseeingAuthSession, refresh="old")
+def test_saved_session_restore_returns_access_without_manual_refresh_callbacks():
+	h = AuthHarness(CoseeingAuthSession)
 	result = h.session.get_access_token()
 	h.drain()
-	assert h.auth.calls[0] == ("restore", ("old",), {})
+	assert h.auth.calls == [("restore_saved_session", (), {})]
 	h.resolve(object())
 	h.resolve("access")
-	assert not result.done()
-	h.resolve("rotated")
 	assert result.result(timeout=1) == "access"
-	assert h.saved == "rotated"
+	assert [call[0] for call in h.auth.calls] == [
+		"restore_saved_session", "get_access_token",
+	]
 	assert h.prompts == 0
 
 
-def test_login_saves_refresh_and_returns_access():
+def test_missing_saved_session_prompts_without_manual_token_access():
+	h = AuthHarness(CoseeingAuthSession, choice="guest")
+	result = h.session.get_access_token()
+	h.drain()
+	h.resolve(None)
+	assert result.result(timeout=1) is None
+	assert h.prompts == 1
+	assert h.auth.calls == [("restore_saved_session", (), {})]
+
+
+def test_login_returns_access_without_requesting_refresh_token():
 	h = AuthHarness(CoseeingAuthSession, choice="login")
 	result = h.session.get_access_token()
 	h.drain()
-	assert h.auth.calls[0][0] == "login"
+	h.resolve(None)
+	assert h.auth.calls[-1][0] == "login"
 	h.resolve(object())
 	h.resolve("access")
-	h.resolve("refresh")
 	assert result.result(timeout=1) == "access"
-	assert h.saved == "refresh"
+	assert "get_refresh_token" not in [call[0] for call in h.auth.calls]
 	assert all(call[2].get("auto_login") is False for call in h.auth.calls if call[0] == "get_access_token")
 
 
@@ -108,38 +184,35 @@ def test_ready_session_reuses_client_without_prompting():
 	result = h.session.get_access_token()
 	h.drain()
 	h.resolve("access-again")
-	h.resolve("refresh-again")
 	assert result.result(timeout=1) == "access-again"
 	assert h.prompts == 1
 	assert h.auth.calls[0] == ("get_access_token", (), {"auto_login": False})
 
 
 def test_overlapping_live_waiters_receive_the_same_result():
-	h = AuthHarness(CoseeingAuthSession, refresh="old")
+	h = AuthHarness(CoseeingAuthSession)
 	first = h.session.get_access_token()
 	h.drain()
 	second = h.session.get_access_token()
 	h.drain()
 	assert not first.done()
 	assert not second.done()
-	assert h.auth.calls == [("restore", ("old",), {})]
+	assert h.auth.calls == [("restore_saved_session", (), {})]
 	h.resolve(object())
 	h.resolve("access")
-	h.resolve("refresh")
 	assert first.result(timeout=1) == "access"
 	assert second.result(timeout=1) == "access"
 
 
 @pytest.mark.parametrize(
-	"code,prompted,stored",
-	[("refresh_rejected", True, None), ("token_endpoint_network_error", False, "old")],
+"code,prompted",
+	[("refresh_rejected", True), ("token_endpoint_network_error", False)],
 )
-def test_restore_failure_classification(code, prompted, stored):
-	h = AuthHarness(CoseeingAuthSession, refresh="old")
+def test_restore_failure_classification(code, prompted):
+	h = AuthHarness(CoseeingAuthSession)
 	result = h.session.get_access_token()
 	h.drain()
 	h.reject(RestoreError("synthetic", code=code))
-	assert h.saved == stored
 	assert bool(h.prompts) is prompted
 	if prompted:
 		assert result.result(timeout=1) is None
@@ -151,9 +224,9 @@ def test_restore_failure_classification(code, prompted, stored):
 def _login_session(h):
 	result = h.session.get_access_token()
 	h.drain()
+	h.resolve(None)
 	h.resolve(object())
 	h.resolve("access")
-	h.resolve("refresh")
 	assert result.result(timeout=1) == "access"
 	h.auth.calls.clear()
 
@@ -176,7 +249,7 @@ def test_current_session_recovery_errors_prompt_without_login(error):
 
 
 def test_restore_refresh_unavailable_is_not_recoverable():
-	h = AuthHarness(CoseeingAuthSession, refresh="old")
+	h = AuthHarness(CoseeingAuthSession)
 	result = h.session.get_access_token()
 	h.drain()
 	h.reject(RestoreError("synthetic", code="refresh_unavailable"))
@@ -185,13 +258,12 @@ def test_restore_refresh_unavailable_is_not_recoverable():
 	assert h.prompts == 0
 
 
-def test_silent_invalid_refresh_clears_token_without_prompting():
-	h = AuthHarness(CoseeingAuthSession, refresh="old", choice="login")
+def test_silent_invalid_refresh_does_not_prompt():
+	h = AuthHarness(CoseeingAuthSession, choice="login")
 	result = h.session.get_access_token(silent=True)
 	h.drain()
 	h.reject(RestoreError("synthetic", code="refresh_rejected"))
 
-	assert h.saved is None
 	assert result.result(timeout=1) is None
 	assert h.prompts == 0
 
@@ -200,19 +272,18 @@ def test_silent_missing_refresh_does_not_prompt():
 	h = AuthHarness(CoseeingAuthSession, choice="login")
 	result = h.session.get_access_token(silent=True)
 	h.drain()
-
+	h.resolve(None)
 	assert result.result(timeout=1) is None
 	assert h.prompts == 0
 
 
 def test_successful_restore_marks_shared_auth_state_as_valid():
 	state = AuthSessionState()
-	h = AuthHarness(CoseeingAuthSession, refresh="old", auth_state=state)
+	h = AuthHarness(CoseeingAuthSession, auth_state=state)
 	result = h.session.get_access_token(silent=True)
 	h.drain()
 	h.resolve(object())
 	h.resolve("access")
-	h.resolve("refresh")
 
 	assert result.result(timeout=1) == "access"
 	assert state.refresh_token_was_valid is True
@@ -246,34 +317,34 @@ def test_default_access_token_mode_follows_shared_validity_history(monkeypatch):
 	TokenValidationError("synthetic", code="scope_missing", operation="access_token"),
 	TokenValidationError("synthetic", code="nonce_mismatch", operation="id_token"),
 ])
-def test_invalid_authentication_error_clears_refresh_and_prompts(error):
-	h = AuthHarness(CoseeingAuthSession, refresh="old", choice="login")
+def test_invalid_authentication_error_prompts(error):
+	h = AuthHarness(CoseeingAuthSession, choice="login")
 	_login_session(h)
 	h.choice = "guest"
+	initial_prompts = h.prompts
 	result = h.session.get_access_token()
 	h.drain()
 	h.reject(error)
-	assert h.saved is None
 	assert result.result(timeout=1) is None
-	assert h.prompts == 1
+	assert h.prompts == initial_prompts + 1
 
 
-def test_unknown_oauth_error_preserves_refresh_without_prompt():
-	h = AuthHarness(CoseeingAuthSession, refresh="old", choice="login")
+def test_unknown_oauth_error_does_not_prompt():
+	h = AuthHarness(CoseeingAuthSession, choice="login")
 	_login_session(h)
 	result = h.session.get_access_token()
 	h.drain()
 	h.reject(OAuthError(error="server_error"))
 	with pytest.raises(OAuthError):
 		result.result(timeout=1)
-	assert h.saved == "refresh"
-	assert h.prompts == 0
+	assert h.prompts == 1
 
 
 def test_login_error_is_returned_without_retrying_login():
 	h = AuthHarness(CoseeingAuthSession, choice="login")
 	result = h.session.get_access_token()
 	h.drain()
+	h.resolve(None)
 	h.reject(LoginError("synthetic", code="callback_timeout"))
 	with pytest.raises(LoginError):
 		result.result(timeout=1)
@@ -290,46 +361,41 @@ def test_pending_login_future_cancellation_reaches_caller():
 		result.result(timeout=1)
 
 
-def test_save_failure_is_returned_to_waiter():
-	h = AuthHarness(CoseeingAuthSession, choice="login", save_error=OSError("disk"))
-	result = h.session.get_access_token()
-	h.drain()
-	h.resolve(object())
-	h.resolve("access")
-	h.resolve("refresh")
-	with pytest.raises(OSError):
-		result.result(timeout=1)
-
-
-def test_save_failure_does_not_discard_authenticated_session():
-	h = AuthHarness(CoseeingAuthSession, choice="login", save_error=OSError("disk"))
-	first = h.session.get_access_token()
-	h.drain()
-	h.resolve(object())
-	h.resolve("access")
-	h.resolve("refresh")
-	with pytest.raises(OSError):
-		first.result(timeout=1)
-	h.save_error = None
-	second = h.session.get_access_token()
-	h.drain()
-	assert second.result(timeout=1) == "access"
-	assert h.prompts == 1
-
-
 def test_overlapping_callers_share_one_operation_and_cancel_independently():
-	h = AuthHarness(CoseeingAuthSession, refresh="old")
+	h = AuthHarness(CoseeingAuthSession)
 	first = h.session.get_access_token()
 	h.drain()
 	second = h.session.get_access_token()
 	assert second.cancel()
 	h.drain()
-	assert h.auth.calls == [("restore", ("old",), {})]
+	assert h.auth.calls == [("restore_saved_session", (), {})]
 	h.resolve(object())
 	h.resolve("access")
-	h.resolve("refresh")
 	assert first.result(timeout=1) == "access"
 	assert second.cancelled()
+
+
+def test_logout_local_clears_package_state_and_session_flags():
+	h = AuthHarness(CoseeingAuthSession)
+	h.session._session_ready = True
+	h.session._guest = True
+	result = h.session.logout_local()
+	h.drain()
+	assert h.auth.calls == [("logout_local", (), {})]
+	h.resolve(object())
+	assert result.result(timeout=1) is None
+	assert h.session._session_ready is False
+	assert h.session._guest is False
+
+
+def test_logout_local_failure_reaches_caller():
+	h = AuthHarness(CoseeingAuthSession)
+	result = h.session.logout_local()
+	h.drain()
+	error = RuntimeError("sanitized persistence failure")
+	h.reject(error)
+	with pytest.raises(RuntimeError, match="sanitized persistence failure"):
+		result.result(timeout=1)
 
 
 def test_close_completes_waiters_and_cleans_up_client_once():
@@ -349,7 +415,7 @@ def test_close_completes_waiters_and_cleans_up_client_once():
 	assert h.auth.close_thread_name != "MainThread"
 	assert h.session.close() is cleanup
 	h.resolve(object())
-	assert h.prompts == 1
+	assert h.prompts == 0
 
 
 def test_close_racing_paused_factory_does_not_submit_work_or_leak_client():
@@ -371,8 +437,6 @@ def test_close_racing_paused_factory_does_not_submit_work_or_leak_client():
 	session = CoseeingAuthSession(
 		client_factory=make_client,
 		post_ui=lambda fn, *args: queue.append((fn, args)),
-		read_refresh_token=lambda: "old",
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "guest",
 	)
 	result = session.get_access_token()
@@ -421,8 +485,6 @@ def test_failed_close_schedule_hands_off_client_created_during_factory():
 	session = CoseeingAuthSession(
 		client_factory=make_client,
 		post_ui=post_ui,
-		read_refresh_token=lambda: "old",
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "guest",
 	)
 	result = session.get_access_token()
@@ -461,8 +523,6 @@ def test_close_schedule_failure_retries_ui_transition_for_active_waiter():
 	session = CoseeingAuthSession(
 		client_factory=lambda: auth,
 		post_ui=post_ui,
-		read_refresh_token=lambda: None,
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "login",
 	)
 	result = session.get_access_token()
@@ -474,7 +534,7 @@ def test_close_schedule_failure_retries_ui_transition_for_active_waiter():
 	with pytest.raises(ClientClosedError):
 		result.result(timeout=1)
 	assert cleanup.result(timeout=1) is None
-	assert auth.calls == [("login", (), {}), ("close", (), {})]
+	assert auth.calls == [("restore_saved_session", (), {}), ("close", (), {})]
 
 
 def test_callback_ui_submission_failure_fails_waiters_and_clears_operation():
@@ -496,8 +556,6 @@ def test_callback_ui_submission_failure_fails_waiters_and_clears_operation():
 	session = CoseeingAuthSession(
 		client_factory=lambda: auth,
 		post_ui=post_ui,
-		read_refresh_token=lambda: "old",
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "guest",
 	)
 	result = session.get_access_token()
@@ -512,7 +570,7 @@ def test_callback_ui_submission_failure_fails_waiters_and_clears_operation():
 	fn, args = queue.pop(0)
 	fn(*args)
 	assert not second.done()
-	assert [call[0] for call in auth.calls] == ["restore", "restore"]
+	assert [call[0] for call in auth.calls] == ["restore_saved_session", "restore_saved_session"]
 	second.cancel()
 
 
@@ -532,8 +590,6 @@ def test_repeated_watch_scheduler_failure_is_delivered_on_ui():
 	session = CoseeingAuthSession(
 		client_factory=lambda: auth,
 		post_ui=post_ui,
-		read_refresh_token=lambda: "old",
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "guest",
 	)
 	result = session.get_access_token()
@@ -550,8 +606,6 @@ def test_sync_client_factory_failure_completes_waiter():
 	result = CoseeingAuthSession(
 		client_factory=lambda: (_ for _ in ()).throw(OSError("factory")),
 		post_ui=lambda fn, *args: fn(*args),
-		read_refresh_token=lambda: "old",
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "guest",
 	).get_access_token()
 	with pytest.raises(OSError, match="factory"):
@@ -560,14 +614,12 @@ def test_sync_client_factory_failure_completes_waiter():
 
 def test_sync_client_submission_failure_completes_waiter():
 	class BrokenAuth:
-		def restore(self, token):
+		def restore_saved_session(self):
 			raise OSError("submit")
 
 	result = CoseeingAuthSession(
 		client_factory=BrokenAuth,
 		post_ui=lambda fn, *args: fn(*args),
-		read_refresh_token=lambda: "old",
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "guest",
 	).get_access_token()
 	with pytest.raises(OSError, match="submit"):
@@ -586,32 +638,6 @@ def test_close_before_ui_drain_does_not_prompt_or_create_client():
 	assert h.prompts == 0
 
 
-def test_refresh_save_failure_retries_same_rotated_token_without_reauthenticating():
-	saves = []
-	failed = [True]
-	h = AuthHarness(CoseeingAuthSession, refresh="old")
-	def save(value):
-		saves.append(value)
-		if failed[0]:
-			failed[0] = False
-			raise OSError("save failed")
-		h.saved = value
-	h.save = save
-	h.session._save_refresh_token = h.save
-	first = h.session.get_access_token()
-	h.drain()
-	h.resolve(object())
-	h.resolve("access")
-	h.resolve("rotated")
-	with pytest.raises(OSError, match="save failed"):
-		first.result(timeout=1)
-	second = h.session.get_access_token()
-	h.drain()
-	assert second.result(timeout=1) == "access"
-	assert saves == ["rotated", "rotated"]
-	assert [call[0] for call in h.auth.calls] == ["restore", "get_access_token", "get_refresh_token"]
-
-
 def test_close_scheduling_failure_does_not_mutate_ui_state_off_thread():
 	queue = []
 	post_count = 0
@@ -628,8 +654,6 @@ def test_close_scheduling_failure_does_not_mutate_ui_state_off_thread():
 	session = CoseeingAuthSession(
 		client_factory=lambda: auth,
 		post_ui=post_ui,
-		read_refresh_token=lambda: None,
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "guest",
 	)
 	result = session.get_access_token()
@@ -659,8 +683,6 @@ def test_close_schedule_and_retry_failure_finishes_existing_client_waiters_and_r
 	session = CoseeingAuthSession(
 		client_factory=lambda: auth,
 		post_ui=post_ui,
-		read_refresh_token=lambda: None,
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "login",
 	)
 	result = session.get_access_token()
@@ -680,7 +702,7 @@ def test_close_schedule_and_retry_failure_finishes_existing_client_waiters_and_r
 		second.result(timeout=1)
 	with pytest.raises(RuntimeError, match="UI scheduler stopped"):
 		cleanup.result(timeout=1)
-	assert auth.calls == [("login", (), {}), ("close", (), {})]
+	assert auth.calls == [("restore_saved_session", (), {}), ("close", (), {})]
 
 
 def test_close_schedule_failure_and_factory_error_finish_waiter_and_cleanup():
@@ -705,8 +727,6 @@ def test_close_schedule_failure_and_factory_error_finish_waiter_and_cleanup():
 	session = CoseeingAuthSession(
 		client_factory=make_client,
 		post_ui=post_ui,
-		read_refresh_token=lambda: "old",
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "guest",
 	)
 	result = session.get_access_token()
@@ -749,12 +769,9 @@ def test_close_schedule_failure_waits_for_admitted_request_client_handoff():
 		else:
 			raise RuntimeError("UI scheduler stopped")
 
-	def read_refresh_token():
+	def make_client():
 		started.set()
 		release.wait(timeout=5)
-		return "old"
-
-	def make_client():
 		client = FakeAuth(close_started, close_release)
 		created.append(client)
 		published.set()
@@ -763,8 +780,6 @@ def test_close_schedule_failure_waits_for_admitted_request_client_handoff():
 	session = CoseeingAuthSession(
 		client_factory=make_client,
 		post_ui=post_ui,
-		read_refresh_token=read_refresh_token,
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "guest",
 	)
 	result = session.get_access_token()
@@ -813,8 +828,6 @@ def test_persistent_watch_scheduler_failure_finishes_waiters_and_clears_operatio
 	session = CoseeingAuthSession(
 		client_factory=lambda: auth,
 		post_ui=post_ui,
-		read_refresh_token=lambda: "old",
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "guest",
 	)
 	result = session.get_access_token()
@@ -840,8 +853,6 @@ def test_request_admission_is_atomic_with_waiter_drain():
 	session = CoseeingAuthSession(
 		client_factory=lambda: FakeAuth(),
 		post_ui=lambda fn, *args: None,
-		read_refresh_token=lambda: None,
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "guest",
 	)
 	waiter = session.get_access_token()
@@ -879,8 +890,6 @@ def test_watch_scheduler_fallback_uses_synchronized_handoff(monkeypatch):
 	session = CoseeingAuthSession(
 		client_factory=lambda: auth,
 		post_ui=post_ui,
-		read_refresh_token=lambda: "old",
-		save_refresh_token=lambda value: None,
 		prompt_login=lambda: "guest",
 	)
 	finish_threads = []
@@ -909,6 +918,7 @@ def test_cancel_prompt_completes_with_cancelled_error():
 	h = AuthHarness(CoseeingAuthSession, choice="cancel")
 	result = h.session.get_access_token()
 	h.drain()
+	h.resolve(None)
 	with pytest.raises(CancelledError):
 		result.result(timeout=1)
-	assert h.auth is None
+	assert h.auth is not None

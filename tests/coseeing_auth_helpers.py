@@ -17,17 +17,17 @@ class FakeAuth:
 		self.pending.append(result)
 		return result
 
-	def restore(self, token):
-		return self._submit("restore", token)
+	def restore_saved_session(self):
+		return self._submit("restore_saved_session")
 
 	def get_access_token(self, *, auto_login=False):
 		return self._submit("get_access_token", auto_login=auto_login)
 
-	def get_refresh_token(self):
-		return self._submit("get_refresh_token")
-
 	def login(self):
 		return self._submit("login")
+
+	def logout_local(self):
+		return self._submit("logout_local")
 
 	def close(self):
 		self.calls.append(("close", (), {}))
@@ -39,14 +39,12 @@ class FakeAuth:
 
 
 class AuthHarness:
-	def __init__(self, session_class, refresh=None, choice="guest", save_error=None, close_blocked=False, auth_state=None):
+	def __init__(self, session_class, choice="guest", close_blocked=False, auth_state=None):
 		self.auth = None
 		self.close_started = Event() if close_blocked else None
 		self.close_release = Event() if close_blocked else None
 		self.queue = deque()
-		self.saved = refresh
 		self.choice = choice
-		self.save_error = save_error
 		self.prompts = 0
 		def make_auth():
 			self.auth = FakeAuth(self.close_started, self.close_release)
@@ -55,16 +53,9 @@ class AuthHarness:
 		self.session = session_class(
 			client_factory=make_auth,
 			post_ui=lambda fn, *args: self.queue.append((fn, args)),
-			read_refresh_token=lambda: self.saved,
-			save_refresh_token=self.save,
 			prompt_login=self.prompt,
 			auth_state=auth_state,
 		)
-
-	def save(self, value):
-		if self.save_error is not None:
-			raise self.save_error
-		self.saved = value
 
 	def prompt(self):
 		self.prompts += 1
