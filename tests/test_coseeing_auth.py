@@ -355,6 +355,8 @@ def test_pending_login_future_cancellation_reaches_caller():
 	h = AuthHarness(CoseeingAuthSession, choice="login")
 	result = h.session.get_access_token()
 	h.drain()
+	h.resolve(None)
+	assert h.auth.calls[-1][0] == "login"
 	assert h.auth.pending[0].cancel()
 	h.drain()
 	with pytest.raises(CancelledError):
@@ -379,23 +381,39 @@ def test_logout_local_clears_package_state_and_session_flags():
 	h = AuthHarness(CoseeingAuthSession)
 	h.session._session_ready = True
 	h.session._guest = True
+	h.session._auth_state.refresh_token_was_valid = True
 	result = h.session.logout_local()
 	h.drain()
 	assert h.auth.calls == [("logout_local", (), {})]
+	assert not result.done()
+	assert h.session._session_ready is True
+	assert h.session._guest is True
+	assert h.session._auth_state.refresh_token_was_valid is True
 	h.resolve(object())
 	assert result.result(timeout=1) is None
 	assert h.session._session_ready is False
 	assert h.session._guest is False
+	assert h.session._auth_state.refresh_token_was_valid is False
 
 
 def test_logout_local_failure_reaches_caller():
 	h = AuthHarness(CoseeingAuthSession)
+	h.session._session_ready = True
+	h.session._guest = True
+	h.session._auth_state.refresh_token_was_valid = True
 	result = h.session.logout_local()
 	h.drain()
+	assert not result.done()
+	assert h.session._session_ready is True
+	assert h.session._guest is True
+	assert h.session._auth_state.refresh_token_was_valid is True
 	error = RuntimeError("sanitized persistence failure")
 	h.reject(error)
 	with pytest.raises(RuntimeError, match="sanitized persistence failure"):
 		result.result(timeout=1)
+	assert h.session._session_ready is True
+	assert h.session._guest is True
+	assert h.session._auth_state.refresh_token_was_valid is True
 
 
 def test_close_completes_waiters_and_cleans_up_client_once():

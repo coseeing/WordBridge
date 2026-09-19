@@ -88,3 +88,29 @@ It was not changed because this task explicitly forbids endpoint/provider
 selection changes.  The brief's literal grep also includes `get_access_token`,
 which is necessarily present in the new FakeAuth contract and lifecycle tests;
 the retired manual-persistence symbols listed above produce no output.
+
+## Review fix round 1
+
+Test-only corrections based on review findings:
+
+- `test_pending_login_future_cancellation_reaches_caller` now first resolves
+  `restore_saved_session()` as absent, asserts that `login()` was submitted,
+  and then cancels the login future.  The assertion therefore protects the
+  login callback path rather than the saved-session callback path.
+- Successful local logout now verifies its caller future remains pending and
+  all session/auth-state flags remain unchanged until the package future
+  completes successfully.
+- Failed local logout now verifies the same flags remain unchanged both before
+  and after the propagated exception.
+
+No production adjustment was needed: these were test-only corrections and the
+existing implementation satisfies the strengthened contract.
+
+```text
+$ /tmp/wordbridge-coseeing-native-token-venv/bin/python -m pytest \
+    tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py -q
+62 passed in 0.22s
+
+$ git diff --check
+(no output)
+```
