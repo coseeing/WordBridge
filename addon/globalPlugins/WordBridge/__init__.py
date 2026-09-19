@@ -29,6 +29,7 @@ import requests
 from .dialogs import CORRECTOR_CONFIG_ID_DEFAULT, EXECUTION_CHANNEL_DEFAULT, LANGUAGE_DEFAULT, TYPO_CORRECTION_MODE_DEFAULT, configManager
 from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .configManager import load_corrector_task_config, normalize_selection
+from .dictionary import WBW_DICTIONARY_PATH
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.application.task_runner import run_typo_correction
 from .lib.coseeing import build_coseeing_headers
@@ -213,7 +214,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return True
 
 	def readDictionary(self):
-		dictionary_path = os.path.join(PATH, "dictionary", "data.csv")
+		dictionary_path = os.path.join(WBW_DICTIONARY_PATH, "data.csv")
 		if not os.path.exists(dictionary_path):
 			open(dictionary_path, 'w', encoding='utf-8').close()
 		with open(dictionary_path, encoding='utf8', newline='') as csvfile:

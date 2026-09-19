@@ -6,6 +6,7 @@ import addonHandler
 import csv
 import os
 
+from . import WBW_DICTIONARY_PATH
 
 addonHandler.initTranslation()
 
@@ -83,7 +84,7 @@ class DictionaryEntryDialog(SettingsDialog):
 	helpId = "WordBridgeDictionary"
 
 	def __init__(self, parent):
-		self.path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data.csv')
+		self.path = os.path.join(WBW_DICTIONARY_PATH, 'data.csv')
 		data = []
 		if not os.path.exists(self.path):
 			open(self.path, 'w', encoding='utf-8').close()
