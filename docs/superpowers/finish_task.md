@@ -1,178 +1,44 @@
-# Task 6 finish record: Coseeing auth integration
+# Coseeing native refresh-token storage — 完成紀錄
 
-Task 6 is complete for the checks available in this Linux workspace. The only
-integration fix was commit `918fccb`, which aligned the architecture regression
-test with the current 13-entry catalog after `b0bdb9d` intentionally removed
-Gemini 2.5 Pro. No auth API, SSO, or product interface was changed.
+已依 design spec 與 implementation plan 完成 Coseeing refresh token 的原生
+Windows Credential Manager 整合。
 
-The required focused regression command was run with the available interpreter:
+## 交付內容
 
-```text
-python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py tests/test_coseeing_requests.py tests/test_coseeing_auth_bundle.py tests/test_corrector_catalog_unittest.py tests/test_corrector_task_config.py tests/test_task_architecture_unittest.py -q
-....................................................................s... [ 82%]
-...............                                                          [100%]
-86 passed, 1 skipped in 0.83s
-```
+- 使用 `WindowsCredentialStore("org.coseeing.wordbridge/refresh")` 注入
+  `CoseeingAuthClient`，並將 refresh-token restore、rotation、local logout
+  委派給 bundled `coseeing_auth` package。
+- `CoseeingAuthSession` 不再讀取、儲存或搬運 NVDA 設定檔中的 Coseeing token。
+- 設定面板以小寫 `clean` 按鈕取代 Refresh Token 欄位；按鈕狀態依本機 native
+  credential 是否存在而定，並正確處理 delete 與 post-delete cleanup 失敗。
+- 成功 clean 後會清除 session/singleton；儲存 Coseeing 設定仍會重啟既有登入／訪客流程。
+- 新增 storage package bundle contract、session lifecycle、adapter、UI、race、
+  cleanup 與 module-isolation 測試。
 
-The literal command from the brief could not start because this environment has
-no `python` executable:
+## 本次新增 commits
 
-```text
-python -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py tests/test_coseeing_requests.py tests/test_coseeing_auth_bundle.py tests/test_corrector_catalog_unittest.py tests/test_corrector_task_config.py tests/test_task_architecture_unittest.py -q
-/bin/bash: line 1: python: command not found
-```
+- `b292324` chore: ignore local worktrees
+- `0022744` build: bundle native Coseeing token storage
+- `c3b9625` test: isolate Coseeing bundle configuration check
+- `761b884` refactor: delegate Coseeing token lifecycle to native storage
+- `0306b75` test: cover Coseeing login cancellation and logout timing
+- `127f692` feat: manage Coseeing sessions with Windows credentials
+- `051196a` fix: preserve Coseeing clean operation identity
+- `cbb9511` feat: add Coseeing credential cleanup control
+- `c97bbf4` test: isolate NVDA auth import seams
+- `40156cb` test: make NVDA bundle regression order independent
+- `a40d4e0` test: verify Coseeing native token storage
+- `c5233ac` fix: reflect Coseeing native credential after cleanup error
 
-`git diff --check` produced no output and exited 0. The targeted regression after
-the fix produced `1 passed in 0.18s`.
+## 驗證結果
 
-The finishing workflow also ran the repository-wide command:
+- NVDA auth tests: 27 passed。
+- Legacy persistence-path scan: no matches。
+- Package source parity（排除 generated `__pycache__`）: clean。
+- Credential target scan: 僅 production constant 與兩個對應測試，拼字正確。
+- Targeted suite: 76 passed, 1 skipped, 1 known out-of-scope failure。
+- Full non-integration suite: 159 passed, 1 skipped, 16 deselected；4 documented
+  pre-existing/unrelated failures。
 
-```text
-python3 -m pytest -q
-..........................................................s............. [ 46%]
-................................FFFFFF.............................F.... [ 93%]
-..........                                                               [100%]
-7 failed, 146 passed, 1 skipped in 23.68s
-```
-
-The seven failures are six live provider integration assertions with zero
-reported cost and the pre-existing provider naming assertion that still expects
-the removed `ollama.json`. They are outside the Coseeing auth scope and were not
-changed. The pytest discovery hygiene fix that prevents vendored dependency
-tests from contaminating collection is `41ac560`.
-
-Packaging and translation checks were attempted exactly as requested:
-
-```text
-scons
-/bin/bash: line 1: scons: command not found
-
-scons pot
-/bin/bash: line 1: scons: command not found
-
-python3 -m SCons
-/usr/bin/python3: No module named SCons
-```
-
-`msgfmt`, `xgettext`, and `gettext` were also absent from PATH. Consequently no
-generated `.nvda-addon` exists in this workspace and no `python -m zipfile -l`
-listing or extracted-artifact Windows import check can be claimed.
-
-The deployable source bundle audit reported:
-
-```text
-auth_modules=9: __init__.py, callback.py, client.py, errors.py, future.py, models.py, oidc.py, tokens.py, verification.py
-py311-win32: missing_modules=[]; metadata_files=10; license_files=12
-py313-win_amd64: missing_modules=[]; metadata_files=10; license_files=12
-forbidden_deployable_secret_files=[]
-```
-
-Both runtime trees contain Authlib, requests, PyJWT, cryptography, cffi,
-pycparser, charset-normalizer, certifi, idna, and urllib3 with their `.dist-info`
-metadata and license files. The audit found no deployable `.env` or other
-forbidden secret file. The pre-existing untracked `WordBridge(include-auth)/`
-tree was preserved and was not treated as a generated addon artifact.
-
-Windows/NVDA manual acceptance remains explicitly pending. This Linux workspace
-has no Windows NVDA installation, browser callback environment, or executable
-CPython 3.11 win32 / CPython 3.13 win_amd64 runtime. It therefore cannot verify
-NVDA UI operation, guest/login selection, callback completion, restart refresh,
-proofreader/feedback behavior, provider switching, listener release on shutdown,
-or cancellation, callback-timeout, and network-error flows without exposing a
-token. The Windows native import test remains skipped on this host.
-
-## Complete implementation commit list
-
-This is the complete `git log --oneline --reverse 3871cc9^..HEAD` list for the
-Coseeing auth plan and implementation through Task 6:
-
-```text
-3871cc9 docs: plan Coseeing SSO auth integration
-b8ed80e build: prepare Coseeing auth dependencies and configuration
-4b07079 docs: add Coseeing auth Task 1 report
-c39758c fix: make Coseeing auth bundle runtime-specific
-b862052 docs: append Task 1 review fix report
-f6e0c5d fix: harden Coseeing auth bundle validation
-f15b06e fix: remove host dependency masking from bundle tests
-e26a09b test: restore non-Windows Coseeing auth contract
-25843a9 feat: coordinate Coseeing login and guest sessions
-2254e13 docs: report Coseeing auth session task
-8657aec fix: harden Coseeing auth session coordination
-e93a46a docs: append Coseeing auth review fixes
-182597f fix: serialize Coseeing auth shutdown
-3cd2a3c docs: report Coseeing auth shutdown fixes
-24a3f62 fix: harden Coseeing auth close handoff
-5828bc2 docs: report Coseeing auth close handoff fixes
-fb02bc2 fix: complete Coseeing auth failure cleanup
-f91c9f5 fix: serialize auth terminalization handoff
-fdfc273 feat: connect Coseeing auth to NVDA settings and dialogs
-bae1a32 fix: address Coseeing auth Task 3 review findings
-4836d7b docs: append Task 3 review verification
-aef56d5 fix: serialize concurrent Coseeing shutdown publication
-5273cc5 docs: record concurrent shutdown fix commit
-e8b4425 test: make Task 3 handoff regression effective
-059974a feat: trigger Coseeing authentication on startup and settings save
-5b78b57 test: make Coseeing startup normalization regression effective
-e12df36 feat: authorize Coseeing proofreader and feedback requests with SSO
-5200902 fix: notify on Coseeing feedback authorization errors
-cb143c8 test: cover proofreader authentication failure
-918fccb test: align architecture catalog count
-```
-
-The Task 6 delivery record is `a564dfa`; it records the implementation list
-above and is followed by `41ac560` for pytest discovery hygiene. The pre-existing
-worktree changes remain uncommitted: `addon/globalPlugins/WordBridge/package/coseeing-auth-dependencies.md`
-is modified and `WordBridge(include-auth)/` is untracked.
-
-## Final review fix wave
-
-Commit `d416e55` closes all six Important findings with regression coverage:
-
-- Global shutdown is terminal; later callers and queued callbacks cannot resurrect the auth singleton.
-- An admitted request may finish client construction after close scheduling fails; its client is handed to one cleanup owner, every waiter receives `ClientClosedError`, and cleanup remains pending until the client closes.
-- Proofreader and feedback POST operations are serialized with termination, and queued UI callbacks check termination again before delivery.
-- HTTP status, connection, timeout, malformed JSON, and missing response fields produce stable user messages without raw errors or uncaught `KeyError`.
-- Failed rotated-token persistence retains the pair so the next call retries the same save and preserves the authenticated session.
-- Bundle validation reproduces production import order and verifies runtime dependencies precede addon imports.
-
-Previously deferred minors are explicit: legacy credential schema keys remain only for compatibility; SCons/gettext packaging checks remain unavailable; Windows native import and NVDA manual acceptance remain pending on this Linux host. No other review minor is left undocumented.
-
-Exact review-wave verification:
-
-```text
-python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py tests/test_coseeing_requests.py tests/test_coseeing_auth_bundle.py tests/test_corrector_catalog_unittest.py tests/test_corrector_task_config.py tests/test_task_architecture_unittest.py -q
-93 passed, 1 skipped in 0.85s
-
-python3 -m pytest -q
-153 passed, 1 skipped, 7 failed in 22.30s
-
-python3 -m compileall -q [changed auth/plugin/test files]
-exit 0
-
-git diff --check
-exit 0
-```
-
-The seven full-suite failures are the existing six live provider cost assertions and the existing stale `ollama.json` provider filename assertion. The review-wave implementation and regression tests are committed as `d416e55` (`fix: close Coseeing auth review gaps`).
-
-Final rerun after the report commit `742f4ac`:
-
-```text
-python3 -m pytest tests/test_coseeing_auth.py tests/test_coseeing_auth_nvda.py tests/test_coseeing_requests.py tests/test_coseeing_auth_bundle.py tests/test_corrector_catalog_unittest.py tests/test_corrector_task_config.py tests/test_task_architecture_unittest.py -q
-93 passed, 1 skipped in 0.88s
-
-python3 -m pytest -q
-153 passed, 1 skipped, 7 failed in 23.94s
-
-python3 -m compileall -q [changed auth/plugin/test files]
-compileall_exit=0
-
-git diff --check
-diff_check_exit=0
-```
-
-This final report update is committed as `742f4ac`.
-
-## Final scoped review status
-
-The final scoped reviewer confirmed singleton resurrection and ordinary HTTP/connection error handling are fixed, but requested another fix wave for four remaining Important findings: the admitted close race/error semantics, proofreader UI and clipboard work after termination, retrying failed refresh-token persistence, and validating production bundle import order. These findings remain open; this document does not claim the branch is release-ready. The final reviewer also could not verify Windows/NVDA runtime acceptance, SCons/gettext packaging, or the generated addon artifact in this Linux environment.
+已知的 out-of-scope failure 是既有 SSO configuration test 期待不同的 client ID /
+redirect endpoint；本 spec 明定不修改 OIDC endpoint configuration，因此未在本次變更調整。
