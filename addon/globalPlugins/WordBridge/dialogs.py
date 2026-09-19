@@ -244,7 +244,7 @@ class LLMSettingsPanel(SettingsPanel):
 		try:
 			done.result()
 		except Exception:
-			self.coseeingCleanButton.Enable(True)
+			self.coseeingCleanButton.Enable(has_saved_coseeing_refresh_token())
 		else:
 			self.coseeingCleanButton.Enable(False)
 

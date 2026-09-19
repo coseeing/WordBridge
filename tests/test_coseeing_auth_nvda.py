@@ -476,6 +476,7 @@ def test_clean_button_disables_on_success_and_reenables_on_failure(monkeypatch):
 
 	panel = object.__new__(dialogs.LLMSettingsPanel)
 	panel.coseeingCleanButton = Button()
+	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: True)
 	pending = Future()
 	monkeypatch.setattr(dialogs, "clean_coseeing_auth", lambda: pending)
 	panel.onCleanCoseeingAuth(None)
@@ -491,6 +492,56 @@ def test_clean_button_disables_on_success_and_reenables_on_failure(monkeypatch):
 	pending.set_result(None)
 	callback, args = queued.pop()
 	callback(*args)
+	assert panel.coseeingCleanButton.IsEnabled() is False
+
+
+def test_clean_button_stays_disabled_when_cleanup_fails_after_native_logout(monkeypatch):
+	auth_calls = []
+	queued = []
+	settings = {
+		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"execution_channel": "Coseeing",
+		"api_key": {},
+	}
+	plugin, _config, _gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
+	dialogs = plugin.dialogs
+
+	class Button:
+		def __init__(self):
+			self.enabled = True
+
+		def Enable(self, enabled=True):
+			self.enabled = enabled
+
+		def Disable(self):
+			self.enabled = False
+
+		def IsEnabled(self):
+			return self.enabled
+
+	logout = Future()
+	cleanup = Future()
+	class Session:
+		def logout_local(self):
+			return logout
+
+	adapter = SimpleNamespace(
+		notify_clean_completion=lambda done: None,
+		notify_completion=lambda done: None,
+	)
+	monkeypatch.setattr(module, "_get_singleton_pair", lambda: (Session(), adapter))
+	monkeypatch.setattr(module, "_reset_captured_coseeing_auth", lambda session, captured: cleanup)
+	monkeypatch.setattr(dialogs, "clean_coseeing_auth", module.clean_coseeing_auth)
+	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
+	panel = object.__new__(dialogs.LLMSettingsPanel)
+	panel.coseeingCleanButton = Button()
+
+	panel.onCleanCoseeingAuth(None)
+	logout.set_result(None)
+	cleanup.set_exception(RuntimeError("cleanup failed after native logout"))
+	callback, args = queued.pop()
+	callback(*args)
+
 	assert panel.coseeingCleanButton.IsEnabled() is False
 
 
