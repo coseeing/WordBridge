@@ -1,4 +1,5 @@
 from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
+from concurrent.futures import Future
 
 import config
 import ctypes
@@ -15,7 +16,11 @@ from gui.settingsDialogs import SettingsPanel
 
 from . configManager import ConfigManager, normalize_selection
 from .dictionary.dialog import DictionaryEntryDialog
-from .lib.coseeing_auth import reset_coseeing_auth, start_coseeing_auth
+from .lib.coseeing_auth import (
+	clean_coseeing_auth,
+	has_saved_coseeing_refresh_token,
+	start_coseeing_auth,
+)
 
 addonHandler.initTranslation()
 
@@ -98,11 +103,7 @@ class LLMSettingsPanel(SettingsPanel):
 		# For setting account information
 		self.accountGroupSizerMap = {}
 		self.accountTextCtrlMap = {}
-		self._coseeingRefreshTokenOnOpen = config.conf["WordBridge"]["settings"]["api_key"].get("Coseeing", "")
 		for endpoint, label in zip(configManager.provider_groups, configManager.endpoint_labels):
-			if endpoint not in config.conf["WordBridge"]["settings"]["api_key"]:
-				config.conf["WordBridge"]["settings"]["api_key"][endpoint] = ""
-
 			accountBoxSizer = wx.StaticBoxSizer(
 				wx.VERTICAL,
 				self,
@@ -112,13 +113,13 @@ class LLMSettingsPanel(SettingsPanel):
 			self.accountGroupSizerHelper = guiHelper.BoxSizerHelper(self, sizer=accountBoxSizer)
 			settingsSizerHelper.addItem(self.accountGroupSizerHelper)
 			if endpoint == "Coseeing":
-				self.accountTextCtrlMap[endpoint] = self.accountGroupSizerHelper.addLabeledControl(
-					_("Refresh Token:"),
-					wx.TextCtrl,
-					size=(self.scaleSize(375), -1),
-					value=config.conf["WordBridge"]["settings"]["api_key"][endpoint],
-				)
+				self.coseeingCleanButton = wx.Button(self, label="clean")
+				self.coseeingCleanButton.Enable(has_saved_coseeing_refresh_token())
+				self.coseeingCleanButton.Bind(wx.EVT_BUTTON, self.onCleanCoseeingAuth)
+				self.accountGroupSizerHelper.addItem(self.coseeingCleanButton)
 				continue
+			if endpoint not in config.conf["WordBridge"]["settings"]["api_key"]:
+				config.conf["WordBridge"]["settings"]["api_key"][endpoint] = ""
 
 			self.accountTextCtrlMap[endpoint] = self.accountGroupSizerHelper.addLabeledControl(
 				_("API Key:"),
@@ -232,6 +233,21 @@ class LLMSettingsPanel(SettingsPanel):
 			else:
 				self.settingsSizer.Hide(self.accountGroupSizerMap[ep], recursive=True)
 
+	def onCleanCoseeingAuth(self, event) -> None:
+		self.coseeingCleanButton.Disable()
+		future = clean_coseeing_auth()
+		future.add_done_callback(
+			lambda done: wx.CallAfter(self._finishCleanCoseeingAuth, done)
+		)
+
+	def _finishCleanCoseeingAuth(self, done: Future[None]) -> None:
+		try:
+			done.result()
+		except Exception:
+			self.coseeingCleanButton.Enable(True)
+		else:
+			self.coseeingCleanButton.Enable(False)
+
 	def onEditDictionary(self, event):
 		gui.mainFrame.popupSettingsDialog(DictionaryEntryDialog)
 
@@ -253,23 +269,11 @@ class LLMSettingsPanel(SettingsPanel):
 		config.conf["WordBridge"]["settings"]["customized_words_enable"] = self.customizedWordEnable.GetValue()
 		config.conf["WordBridge"]["settings"]["sound_effects_enable"] = self.soundEffectsEnable.GetValue()
 
-		coseeing_refresh_token_changed = False
 		for ep in configManager.endpoints.keys():
-			provider_tmp = ep
-			if provider_tmp in self.accountTextCtrlMap:
-				api_key_tmp = self.accountTextCtrlMap[provider_tmp].GetValue()
-				if provider_tmp == "Coseeing" and api_key_tmp != self._coseeingRefreshTokenOnOpen:
-					coseeing_refresh_token_changed = True
-				config.conf["WordBridge"]["settings"]["api_key"][provider_tmp] = api_key_tmp
+			if ep in self.accountTextCtrlMap:
+				config.conf["WordBridge"]["settings"]["api_key"][ep] = self.accountTextCtrlMap[ep].GetValue()
 
-		def start_auth():
-			wx.CallAfter(lambda: start_coseeing_auth(selected_item.execution_channel, silent=False))
-
-		if coseeing_refresh_token_changed:
-			reset_future = reset_coseeing_auth()
-			reset_future.add_done_callback(lambda _done: start_auth())
-		else:
-			start_auth()
+		wx.CallAfter(lambda: start_coseeing_auth(selected_item.execution_channel, silent=False))
 
 	def onChangeProviderChoice(self, evt):
 		provider_index = self.providerList.GetSelection()

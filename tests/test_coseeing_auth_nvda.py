@@ -5,7 +5,50 @@ from threading import Event, RLock, Thread, current_thread
 from types import SimpleNamespace
 from pathlib import Path
 import sys
+import types
 import pytest
+
+
+class OAuthError(Exception):
+	pass
+
+
+class ClientClosedError(Exception):
+	pass
+
+
+class RestoreError(Exception):
+	pass
+
+
+class TokenUnavailableError(Exception):
+	pass
+
+
+class TokenValidationError(Exception):
+	pass
+
+
+addon_handler = types.ModuleType("addonHandler")
+addon_handler.initTranslation = lambda: None
+authlib = types.ModuleType("authlib")
+authlib_integrations = types.ModuleType("authlib.integrations")
+authlib_base_client = types.ModuleType("authlib.integrations.base_client")
+authlib_errors = types.ModuleType("authlib.integrations.base_client.errors")
+authlib_errors.OAuthError = OAuthError
+coseeing_auth = types.ModuleType("coseeing_auth")
+coseeing_errors = types.ModuleType("coseeing_auth.errors")
+for error in (ClientClosedError, RestoreError, TokenUnavailableError, TokenValidationError):
+	setattr(coseeing_errors, error.__name__, error)
+sys.modules.update({
+	"addonHandler": addon_handler,
+	"authlib": authlib,
+	"authlib.integrations": authlib_integrations,
+	"authlib.integrations.base_client": authlib_base_client,
+	"authlib.integrations.base_client.errors": authlib_errors,
+	"coseeing_auth": coseeing_auth,
+	"coseeing_auth.errors": coseeing_errors,
+})
 
 import lib.coseeing_auth as module
 from coseeing_auth_helpers import FakeAuth
@@ -119,6 +162,10 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued):
 	monkeypatch.setitem(sys.modules, package_name, package)
 	auth_module = type(sys)(f"{package_name}.lib.coseeing_auth")
 	auth_module.start_coseeing_auth = lambda channel, **kwargs: auth_calls.append(channel) if channel == "Coseeing" else None
+	clean_future = Future()
+	clean_future.set_result(None)
+	auth_module.clean_coseeing_auth = lambda: clean_future
+	auth_module.has_saved_coseeing_refresh_token = lambda: False
 	reset_future = Future()
 	reset_future.set_result(None)
 	auth_module.reset_coseeing_auth = lambda: auth_calls.append("reset") or reset_future
@@ -232,33 +279,27 @@ def test_settings_save_preserves_coseeing_refresh_token_and_starts_selected_chan
 	panel.autoDisplayReportEnable = Control(False)
 	panel.customizedWordEnable = Control(True)
 	panel.soundEffectsEnable = Control(True)
-	panel._coseeingRefreshTokenOnOpen = "saved-refresh"
 	panel.accountTextCtrlMap = {
-		"Coseeing": Control("updated-refresh"),
 		"OpenAI": Control("updated-key"),
 	}
 
 	panel.onSave()
 	assert config.conf["WordBridge"]["settings"]["execution_channel"] == "Coseeing"
-	assert settings["api_key"] == {"Coseeing": "updated-refresh", "OpenAI": "updated-key"}
+	assert settings["api_key"] == {"Coseeing": "saved-refresh", "OpenAI": "updated-key"}
 	assert settings["coseeing_username"] == "legacy-user"
 	assert settings["coseeing_password"] == "legacy-password"
 	assert len(queued) == 1
 	callback, args = queued.pop()
-	assert auth_calls == ["reset"]
+	assert auth_calls == []
 	callback(*args)
-	assert auth_calls == ["reset", "Coseeing"]
+	assert auth_calls == ["Coseeing"]
 
-	Manager.channel = "local"
-	panel.accountTextCtrlMap["Coseeing"].value = "saved-refresh"
+	settings["api_key"].pop("Coseeing")
 	panel.onSave()
-	callback, args = queued.pop()
-	callback(*args)
-	assert config.conf["WordBridge"]["settings"]["execution_channel"] == "local"
-	assert auth_calls == ["reset", "Coseeing"]
+	assert "Coseeing" not in settings["api_key"]
 
 
-def test_settings_panel_keeps_coseeing_sizer_without_legacy_credential_controls(monkeypatch):
+def test_settings_panel_uses_clean_button_without_legacy_credential_controls(monkeypatch):
 	auth_calls = []
 	queued = []
 	settings = {
@@ -278,8 +319,20 @@ def test_settings_panel_keeps_coseeing_sizer_without_legacy_credential_controls(
 	dialogs = plugin.dialogs
 
 	class Widget:
-		def __init__(self, *args, value="", **kwargs):
+		def __init__(self, *args, value="", label="", **kwargs):
 			self.value = value
+			self.label = label
+			self.enabled = True
+			self.bindings = {}
+
+		def Enable(self, enabled=True):
+			self.enabled = enabled
+
+		def Disable(self):
+			self.enabled = False
+
+		def IsEnabled(self):
+			return self.enabled
 
 		def SetSelection(self, value):
 			self.value = value
@@ -297,7 +350,7 @@ def test_settings_panel_keeps_coseeing_sizer_without_legacy_credential_controls(
 			pass
 
 		def Bind(self, event, callback):
-			pass
+			self.bindings[event] = callback
 
 	class Sizer:
 		def Show(self, item, recursive=True):
@@ -328,21 +381,75 @@ def test_settings_panel_keeps_coseeing_sizer_without_legacy_credential_controls(
 	monkeypatch.setattr(plugin.wx, "StaticBoxSizer", lambda *args, **kwargs: Sizer())
 	monkeypatch.setattr(gui.nvdaControls, "SelectOnFocusSpinCtrl", Widget)
 	config.conf.getConfigValidation = lambda path: SimpleNamespace(kwargs={"min": 256, "max": 4096})
+	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
 	panel = object.__new__(dialogs.LLMSettingsPanel)
 	panel.scaleSize = lambda value: value
 	panel._refreshAccountInfo = lambda: None
 	panel.makeSettings(Sizer())
 
 	assert "Coseeing" in panel.accountGroupSizerMap
-	assert "Coseeing" in panel.accountTextCtrlMap
-	refresh_token_controls = [
-		call for call in Helper.calls if call[0] == "Refresh Token:"
-	]
-	assert len(refresh_token_controls) == 1
-	_, control_type, kwargs = refresh_token_controls[0]
-	assert control_type is plugin.wx.TextCtrl
-	assert kwargs["value"] == "refresh-token"
-	assert "style" not in kwargs
+	assert panel.coseeingCleanButton.label == "clean"
+	assert panel.coseeingCleanButton.IsEnabled() is False
+	assert "Coseeing" not in panel.accountTextCtrlMap
+	assert not [call for call in Helper.calls if call[0] == "Refresh Token:"]
+
+	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: True)
+	panel = object.__new__(dialogs.LLMSettingsPanel)
+	panel.scaleSize = lambda value: value
+	panel._refreshAccountInfo = lambda: None
+	panel.makeSettings(Sizer())
+	assert panel.coseeingCleanButton.IsEnabled() is True
+
+	settings["api_key"].pop("Coseeing")
+	panel = object.__new__(dialogs.LLMSettingsPanel)
+	panel.scaleSize = lambda value: value
+	panel._refreshAccountInfo = lambda: None
+	panel.makeSettings(Sizer())
+	assert "Coseeing" not in settings["api_key"]
+
+
+def test_clean_button_disables_on_success_and_reenables_on_failure(monkeypatch):
+	auth_calls = []
+	queued = []
+	settings = {
+		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"execution_channel": "Coseeing",
+		"api_key": {},
+	}
+	plugin, _config, _gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
+	dialogs = plugin.dialogs
+
+	class Button:
+		def __init__(self):
+			self.enabled = True
+
+		def Enable(self, enabled=True):
+			self.enabled = enabled
+
+		def Disable(self):
+			self.enabled = False
+
+		def IsEnabled(self):
+			return self.enabled
+
+	panel = object.__new__(dialogs.LLMSettingsPanel)
+	panel.coseeingCleanButton = Button()
+	pending = Future()
+	monkeypatch.setattr(dialogs, "clean_coseeing_auth", lambda: pending)
+	panel.onCleanCoseeingAuth(None)
+	assert panel.coseeingCleanButton.IsEnabled() is False
+	pending.set_exception(RuntimeError("sanitized"))
+	callback, args = queued.pop()
+	callback(*args)
+	assert panel.coseeingCleanButton.IsEnabled() is True
+
+	pending = Future()
+	monkeypatch.setattr(dialogs, "clean_coseeing_auth", lambda: pending)
+	panel.onCleanCoseeingAuth(None)
+	pending.set_result(None)
+	callback, args = queued.pop()
+	callback(*args)
+	assert panel.coseeingCleanButton.IsEnabled() is False
 
 
 def _install_nvda(monkeypatch, *, dialog, wx, config=None, ui=None, log=None, call_after=None):
