@@ -113,7 +113,7 @@ class LLMSettingsPanel(SettingsPanel):
 			self.accountGroupSizerHelper = guiHelper.BoxSizerHelper(self, sizer=accountBoxSizer)
 			settingsSizerHelper.addItem(self.accountGroupSizerHelper)
 			if endpoint == "Coseeing":
-				self.coseeingCleanButton = wx.Button(self, label="clean")
+				self.coseeingCleanButton = wx.Button(self, label=_("clean"))
 				self.coseeingCleanButton.Enable(has_saved_coseeing_refresh_token())
 				self.coseeingCleanButton.Bind(wx.EVT_BUTTON, self.onCleanCoseeingAuth)
 				self.accountGroupSizerHelper.addItem(self.coseeingCleanButton)
