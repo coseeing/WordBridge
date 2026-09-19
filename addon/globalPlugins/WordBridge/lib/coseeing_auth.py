@@ -13,6 +13,7 @@ import addonHandler
 addonHandler.initTranslation()
 
 _auth_dependencies_prepared = False
+COSEEING_REFRESH_TOKEN_TARGET = "org.coseeing.wordbridge/refresh"
 
 
 def _auth_dependency_path() -> Path | None:
@@ -72,6 +73,19 @@ def build_auth_config() -> "AuthConfig":
 		logout_redirect_uri="http://127.0.0.1:8000/logout-callback",
 		callback_timeout=180,
 	)
+
+
+def _new_refresh_token_store():
+	from coseeing_auth import WindowsCredentialStore
+
+	return WindowsCredentialStore(COSEEING_REFRESH_TOKEN_TARGET)
+
+
+def has_saved_coseeing_refresh_token() -> bool:
+	try:
+		return _new_refresh_token_store().load() is not None
+	except Exception:
+		return False
 
 
 class CoseeingAuthSession:
@@ -456,7 +470,10 @@ class _NvdaAuthAdapter:
 		config = build_auth_config()
 		from coseeing_auth import CoseeingAuthClient, FutureAuthClient
 
-		return FutureAuthClient(CoseeingAuthClient(config))
+		return FutureAuthClient(CoseeingAuthClient(
+			config,
+			refresh_token_store=_new_refresh_token_store(),
+		))
 
 	def prompt_login(self) -> str:
 		dialog = self._gui.message.MessageDialog(
@@ -597,6 +614,54 @@ def reset_coseeing_auth() -> Future[None]:
 	except Exception:
 		adapter.close_active_dialog()
 	return cleanup
+
+
+def _settle_none(destination: Future[None], error: Exception | None = None) -> None:
+	try:
+		if error is None:
+			destination.set_result(None)
+		else:
+			destination.set_exception(error)
+	except InvalidStateError:
+		pass
+
+
+def clean_coseeing_auth() -> Future[None]:
+	bridge: Future[None] = Future()
+	try:
+		session = _get_singleton()
+		adapter = _singleton_adapter
+		logout = session.logout_local()
+	except Exception as error:
+		_settle_none(bridge, error)
+		return bridge
+
+	if adapter is not None:
+		bridge.add_done_callback(adapter.notify_completion)
+
+	def cleanup_done(done: Future) -> None:
+		try:
+			done.result()
+		except Exception as error:
+			_settle_none(bridge, error)
+		else:
+			_settle_none(bridge)
+
+	def logout_done(done: Future) -> None:
+		try:
+			done.result()
+		except Exception as error:
+			_settle_none(bridge, error)
+			return
+		try:
+			cleanup = reset_coseeing_auth()
+		except Exception as error:
+			_settle_none(bridge, error)
+			return
+		cleanup.add_done_callback(cleanup_done)
+
+	logout.add_done_callback(logout_done)
+	return bridge
 
 
 def _completed_future(error: Exception) -> Future:

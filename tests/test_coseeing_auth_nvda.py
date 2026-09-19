@@ -543,27 +543,116 @@ def test_shutdown_cancels_only_active_dialog(monkeypatch):
 	assert adapter._active_dialog is None
 
 
-def test_client_factory_builds_exact_future_client(monkeypatch):
+def test_client_factory_injects_exact_windows_credential_target(monkeypatch):
 	constructed = []
+	class Store:
+		def __init__(self, target):
+			self.target = target
+			constructed.append(("store", target))
 	class Client:
-		def __init__(self, config):
-			constructed.append(("client", config))
+		def __init__(self, config, *, refresh_token_store):
+			self.config = config
+			self.store = refresh_token_store
+			constructed.append(("client", config, refresh_token_store))
 	class FutureClient:
 		def __init__(self, client):
-			self._client = client
-			constructed.append(("future", client))
+			self.client = client
 	class Wx:
 		class DefaultButtonSet:
 			YES_NO = 4
 	_install_nvda(monkeypatch, dialog=object, wx=Wx)
 	monkeypatch.setitem(sys.modules, "coseeing_auth", SimpleNamespace(
-		CoseeingAuthClient=Client, FutureAuthClient=FutureClient,
+		CoseeingAuthClient=Client, FutureAuthClient=FutureClient, WindowsCredentialStore=Store,
 	))
 	config = object()
 	monkeypatch.setattr(module, "build_auth_config", lambda: config)
 	result = module._NvdaAuthAdapter().client_factory()
-	assert isinstance(result, FutureClient)
-	assert constructed == [("client", config), ("future", result._client)]
+	assert result.client.store.target == "org.coseeing.wordbridge/refresh"
+	assert constructed[0] == ("store", "org.coseeing.wordbridge/refresh")
+
+
+@pytest.mark.parametrize("value,expected", [("stored", True), (None, False)])
+def test_saved_refresh_token_state_is_local_existence_check(monkeypatch, value, expected):
+	class Store:
+		def load(self):
+			return value
+	monkeypatch.setattr(module, "_new_refresh_token_store", lambda: Store(), raising=False)
+	assert module.has_saved_coseeing_refresh_token() is expected
+
+
+def test_saved_refresh_token_read_failure_is_treated_as_absent(monkeypatch):
+	class Store:
+		def load(self):
+			raise RuntimeError("native storage unavailable")
+	monkeypatch.setattr(module, "_new_refresh_token_store", lambda: Store(), raising=False)
+	assert module.has_saved_coseeing_refresh_token() is False
+
+
+def test_clean_logs_out_then_resets_singleton(monkeypatch):
+	logout = Future()
+	cleanup = Future()
+	calls = []
+
+	class Session:
+		def logout_local(self):
+			calls.append("logout_local")
+			return logout
+
+	class Adapter:
+		def notify_completion(self, done):
+			calls.append(("notify", done))
+
+	monkeypatch.setattr(module, "_get_singleton", lambda: Session())
+	monkeypatch.setattr(module, "_singleton_adapter", Adapter())
+	monkeypatch.setattr(module, "reset_coseeing_auth", lambda: calls.append("reset") or cleanup)
+	result = module.clean_coseeing_auth()
+	logout.set_result(None)
+	assert calls[0] == "logout_local"
+	assert "reset" in calls
+	assert not result.done()
+	cleanup.set_result(None)
+	assert result.result(timeout=1) is None
+
+
+def test_clean_logout_failure_notifies_without_reset_or_secret_logging(monkeypatch):
+	logout = Future()
+	calls = []
+	logs = []
+	class Wx:
+		class DefaultButtonSet:
+			YES_NO = 4
+	_install_nvda(
+		monkeypatch,
+		dialog=object,
+		wx=Wx,
+		log=SimpleNamespace(warning=lambda *args: logs.append(args)),
+	)
+
+	class Session:
+		def logout_local(self):
+			return logout
+
+	adapter = module._NvdaAuthAdapter()
+	notify_completion = adapter.notify_completion
+	def notify(done):
+		calls.append(("notify", done))
+		notify_completion(done)
+	adapter.notify_completion = notify
+
+	monkeypatch.setattr(module, "_get_singleton", lambda: Session())
+	monkeypatch.setattr(module, "_singleton_adapter", adapter)
+	monkeypatch.setattr(module, "reset_coseeing_auth", lambda: calls.append("reset"))
+	result = module.clean_coseeing_auth()
+	class TokenPersistenceError(RuntimeError):
+		pass
+
+	error = TokenPersistenceError("refresh-token-secret")
+	logout.set_exception(error)
+	with pytest.raises(TokenPersistenceError, match="refresh-token-secret"):
+		result.result(timeout=1)
+	assert "reset" not in calls
+	assert calls == [("notify", result)]
+	assert "refresh-token-secret" not in " ".join(map(str, logs))
 
 
 def test_singleton_creation_is_locked(monkeypatch):
