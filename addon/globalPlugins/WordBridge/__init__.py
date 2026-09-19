@@ -435,7 +435,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		)
 
 	@script(
-		gesture="kb:NVDA+alt+r",
 		description=_("Show correction report"),
 		category=ADDON_SUMMARY,
 	)
