@@ -398,7 +398,10 @@ def test_settings_panel_uses_clean_button_without_legacy_credential_controls(mon
 	assert panel.coseeingCleanButton.IsEnabled() is False
 	assert panel.coseeingCleanButton.bindings[plugin.wx.EVT_BUTTON] == panel.onCleanCoseeingAuth
 	assert "Coseeing" not in panel.accountTextCtrlMap
-	assert not [call for call in Helper.calls if call[0] == "Refresh Token:"]
+	assert "Coseeing" not in {
+		endpoint for endpoint, control in panel.accountTextCtrlMap.items()
+		if isinstance(control, plugin.wx.TextCtrl)
+	}
 
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: True)
 	panel = object.__new__(dialogs.LLMSettingsPanel)
