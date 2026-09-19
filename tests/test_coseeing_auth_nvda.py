@@ -1,4 +1,5 @@
 from concurrent.futures import Future
+import importlib
 import importlib.util
 import ctypes
 from threading import Event, RLock, Thread, current_thread
@@ -29,31 +30,36 @@ class TokenValidationError(Exception):
 	pass
 
 
-addon_handler = types.ModuleType("addonHandler")
-addon_handler.initTranslation = lambda: None
-authlib = types.ModuleType("authlib")
-authlib_integrations = types.ModuleType("authlib.integrations")
-authlib_base_client = types.ModuleType("authlib.integrations.base_client")
-authlib_errors = types.ModuleType("authlib.integrations.base_client.errors")
-authlib_errors.OAuthError = OAuthError
-coseeing_auth = types.ModuleType("coseeing_auth")
-coseeing_errors = types.ModuleType("coseeing_auth.errors")
+_TEMPORARY_IMPORT_MODULES = {
+	"addonHandler": types.ModuleType("addonHandler"),
+	"authlib": types.ModuleType("authlib"),
+	"authlib.integrations": types.ModuleType("authlib.integrations"),
+	"authlib.integrations.base_client": types.ModuleType("authlib.integrations.base_client"),
+	"authlib.integrations.base_client.errors": types.ModuleType("authlib.integrations.base_client.errors"),
+	"coseeing_auth": types.ModuleType("coseeing_auth"),
+	"coseeing_auth.errors": types.ModuleType("coseeing_auth.errors"),
+}
+_MISSING_MODULE = object()
+_ORIGINAL_IMPORT_MODULES = {
+	name: sys.modules.get(name, _MISSING_MODULE)
+	for name in _TEMPORARY_IMPORT_MODULES
+}
+_TEMPORARY_IMPORT_MODULES["addonHandler"].initTranslation = lambda: None
+_TEMPORARY_IMPORT_MODULES["authlib.integrations.base_client.errors"].OAuthError = OAuthError
 for error in (ClientClosedError, RestoreError, TokenUnavailableError, TokenValidationError):
-	setattr(coseeing_errors, error.__name__, error)
-sys.modules.update({
-	"addonHandler": addon_handler,
-	"authlib": authlib,
-	"authlib.integrations": authlib_integrations,
-	"authlib.integrations.base_client": authlib_base_client,
-	"authlib.integrations.base_client.errors": authlib_errors,
-	"coseeing_auth": coseeing_auth,
-	"coseeing_auth.errors": coseeing_errors,
-})
+	setattr(_TEMPORARY_IMPORT_MODULES["coseeing_auth.errors"], error.__name__, error)
+sys.modules.update(_TEMPORARY_IMPORT_MODULES)
 
 import lib.coseeing_auth as module
 from coseeing_auth_helpers import FakeAuth
 from lib.coseeing_auth import CoseeingAuthSession
 from lib.coseeing import build_coseeing_headers
+
+for _module_name, _original_module in _ORIGINAL_IMPORT_MODULES.items():
+	if _original_module is _MISSING_MODULE:
+		sys.modules.pop(_module_name, None)
+	else:
+		sys.modules[_module_name] = _original_module
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -390,6 +396,7 @@ def test_settings_panel_uses_clean_button_without_legacy_credential_controls(mon
 	assert "Coseeing" in panel.accountGroupSizerMap
 	assert panel.coseeingCleanButton.label == "clean"
 	assert panel.coseeingCleanButton.IsEnabled() is False
+	assert panel.coseeingCleanButton.bindings[plugin.wx.EVT_BUTTON] == panel.onCleanCoseeingAuth
 	assert "Coseeing" not in panel.accountTextCtrlMap
 	assert not [call for call in Helper.calls if call[0] == "Refresh Token:"]
 
@@ -406,6 +413,36 @@ def test_settings_panel_uses_clean_button_without_legacy_credential_controls(mon
 	panel._refreshAccountInfo = lambda: None
 	panel.makeSettings(Sizer())
 	assert "Coseeing" not in settings["api_key"]
+
+
+def test_nvda_module_setup_leaves_real_bundle_exports_importable(monkeypatch):
+	assert "coseeing_auth" not in sys.modules
+	authlib = types.ModuleType("authlib")
+	oauth2 = types.ModuleType("authlib.oauth2")
+	rfc6749 = types.ModuleType("authlib.oauth2.rfc6749")
+	errors = types.ModuleType("authlib.oauth2.rfc6749.errors")
+	integrations = types.ModuleType("authlib.integrations")
+	requests_client = types.ModuleType("authlib.integrations.requests_client")
+
+	class OAuth2Error(Exception):
+		pass
+
+	class MismatchingStateException(OAuth2Error):
+		pass
+
+	class OAuth2Session:
+		pass
+
+	errors.OAuth2Error = OAuth2Error
+	errors.MismatchingStateException = MismatchingStateException
+	requests_client.OAuth2Session = OAuth2Session
+	for dependency in (authlib, oauth2, rfc6749, errors, integrations, requests_client):
+		monkeypatch.setitem(sys.modules, dependency.__name__, dependency)
+	monkeypatch.setitem(sys.modules, "jwt", types.ModuleType("jwt"))
+
+	bundle = importlib.import_module("coseeing_auth")
+	assert Path(bundle.__file__).resolve().is_relative_to(ADDON_PATH / "package")
+	assert callable(bundle.WindowsCredentialStore)
 
 
 def test_clean_button_disables_on_success_and_reenables_on_failure(monkeypatch):
