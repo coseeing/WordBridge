@@ -51,6 +51,12 @@ class RestoreError(AuthError):
     default_code = "restore_failed"
 
 
+class TokenPersistenceError(AuthError):
+    default_operation = "storage"
+    default_stage = "token_persistence"
+    default_code = "storage_failed"
+
+
 class TokenUnavailableError(AuthError):
     default_operation = "access_token"
     default_stage = "token_validation"

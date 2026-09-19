@@ -8,6 +8,7 @@ from authlib.oauth2.rfc6749.errors import OAuth2Error
 
 from .errors import RestoreError, TokenUnavailableError, TokenValidationError
 from .models import AuthConfig, AuthResult, Identity, TokenSet
+from .storage.storage import RefreshTokenPersistence
 
 
 class TokenState:
@@ -31,26 +32,36 @@ class TokenState:
 
 
 class TokenLifecycle:
-    def __init__(self, config: AuthConfig, protocol: Any, verifier: Any, state: TokenState) -> None:
+    def __init__(
+        self,
+        config: AuthConfig,
+        protocol: Any,
+        verifier: Any,
+        state: TokenState,
+        persistence: RefreshTokenPersistence | None = None,
+    ) -> None:
         self._config = config
         self._protocol = protocol
         self._verifier = verifier
         self._state = state
+        self._persistence = persistence if persistence is not None else RefreshTokenPersistence()
         self._refresh_lock = threading.Lock()
 
     def accept_login(self, candidate: TokenSet, nonce: str | None) -> AuthResult:
         if not candidate.id_token:
             raise self._token_error("login", "ID token is missing", "token_missing", False)
-        return self._state.replace_after(
+        result = self._state.replace_after(
             candidate,
             lambda value: self._validate_candidate(value, nonce=nonce, operation="login"),
         )
+        self._persistence.save_if_changed(candidate.refresh_token, "login")
+        return result
 
-    def restore(self, refresh_token: str) -> AuthResult:
+    def restore(self, refresh_token: str, *, operation: str = "restore") -> AuthResult:
         if not refresh_token:
             raise RestoreError(
                 "refresh token is missing",
-                operation="restore",
+                operation=operation,
                 stage="refresh",
                 code="token_missing",
                 retryable=False,
@@ -62,14 +73,14 @@ class TokenLifecycle:
             if getattr(error, "error", None) == "invalid_grant":
                 raise RestoreError(
                     "refresh token was rejected",
-                    operation="restore",
+                    operation=operation,
                     stage="refresh",
                     code="refresh_rejected",
                     retryable=False,
                 ) from None
             raise RestoreError(
                 "refresh request failed",
-                operation="restore",
+                operation=operation,
                 stage="refresh",
                 code="restore_failed",
                 retryable=False,
@@ -77,17 +88,31 @@ class TokenLifecycle:
         except (requests.RequestException, OSError):
             raise RestoreError(
                 "refresh request failed",
-                operation="restore",
+                operation=operation,
                 stage="refresh",
                 code="token_endpoint_network_error",
                 retryable=True,
             ) from None
 
         candidate = merge_refresh_candidate(response, previous, refresh_token)
-        return self._state.replace_after(
+        result = self._state.replace_after(
             candidate,
-            lambda value: self._validate_candidate(value, nonce=None, operation="restore"),
+            lambda value: self._validate_candidate(value, nonce=None, operation=operation),
         )
+        self._persistence.save_if_changed(candidate.refresh_token, operation)
+        return result
+
+    def restore_saved_session(self) -> AuthResult | None:
+        operation = "restore_saved_session"
+        refresh_token = self._persistence.load(operation)
+        if refresh_token is None:
+            return None
+        try:
+            return self.restore(refresh_token, operation=operation)
+        except RestoreError as error:
+            if error.code == "refresh_rejected":
+                self._persistence.delete(operation)
+            raise
 
     def identity(self) -> Identity:
         tokens = self._state.snapshot()
@@ -111,8 +136,9 @@ class TokenLifecycle:
     def snapshot(self) -> TokenSet:
         return self._state.snapshot()
 
-    def clear(self) -> None:
+    def clear(self, *, operation: str = "logout") -> None:
         self._state.clear()
+        self._persistence.delete(operation)
 
     def _get_token(
         self,
@@ -125,7 +151,7 @@ class TokenLifecycle:
         current = self._state.snapshot()
         current_error = self._current_validation_error(current, token_kind, grace)
         if self._has_current_candidate(current, token_kind, grace) and current_error is None:
-            return self._select_token(current, token_kind)
+            return self._return_token(current, token_kind, operation)
         initial = current
 
         with self._refresh_lock:
@@ -133,7 +159,7 @@ class TokenLifecycle:
             if current != initial:
                 current_error = self._current_validation_error(current, token_kind, grace)
             if self._has_current_candidate(current, token_kind, grace) and current_error is None:
-                return self._select_token(current, token_kind)
+                return self._return_token(current, token_kind, operation)
 
             if current.refresh_token:
                 refresh_error = None
@@ -162,7 +188,7 @@ class TokenLifecycle:
                             candidate_error = error
                         if candidate_error is None:
                             self._state.replace_after(candidate, lambda value: result)
-                            return self._select_token(candidate, token_kind)
+                            return self._return_token(candidate, token_kind, operation)
                         refresh_error = candidate_error
                     else:
                         refresh_error = self._missing_after_recovery_error(operation)
@@ -185,7 +211,7 @@ class TokenLifecycle:
             current = self._state.snapshot()
             current_error = self._current_validation_error(current, token_kind, grace)
             if self._has_current_candidate(current, token_kind, grace) and current_error is None:
-                return self._select_token(current, token_kind)
+                return self._return_token(current, token_kind, operation)
             if current_error is not None:
                 raise current_error
             raise self._missing_after_recovery_error(operation) from None
@@ -214,6 +240,10 @@ class TokenLifecycle:
             operation = f"{token_kind}_token"
             raise TokenLifecycle._missing_error(operation, "token_missing")
         return token
+
+    def _return_token(self, candidate: TokenSet, token_kind: str, operation: str) -> str:
+        self._persistence.save_if_changed(candidate.refresh_token, operation)
+        return self._select_token(candidate, token_kind)
 
     @staticmethod
     def _missing_error(operation: str, code: str) -> TokenUnavailableError:

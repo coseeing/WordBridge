@@ -2,6 +2,7 @@ import subprocess
 import sys
 import os
 import shutil
+import types
 from email import policy
 from email.parser import Parser
 from pathlib import Path
@@ -187,3 +188,52 @@ for module in (authlib, coseeing_auth, joserfc, jwt, requests, cryptography,
 		text=True,
 		env=_sanitized_windows_environment(dependencies, bundle),
 	)
+
+
+def test_coseeing_auth_bundle_contains_native_refresh_token_storage():
+	package = PACKAGE_ROOT / "coseeing_auth"
+	storage = package / "storage"
+	assert {path.name for path in storage.glob("*.py")} == {
+		"__init__.py",
+		"macos_keychain.py",
+		"storage.py",
+		"windows_credentials.py",
+	}
+
+
+@pytest.fixture
+def _coseeing_auth_import_dependencies(monkeypatch):
+	"""Provide pure-Python import seams for the Windows-only bundled runtime."""
+	authlib = types.ModuleType("authlib")
+	oauth2 = types.ModuleType("authlib.oauth2")
+	rfc6749 = types.ModuleType("authlib.oauth2.rfc6749")
+	errors = types.ModuleType("authlib.oauth2.rfc6749.errors")
+	integrations = types.ModuleType("authlib.integrations")
+	requests_client = types.ModuleType("authlib.integrations.requests_client")
+
+	class OAuth2Error(Exception):
+		pass
+
+	class MismatchingStateException(OAuth2Error):
+		pass
+
+	class OAuth2Session:
+		pass
+
+	errors.OAuth2Error = OAuth2Error
+	errors.MismatchingStateException = MismatchingStateException
+	requests_client.OAuth2Session = OAuth2Session
+	for module in (authlib, oauth2, rfc6749, errors, integrations, requests_client):
+		monkeypatch.setitem(sys.modules, module.__name__, module)
+	monkeypatch.setitem(sys.modules, "jwt", types.ModuleType("jwt"))
+
+
+@pytest.mark.usefixtures("_coseeing_auth_import_dependencies")
+def test_coseeing_auth_exports_windows_store_and_saved_session_api():
+	from coseeing_auth import CoseeingAuthClient, FutureAuthClient, WindowsCredentialStore
+
+	assert WindowsCredentialStore.__module__.endswith("storage.windows_credentials")
+	assert callable(CoseeingAuthClient.restore_saved_session)
+	assert callable(CoseeingAuthClient.logout_local)
+	assert callable(FutureAuthClient.restore_saved_session)
+	assert callable(FutureAuthClient.logout_local)

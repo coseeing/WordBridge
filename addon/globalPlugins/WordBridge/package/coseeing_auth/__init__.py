@@ -8,10 +8,12 @@ from .errors import (
     LoginError,
     LogoutError,
     RestoreError,
+    TokenPersistenceError,
     TokenUnavailableError,
     TokenValidationError,
 )
 from .models import AuthConfig, AuthResult, Identity, LogoutMode, LogoutResult
+from .storage import MacOSKeychainStore, RefreshTokenStore, WindowsCredentialStore
 
 __all__ = [
     "AuthConfig",
@@ -27,7 +29,11 @@ __all__ = [
     "LogoutError",
     "LogoutMode",
     "LogoutResult",
+    "MacOSKeychainStore",
+    "RefreshTokenStore",
     "RestoreError",
+    "TokenPersistenceError",
     "TokenUnavailableError",
     "TokenValidationError",
+    "WindowsCredentialStore",
 ]

@@ -15,10 +15,12 @@ from .errors import (
     DiscoveryError,
     LoginError,
     LogoutError,
+    TokenPersistenceError,
     TokenValidationError,
 )
 from .models import AuthConfig, AuthResult, Identity, LogoutMode, LogoutResult
 from .oidc import OidcProtocol
+from .storage.storage import RefreshTokenPersistence, RefreshTokenStore
 from .tokens import TokenLifecycle, TokenState
 from .verification import TokenVerifier
 
@@ -30,10 +32,12 @@ class CoseeingAuthClient:
         *,
         browser_open: Callable[[str], bool] = webbrowser.open,
         logger=None,
+        refresh_token_store: RefreshTokenStore | None = None,
     ) -> None:
         protocol = OidcProtocol(config)
         verifier = TokenVerifier(config, protocol.discovery)
-        lifecycle = TokenLifecycle(config, protocol, verifier, TokenState())
+        persistence = RefreshTokenPersistence(refresh_token_store)
+        lifecycle = TokenLifecycle(config, protocol, verifier, TokenState(), persistence)
         self._configure(
             config,
             browser_open,
@@ -106,6 +110,8 @@ class CoseeingAuthClient:
         try:
             try:
                 result = self._login_flow(receiver)
+            except TokenPersistenceError as error:
+                pending = (error, _safe_cause(error, "login persistence failure"))
             except LoginError as error:
                 pending = (error, error.__cause__ or _safe_cause(error, "login failure"))
             except CallbackTimeout as error:
@@ -158,12 +164,12 @@ class CoseeingAuthClient:
             self._logout_stage = "discovery"
             endpoint = self._protocol.end_session_endpoint()
             if not endpoint:
-                self._lifecycle.clear()
+                self._lifecycle.clear(operation="logout")
                 return LogoutResult(mode=LogoutMode.LOCAL_ONLY)
             state = secrets.token_urlsafe(32)
             logout_url = self._protocol.build_logout_url(state, id_token=tokens.id_token)
             if not logout_url:
-                self._lifecycle.clear()
+                self._lifecycle.clear(operation="logout")
                 return LogoutResult(mode=LogoutMode.LOCAL_ONLY)
             self._logout_stage = "callback"
             receiver.start()
@@ -189,8 +195,10 @@ class CoseeingAuthClient:
                     "logout response state did not match",
                     operation="logout", stage="logout", code="state_mismatch", retryable=False,
                 ) from _safe_cause(ValueError(), "logout callback state mismatch")
-            self._lifecycle.clear()
+            self._lifecycle.clear(operation="logout")
             return LogoutResult(mode=LogoutMode.PROVIDER_CONFIRMED)
+        except TokenPersistenceError as error:
+            pending = (error, _safe_cause(error, "logout persistence failure"))
         except LogoutError as error:
             pending = (error, error.__cause__ or _safe_cause(error, "logout failure"))
         except DiscoveryError as error:
@@ -234,7 +242,7 @@ class CoseeingAuthClient:
 
     def logout_local(self) -> LogoutResult:
         with self._open_operation("logout"):
-            self._lifecycle.clear()
+            self._lifecycle.clear(operation="logout")
             return LogoutResult(mode=LogoutMode.LOCAL_ONLY)
 
     def _ensure_open(self, operation: str) -> None:
@@ -285,6 +293,10 @@ class CoseeingAuthClient:
     def restore(self, refresh_token: str) -> AuthResult:
         with self._open_operation("restore"):
             return self._lifecycle.restore(refresh_token)
+
+    def restore_saved_session(self) -> AuthResult | None:
+        with self._open_operation("restore_saved_session"):
+            return self._lifecycle.restore_saved_session()
 
     def get_identity(self) -> Identity:
         with self._open_operation("identity"):

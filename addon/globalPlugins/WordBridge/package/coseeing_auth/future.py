@@ -58,6 +58,9 @@ class FutureAuthClient:
     def restore(self, refresh_token: str) -> Future:
         return self._submit("restore", self._client.restore, refresh_token)
 
+    def restore_saved_session(self) -> Future:
+        return self._submit("restore_saved_session", self._client.restore_saved_session)
+
     def get_access_token(self, *, grace: int = 60, auto_login: bool = True) -> Future:
         return self._submit(
             "access_token",
