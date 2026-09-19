@@ -602,9 +602,12 @@ def test_clean_logs_out_then_resets_singleton(monkeypatch):
 		def notify_completion(self, done):
 			calls.append(("notify", done))
 
-	monkeypatch.setattr(module, "_get_singleton", lambda: Session())
+	monkeypatch.setattr(module, "_get_singleton_pair", lambda: (Session(), module._singleton_adapter))
 	monkeypatch.setattr(module, "_singleton_adapter", Adapter())
-	monkeypatch.setattr(module, "reset_coseeing_auth", lambda: calls.append("reset") or cleanup)
+	monkeypatch.setattr(
+		module, "_reset_captured_coseeing_auth", lambda session, adapter: calls.append("reset") or cleanup,
+		raising=False,
+	)
 	result = module.clean_coseeing_auth()
 	logout.set_result(None)
 	assert calls[0] == "logout_local"
@@ -633,15 +636,15 @@ def test_clean_logout_failure_notifies_without_reset_or_secret_logging(monkeypat
 			return logout
 
 	adapter = module._NvdaAuthAdapter()
-	notify_completion = adapter.notify_completion
+	notify_completion = adapter.notify_clean_completion
 	def notify(done):
 		calls.append(("notify", done))
 		notify_completion(done)
-	adapter.notify_completion = notify
+	adapter.notify_clean_completion = notify
 
-	monkeypatch.setattr(module, "_get_singleton", lambda: Session())
+	monkeypatch.setattr(module, "_get_singleton_pair", lambda: (Session(), adapter))
 	monkeypatch.setattr(module, "_singleton_adapter", adapter)
-	monkeypatch.setattr(module, "reset_coseeing_auth", lambda: calls.append("reset"))
+	monkeypatch.setattr(module, "_reset_captured_coseeing_auth", lambda session, adapter: calls.append("reset"), raising=False)
 	result = module.clean_coseeing_auth()
 	class TokenPersistenceError(RuntimeError):
 		pass
@@ -653,6 +656,63 @@ def test_clean_logout_failure_notifies_without_reset_or_secret_logging(monkeypat
 	assert "reset" not in calls
 	assert calls == [("notify", result)]
 	assert "refresh-token-secret" not in " ".join(map(str, logs))
+
+
+def test_clean_cleanup_failure_notifies_through_shutting_down_adapter(monkeypatch):
+	logout = Future()
+	cleanup = Future()
+	messages = []
+	logs = []
+	class Wx:
+		class DefaultButtonSet:
+			YES_NO = 4
+	_install_nvda(
+		monkeypatch,
+		dialog=object,
+		wx=Wx,
+		ui=SimpleNamespace(message=messages.append),
+		log=SimpleNamespace(warning=lambda *args: logs.append(args)),
+	)
+
+	class Session:
+		def logout_local(self):
+			return logout
+	adapter = module._NvdaAuthAdapter()
+	monkeypatch.setattr(module, "_get_singleton_pair", lambda: (Session(), adapter), raising=False)
+	monkeypatch.setattr(module, "_reset_captured_coseeing_auth", lambda session, captured: cleanup, raising=False)
+	result = module.clean_coseeing_auth()
+	logout.set_result(None)
+	adapter._shutting_down = True
+	error = RuntimeError("refresh-token-secret")
+	cleanup.set_exception(error)
+	with pytest.raises(RuntimeError, match="refresh-token-secret"):
+		result.result(timeout=1)
+	assert messages == ["Coseeing authentication failed."]
+	assert "refresh-token-secret" not in " ".join(map(str, logs))
+
+
+def test_clean_resets_only_captured_singleton_after_intervening_reset(monkeypatch):
+	logout = Future()
+	old_cleanup = Future()
+	new_cleanup = Future()
+	old_session = SimpleNamespace(logout_local=lambda: logout, close=lambda: old_cleanup)
+	new_session = SimpleNamespace(close=lambda: new_cleanup)
+	old_adapter = SimpleNamespace(_shutting_down=False, post_ui=lambda function, *args: function(*args), close_active_dialog=lambda: None, notify_completion=lambda done: None)
+	new_adapter = SimpleNamespace(_shutting_down=False, post_ui=lambda function, *args: function(*args), close_active_dialog=lambda: None)
+	monkeypatch.setattr(module, "_singleton_session", old_session)
+	monkeypatch.setattr(module, "_singleton_adapter", old_adapter)
+	monkeypatch.setattr(module, "_shutdown_future", None)
+	result = module.clean_coseeing_auth()
+	assert module.reset_coseeing_auth() is old_cleanup
+	monkeypatch.setattr(module, "_singleton_session", new_session)
+	monkeypatch.setattr(module, "_singleton_adapter", new_adapter)
+	logout.set_result(None)
+	assert not new_adapter._shutting_down
+	assert module._singleton_session is new_session
+	assert not result.done()
+	old_cleanup.set_result(None)
+	assert result.result(timeout=1) is None
+	assert not new_cleanup.done()
 
 
 def test_singleton_creation_is_locked(monkeypatch):

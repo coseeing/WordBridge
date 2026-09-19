@@ -520,13 +520,19 @@ class _NvdaAuthAdapter:
 		)
 
 	def notify_completion(self, done: Future) -> None:
+		self._notify_completion(done, notify_during_shutdown=False)
+
+	def notify_clean_completion(self, done: Future) -> None:
+		self._notify_completion(done, notify_during_shutdown=True)
+
+	def _notify_completion(self, done: Future, *, notify_during_shutdown: bool) -> None:
 		try:
 			done.result()
 		except CancelledError:
 			return
 		except Exception as error:
 			with self._dialog_lock:
-				if self._shutting_down:
+				if self._shutting_down and not notify_during_shutdown:
 					return
 			operation = getattr(error, "operation", "access_token")
 			stage = getattr(error, "stage", "unknown")
@@ -536,13 +542,13 @@ class _NvdaAuthAdapter:
 				type(error).__name__, operation, stage, code,
 			)
 			try:
-				self.post_ui(self._deliver_notification)
+				self.post_ui(self._deliver_notification, notify_during_shutdown)
 			except Exception:
 				return
 
-	def _deliver_notification(self) -> None:
+	def _deliver_notification(self, notify_during_shutdown: bool = False) -> None:
 		with self._dialog_lock:
-			if self._shutting_down:
+			if self._shutting_down and not notify_during_shutdown:
 				return
 		self._ui.message(_("Coseeing authentication failed."))
 
@@ -554,7 +560,7 @@ _shutdown_future: Future[None] | None = None
 _auth_state = AuthSessionState()
 
 
-def _get_singleton() -> CoseeingAuthSession:
+def _get_singleton_pair() -> tuple[CoseeingAuthSession, _NvdaAuthAdapter]:
 	global _singleton_adapter, _singleton_session
 	with _singleton_lock:
 		if _shutdown_future is not None:
@@ -563,7 +569,11 @@ def _get_singleton() -> CoseeingAuthSession:
 			adapter = _NvdaAuthAdapter()
 			_singleton_adapter = adapter
 			_singleton_session = adapter.session(auth_state=_auth_state)
-		return _singleton_session
+		return _singleton_session, _singleton_adapter
+
+
+def _get_singleton() -> CoseeingAuthSession:
+	return _get_singleton_pair()[0]
 
 
 def has_seen_valid_refresh_token() -> bool:
@@ -616,6 +626,24 @@ def reset_coseeing_auth() -> Future[None]:
 	return cleanup
 
 
+def _reset_captured_coseeing_auth(
+	session: CoseeingAuthSession,
+	adapter: _NvdaAuthAdapter,
+) -> Future[None]:
+	global _singleton_adapter, _singleton_session
+	with _singleton_lock:
+		adapter._shutting_down = True
+		cleanup = session.close()
+		if _singleton_session is session and _singleton_adapter is adapter:
+			_singleton_adapter = None
+			_singleton_session = None
+	try:
+		adapter.post_ui(adapter.close_active_dialog)
+	except Exception:
+		adapter.close_active_dialog()
+	return cleanup
+
+
 def _settle_none(destination: Future[None], error: Exception | None = None) -> None:
 	try:
 		if error is None:
@@ -629,15 +657,21 @@ def _settle_none(destination: Future[None], error: Exception | None = None) -> N
 def clean_coseeing_auth() -> Future[None]:
 	bridge: Future[None] = Future()
 	try:
-		session = _get_singleton()
-		adapter = _singleton_adapter
+		session, adapter = _get_singleton_pair()
+	except Exception as error:
+		with _singleton_lock:
+			adapter = _singleton_adapter
+		if adapter is not None:
+			bridge.add_done_callback(getattr(adapter, "notify_clean_completion", adapter.notify_completion))
+		_settle_none(bridge, error)
+		return bridge
+
+	bridge.add_done_callback(getattr(adapter, "notify_clean_completion", adapter.notify_completion))
+	try:
 		logout = session.logout_local()
 	except Exception as error:
 		_settle_none(bridge, error)
 		return bridge
-
-	if adapter is not None:
-		bridge.add_done_callback(adapter.notify_completion)
 
 	def cleanup_done(done: Future) -> None:
 		try:
@@ -654,7 +688,7 @@ def clean_coseeing_auth() -> Future[None]:
 			_settle_none(bridge, error)
 			return
 		try:
-			cleanup = reset_coseeing_auth()
+			cleanup = _reset_captured_coseeing_auth(session, adapter)
 		except Exception as error:
 			_settle_none(bridge, error)
 			return
