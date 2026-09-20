@@ -125,11 +125,21 @@ class _SandboxFinder(importlib.abc.MetaPathFinder):
 	def __init__(self, prefix, sandbox_import):
 		self.prefix = prefix
 		self._prefix_dot = prefix + "."
+		self._gapfill_prefix = prefix + "." + STDLIB_GAPFILL_DIRNAME
 		self._sandbox_import = sandbox_import
 
 	def find_spec(self, fullname, path=None, target=None):
 		if not fullname.startswith(self._prefix_dot):
 			return None
+		if fullname == self._gapfill_prefix or fullname.startswith(self._gapfill_prefix + "."):
+			# The gap-fill directory has no __init__.py, so it is a valid PEP
+			# 420 namespace portion: merely declining (returning None) here
+			# would still let the interpreter's own PathFinder entry further
+			# down sys.meta_path resolve it from the same parent __path__, since
+			# that finder is not ours to withhold consent from.  Failing the
+			# lookup outright is the only way to keep nothing under the prefix
+			# answering for it or anything beneath it.
+			raise ModuleNotFoundError(f"No module named {fullname!r}", name=fullname)
 		spec = PathFinder.find_spec(fullname, path, target)
 		if spec is None or spec.loader is None:
 			return spec
@@ -194,10 +204,24 @@ def install_stdlib_gapfill(package_path):
 	third-party packages import those as ordinary stdlib, so they cannot be
 	prefixed; they have to answer to the canonical name.
 
-	Registration is conditional: the host is tried first, and our copy is used
-	only if the host has none.  A future NVDA that restores the module then
-	wins, instead of being shadowed by our frozen copy -- which would turn a
-	gap-fill into the shadowing this whole design exists to remove.
+	Every ``*.py`` file in the directory is a candidate except a dunder name
+	such as ``__init__.py``.  A single leading underscore is not excluded:
+	NVDA's stripped stdlib can drop a private helper module (``_pydecimal``,
+	``_pyio``, ...) as easily as a public one, and Task 1's probe -- which
+	decides what actually lands in this directory -- may name one.
+
+	Registration is conditional: the host is tried first, via a real import,
+	and our copy is used only if the host has none.  A future NVDA that
+	restores the module then wins, instead of being shadowed by our frozen
+	copy -- which would turn a gap-fill into the shadowing this whole design
+	exists to remove.  The probe fully executes the host module and leaves it
+	installed in ``sys.modules`` on success -- for `secrets` that also pulls in
+	`base64`, `hmac` and `random` at add-on load, the same as it would for any
+	other importer.  A host module that exists on disk but raises
+	``ImportError`` while executing is indistinguishable, from here, from one
+	that is simply absent, so our copy registers over it; that is accepted
+	because a host module that cannot finish importing is not a usable one
+	either way.
 	"""
 	directory = os.path.join(str(package_path), STDLIB_GAPFILL_DIRNAME)
 	if not os.path.isdir(directory):
@@ -205,7 +229,7 @@ def install_stdlib_gapfill(package_path):
 	registered = []
 	for entry in sorted(os.listdir(directory)):
 		name, extension = os.path.splitext(entry)
-		if extension != ".py" or name.startswith("_"):
+		if extension != ".py" or name.startswith("__"):
 			continue
 		if name in sys.modules:
 			continue
@@ -220,8 +244,11 @@ def install_stdlib_gapfill(package_path):
 		sys.modules[name] = module
 		try:
 			spec.loader.exec_module(module)
-		except Exception:
-			del sys.modules[name]
+		except BaseException:
+			try:
+				del sys.modules[name]
+			except KeyError:
+				pass
 			raise
 		registered.append(name)
 	return registered

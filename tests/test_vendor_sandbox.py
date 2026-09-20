@@ -1,3 +1,4 @@
+import hashlib
 import importlib
 import struct
 import sys
@@ -12,6 +13,11 @@ from lib.vendor import _make_sandbox_import
 
 
 ISOLATED = frozenset({"alpha", "beta"})
+
+PACKAGE_ROOT = (
+	Path(__file__).resolve().parent.parent
+	/ "addon" / "globalPlugins" / "WordBridge" / "package"
+)
 
 
 @pytest.fixture
@@ -192,6 +198,23 @@ def test_finder_declines_every_name_outside_its_prefix(sandbox_root, install_san
 	assert finder.find_spec("_wb_t4other.alpha", None, None) is None
 
 
+def test_finder_declines_the_gapfill_directory(sandbox_root, install_sandbox):
+	"""Ruling 2: without __init__.py, the gap-fill directory is still a PEP 420
+	namespace portion that PathFinder resolves on its own.  _SandboxFinder must
+	decline it explicitly, so nothing under the prefix ever answers for it,
+	while an ordinary category-2-style package under the same prefix still does.
+	"""
+	gapfill = sandbox_root / vendor.STDLIB_GAPFILL_DIRNAME
+	gapfill.mkdir()
+	(gapfill / "secrets.py").write_text("VALUE = 'stub'\n", encoding="utf8")
+	install_sandbox([str(sandbox_root)], "_wb_t6", {"alpha"})
+
+	with pytest.raises(ModuleNotFoundError):
+		importlib.import_module("_wb_t6._stdlib_gapfill")
+
+	assert importlib.import_module("_wb_t6.alpha") is not None
+
+
 def test_finder_leaves_extension_loaders_unwrapped_but_wraps_source_loaders(monkeypatch):
 	"""Production hits this branch: cryptography's ``_rust`` ships a real .pyd.
 
@@ -246,14 +269,10 @@ def test_runtime_key_matches_the_bundle_directory_actually_on_disk(monkeypatch):
 	assert vendor.runtime_key() == "py313-win_amd64"
 
 
-from pathlib import Path
-
-PACKAGE_ROOT = Path("addon/globalPlugins/WordBridge/package")
-
-
 def test_every_bundled_top_level_name_is_classified():
 	"""Adding a package to the bundle without classifying it must fail here."""
-	roots = [PACKAGE_ROOT, PACKAGE_ROOT / "_coseeing_auth_deps" / "py313-win_amd64"]
+	deps_root = PACKAGE_ROOT / "_coseeing_auth_deps"
+	roots = [PACKAGE_ROOT] + sorted(entry for entry in deps_root.glob("*") if entry.is_dir())
 	skip = {"__pycache__", "_stdlib_gapfill", "_coseeing_auth_deps"}
 	found = set()
 	for root in roots:
@@ -275,16 +294,58 @@ def test_categories_do_not_overlap():
 	assert not (vendor.ISOLATED & vendor.HOST_ONLY)
 
 
+def test_category_sizes_and_spot_membership():
+	"""Pins WHICH category each name is in, not just the union and the overlap.
+
+	Moving a name from one frozenset to the other leaves both tests above
+	green -- the union is unchanged and the intersection is still empty -- so
+	the isolation behaviour would silently invert for that package with
+	nothing here to catch it.
+	"""
+	assert len(vendor.ISOLATED) == 9
+	assert len(vendor.HOST_ONLY) == 8
+	assert {"cryptography", "coseeing_auth"} <= vendor.ISOLATED
+	assert {"requests", "_cffi_backend"} <= vendor.HOST_ONLY
+
+
 def test_gapfill_skips_a_module_the_host_already_provides(tmp_path):
 	directory = tmp_path / "_stdlib_gapfill"
 	directory.mkdir()
 	(directory / "json.py").write_text("RAISE = 'ours'\n", encoding="utf8")
 	host_json = sys.modules["json"]
 
-	registered = vendor.install_stdlib_gapfill(tmp_path)
+	try:
+		registered = vendor.install_stdlib_gapfill(tmp_path)
 
-	assert registered == []
-	assert sys.modules["json"] is host_json
+		assert registered == []
+		assert sys.modules["json"] is host_json
+	finally:
+		# If the implementation ever regressed to unconditional registration,
+		# leaving our two-line stub installed as sys.modules["json"] would
+		# poison every later test in the session; restore it unconditionally.
+		sys.modules["json"] = host_json
+
+
+def test_gapfill_probes_the_host_for_a_module_not_yet_imported(tmp_path):
+	"""The probe branch -- not the ``sys.modules`` short-circuit -- is what
+	matters on NVDA, where a stdlib module can be importable but not yet
+	present in ``sys.modules`` at add-on load time.  ``json`` above never
+	reaches ``builtins.__import__`` because pytest has already imported it;
+	this uses a stdlib module absent from ``sys.modules`` at test time instead.
+	"""
+	name = "colorsys"
+	assert name not in sys.modules, "test assumes colorsys is not yet imported"
+	directory = tmp_path / "_stdlib_gapfill"
+	directory.mkdir()
+	(directory / f"{name}.py").write_text("RAISE = 'ours'\n", encoding="utf8")
+
+	try:
+		registered = vendor.install_stdlib_gapfill(tmp_path)
+
+		assert registered == []
+		assert not hasattr(sys.modules[name], "RAISE")
+	finally:
+		sys.modules.pop(name, None)
 
 
 def test_gapfill_registers_a_module_the_host_lacks(tmp_path, monkeypatch):
@@ -302,6 +363,27 @@ def test_gapfill_registers_a_module_the_host_lacks(tmp_path, monkeypatch):
 		sys.modules.pop("wbfakegap", None)
 
 
+def test_gapfill_registers_a_module_whose_name_has_a_single_leading_underscore(
+	tmp_path, monkeypatch
+):
+	"""A single leading underscore must not be excluded like __init__.py is:
+	NVDA's stripped stdlib can drop a private helper module (e.g. _pydecimal)
+	just as easily as a public one, and the data-driven gap-fill must still
+	fill that gap rather than silently skipping the file.
+	"""
+	directory = tmp_path / "_stdlib_gapfill"
+	directory.mkdir()
+	(directory / "_wbfakegap.py").write_text("VALUE = 'gapfill'\n", encoding="utf8")
+	monkeypatch.delitem(sys.modules, "_wbfakegap", raising=False)
+
+	registered = vendor.install_stdlib_gapfill(tmp_path)
+	try:
+		assert registered == ["_wbfakegap"]
+		assert sys.modules["_wbfakegap"].VALUE == "gapfill"
+	finally:
+		sys.modules.pop("_wbfakegap", None)
+
+
 def test_gapfill_is_a_no_op_without_the_directory(tmp_path):
 	assert vendor.install_stdlib_gapfill(tmp_path) == []
 
@@ -311,4 +393,5 @@ def test_secrets_gapfill_ships_and_stays_verbatim():
 
 	assert source.is_file()
 	assert not (PACKAGE_ROOT / "secrets.py").exists()
-	assert "PEP 506" in source.read_text(encoding="utf8")
+	digest = hashlib.sha256(source.read_bytes()).hexdigest()
+	assert digest == "277000574358a6ecda4bb40e73332ae81a3bc1c8e1fa36f50e5c6a7d4d3f0f17"
