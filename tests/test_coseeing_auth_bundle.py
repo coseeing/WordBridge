@@ -174,6 +174,11 @@ sys.path.insert(0, str(bundle.parent))
 from lib import vendor
 
 vendor.install(vendor.default_roots(bundle))
+# install_stdlib_gapfill's result is intentionally not asserted here: on a
+# stock CPython 3.13 release machine the host already ships secrets, so the
+# host-probe branch wins and the gap-fill registers nothing. There is no
+# way to prove this call on a machine where it never has anything to do --
+# do not "fix" this with an assertion, it can only fail.
 vendor.install_stdlib_gapfill(bundle)
 
 import _wb_vendor.authlib
@@ -197,24 +202,38 @@ for name in ("authlib", "joserfc", "jwt", "cryptography"):
     assert Path(module.__file__).resolve().is_relative_to(deps), name
 for name in ("coseeing_auth", "pypinyin", "zhon", "hanzidentifier", "chinese_converter"):
     module = sys.modules["_wb_vendor." + name]
-    assert Path(module.__file__).resolve().is_relative_to(bundle), name
+    path = Path(module.__file__).resolve()
+    assert path.is_relative_to(bundle) and not path.is_relative_to(deps), name
 
 for name in vendor.ISOLATED:
     assert name not in sys.modules, "leaked global name: " + name
+
+# Positive pin for category 3: authlib eagerly imports requests, so requests
+# is the one host-only name that is always non-vacuous today. Prove the host
+# copy is actually the one loaded, not merely that no bundled copy is --
+# the loop below only ever proves the latter, and every one of its category
+# 3 names could in principle skip it and still pass.
+import requests
+
+assert callable(requests.Session)
+assert not Path(requests.__file__).resolve().is_relative_to(bundle)
 
 for name in vendor.HOST_ONLY:
     module = sys.modules.get(name)
     if module is None or getattr(module, "__file__", None) is None:
         continue
     assert not Path(module.__file__).resolve().is_relative_to(deps), name
+    assert "_wb_vendor." + name not in sys.modules, name
 
 # (a) The sandbox is fail-open by construction: the prefix namespace's
 # __path__ is a working import root that the stock PathFinder serves on its
 # own, so if _SandboxFinder is ever missing, displaced, or declines a name,
 # the import still succeeds -- just unwrapped, with the real __import__ and
 # no rewriting. Assert every loaded _wb_vendor.* module with a source origin
-# (excludes the manually-built _wb_vendor namespace module itself and any
-# extension module, neither of which goes through _SandboxLoader) actually
+# (the manually-built _wb_vendor namespace module itself is excluded one
+# line below by the "_wb_vendor." dotted-prefix test -- its own name is
+# exactly "_wb_vendor", with no trailing dot; the origin filter here only
+# excludes extension modules, which do not go through _SandboxLoader) actually
 # received the rewritten __import__ rather than the real one.
 for name, module in list(sys.modules.items()):
     if not name.startswith("_wb_vendor."):
@@ -241,13 +260,19 @@ for name, module in list(sys.modules.items()):
 assert isinstance(wb_rust.__loader__, ExtensionFileLoader), type(wb_rust.__loader__)
 assert wb_rust.__spec__.origin.endswith(".pyd"), wb_rust.__spec__.origin
 """
-	subprocess.run(
+	result = subprocess.run(
 		[sys.executable, "-I", "-c", code, str(bundle)],
-		check=True,
+		check=False,
 		capture_output=True,
 		text=True,
 		env=_sanitized_windows_environment(dependencies, bundle),
 	)
+	if result.returncode:
+		pytest.fail(
+			f"sandbox gate failed ({result.returncode})\n"
+			f"--- stderr ---\n{result.stderr}\n"
+			f"--- stdout ---\n{result.stdout}"
+		)
 
 
 def test_coseeing_auth_bundle_contains_native_refresh_token_storage():

@@ -28,10 +28,27 @@ The directory includes `_cffi_backend` from the matching cffi wheel. The
 package directory and `.dist-info` metadata contain the installed versions and
 license metadata. No Linux `.so` files are included.
 
-The Windows import test uses isolated mode, selects the matching runtime
-directory, and verifies all direct and transitive modules resolve from that
-directory. It is skipped on non-Windows development hosts and must be run on
-the supported NVDA Python runtime on Windows before release.
+The Windows import test runs the private `_wb_vendor` sandbox against the
+real bundle and asserts the contract in the table below: the nine "must come
+from us" modules resolve under `_wb_vendor.*` from inside this directory
+(from the `_coseeing_auth_deps` runtime subdirectory for the four native/
+third-party ones, from the bundle itself for `coseeing_auth` and the CJK
+helpers), and the eight "must come from the host" modules never resolve from
+inside this directory even though bundled copies of them ship here too. It
+is skipped on non-Windows development hosts and must be run on the supported
+NVDA Python runtime on Windows before release.
+
+The test runs the interpreter with `-I` only, not `-I -S`. `-S` was dropped
+because it forced every import to resolve from the bundle, which is exactly
+the old contract this test no longer checks: under the sandbox, category 3
+(`requests` and friends) must resolve from *outside* the bundle -- with `-S`
+there is no "outside" for those imports to come from, since `-S` suppresses
+the site-packages initialization that makes the host's copies importable at
+all. `-I` on its own still ignores `PYTHONPATH` and the user site directory,
+and the environment the subprocess runs in is still sanitized by
+`_sanitized_windows_environment` (only `SystemRoot`/`SystemDrive` survive,
+and `PATH` is pinned to the dependency and bundle directories), so the test
+still cannot pick up stray configuration from the machine it runs on.
 
 ## Import categories
 
