@@ -71,6 +71,8 @@ def test_post_holds_no_lock_across_the_http_call(monkeypatch):
 	"""terminate() must not block on an in-flight HTTP call: no lock guards the post."""
 	plugin_module, config, gui = _load_nvda_plugin(monkeypatch, SETTINGS, [], [])
 	instance = _instance(plugin_module)
+	instance.correct_typo_thread = None
+	instance._feedback_thread = None
 	gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(plugin_module.LLMSettingsPanel)
 	terminate_finished = threading.Event()
 
@@ -277,6 +279,11 @@ def test_feedback_reads_one_internally_consistent_snapshot_despite_nested_event_
 
 
 def test_terminate_returns_within_budget_while_a_worker_is_blocked(monkeypatch):
+	# Both workers must be real, live daemon threads so a per-worker budget
+	# (join each worker for the full TERMINATE_WAIT_SECONDS) is distinguishable
+	# from the shared budget the spec requires (join all workers together
+	# within one TERMINATE_WAIT_SECONDS deadline). With only one worker ever
+	# joined, a per-worker regression that doubles the wait cannot be caught.
 	queued = []
 	plugin_module = _plugin(monkeypatch, queued)
 	instance = _instance(plugin_module)
@@ -285,25 +292,31 @@ def test_terminate_returns_within_budget_while_a_worker_is_blocked(monkeypatch):
 
 	release = threading.Event()
 	worker = threading.Thread(target=lambda: release.wait(30), daemon=True)
+	feedback_worker = threading.Thread(target=lambda: release.wait(30), daemon=True)
 	worker.start()
+	feedback_worker.start()
 	instance.correct_typo_thread = worker
-	instance._feedback_thread = None
+	instance._feedback_thread = feedback_worker
 
-	started = time.monotonic()
-	plugin_module.GlobalPlugin.terminate(instance)
-	elapsed = time.monotonic() - started
-	release.set()
+	try:
+		started = time.monotonic()
+		plugin_module.GlobalPlugin.terminate(instance)
+		elapsed = time.monotonic() - started
 
-	assert instance._shutdown.is_set()
-	assert elapsed < plugin_module.TERMINATE_WAIT_SECONDS + 2
-	assert worker.is_alive(), "terminate must not wait for the worker to finish"
+		assert instance._shutdown.is_set()
+		assert elapsed < plugin_module.TERMINATE_WAIT_SECONDS + 0.5
+		assert worker.is_alive(), "terminate must not wait for the worker to finish"
+		assert feedback_worker.is_alive(), "terminate must not wait for the feedback worker to finish"
+	finally:
+		release.set()
 
 
 def test_terminate_is_safe_when_called_twice(monkeypatch):
-	plugin_module = _plugin(monkeypatch, [])
+	auth_calls = []
+	plugin_module, config, gui = _load_nvda_plugin(monkeypatch, SETTINGS, auth_calls, [])
 	instance = _instance(plugin_module)
 	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(warning=lambda *args: None))
-	plugin_module.gui.settingsDialogs.NVDASettingsDialog.categoryClasses = [plugin_module.LLMSettingsPanel]
+	gui.settingsDialogs.NVDASettingsDialog.categoryClasses = [plugin_module.LLMSettingsPanel]
 	instance.correct_typo_thread = None
 	instance._feedback_thread = None
 
@@ -311,3 +324,9 @@ def test_terminate_is_safe_when_called_twice(monkeypatch):
 	plugin_module.GlobalPlugin.terminate(instance)
 
 	assert instance._shutdown.is_set()
+	# A second terminate() that did nothing at all would still leave
+	# _shutdown set from the first call, so that alone cannot prove the
+	# second call did real work. Assert the parent's terminate() actually ran
+	# twice, and that the stubbed auth shutdown was invoked twice too.
+	assert auth_calls.count("shutdown") == 2
+	assert plugin_module.GlobalPlugin.terminated == 2

@@ -102,6 +102,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		wx.CallAfter(self._start_coseeing_auth, channel)
 		self.latest_action = CorrectionAction()
 		self.correct_typo_thread = None
+		self._feedback_thread = None
 
 	def _start_coseeing_auth(self, channel):
 		if not self._shutdown.is_set():
@@ -111,26 +112,28 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._shutdown.set()
 		deadline = time.monotonic() + TERMINATE_WAIT_SECONDS
 		workers = [
-			getattr(self, "correct_typo_thread", None),
-			getattr(self, "_feedback_thread", None),
+			self.correct_typo_thread,
+			self._feedback_thread,
 		]
-		for worker in workers:
-			if worker is None or not worker.is_alive():
-				continue
-			remaining = deadline - time.monotonic()
-			if remaining <= 0:
-				break
-			worker.join(timeout=remaining)
-		if any(worker is not None and worker.is_alive() for worker in workers):
-			log.warning(
-				"WordBridge: background work still running after %s seconds, abandoning it",
-				TERMINATE_WAIT_SECONDS,
-			)
-		shutdown_coseeing_auth()
-		categoryClasses = gui.settingsDialogs.NVDASettingsDialog.categoryClasses
-		if LLMSettingsPanel in categoryClasses:
-			categoryClasses.remove(LLMSettingsPanel)
-		super().terminate(*args, **kwargs)
+		try:
+			for worker in workers:
+				if worker is None or not worker.is_alive():
+					continue
+				remaining = deadline - time.monotonic()
+				if remaining <= 0:
+					break
+				worker.join(timeout=remaining)
+			if any(worker is not None and worker.is_alive() for worker in workers):
+				log.warning(
+					"WordBridge: background work still running after %s seconds, abandoning it",
+					TERMINATE_WAIT_SECONDS,
+				)
+		finally:
+			shutdown_coseeing_auth()
+			categoryClasses = gui.settingsDialogs.NVDASettingsDialog.categoryClasses
+			if LLMSettingsPanel in categoryClasses:
+				categoryClasses.remove(LLMSettingsPanel)
+			super().terminate(*args, **kwargs)
 
 	def _run_on_ui(self, function, *args):
 		if self._shutdown.is_set():
