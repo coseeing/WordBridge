@@ -607,10 +607,15 @@ def test_plugin_entry_point_installs_the_sandbox_before_importing_coseeing_auth(
 	install_index = source.index("\nvendor.install(")
 	# The *first* relative import overall is "from .lib import vendor" itself
 	# (needed to reach vendor.install in the first place, so it necessarily
-	# precedes it) -- what must come after the install is the first relative
-	# import following it, since any of those can transitively reach a
-	# _wb_vendor consumer such as lib/tasks/typo/text_policy.py.
-	first_relative_import_after_install_index = source.index("\nfrom .", install_index)
+	# precedes it, and searching from install_index would only ever find an
+	# index >= install_index -- making the comparison below vacuously true).
+	# What must come after the install is the first relative import *past
+	# that one line*, since any of those can transitively reach a _wb_vendor
+	# consumer such as lib/tasks/typo/text_policy.py.
+	vendor_import = "from .lib import vendor"
+	first_relative_import_after_install_index = source.index(
+		"\nfrom .", source.index(vendor_import) + len(vendor_import)
+	)
 	coseeing_auth_import_index = source.index("from .lib import coseeing_auth")
 	hanzidentifier_import_index = source.index("from _wb_vendor.hanzidentifier import has_chinese")
 
