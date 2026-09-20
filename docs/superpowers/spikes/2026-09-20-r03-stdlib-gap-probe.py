@@ -21,10 +21,13 @@ This probe therefore measures in-process, off disk, with no subprocess:
      every stdlib name it touches -- dotted submodules included -- lands in
      sys.modules, whether NVDA provides it or the add-on is shimming it.
   2. Keep every sys.modules name whose root package is in
-     sys.stdlib_module_names. A name currently resolving from the add-on's
-     own directories is labelled shimmed-by-addon and kept as a PRIME
-     candidate for category 1, never excluded -- that is where the one
-     known member, `secrets`, lives today.
+     sys.stdlib_module_names, has its own __file__ (frozen/builtin names
+     come from the interpreter itself, never library.zip), and is not an
+     alias of another sys.modules entry (os.path is ntpath/posixpath under
+     another name; that real name is checked on its own). A name currently
+     resolving from the add-on's own directories is labelled shimmed-by-addon
+     and kept as a PRIME candidate for category 1, never excluded -- that is
+     where the one known member, `secrets`, lives today.
   3. Read what NVDA's frozen runtime actually provides from disk: the
      namelist of its library.zip, the loose .py/.pyd/.dll files in its
      program directory, and sys.builtin_module_names.
@@ -53,8 +56,29 @@ def _root_name(name):
 	return name.split(".", 1)[0]
 
 
+def _is_alias(module, name):
+	"""True if `name` is not this module's own canonical identity -- it is a second
+	sys.modules key pointing at a module that answers to a different name and is
+	checked separately under that name. Two independent CPython identity signals
+	are consulted because neither is authoritative on its own: sys.modules["os.path"]
+	disagrees with `module.__name__` (which is "ntpath"/"posixpath") but agrees with
+	`module.__spec__.name`; some frozen bootstrap modules do the reverse (agree on
+	__name__, disagree on __spec__.name). Either disagreeing is enough to call it an
+	alias, so both cases are caught the same way.
+	"""
+	if getattr(module, "__name__", name) != name:
+		return True
+	spec = getattr(module, "__spec__", None)
+	if spec is not None and getattr(spec, "name", name) != name:
+		return True
+	return False
+
+
 def _needed_stdlib_names():
-	"""Every sys.modules name (dotted submodules included) whose root package is stdlib; a name resolving from the add-on's own directories is flagged, not excluded."""
+	"""Every sys.modules name (dotted submodules included) whose root package is
+	stdlib, has its own __file__, and is not an alias of another sys.modules entry;
+	a name resolving from the add-on's own directories is flagged, not excluded.
+	"""
 	stdlib_roots = set(sys.stdlib_module_names)
 	needed = {}
 	for name, module in list(sys.modules.items()):
@@ -63,17 +87,24 @@ def _needed_stdlib_names():
 		if _root_name(name) not in stdlib_roots:
 			continue
 		path = getattr(module, "__file__", None)
+		if path is None:
+			continue
+		if _is_alias(module, name):
+			continue
 		needed[name] = _is_vendor(path)
 	return needed
 
 
 def _zip_entry_to_module_name(entry):
-	"""Zip entry path to dotted module name; '__init__' entries collapse to their package."""
+	"""Zip entry path to dotted module name; '__init__' entries collapse to their package.
+	Accepts .pyd too -- today's py2exe layout keeps extension modules beside the zip, not
+	in it, but a future layout using zipextimporter-style bundling would put them inside.
+	"""
 	entry = entry.replace("\\", "/")
 	if entry.endswith("/"):
 		return None
 	root, ext = os.path.splitext(entry)
-	if ext.lower() not in (".py", ".pyc", ".pyo"):
+	if ext.lower() not in (".py", ".pyc", ".pyo", ".pyd"):
 		return None
 	parts = [part for part in root.split("/") if part]
 	if not parts:
@@ -86,15 +117,22 @@ def _zip_entry_to_module_name(entry):
 
 
 def _library_zip_path():
-	"""Locate NVDA's library.zip from a loaded module's __file__, falling back to beside sys.executable."""
+	"""Locate NVDA's library.zip from a loaded module's __file__, falling back to beside
+	sys.executable. Walks path components with os.path rather than slicing by an index
+	found on a case-folded copy of the path -- str.lower() is not length-preserving for
+	some non-ASCII characters, so a profile path containing one could garble that slice.
+	"""
 	for _name, module in list(sys.modules.items()):
 		path = getattr(module, "__file__", None)
 		if not path:
 			continue
-		lowered = path.lower()
-		if "library.zip" in lowered:
-			index = lowered.index("library.zip")
-			return path[: index + len("library.zip")]
+		head = path
+		while True:
+			head, tail = os.path.split(head)
+			if not tail:
+				break
+			if tail.lower() == "library.zip":
+				return os.path.join(head, tail)
 	candidate = os.path.join(os.path.dirname(sys.executable), "library.zip")
 	if os.path.isfile(candidate):
 		return candidate
@@ -187,6 +225,16 @@ def probe_2():
 		return lines
 
 	lines.append(f"names NVDA's runtime provides (zip + program dir + builtins): {len(provided)}")
+
+	sentinel_names = ("os", "json")
+	unseen_sentinels = [sentinel for sentinel in sentinel_names if sentinel not in provided]
+	if unseen_sentinels:
+		lines.append("")
+		lines.append(f"PROBE2 FAILED: {zip_path!r} does not look like NVDA's stdlib-bearing library.zip.")
+		lines.append(f"  expected at least {sentinel_names} to be present; missing: {unseen_sentinels}.")
+		lines.append("  Cannot measure what NVDA provides -- no category 1 list follows.")
+		return lines
+
 	missing = _missing_names(needed, provided)
 	lines.append("")
 	lines.append(f"-- CATEGORY 1 LIST: needed stdlib names NVDA's runtime does not provide ({len(missing)}) --")
@@ -195,6 +243,11 @@ def probe_2():
 			tag = "shimmed-by-addon" if needed[name] else "NOT YET SHIMMED"
 			lines.append(f"  {name}  [{tag}]")
 		lines.append("  ^ every name here needs a copy in package/_stdlib_gapfill/, if not already there")
+		if "secrets" not in missing:
+			lines.append("  ^ SANITY CHECK: 'secrets' is not in this list, and that is also wrong -- it is")
+			lines.append("    already known to be missing (package/secrets.py exists to fill that gap).")
+			lines.append("    Either the probe located the wrong library.zip, or probe 1 above did not")
+			lines.append("    actually import 'secrets' into sys.modules before this probe ran.")
 	else:
 		lines.append("  NONE")
 		lines.append("  ^ SANITY CHECK: 'secrets' is already known to be missing (package/secrets.py")
