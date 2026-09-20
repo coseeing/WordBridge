@@ -1,59 +1,67 @@
-import sys
 import threading
 from collections.abc import Callable
 from concurrent.futures import CancelledError, Future, InvalidStateError
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-	from coseeing_auth import AuthConfig
+	from _wb_vendor.coseeing_auth import AuthConfig
 
 import addonHandler
 
+from . import vendor
+
 addonHandler.initTranslation()
 
-_auth_dependencies_prepared = False
 COSEEING_REFRESH_TOKEN_TARGET = "org.coseeing.wordbridge/refresh"
 
 
-def _auth_dependency_path() -> Path | None:
-	if sys.platform != "win32":
-		return None
+class CoseeingAuthUnavailableError(Exception):
+	"""The Coseeing auth dependencies are not loadable on this runtime."""
 
-	return (
-		Path(__file__).resolve().parents[1]
-		/ "package"
-		/ "_coseeing_auth_deps"
-		/ "py313-win_amd64"
+
+try:
+	from _wb_vendor.authlib.integrations.base_client.errors import OAuthError
+	from _wb_vendor.coseeing_auth.errors import (
+		ClientClosedError,
+		RestoreError,
+		TokenUnavailableError,
+		TokenValidationError,
 	)
+except ImportError as error:  # noqa: F841 - kept for the diagnostic below
+	AUTH_AVAILABLE = False
+	_AUTH_IMPORT_ERROR = error
+
+	class _UnavailableAuthError(Exception):
+		"""Never raised.
+
+		Binding the names keeps every `except ClientClosedError:` in this file
+		valid, so the terminate() path needs no None guards on a runtime where
+		the bundle is absent.
+		"""
+
+	class OAuthError(_UnavailableAuthError):
+		pass
+
+	class ClientClosedError(_UnavailableAuthError):
+		pass
+
+	class RestoreError(_UnavailableAuthError):
+		pass
+
+	class TokenUnavailableError(_UnavailableAuthError):
+		pass
+
+	class TokenValidationError(_UnavailableAuthError):
+		pass
+else:
+	AUTH_AVAILABLE = True
+	_AUTH_IMPORT_ERROR = None
 
 
-def _prepare_auth_dependencies() -> None:
-	global _auth_dependencies_prepared
-	path = _auth_dependency_path()
-	if path is not None and not path.is_dir():
-		raise ImportError(f"Coseeing auth dependencies are unavailable for Python {sys.version_info[:2]}")
-	if path is None:
-		return
-	path_string = str(path)
-	if path_string not in sys.path:
-		sys.path.insert(0, path_string)
-	if _auth_dependencies_prepared:
-		return
-
-	# NVDA may preload its own cryptography from library.zip.  Remove that
-	# module tree before coseeing_auth imports Authlib, otherwise Python keeps
-	# resolving cryptography submodules from the preloaded NVDA package even
-	# after the addon dependency directory is first on sys.path.
-	for module_name in tuple(sys.modules):
-		if module_name == "cryptography" or module_name.startswith("cryptography."):
-			del sys.modules[module_name]
-	_auth_dependencies_prepared = True
-
-
-_prepare_auth_dependencies()
-from authlib.integrations.base_client.errors import OAuthError
-from coseeing_auth.errors import ClientClosedError, RestoreError, TokenUnavailableError, TokenValidationError
+def _unavailable_reason() -> str:
+	runtime = vendor.runtime_key()
+	detail = f"{type(_AUTH_IMPORT_ERROR).__name__}: {_AUTH_IMPORT_ERROR}" if _AUTH_IMPORT_ERROR else "not loaded"
+	return f"Coseeing auth dependencies unavailable (runtime={runtime}, {detail})"
 
 
 class AuthSessionState:
@@ -62,8 +70,7 @@ class AuthSessionState:
 
 
 def build_auth_config() -> "AuthConfig":
-	_prepare_auth_dependencies()
-	from coseeing_auth import AuthConfig
+	from _wb_vendor.coseeing_auth import AuthConfig
 
 	return AuthConfig(
 		issuer="https://sso.coseeing.org",
@@ -76,12 +83,14 @@ def build_auth_config() -> "AuthConfig":
 
 
 def _new_refresh_token_store():
-	from coseeing_auth import WindowsCredentialStore
+	from _wb_vendor.coseeing_auth import WindowsCredentialStore
 
 	return WindowsCredentialStore(COSEEING_REFRESH_TOKEN_TARGET)
 
 
 def has_saved_coseeing_refresh_token() -> bool:
+	if not AUTH_AVAILABLE:
+		return False
 	try:
 		return _new_refresh_token_store().load() is not None
 	except Exception:
@@ -468,7 +477,7 @@ class _NvdaAuthAdapter:
 
 	def client_factory(self) -> object:
 		config = build_auth_config()
-		from coseeing_auth import CoseeingAuthClient, FutureAuthClient
+		from _wb_vendor.coseeing_auth import CoseeingAuthClient, FutureAuthClient
 
 		return FutureAuthClient(CoseeingAuthClient(
 			config,
@@ -562,6 +571,8 @@ _auth_state = AuthSessionState()
 
 def _get_singleton_pair() -> tuple[CoseeingAuthSession, _NvdaAuthAdapter]:
 	global _singleton_adapter, _singleton_session
+	if not AUTH_AVAILABLE:
+		raise CoseeingAuthUnavailableError(_unavailable_reason())
 	with _singleton_lock:
 		if _shutdown_future is not None:
 			raise ClientClosedError("access_token")

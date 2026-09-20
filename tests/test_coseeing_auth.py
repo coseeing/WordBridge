@@ -36,32 +36,34 @@ class ClientClosedError(AuthError):
 
 addon_handler = types.ModuleType("addonHandler")
 addon_handler.initTranslation = lambda: None
-authlib = types.ModuleType("authlib")
-authlib_integrations = types.ModuleType("authlib.integrations")
-authlib_base_client = types.ModuleType("authlib.integrations.base_client")
-authlib_errors = types.ModuleType("authlib.integrations.base_client.errors")
+authlib = types.ModuleType("_wb_vendor.authlib")
+authlib_integrations = types.ModuleType("_wb_vendor.authlib.integrations")
+authlib_base_client = types.ModuleType("_wb_vendor.authlib.integrations.base_client")
+authlib_errors = types.ModuleType("_wb_vendor.authlib.integrations.base_client.errors")
 authlib_errors.OAuthError = OAuthError
-coseeing_auth = types.ModuleType("coseeing_auth")
-coseeing_errors = types.ModuleType("coseeing_auth.errors")
+coseeing_auth = types.ModuleType("_wb_vendor.coseeing_auth")
+coseeing_errors = types.ModuleType("_wb_vendor.coseeing_auth.errors")
 for error in (LoginError, RestoreError, TokenUnavailableError, TokenValidationError, ClientClosedError):
 	setattr(coseeing_auth, error.__name__, error)
 	setattr(coseeing_errors, error.__name__, error)
 sys.modules.update({
 	"addonHandler": addon_handler,
-	"authlib": authlib,
-	"authlib.integrations": authlib_integrations,
-	"authlib.integrations.base_client": authlib_base_client,
-	"authlib.integrations.base_client.errors": authlib_errors,
-	"coseeing_auth": coseeing_auth,
-	"coseeing_auth.errors": coseeing_errors,
+	"_wb_vendor.authlib": authlib,
+	"_wb_vendor.authlib.integrations": authlib_integrations,
+	"_wb_vendor.authlib.integrations.base_client": authlib_base_client,
+	"_wb_vendor.authlib.integrations.base_client.errors": authlib_errors,
+	"_wb_vendor.coseeing_auth": coseeing_auth,
+	"_wb_vendor.coseeing_auth.errors": coseeing_errors,
 })
 
 from lib.coseeing_auth import AuthSessionState, CoseeingAuthSession
 import lib.coseeing_auth as auth_module
 
 for module_name in (
-	"addonHandler", "authlib", "authlib.integrations", "authlib.integrations.base_client",
-	"authlib.integrations.base_client.errors", "coseeing_auth", "coseeing_auth.errors",
+	"addonHandler", "_wb_vendor.authlib", "_wb_vendor.authlib.integrations",
+	"_wb_vendor.authlib.integrations.base_client",
+	"_wb_vendor.authlib.integrations.base_client.errors", "_wb_vendor.coseeing_auth",
+	"_wb_vendor.coseeing_auth.errors",
 ):
 	sys.modules.pop(module_name, None)
 from concurrent.futures import CancelledError, Future
@@ -74,6 +76,7 @@ from pathlib import Path
 
 import pytest
 
+from lib import vendor
 from coseeing_auth_helpers import AuthHarness, FakeAuth
 
 
@@ -95,50 +98,84 @@ def test_guest_is_remembered_until_reconsidered():
 	assert h.auth is not None
 
 
-def test_auth_errors_import_after_runtime_dependency_preparation(tmp_path):
+def test_auth_error_classes_bind_when_the_sandbox_resolves_the_bundle(tmp_path):
+	"""Rewritten for the sandbox (R03 ruling P2).
+
+	The old test faked bare `authlib`/`coseeing_auth` modules and relied on
+	`_prepare_auth_dependencies()`'s sys.path insertion, which R03 removed.
+	This installs the real `_wb_vendor` sandbox against a fabricated bundle
+	tree -- the shape `vendor.default_roots()` expects, a runtime-specific
+	`authlib` under `_coseeing_auth_deps/py313-win_amd64` and a
+	runtime-independent `coseeing_auth` at the package root -- and asserts
+	`lib.coseeing_auth`'s error classes bind to real classes rather than the
+	unavailable placeholders.
+	"""
 	addon = tmp_path / "addon"
 	lib = addon / "lib"
-	deps = addon / "package" / "_coseeing_auth_deps" / "py313-win_amd64"
+	package = addon / "package"
+	deps = package / "_coseeing_auth_deps" / "py313-win_amd64"
+	auth_pkg = package / "coseeing_auth"
+	authlib_base_client = deps / "authlib" / "integrations" / "base_client"
 	lib.mkdir(parents=True)
-	deps.mkdir(parents=True)
+	auth_pkg.mkdir(parents=True)
+	authlib_base_client.mkdir(parents=True)
+
 	shutil.copy2(Path("addon/globalPlugins/WordBridge/lib/coseeing_auth.py"), lib / "coseeing_auth.py")
 	shutil.copy2(Path("addon/globalPlugins/WordBridge/lib/__init__.py"), lib / "__init__.py")
-	(deps / "runtime_marker.py").write_text("READY = True\n", encoding="utf-8")
-	(deps / "coseeing_auth").mkdir()
-	(deps / "coseeing_auth" / "errors.py").write_text(
-		"from runtime_marker import READY\n"
-		"class ClientClosedError(Exception):\n pass\n"
-		"class RestoreError(Exception):\n pass\n"
-		"class TokenUnavailableError(Exception):\n pass\n"
-		"class TokenValidationError(Exception):\n pass\n",
+	shutil.copy2(Path("addon/globalPlugins/WordBridge/lib/vendor.py"), lib / "vendor.py")
+
+	(auth_pkg / "errors.py").write_text(
+		"class ClientClosedError(Exception):\n\tpass\n"
+		"class RestoreError(Exception):\n\tpass\n"
+		"class TokenUnavailableError(Exception):\n\tpass\n"
+		"class TokenValidationError(Exception):\n\tpass\n",
 		encoding="utf-8",
 	)
-	(deps / "coseeing_auth" / "__init__.py").write_text(
-		"from runtime_marker import READY\nfrom .errors import *\n", encoding="utf-8"
+	(auth_pkg / "__init__.py").write_text("from .errors import *\n", encoding="utf-8")
+
+	(deps / "authlib" / "__init__.py").write_text("", encoding="utf-8")
+	(deps / "authlib" / "integrations" / "__init__.py").write_text("", encoding="utf-8")
+	(authlib_base_client / "__init__.py").write_text("", encoding="utf-8")
+	(authlib_base_client / "errors.py").write_text(
+		"class OAuthError(Exception):\n\tpass\n", encoding="utf-8"
 	)
+
 	code = """
 	import sys
 	import types
 	sys.platform = "win32"
+	sys.version_info = (3, 13, 0)
 	sys.path.insert(0, sys.argv[1])
 	addon_handler = types.ModuleType("addonHandler")
 	addon_handler.initTranslation = lambda: None
 	sys.modules["addonHandler"] = addon_handler
-	authlib_errors = types.ModuleType("authlib.integrations.base_client.errors")
-	authlib_errors.OAuthError = type("OAuthError", (Exception,), {})
-	sys.modules["authlib"] = types.ModuleType("authlib")
-	sys.modules["authlib.integrations"] = types.ModuleType("authlib.integrations")
-	sys.modules["authlib.integrations.base_client"] = types.ModuleType("authlib.integrations.base_client")
-	sys.modules["authlib.integrations.base_client.errors"] = authlib_errors
-	from lib.coseeing_auth import CoseeingAuthSession
-	assert CoseeingAuthSession
+	from lib import vendor
+	vendor.install(vendor.default_roots(sys.argv[2]))
+	import lib.coseeing_auth as module
+	assert module.AUTH_AVAILABLE is True, module._AUTH_IMPORT_ERROR
+	assert issubclass(module.OAuthError, Exception)
+	assert issubclass(module.ClientClosedError, Exception)
+	assert issubclass(module.RestoreError, Exception)
+	assert issubclass(module.TokenUnavailableError, Exception)
+	assert issubclass(module.TokenValidationError, Exception)
 	"""
-	subprocess.run([sys.executable, "-S", "-c", code, str(addon)], check=True, capture_output=True, text=True)
+	subprocess.run(
+		[sys.executable, "-S", "-c", code, str(addon), str(package)],
+		check=True, capture_output=True, text=True,
+	)
 
 
-def test_runtime_dependency_path_selects_supported_runtime(monkeypatch):
-	monkeypatch.setattr(auth_module.sys, "platform", "win32")
-	assert auth_module._auth_dependency_path().name == "py313-win_amd64"
+def test_default_roots_selects_the_windows_deps_root_for_a_supported_runtime(monkeypatch):
+	"""Rewritten for the sandbox (R03 ruling P2): runtime selection now lives
+	in `vendor.default_roots()`, not the deleted `_auth_dependency_path()`.
+	"""
+	monkeypatch.setattr(sys, "platform", "win32")
+	monkeypatch.setattr(sys, "version_info", (3, 13, 0))
+	package_path = Path("addon/globalPlugins/WordBridge/package")
+
+	roots = vendor.default_roots(package_path)
+
+	assert roots[-1] == str(package_path / "_coseeing_auth_deps" / "py313-win_amd64")
 
 
 def test_saved_session_restore_returns_access_without_manual_refresh_callbacks():

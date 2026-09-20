@@ -32,12 +32,14 @@ class TokenValidationError(Exception):
 
 _TEMPORARY_IMPORT_MODULES = {
 	"addonHandler": types.ModuleType("addonHandler"),
-	"authlib": types.ModuleType("authlib"),
-	"authlib.integrations": types.ModuleType("authlib.integrations"),
-	"authlib.integrations.base_client": types.ModuleType("authlib.integrations.base_client"),
-	"authlib.integrations.base_client.errors": types.ModuleType("authlib.integrations.base_client.errors"),
-	"coseeing_auth": types.ModuleType("coseeing_auth"),
-	"coseeing_auth.errors": types.ModuleType("coseeing_auth.errors"),
+	"_wb_vendor.authlib": types.ModuleType("_wb_vendor.authlib"),
+	"_wb_vendor.authlib.integrations": types.ModuleType("_wb_vendor.authlib.integrations"),
+	"_wb_vendor.authlib.integrations.base_client": types.ModuleType("_wb_vendor.authlib.integrations.base_client"),
+	"_wb_vendor.authlib.integrations.base_client.errors": types.ModuleType(
+		"_wb_vendor.authlib.integrations.base_client.errors"
+	),
+	"_wb_vendor.coseeing_auth": types.ModuleType("_wb_vendor.coseeing_auth"),
+	"_wb_vendor.coseeing_auth.errors": types.ModuleType("_wb_vendor.coseeing_auth.errors"),
 }
 _MISSING_MODULE = object()
 _ORIGINAL_IMPORT_MODULES = {
@@ -45,9 +47,9 @@ _ORIGINAL_IMPORT_MODULES = {
 	for name in _TEMPORARY_IMPORT_MODULES
 }
 _TEMPORARY_IMPORT_MODULES["addonHandler"].initTranslation = lambda: None
-_TEMPORARY_IMPORT_MODULES["authlib.integrations.base_client.errors"].OAuthError = OAuthError
+_TEMPORARY_IMPORT_MODULES["_wb_vendor.authlib.integrations.base_client.errors"].OAuthError = OAuthError
 for error in (ClientClosedError, RestoreError, TokenUnavailableError, TokenValidationError):
-	setattr(_TEMPORARY_IMPORT_MODULES["coseeing_auth.errors"], error.__name__, error)
+	setattr(_TEMPORARY_IMPORT_MODULES["_wb_vendor.coseeing_auth.errors"], error.__name__, error)
 sys.modules.update(_TEMPORARY_IMPORT_MODULES)
 
 import lib.coseeing_auth as module
@@ -762,7 +764,7 @@ def test_client_factory_injects_exact_windows_credential_target(monkeypatch):
 		class DefaultButtonSet:
 			YES_NO = 4
 	_install_nvda(monkeypatch, dialog=object, wx=Wx)
-	monkeypatch.setitem(sys.modules, "coseeing_auth", SimpleNamespace(
+	monkeypatch.setitem(sys.modules, "_wb_vendor.coseeing_auth", SimpleNamespace(
 		CoseeingAuthClient=Client, FutureAuthClient=FutureClient, WindowsCredentialStore=Store,
 	))
 	config = object()

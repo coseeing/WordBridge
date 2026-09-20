@@ -423,3 +423,54 @@ def test_secrets_gapfill_ships_and_stays_verbatim():
 	normalized = source.read_bytes().replace(b"\r\n", b"\n")
 	digest = hashlib.sha256(normalized).hexdigest()
 	assert digest == "277000574358a6ecda4bb40e73332ae81a3bc1c8e1fa36f50e5c6a7d4d3f0f17"
+
+
+def test_coseeing_auth_module_imports_without_the_bundle():
+	"""The add-on must load on a runtime where the auth bundle is absent."""
+	from lib import coseeing_auth
+
+	assert hasattr(coseeing_auth, "AUTH_AVAILABLE")
+	assert issubclass(coseeing_auth.ClientClosedError, BaseException)
+	assert issubclass(coseeing_auth.OAuthError, BaseException)
+
+
+def test_unavailable_auth_yields_a_failed_future_not_an_exception(monkeypatch):
+	from lib import coseeing_auth
+
+	monkeypatch.setattr(coseeing_auth, "AUTH_AVAILABLE", False)
+	monkeypatch.setattr(coseeing_auth, "_singleton_session", None)
+	monkeypatch.setattr(coseeing_auth, "_singleton_adapter", None)
+
+	future = coseeing_auth.get_coseeing_access_token()
+
+	assert isinstance(future.exception(), coseeing_auth.CoseeingAuthUnavailableError)
+
+
+def test_unavailable_auth_leaves_shutdown_a_no_op(monkeypatch):
+	from lib import coseeing_auth
+
+	monkeypatch.setattr(coseeing_auth, "AUTH_AVAILABLE", False)
+	monkeypatch.setattr(coseeing_auth, "_shutdown_future", None)
+	monkeypatch.setattr(coseeing_auth, "_singleton_session", None)
+	monkeypatch.setattr(coseeing_auth, "_singleton_adapter", None)
+
+	future = coseeing_auth.shutdown_coseeing_auth()
+
+	assert future.done()
+	assert future.exception() is None
+
+
+def test_has_saved_refresh_token_is_false_without_the_bundle(monkeypatch):
+	from lib import coseeing_auth
+
+	monkeypatch.setattr(coseeing_auth, "AUTH_AVAILABLE", False)
+
+	assert coseeing_auth.has_saved_coseeing_refresh_token() is False
+
+
+def test_no_module_deletion_or_path_injection_remains():
+	source = Path("addon/globalPlugins/WordBridge/lib/coseeing_auth.py").read_text(encoding="utf8")
+
+	assert "del sys.modules" not in source
+	assert "sys.path.insert" not in source
+	assert "_prepare_auth_dependencies" not in source
