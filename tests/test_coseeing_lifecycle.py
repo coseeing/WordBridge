@@ -87,3 +87,51 @@ def test_post_holds_no_lock_across_the_http_call(monkeypatch):
 	plugin_module.GlobalPlugin._post_coseeing_request(instance, "http://example.invalid")
 
 	assert terminate_finished.is_set()
+
+
+def test_notify_schedules_nothing_once_shutdown_started(monkeypatch):
+	queued = []
+	plugin_module = _plugin(monkeypatch, queued)
+	instance = _instance(plugin_module)
+	instance._shutdown.set()
+
+	plugin_module.GlobalPlugin._notify(instance, "訊息")
+
+	assert queued == []
+
+
+def test_notify_callback_is_inert_if_shutdown_happens_before_delivery(monkeypatch):
+	queued = []
+	plugin_module = _plugin(monkeypatch, queued)
+	instance = _instance(plugin_module)
+	messages = []
+	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
+
+	plugin_module.GlobalPlugin._notify(instance, "訊息")
+	assert len(queued) == 1
+
+	instance._shutdown.set()
+	callback, args = queued.pop()
+	callback(*args)
+
+	assert messages == []
+
+
+def test_clipboard_and_report_are_dispatched_not_called_inline(monkeypatch):
+	queued = []
+	plugin_module = _plugin(monkeypatch, queued)
+	instance = _instance(plugin_module)
+	copied = []
+	reported = []
+	monkeypatch.setattr(plugin_module.api, "copyToClip", copied.append, raising=False)
+	monkeypatch.setattr(plugin_module.GlobalPlugin, "showReport", lambda self, diff: reported.append(diff))
+
+	plugin_module.GlobalPlugin._run_on_ui(instance, plugin_module.api.copyToClip, "修正")
+	plugin_module.GlobalPlugin._run_on_ui(instance, instance.showReport, [])
+
+	assert copied == []
+	assert reported == []
+	for callback, args in queued:
+		callback(*args)
+	assert copied == ["修正"]
+	assert reported == [[]]

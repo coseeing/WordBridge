@@ -106,16 +106,20 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(LLMSettingsPanel)
 		super().terminate(*args, **kwargs)
 
-	def _post_coseeing_ui(self, function, *args):
+	def _run_on_ui(self, function, *args):
 		if self._shutdown.is_set():
 			return
 		def deliver():
-			if not self._shutdown.is_set():
-				function(*args)
+			if self._shutdown.is_set():
+				return
+			function(*args)
 		try:
 			wx.CallAfter(deliver)
 		except Exception:
 			return
+
+	def _notify(self, message):
+		self._run_on_ui(ui.message, message)
 
 	def _post_coseeing_request(self, url, **kwargs):
 		if self._shutdown.is_set():
@@ -279,7 +283,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					backoff=1,
 				)
 			except Exception as e:
-				ui.message(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
+				self._notify(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 				log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 				raise e
 				return
@@ -293,7 +297,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				access_token = get_coseeing_access_token().result()
 				headers = build_coseeing_headers(access_token)
 			except Exception:
-				self._post_coseeing_ui(ui.message, _("Sorry, an error occurred while authenticating with Coseeing."))
+				self._notify(_("Sorry, an error occurred while authenticating with Coseeing."))
 				return
 
 			data = {
@@ -312,22 +316,21 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					if timeout_type is not None and isinstance(error, timeout_type)
 					else _("The Coseeing request failed. Please try again later.")
 				)
-				self._post_coseeing_ui(ui.message, message)
+				self._notify(message)
 				return
 			if data is None or self._shutdown.is_set():
 				return
 			if data.status_code == 401:
-				self._post_coseeing_ui(ui.message, _("Authentication error. Please sign in to Coseeing or check your account permissions."))
+				self._notify(_("Authentication error. Please sign in to Coseeing or check your account permissions."))
 				return
 			elif data.status_code == 429:
-				self._post_coseeing_ui(
-					ui.message,
+				self._notify(
 					_("Rate limit reached for requests or you exceeded your current quota. ") +\
 					_("Please reduce the frequency of sending requests or check your account balance.")
 				)
 				return
 			elif data.status_code >= 400:
-				self._post_coseeing_ui(ui.message, _("The Coseeing request failed. Please try again later."))
+				self._notify(_("The Coseeing request failed. Please try again later."))
 				return
 			try:
 				result = data.json()
@@ -335,7 +338,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				interaction_id = result["interaction_id"]
 				cost = result["cost"]
 			except (ValueError, KeyError, TypeError):
-				self._post_coseeing_ui(ui.message, _("The Coseeing response was invalid. Please try again later."))
+				self._notify(_("The Coseeing response was invalid. Please try again later."))
 				return
 
 		diff = strings_diff(request, response)
@@ -348,36 +351,27 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		}
 
 		if request == response:
-			if execution_channel == "Coseeing":
-				self._post_coseeing_ui(ui.message, _("No errors in the selected text."))
-			else:
-				ui.message(_("No errors in the selected text."))
+			self._notify(_("No errors in the selected text."))
 			log.warning(_("No errors in the selected text."))
 			return
 
-		api.copyToClip(response)
-		if execution_channel == "Coseeing":
-			self._post_coseeing_ui(ui.message, _("The corrected text has been copied to the clipboard."))
-		else:
-			ui.message(_("The corrected text has been copied to the clipboard."))
+		self._run_on_ui(api.copyToClip, response)
+		self._notify(_("The corrected text has been copied to the clipboard."))
 		log.warning(_("The corrected text has been copied to the clipboard."))
 
 		try:
 			cost = decimal_to_str_0(cost)
 		except:
 			pass
-		if execution_channel == "Coseeing":
-			self._post_coseeing_ui(ui.message, _("This task costs {cost} USD.").format(cost=cost))
-		else:
-			ui.message(_("This task costs {cost} USD.").format(cost=cost))
+		self._notify(_("This task costs {cost} USD.").format(cost=cost))
 		log.warning(_("This task costs {cost} USD.").format(cost=cost))
 
 		if config.conf["WordBridge"]["settings"]["auto_display_report"]:
-			self.showReport(self.latest_action["diff"])
+			self._run_on_ui(self.showReport, diff)
 
 	def correctionAction(self, text):
 		if self.correct_typo_thread and self.correct_typo_thread.is_alive():
-			ui.message(_("Only one proofreading task can run at a time. Please wait until the current task has finished before starting another."))
+			self._notify(_("Only one proofreading task can run at a time. Please wait until the current task has finished before starting another."))
 			return
 
 		self.correct_typo_thread = threading.Thread(target=self.correctTypo, args=(text,))
@@ -493,7 +487,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			headers = build_coseeing_headers(access_token)
 		except Exception as error:
 			message = _("The Coseeing authentication failed. Please try again later.")
-			self._post_coseeing_ui(ui.message, message)
+			self._notify(message)
 			return
 		message = None
 		try:
@@ -518,4 +512,4 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			else:
 				message = _("Sorry, the Coseeing feedback request failed. Please try again later.")
 		if message is not None:
-			self._post_coseeing_ui(ui.message, message)
+			self._notify(message)
