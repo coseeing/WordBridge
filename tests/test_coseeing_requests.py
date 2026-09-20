@@ -1,3 +1,4 @@
+import threading
 from concurrent.futures import Future
 from types import SimpleNamespace
 
@@ -40,7 +41,7 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance.latest_action = {}
 	instance.readDictionary = lambda: []
-	instance._coseeing_auth_terminated = False
+	instance._shutdown = threading.Event()
 	future = Future()
 	future.set_result(access_token)
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
@@ -73,7 +74,7 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 			"typo_correction_mode": "standard",
 			"customized_words": [],
 		},
-		"timeout": 120,
+		"timeout": (10, 120),
 	}
 
 
@@ -93,7 +94,7 @@ def test_proofreader_auth_failure_skips_post_and_queues_ui_notification(monkeypa
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance.latest_action = {}
 	instance.readDictionary = lambda: []
-	instance._coseeing_auth_terminated = False
+	instance._shutdown = threading.Event()
 	future = Future()
 	future.set_exception(RuntimeError("auth failed"))
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
@@ -127,7 +128,8 @@ def test_proofreader_termination_before_worker_request_skips_post_and_ui(monkeyp
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance.latest_action = {}
 	instance.readDictionary = lambda: []
-	instance._coseeing_auth_terminated = True
+	instance._shutdown = threading.Event()
+	instance._shutdown.set()
 	future = Future()
 	future.set_result("access")
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
@@ -156,7 +158,7 @@ def test_proofreader_failures_use_stable_notification(monkeypatch, failure):
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance.latest_action = {}
 	instance.readDictionary = lambda: []
-	instance._coseeing_auth_terminated = False
+	instance._shutdown = threading.Event()
 	future = Future()
 	future.set_result("access")
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
@@ -215,7 +217,7 @@ def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeyp
 		"api_key": {},
 	}, [], queued)
 	instance = object.__new__(plugin_module.GlobalPlugin)
-	instance._coseeing_auth_terminated = False
+	instance._shutdown = threading.Event()
 	instance.latest_action = {"interaction_id": "i-old", "request": "原文", "response": "修正"}
 	future = Future()
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
@@ -256,7 +258,7 @@ def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeyp
 	assert record["url"] == f"{plugin_module.COSEEING_BASE_URL}/feedback"
 	assert record["headers"] == {}
 	assert record["json"] == {"interaction_id": "i-old", "review_content": "回饋"}
-	assert record["timeout"] == 120
+	assert record["timeout"] == (10, 120)
 
 
 def test_feedback_auth_failure_skips_post_and_notifies_on_ui(monkeypatch):
@@ -269,7 +271,7 @@ def test_feedback_auth_failure_skips_post_and_notifies_on_ui(monkeypatch):
 		"api_key": {},
 	}, [], queued)
 	instance = object.__new__(plugin_module.GlobalPlugin)
-	instance._coseeing_auth_terminated = False
+	instance._shutdown = threading.Event()
 	future = Future()
 	future.set_exception(RuntimeError("auth failed"))
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
@@ -301,7 +303,7 @@ def _feedback_worker_fixture(monkeypatch, response, access_token="access"):
 		"api_key": {},
 	}, [], queued)
 	instance = object.__new__(plugin_module.GlobalPlugin)
-	instance._coseeing_auth_terminated = False
+	instance._shutdown = threading.Event()
 	future = Future()
 	future.set_result(access_token)
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
@@ -331,7 +333,7 @@ def test_feedback_uses_bearer_header_and_preserves_payload(monkeypatch):
 		"url": f"{plugin_module.COSEEING_BASE_URL}/feedback",
 		"headers": {"Authorization": "Bearer access"},
 		"json": {"interaction_id": "i-1", "review_content": "回饋"},
-		"timeout": 120,
+		"timeout": (10, 120),
 	}
 	assert queued == []
 	assert messages == []
@@ -377,7 +379,7 @@ def test_feedback_timeout_notifies_on_ui(monkeypatch):
 		"api_key": {},
 	}, [], queued)
 	instance = object.__new__(plugin_module.GlobalPlugin)
-	instance._coseeing_auth_terminated = False
+	instance._shutdown = threading.Event()
 	future = Future()
 	future.set_result("access")
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)

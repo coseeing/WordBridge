@@ -1,4 +1,5 @@
 import sys
+import threading
 import types
 import unittest
 import builtins
@@ -55,6 +56,7 @@ class TaskArchitectureTests(unittest.TestCase):
 			instance = object.__new__(plugin.GlobalPlugin)
 			instance.readDictionary = lambda: []
 			instance.latest_action = {}
+			instance._shutdown = threading.Event()
 
 			original_post = plugin.requests.post
 

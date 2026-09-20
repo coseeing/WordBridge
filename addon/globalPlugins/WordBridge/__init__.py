@@ -64,6 +64,12 @@ config.conf.spec["WordBridge"] = {
 }
 COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
 # COSEEING_BASE_URL = "http://localhost:8000"
+# Connect fast, but keep the read budget: a proofreading request is proxied to
+# an LLM. Shutdown responsiveness comes from terminate()'s own budget, not from
+# shortening this.
+COSEEING_CONNECT_TIMEOUT = 10
+COSEEING_READ_TIMEOUT = 120
+COSEEING_TIMEOUT = (COSEEING_CONNECT_TIMEOUT, COSEEING_READ_TIMEOUT)
 
 
 def get_coseeing_access_token(*, reconsider_guest=False):
@@ -74,8 +80,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(LLMSettingsPanel)
-		self._coseeing_auth_terminated = False
-		self._coseeing_request_lock = threading.RLock()
+		self._shutdown = threading.Event()
 		settings = config.conf["WordBridge"]["settings"]
 		_, channel, _ = normalize_selection(
 			configManager,
@@ -92,21 +97,20 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self.correct_typo_thread = None
 
 	def _start_coseeing_auth(self, channel):
-		if not self._coseeing_auth_terminated:
+		if not self._shutdown.is_set():
 			start_coseeing_auth(channel)
 
 	def terminate(self, *args, **kwargs):
-		with self._coseeing_request_lock:
-			self._coseeing_auth_terminated = True
+		self._shutdown.set()
 		shutdown_coseeing_auth()
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(LLMSettingsPanel)
 		super().terminate(*args, **kwargs)
 
 	def _post_coseeing_ui(self, function, *args):
-		if self._coseeing_auth_terminated:
+		if self._shutdown.is_set():
 			return
 		def deliver():
-			if not self._coseeing_auth_terminated:
+			if not self._shutdown.is_set():
 				function(*args)
 		try:
 			wx.CallAfter(deliver)
@@ -114,12 +118,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return
 
 	def _post_coseeing_request(self, url, **kwargs):
-		if not hasattr(self, "_coseeing_request_lock"):
-			self._coseeing_request_lock = threading.RLock()
-		with self._coseeing_request_lock:
-			if self._coseeing_auth_terminated:
-				return None
-			return requests.post(url, **kwargs)
+		if self._shutdown.is_set():
+			return None
+		kwargs.setdefault("timeout", COSEEING_TIMEOUT)
+		response = requests.post(url, **kwargs)
+		if self._shutdown.is_set():
+			return None
+		return response
 
 	def onSettings(self, evt):
 		wx.CallAfter(
@@ -282,7 +287,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			interaction_id = None
 			cost = result.cost
 		else:
-			if self._coseeing_auth_terminated:
+			if self._shutdown.is_set():
 				return
 			try:
 				access_token = get_coseeing_access_token().result()
@@ -299,7 +304,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				"customized_words": customized_words,
 			}
 			try:
-				data = self._post_coseeing_request(f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data, timeout=120)
+				data = self._post_coseeing_request(f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data)
 			except Exception as error:
 				timeout_type = getattr(getattr(requests, "exceptions", None), "Timeout", None)
 				message = (
@@ -309,7 +314,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				)
 				self._post_coseeing_ui(ui.message, message)
 				return
-			if data is None or self._coseeing_auth_terminated:
+			if data is None or self._shutdown.is_set():
 				return
 			if data.status_code == 401:
 				self._post_coseeing_ui(ui.message, _("Authentication error. Please sign in to Coseeing or check your account permissions."))
@@ -459,7 +464,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return
 
 		def show():
-			if self._coseeing_auth_terminated:
+			if self._shutdown.is_set():
 				return
 			with FeedbackDialog(
 				gui.mainFrame,
@@ -494,9 +499,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		try:
 			response = self._post_coseeing_request(
 				f"{COSEEING_BASE_URL}/feedback", headers=headers,
-				json={"interaction_id": interaction_id, "review_content": feedback_value}, timeout=120
+				json={"interaction_id": interaction_id, "review_content": feedback_value}
 			)
-			if response is None or self._coseeing_auth_terminated:
+			if response is None or self._shutdown.is_set():
 				return
 			if response.status_code == 401:
 				message = _("Authentication error. Please sign in to Coseeing or check your account permissions.")
