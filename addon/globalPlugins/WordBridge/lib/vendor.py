@@ -11,6 +11,7 @@ See docs/superpowers/specs/2026-09-20-r03-import-isolation-design.md.
 
 import builtins
 import importlib.abc
+import importlib.util
 import os
 import struct
 import sys
@@ -18,6 +19,37 @@ import types
 from importlib.machinery import ExtensionFileLoader, ModuleSpec, PathFinder
 
 PREFIX = "_wb_vendor"
+
+# Must come from us.  Prefix-only; never a global top-level name.
+ISOLATED = frozenset({
+	"cryptography",
+	"authlib",
+	"joserfc",
+	"jwt",
+	"coseeing_auth",
+	"pypinyin",
+	"zhon",
+	"hanzidentifier",
+	"chinese_converter",
+})
+
+# Must come from the host.  We ship copies, but they are never loaded: NVDA
+# preloads all of these and sys.path insertion cannot displace a loaded module,
+# so our copies have never run in production.  There is deliberately no
+# fallback to them -- if NVDA ever stops shipping one, that must fail loudly
+# rather than silently switch to an untested copy.
+HOST_ONLY = frozenset({
+	"requests",
+	"urllib3",
+	"certifi",
+	"idna",
+	"charset_normalizer",
+	"cffi",
+	"_cffi_backend",
+	"pycparser",
+})
+
+STDLIB_GAPFILL_DIRNAME = "_stdlib_gapfill"
 
 
 def _make_sandbox_import(prefix, isolated, real_import):
@@ -60,9 +92,12 @@ class _SandboxLoader(importlib.abc.Loader):
 	inside functions and executed much later -- go through our rewrite.  It does
 	not reach ``importlib.import_module()`` or any other resolution that
 	bypasses a module's own ``__import__``: spec fact 7 found zero such call
-	sites across the bundled category 2 packages, and the Windows gate (test 12)
-	asserts module origins rather than trusting the mechanism, to catch a future
-	dependency version that adds one.
+	sites across ``cryptography``, ``authlib``, ``joserfc`` and ``jwt``, and a
+	separate grep across all nine category 2 packages for
+	``import_module``/``__import__(``/``importlib.resources``/``pkgutil``/
+	``pkg_resources`` confirms the same holds for the rest.  The Windows gate
+	(test 12) asserts module origins rather than trusting the mechanism, to
+	catch a future dependency version that adds one.
 	"""
 
 	def __init__(self, loader, sandbox_import):
@@ -149,3 +184,44 @@ def install(roots, *, prefix=PREFIX, isolated=None):
 		sandbox_import = _make_sandbox_import(prefix, isolated, builtins.__import__)
 		sys.meta_path.insert(0, _SandboxFinder(prefix, sandbox_import))
 	return namespace
+
+
+def install_stdlib_gapfill(package_path):
+	"""Register copies of stdlib modules NVDA removed, under canonical names.
+
+	NVDA's Python omits parts of the standard library -- `secrets` is the
+	member known today.  The shared coseeing_auth package and the vendored
+	third-party packages import those as ordinary stdlib, so they cannot be
+	prefixed; they have to answer to the canonical name.
+
+	Registration is conditional: the host is tried first, and our copy is used
+	only if the host has none.  A future NVDA that restores the module then
+	wins, instead of being shadowed by our frozen copy -- which would turn a
+	gap-fill into the shadowing this whole design exists to remove.
+	"""
+	directory = os.path.join(str(package_path), STDLIB_GAPFILL_DIRNAME)
+	if not os.path.isdir(directory):
+		return []
+	registered = []
+	for entry in sorted(os.listdir(directory)):
+		name, extension = os.path.splitext(entry)
+		if extension != ".py" or name.startswith("_"):
+			continue
+		if name in sys.modules:
+			continue
+		try:
+			builtins.__import__(name)
+		except ImportError:
+			pass
+		else:
+			continue
+		spec = importlib.util.spec_from_file_location(name, os.path.join(directory, entry))
+		module = importlib.util.module_from_spec(spec)
+		sys.modules[name] = module
+		try:
+			spec.loader.exec_module(module)
+		except Exception:
+			del sys.modules[name]
+			raise
+		registered.append(name)
+	return registered

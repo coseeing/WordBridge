@@ -244,3 +244,71 @@ def test_runtime_key_matches_the_bundle_directory_actually_on_disk(monkeypatch):
 
 	assert (deps_dir / "py313-win_amd64").is_dir()
 	assert vendor.runtime_key() == "py313-win_amd64"
+
+
+from pathlib import Path
+
+PACKAGE_ROOT = Path("addon/globalPlugins/WordBridge/package")
+
+
+def test_every_bundled_top_level_name_is_classified():
+	"""Adding a package to the bundle without classifying it must fail here."""
+	roots = [PACKAGE_ROOT, PACKAGE_ROOT / "_coseeing_auth_deps" / "py313-win_amd64"]
+	skip = {"__pycache__", "_stdlib_gapfill", "_coseeing_auth_deps"}
+	found = set()
+	for root in roots:
+		for entry in root.iterdir():
+			if entry.name in skip:
+				continue
+			if entry.is_dir():
+				if not entry.name.endswith(".dist-info"):
+					found.add(entry.name)
+			elif entry.name.endswith(".py"):
+				found.add(entry.name[:-3])
+			elif entry.name.endswith(".pyd"):
+				found.add(entry.name.split(".")[0])
+
+	assert found == vendor.ISOLATED | vendor.HOST_ONLY
+
+
+def test_categories_do_not_overlap():
+	assert not (vendor.ISOLATED & vendor.HOST_ONLY)
+
+
+def test_gapfill_skips_a_module_the_host_already_provides(tmp_path):
+	directory = tmp_path / "_stdlib_gapfill"
+	directory.mkdir()
+	(directory / "json.py").write_text("RAISE = 'ours'\n", encoding="utf8")
+	host_json = sys.modules["json"]
+
+	registered = vendor.install_stdlib_gapfill(tmp_path)
+
+	assert registered == []
+	assert sys.modules["json"] is host_json
+
+
+def test_gapfill_registers_a_module_the_host_lacks(tmp_path, monkeypatch):
+	directory = tmp_path / "_stdlib_gapfill"
+	directory.mkdir()
+	(directory / "wbfakegap.py").write_text("VALUE = 'gapfill'\n", encoding="utf8")
+	monkeypatch.delitem(sys.modules, "wbfakegap", raising=False)
+
+	registered = vendor.install_stdlib_gapfill(tmp_path)
+	try:
+		assert registered == ["wbfakegap"]
+		assert sys.modules["wbfakegap"].VALUE == "gapfill"
+		assert sys.modules["wbfakegap"].__name__ == "wbfakegap"
+	finally:
+		sys.modules.pop("wbfakegap", None)
+
+
+def test_gapfill_is_a_no_op_without_the_directory(tmp_path):
+	assert vendor.install_stdlib_gapfill(tmp_path) == []
+
+
+def test_secrets_gapfill_ships_and_stays_verbatim():
+	source = PACKAGE_ROOT / "_stdlib_gapfill" / "secrets.py"
+
+	assert source.is_file()
+	assert not (PACKAGE_ROOT / "secrets.py").exists()
+	assert "PEP 506" in source.read_text(encoding="utf8")
