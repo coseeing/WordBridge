@@ -5,8 +5,14 @@ and ENABLED, ideally alongside other add-ons:
 
 	exec(open(r"C:\\path\\to\\2026-09-20-r03-selfcheck.py", encoding="utf8").read())
 
-Every line below is PASS or FAIL.  Report to
-%TEMP%\\wordbridge-r03-selfcheck.txt.
+Every line below is one of PASS, FAIL, INFO, SKIPPED, or "<check> CRASHED:".
+Only PASS and FAIL are verdicts. INFO means the check had nothing to judge
+yet in this session (e.g. a module not loaded); SKIPPED and CRASHED mean the
+check did not run at all. A report with zero FAIL lines is NOT proof of
+health by itself -- a check that never ran also prints zero FAIL lines.
+Read past the footer for INFO/SKIPPED/CRASHED on the checks everything else
+depends on, especially "== namespace ==" and "== _SandboxFinder must be
+present ==". Report to %TEMP%\\wordbridge-r03-selfcheck.txt.
 
 Deviation from spec test 14, stated deliberately: the spec describes
 snapshotting sys.modules and sys.path "before and after the add-on loads".
@@ -20,6 +26,7 @@ none to snapshot from here.
 """
 
 import builtins
+import datetime
 import os
 import sys
 import tempfile
@@ -36,12 +43,42 @@ HOST_ONLY = (
 )
 
 
+def _is_under(path, root):
+	"""True if `path` is `root` itself or something inside it, with a
+	separator boundary so a sibling directory sharing a prefix -- e.g.
+	...\\package2 next to ...\\package -- is never mistaken for being inside.
+	A bare normcase().startswith() has no such boundary.
+	"""
+	target = os.path.normcase(os.path.normpath(str(root)))
+	candidate = os.path.normcase(os.path.normpath(str(path)))
+	return candidate == target or candidate.startswith(target + os.sep)
+
+
 def _addon_root():
 	namespace = sys.modules.get(PREFIX)
 	for entry in getattr(namespace, "__path__", []) or []:
-		if entry.lower().endswith("package"):
+		if isinstance(entry, str) and entry.lower().endswith("package"):
 			return entry
 	return None
+
+
+def _addon_version(package_root):
+	"""Best-effort only. NVDA installs a manifest.ini one level above
+	package/ with a `version = ...` line; this source tree does not carry
+	one (it is generated at packaging time), so "unknown" here is expected
+	when exercised outside a real NVDA install, not a bug in this script.
+	"""
+	if not package_root:
+		return "unknown"
+	manifest_path = os.path.join(os.path.dirname(str(package_root)), "manifest.ini")
+	try:
+		with open(manifest_path, encoding="utf8") as handle:
+			for line in handle:
+				if line.strip().lower().startswith("version"):
+					return line.split("=", 1)[-1].strip().strip('"')
+	except OSError:
+		pass
+	return "unknown"
 
 
 def _verdict(passed, message):
@@ -57,10 +94,41 @@ def check_namespace():
 		return lines, None
 	roots = list(getattr(namespace, "__path__", []) or [])
 	lines.append(f"  roots: {roots}")
-	return lines, _addon_root()
+	root = _addon_root()
+	# A miss here silently disabled three downstream checks in an earlier
+	# version of this script (review round 1). The "package" basename
+	# heuristic is correct today (__init__.py fixes it, vendor.py's
+	# default_roots() appends only the py3xx-win_amd64 runtime root beside
+	# it), but "correct today" must fail loudly the day it stops being true,
+	# not silently downgrade every dependent check to SKIPPED/INFO.
+	lines.append(_verdict(root is not None, f"a package root was identified: {root}"))
+	return lines, root
 
 
-def check_no_global_leak():
+def check_meta_path(package_root):
+	"""_SandboxFinder must actually be installed on sys.meta_path.  This is
+	the single most direct signal of the fail-open failure mode fact (b)
+	describes: if this finder is missing or displaced, every other check in
+	this script can still read as entirely PASS/INFO, because unwrapped
+	imports keep succeeding. Unlike check_sandboxed_import, this does not
+	depend on any _wb_vendor.* module having loaded yet in this session, so
+	it closes that check's "nothing loaded yet" blind spot.
+	"""
+	lines = ["== _SandboxFinder must be present on sys.meta_path =="]
+	index = None
+	for position, finder in enumerate(sys.meta_path):
+		if getattr(finder, "prefix", None) == PREFIX:
+			index = position
+			break
+	if index is None:
+		lines.append(_verdict(False, f"no finder on sys.meta_path advertises prefix={PREFIX!r}"))
+	else:
+		ahead = [type(finder).__name__ for finder in sys.meta_path[:index]]
+		lines.append(_verdict(True, f"_SandboxFinder present at sys.meta_path[{index}]; ahead of it: {ahead}"))
+	return lines
+
+
+def check_no_global_leak(package_root):
 	lines = ["== category 2 must not exist as global names =="]
 	for name in ISOLATED:
 		module = sys.modules.get(name)
@@ -71,21 +139,39 @@ def check_no_global_leak():
 	return lines
 
 
-def check_no_host_only_under_prefix():
+def check_no_host_only_under_prefix(package_root):
 	"""Fact (c): _wb_vendor.__path__ includes the deps root, and
-	deps/requests/__init__.py exists on disk, so _wb_vendor.requests WOULD
-	resolve to our bundled copy if anything ever asked for it -- nothing does
-	today, but nothing stops it either, since HOST_ONLY names are simply not
-	in ISOLATED and _SandboxFinder answers for any name under the prefix.
-	This proves the current session's state rather than the finder's
-	theoretical behaviour: it does not call find_spec (see check_sandboxed_import
-	for why that matters), it only asserts none of these names have actually
-	been loaded under the prefix in sys.modules.
+	deps/requests/__init__.py exists on disk, so a HOST_ONLY name WOULD
+	resolve to our bundled copy if anything ever asked for it under the
+	prefix -- nothing does today, but nothing stops it either, since
+	HOST_ONLY names are simply not in ISOLATED and _SandboxFinder answers
+	for any name under the prefix. This proves the current session's state
+	rather than the finder's theoretical behaviour: it does not call
+	find_spec (see check_sandboxed_import's docstring for why that matters),
+	it only asserts none of these names have actually resolved under the
+	prefix in sys.modules.
+
+	vendor.py names the *dotted* form as the real hazard --
+	_wb_vendor._coseeing_auth_deps.requests, not just _wb_vendor.requests --
+	so every loaded name under the prefix is checked by its LAST dotted
+	component, not just the direct one-level form.
 	"""
-	lines = ["== category 3 must not appear under the prefix =="]
+	lines = ["== category 3 must not appear under the prefix, in any dotted form =="]
+	prefix_dot = PREFIX + "."
+	loaded_under_prefix = {
+		name: module for name, module in list(sys.modules.items())
+		if name.startswith(prefix_dot)
+	}
 	for name in HOST_ONLY:
-		qualified = PREFIX + "." + name
-		lines.append(_verdict(qualified not in sys.modules, f"{qualified} not loaded"))
+		hits = [
+			(qualified, module) for qualified, module in loaded_under_prefix.items()
+			if qualified.rsplit(".", 1)[-1] == name
+		]
+		if not hits:
+			lines.append(_verdict(True, f"no ...{name} form loaded under {PREFIX}"))
+			continue
+		for qualified, module in hits:
+			lines.append(_verdict(False, f"{qualified} IS LOADED -> {getattr(module, '__file__', '?')}"))
 	return lines
 
 
@@ -100,12 +186,12 @@ def check_sandbox_origins(package_root):
 			lines.append(f"INFO: {PREFIX}.{name} not loaded yet (lazy, or auth unused this session)")
 			continue
 		path = getattr(module, "__file__", "?") or "?"
-		inside = os.path.normcase(path).startswith(os.path.normcase(package_root))
+		inside = _is_under(path, package_root)
 		lines.append(_verdict(inside, f"{PREFIX}.{name} -> {path}"))
 	return lines
 
 
-def check_sandboxed_import():
+def check_sandboxed_import(package_root):
 	"""Fact (b): the sandbox is fail-open by construction -- _wb_vendor's
 	__path__ is a working import root the stock PathFinder serves on its own,
 	so if _SandboxFinder is ever missing or displaced by another add-on (a
@@ -116,10 +202,15 @@ def check_sandboxed_import():
 	tests/test_coseeing_auth_bundle.py adds in Task 7: every loaded
 	_wb_vendor.* module with a source origin must carry a sandboxed
 	__import__ in its __builtins__. __builtins__ can be a dict or a module
-	depending on how the module was executed, and an extension module (no
-	.py origin, e.g. cryptography's _rust.pyd) is legitimately never wrapped
-	by _SandboxLoader -- both are handled below. A .py-origin module with no
-	__import__ entry at all is a FAIL, not a silent pass.
+	depending on how the module was executed, and a real extension module
+	(*.pyd, e.g. cryptography's _rust) is legitimately never wrapped by
+	_SandboxLoader -- both are handled below. A .py-origin module with no
+	__import__ entry at all is a FAIL, not a silent pass -- and so is a
+	prefixed module with no source __spec__.origin at all: with
+	_SandboxFinder installed that state is impossible (vendor.py's find_spec
+	raises ModuleNotFoundError rather than returning a namespace portion's
+	loader-less spec), so seeing it here means some OTHER finder resolved
+	this name, which is exactly the displacement this check exists to catch.
 	"""
 	lines = ["== every loaded _wb_vendor.* module with a source origin must be sandboxed =="]
 	prefix_dot = PREFIX + "."
@@ -129,10 +220,15 @@ def check_sandboxed_import():
 			continue
 		spec = getattr(module, "__spec__", None)
 		origin = getattr(spec, "origin", None)
-		if not isinstance(origin, str) or not origin.endswith(".py"):
-			# Extension modules (e.g. *.pyd) are never wrapped; legitimate, not a FAIL.
+		if isinstance(origin, str) and not origin.endswith(".py"):
+			# A real extension module (e.g. *.pyd): never wrapped by
+			# _SandboxLoader, so there is no __import__ rewrite to check.
+			# Legitimate, not a FAIL.
 			continue
 		seen = True
+		if not isinstance(origin, str):
+			lines.append(_verdict(False, f"{name} has no source __spec__.origin (displaced finder?)"))
+			continue
 		module_builtins = module.__dict__.get("__builtins__")
 		if isinstance(module_builtins, dict):
 			sandboxed_import = module_builtins.get("__import__")
@@ -158,7 +254,7 @@ def check_host_origins(package_root):
 		if package_root is None:
 			lines.append(f"INFO: {name} -> {path}")
 			continue
-		ours = os.path.normcase(path).startswith(os.path.normcase(package_root))
+		ours = _is_under(path, package_root)
 		lines.append(_verdict(not ours, f"{name} -> {path}"))
 	return lines
 
@@ -168,8 +264,7 @@ def check_sys_path(package_root):
 	if package_root is None:
 		lines.append("SKIPPED (no namespace root found)")
 		return lines
-	target = os.path.normcase(package_root)
-	offenders = [entry for entry in sys.path if os.path.normcase(entry).startswith(target)]
+	offenders = [entry for entry in sys.path if _is_under(entry, package_root)]
 	lines.append(_verdict(not offenders, f"sys.path entries under the bundle: {offenders}"))
 	return lines
 
@@ -182,37 +277,56 @@ def check_stdlib_gapfill(package_root):
 		return lines
 	path = getattr(module, "__file__", "?") or "?"
 	lines.append(f"  secrets -> {path}")
-	if package_root and os.path.normcase(path).startswith(os.path.normcase(package_root)):
+	if package_root is None:
+		# Cannot judge origin against a root that was never identified --
+		# review round 1 found this branch previously fell through to an
+		# affirmative "the host provides secrets" PASS, which is false when
+		# the root is simply unknown rather than genuinely not ours.
+		lines.append(f"INFO: cannot judge (no package root); secrets -> {path}")
+	elif _is_under(path, package_root):
 		lines.append(_verdict("_stdlib_gapfill" in path, "our copy comes from _stdlib_gapfill/"))
 	else:
 		lines.append(_verdict(True, "the host provides secrets; our copy correctly stood down"))
 	return lines
 
 
-# Checks that take no argument -- they inspect sys.modules directly rather
-# than needing the add-on's package root.
-_NO_ARG_CHECKS = (check_no_global_leak, check_no_host_only_under_prefix, check_sandboxed_import)
+_CHECKS = (
+	check_meta_path,
+	check_no_global_leak,
+	check_no_host_only_under_prefix,
+	check_sandbox_origins,
+	check_sandboxed_import,
+	check_host_origins,
+	check_sys_path,
+	check_stdlib_gapfill,
+)
 
 
 def main():
 	report = []
-	namespace_lines, package_root = check_namespace()
+	try:
+		namespace_lines, package_root = check_namespace()
+	except Exception:
+		namespace_lines = ["== namespace ==", "check_namespace CRASHED:", traceback.format_exc()]
+		package_root = None
+	report.append(f"WordBridge R03 self-check -- {datetime.datetime.now().isoformat(timespec='seconds')}")
+	report.append(f"python: {sys.version}")
+	report.append(f"executable: {sys.executable}")
+	report.append(f"add-on version: {_addon_version(package_root)}")
+	report.append("")
 	report.extend(namespace_lines)
 	report.append("")
-	for check in (check_no_global_leak, check_no_host_only_under_prefix, check_sandboxed_import,
-	              check_sandbox_origins, check_host_origins, check_sys_path, check_stdlib_gapfill):
+	for check in _CHECKS:
 		try:
-			if check in _NO_ARG_CHECKS:
-				report.extend(check())
-			else:
-				report.extend(check(package_root))
+			report.extend(check(package_root))
 		except Exception:
 			report.append(f"{check.__name__} CRASHED:")
 			report.append(traceback.format_exc())
 		report.append("")
 	text = "\n".join(report)
 	failures = sum(1 for line in report if line.startswith("FAIL: "))
-	text += f"\n== {failures} FAILURE(S) ==\n"
+	crashes = sum(1 for line in report if line.endswith(" CRASHED:"))
+	text += f"\n== {failures} FAILURE(S), {crashes} CRASHED ==\n"
 	print(text)
 	destination = os.path.join(tempfile.gettempdir(), "wordbridge-r03-selfcheck.txt")
 	try:
