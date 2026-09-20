@@ -10,6 +10,24 @@ PATH = os.path.dirname(os.path.dirname(__file__))
 TEMPLATES_PATH = os.path.join(PATH, "web", "templates")
 CONTENT_CONFIG_PLACEHOLDER = "__CONTEXT__"
 
+# json.dumps does not encode these, so a "</script>" sequence inside the
+# selected text or the model output would terminate the inline script element.
+# All five are valid JSON string escapes, so JSON.parse returns the original
+# value unchanged.
+JS_STRING_ESCAPES = {
+	"<": "\\u003c",
+	">": "\\u003e",
+	"&": "\\u0026",
+	" ": "\\u2028",
+	" ": "\\u2029",
+}
+
+
+def _escape_for_inline_script(serialized: str) -> str:
+	for character, escape in JS_STRING_ESCAPES.items():
+		serialized = serialized.replace(character, escape)
+	return serialized
+
 
 def text2template(src, dst, title=None):
 	with open(src, "r", encoding="utf8") as f:
@@ -39,7 +57,7 @@ def text2template(src, dst, title=None):
 		template = f.read()
 	content = template.replace(
 		CONTENT_CONFIG_PLACEHOLDER,
-		json.dumps(content_config, ensure_ascii=False),
+		_escape_for_inline_script(json.dumps(content_config, ensure_ascii=False)),
 	)
 	with open(dst, "w", encoding="utf8", newline="") as f:
 		f.write(content)
