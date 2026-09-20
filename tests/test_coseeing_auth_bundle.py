@@ -219,11 +219,11 @@ assert callable(requests.Session)
 assert not Path(requests.__file__).resolve().is_relative_to(bundle)
 
 for name in vendor.HOST_ONLY:
+    assert "_wb_vendor." + name not in sys.modules, name
     module = sys.modules.get(name)
     if module is None or getattr(module, "__file__", None) is None:
         continue
     assert not Path(module.__file__).resolve().is_relative_to(deps), name
-    assert "_wb_vendor." + name not in sys.modules, name
 
 # (a) The sandbox is fail-open by construction: the prefix namespace's
 # __path__ is a working import root that the stock PathFinder serves on its
