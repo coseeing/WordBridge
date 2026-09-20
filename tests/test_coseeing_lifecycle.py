@@ -135,3 +135,31 @@ def test_clipboard_and_report_are_dispatched_not_called_inline(monkeypatch):
 		callback(*args)
 	assert copied == ["修正"]
 	assert reported == [[]]
+
+
+def test_onpreview_schedules_nothing_once_shutdown_started(monkeypatch):
+	queued = []
+	plugin_module = _plugin(monkeypatch, queued)
+	instance = _instance(plugin_module)
+	instance._shutdown.set()
+
+	plugin_module.GlobalPlugin.OnPreview(instance, "report.html")
+
+	assert queued == []
+
+
+def test_onpreview_callback_is_inert_if_shutdown_happens_before_delivery(monkeypatch):
+	queued = []
+	plugin_module = _plugin(monkeypatch, queued)
+	instance = _instance(plugin_module)
+	opened = []
+	monkeypatch.setattr(plugin_module.os, "startfile", opened.append, raising=False)
+
+	plugin_module.GlobalPlugin.OnPreview(instance, "report.html")
+	assert len(queued) == 1
+
+	instance._shutdown.set()
+	callback, args = queued.pop()
+	callback(*args)
+
+	assert opened == []

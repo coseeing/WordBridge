@@ -140,7 +140,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def OnPreview(self, file):
 		def openfile():
 			os.startfile(file)
-		wx.CallAfter(openfile)
+		self._run_on_ui(openfile)
 
 	def showReport(self, diff_data):
 		template_folder = os.path.join(PATH, "web", "templates")
