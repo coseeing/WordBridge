@@ -33,6 +33,12 @@ This probe therefore measures in-process, off disk, with no subprocess:
      program directory, and sys.builtin_module_names.
   4. Diff (2) against (3). Needed and not provided is category 1.
 
+This can only see modules that imported successfully: a module NVDA removed
+that WordBridge does not already shim raises ImportError and never reaches
+sys.modules, so it never becomes a "needed" name at all. Probe 1's per-target
+failure lines are the only signal for that class -- read them, not just the
+category 1 list below.
+
 It writes no product files.  The report goes to stdout and to
 %TEMP%\\wordbridge-r03-stdlib-gap.txt.
 """
@@ -61,10 +67,11 @@ def _is_alias(module, name):
 	sys.modules key pointing at a module that answers to a different name and is
 	checked separately under that name. Two independent CPython identity signals
 	are consulted because neither is authoritative on its own: sys.modules["os.path"]
-	disagrees with `module.__name__` (which is "ntpath"/"posixpath") but agrees with
-	`module.__spec__.name`; some frozen bootstrap modules do the reverse (agree on
-	__name__, disagree on __spec__.name). Either disagreeing is enough to call it an
-	alias, so both cases are caught the same way.
+	disagrees with `module.__name__` (which is "ntpath"/"posixpath") AND with
+	`module.__spec__.name`; but sys.modules["collections.abc"] agrees with
+	`__name__` (which is "collections.abc", the key itself) while disagreeing with
+	`__spec__.name` (which is "_collections_abc") -- the reverse pattern. Either
+	attribute disagreeing is enough to call it an alias, so both patterns are caught.
 	"""
 	if getattr(module, "__name__", name) != name:
 		return True
@@ -76,8 +83,10 @@ def _is_alias(module, name):
 
 def _needed_stdlib_names():
 	"""Every sys.modules name (dotted submodules included) whose root package is
-	stdlib, has its own __file__, and is not an alias of another sys.modules entry;
-	a name resolving from the add-on's own directories is flagged, not excluded.
+	stdlib and has its own __file__. An alias of another sys.modules entry is
+	skipped UNLESS it resolves from the add-on's own directories -- that is
+	flagged, never excluded, because a non-canonical identity is exactly how a
+	gap-fill registered via importlib.util.spec_from_file_location shows up.
 	"""
 	stdlib_roots = set(sys.stdlib_module_names)
 	needed = {}
@@ -89,9 +98,10 @@ def _needed_stdlib_names():
 		path = getattr(module, "__file__", None)
 		if path is None:
 			continue
-		if _is_alias(module, name):
+		vendor = _is_vendor(path)
+		if _is_alias(module, name) and not vendor:
 			continue
-		needed[name] = _is_vendor(path)
+		needed[name] = vendor
 	return needed
 
 
