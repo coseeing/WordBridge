@@ -125,24 +125,34 @@ class _SandboxFinder(importlib.abc.MetaPathFinder):
 	def __init__(self, prefix, sandbox_import):
 		self.prefix = prefix
 		self._prefix_dot = prefix + "."
-		self._gapfill_prefix = prefix + "." + STDLIB_GAPFILL_DIRNAME
 		self._sandbox_import = sandbox_import
 
 	def find_spec(self, fullname, path=None, target=None):
 		if not fullname.startswith(self._prefix_dot):
 			return None
-		if fullname == self._gapfill_prefix or fullname.startswith(self._gapfill_prefix + "."):
-			# The gap-fill directory has no __init__.py, so it is a valid PEP
-			# 420 namespace portion: merely declining (returning None) here
-			# would still let the interpreter's own PathFinder entry further
-			# down sys.meta_path resolve it from the same parent __path__, since
-			# that finder is not ours to withhold consent from.  Failing the
-			# lookup outright is the only way to keep nothing under the prefix
-			# answering for it or anything beneath it.
-			raise ModuleNotFoundError(f"No module named {fullname!r}", name=fullname)
 		spec = PathFinder.find_spec(fullname, path, target)
-		if spec is None or spec.loader is None:
-			return spec
+		if spec is None:
+			return None
+		if spec.loader is None:
+			# A name under our prefix that PathFinder can only resolve as a PEP
+			# 420 namespace portion is not one of our packages: the prefix
+			# namespace's __path__ is a real, searchable import root, so
+			# PathFinder will just as happily walk into _stdlib_gapfill,
+			# _coseeing_auth_deps, __pycache__ or a *.dist-info tree as into a
+			# real vendored package.  Every actual category 2 package (and
+			# every real subpackage of one) ships an __init__.py and never
+			# reaches this branch; the one bundled exception --
+			# cryptography/hazmat/bindings/_rust, a .pyi-only stub dir -- is
+			# shadowed by the sibling _rust.pyd, which FileFinder resolves
+			# first, so it never gets here either.  Failing outright (rather
+			# than returning the inert namespace spec) is what keeps a
+			# HOST_ONLY copy such as requests from ever loading through
+			# _wb_vendor._coseeing_auth_deps.requests, even though the bytes
+			# are right there on disk.  ``importlib.util.find_spec()`` surfaces
+			# this as a raised ``ModuleNotFoundError`` rather than returning
+			# ``None``, which Task 8's self-check should expect if it ever
+			# enumerates prefix submodules this way.
+			raise ModuleNotFoundError(f"No module named {fullname!r}", name=fullname)
 		if isinstance(spec.loader, ExtensionFileLoader):
 			# Native extensions resolve no Python names; cryptography 50.0.1's
 			# _rust exposes its submodules as attributes and registers nothing

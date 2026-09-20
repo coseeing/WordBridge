@@ -198,21 +198,47 @@ def test_finder_declines_every_name_outside_its_prefix(sandbox_root, install_san
 	assert finder.find_spec("_wb_t4other.alpha", None, None) is None
 
 
-def test_finder_declines_the_gapfill_directory(sandbox_root, install_sandbox):
-	"""Ruling 2: without __init__.py, the gap-fill directory is still a PEP 420
-	namespace portion that PathFinder resolves on its own.  _SandboxFinder must
-	decline it explicitly, so nothing under the prefix ever answers for it,
-	while an ordinary category-2-style package under the same prefix still does.
+def test_finder_declines_every_namespace_portion_under_the_prefix(sandbox_root, install_sandbox):
+	"""Round 2: generalizes ruling 2 from one directory name to the property
+	behind it.  A prefixed name that PathFinder can only resolve as a PEP 420
+	namespace portion (no __init__.py) is never one of our packages, whatever
+	it happens to be called -- the prefix namespace's __path__ is a real,
+	searchable import root, so PathFinder will walk into _stdlib_gapfill,
+	_coseeing_auth_deps and __pycache__ exactly as readily as into a real
+	vendored package.  All three must fail here, while an ordinary
+	category-2-style package under the same prefix still resolves.
 	"""
-	gapfill = sandbox_root / vendor.STDLIB_GAPFILL_DIRNAME
-	gapfill.mkdir()
-	(gapfill / "secrets.py").write_text("VALUE = 'stub'\n", encoding="utf8")
+	for dirname in (vendor.STDLIB_GAPFILL_DIRNAME, "_coseeing_auth_deps", "__pycache__"):
+		namespace_dir = sandbox_root / dirname
+		namespace_dir.mkdir()
+		(namespace_dir / "stub.py").write_text("VALUE = 'stub'\n", encoding="utf8")
+
 	install_sandbox([str(sandbox_root)], "_wb_t6", {"alpha"})
 
-	with pytest.raises(ModuleNotFoundError):
-		importlib.import_module("_wb_t6._stdlib_gapfill")
+	for dirname in (vendor.STDLIB_GAPFILL_DIRNAME, "_coseeing_auth_deps", "__pycache__"):
+		with pytest.raises(ModuleNotFoundError):
+			importlib.import_module(f"_wb_t6.{dirname}")
 
 	assert importlib.import_module("_wb_t6.alpha") is not None
+
+
+def test_finder_still_resolves_a_real_package_and_a_real_subpackage(install_sandbox):
+	"""Anti-rot half of the property-based fix in round 2: it must not
+	blanket-block everything under the prefix, only names PathFinder can't
+	otherwise resolve to a real loader.  Uses the actual bundled ``pypinyin``
+	and its real ``pypinyin.contrib`` subpackage (both pure Python, so this
+	runs the same on every platform) rather than the fabricated ``alpha``
+	stand-in, so a future dependency version that ships a subpackage without
+	an __init__.py fails loudly here instead of silently degrading to a
+	namespace portion.
+	"""
+	install_sandbox([str(PACKAGE_ROOT)], "_wb_t7", {"pypinyin"})
+
+	top = importlib.import_module("_wb_t7.pypinyin")
+	sub = importlib.import_module("_wb_t7.pypinyin.contrib")
+
+	assert top.__name__ == "_wb_t7.pypinyin"
+	assert sub.__name__ == "_wb_t7.pypinyin.contrib"
 
 
 def test_finder_leaves_extension_loaders_unwrapped_but_wraps_source_loaders(monkeypatch):
@@ -334,7 +360,8 @@ def test_gapfill_probes_the_host_for_a_module_not_yet_imported(tmp_path):
 	this uses a stdlib module absent from ``sys.modules`` at test time instead.
 	"""
 	name = "colorsys"
-	assert name not in sys.modules, "test assumes colorsys is not yet imported"
+	if name in sys.modules:
+		pytest.skip(f"{name} is already imported in this session")
 	directory = tmp_path / "_stdlib_gapfill"
 	directory.mkdir()
 	(directory / f"{name}.py").write_text("RAISE = 'ours'\n", encoding="utf8")
@@ -393,5 +420,6 @@ def test_secrets_gapfill_ships_and_stays_verbatim():
 
 	assert source.is_file()
 	assert not (PACKAGE_ROOT / "secrets.py").exists()
-	digest = hashlib.sha256(source.read_bytes()).hexdigest()
+	normalized = source.read_bytes().replace(b"\r\n", b"\n")
+	digest = hashlib.sha256(normalized).hexdigest()
 	assert digest == "277000574358a6ecda4bb40e73332ae81a3bc1c8e1fa36f50e5c6a7d4d3f0f17"
