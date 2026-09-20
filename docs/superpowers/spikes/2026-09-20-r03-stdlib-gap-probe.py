@@ -6,22 +6,41 @@ and ENABLED:
 	exec(open(r"C:\\path\\to\\2026-09-20-r03-stdlib-gap-probe.py", encoding="utf8").read())
 
 `package/secrets.py` exists because NVDA's Python omits the stdlib `secrets`.
-This probe answers whether `secrets` is the only such module, by taking every
-non-third-party module WordBridge's auth stack and local correction path have
-imported and checking each one against a fresh interpreter's ability to import
-it without the add-on's directories on sys.path.
+This probe answers whether `secrets` is the only such module.
+
+NVDA is a py2exe frozen program: there is no python.exe in its install
+directory, `sys.executable` is nvda.exe, and nvda.exe's own argparse rejects
+`-I`/`-S`/`-c` (`-c` collides with NVDA's `--config-path`). A subprocess
+cannot measure this environment. Even a same-version standalone python.exe
+would not help: `-I -S` strips env/site/cwd paths, not py2exe's per-module
+trimming, so it would report NONE regardless of what NVDA actually removed.
+
+This probe therefore measures in-process, off disk, with no subprocess:
+
+  1. Exercise WordBridge's import graph, including call-time imports, so
+     every stdlib name it touches -- dotted submodules included -- lands in
+     sys.modules, whether NVDA provides it or the add-on is shimming it.
+  2. Keep every sys.modules name whose root package is in
+     sys.stdlib_module_names. A name currently resolving from the add-on's
+     own directories is labelled shimmed-by-addon and kept as a PRIME
+     candidate for category 1, never excluded -- that is where the one
+     known member, `secrets`, lives today.
+  3. Read what NVDA's frozen runtime actually provides from disk: the
+     namelist of its library.zip, the loose .py/.pyd/.dll files in its
+     program directory, and sys.builtin_module_names.
+  4. Diff (2) against (3). Needed and not provided is category 1.
 
 It writes no product files.  The report goes to stdout and to
 %TEMP%\\wordbridge-r03-stdlib-gap.txt.
 """
 
 import os
-import subprocess
 import sys
 import tempfile
 import traceback
+import zipfile
 
-# Anything resolving from one of these is ours or a third party, not stdlib.
+# A path containing one of these is ours or a third party, not NVDA's own tree.
 VENDOR_MARKERS = ("addons", "wordbridge", "site-packages", "dist-packages")
 
 
@@ -30,19 +49,79 @@ def _is_vendor(path):
 	return any(marker in lowered for marker in VENDOR_MARKERS)
 
 
-def _candidate_stdlib_names():
-	"""Top-level module names currently loaded that look like stdlib."""
-	names = set()
+def _root_name(name):
+	return name.split(".", 1)[0]
+
+
+def _needed_stdlib_names():
+	"""Every sys.modules name (dotted submodules included) whose root package is stdlib; a name resolving from the add-on's own directories is flagged, not excluded."""
+	stdlib_roots = set(sys.stdlib_module_names)
+	needed = {}
 	for name, module in list(sys.modules.items()):
-		if "." in name or module is None:
+		if module is None:
 			continue
-		if name in sys.builtin_module_names:
+		if _root_name(name) not in stdlib_roots:
 			continue
 		path = getattr(module, "__file__", None)
-		if path is None or _is_vendor(path):
+		needed[name] = _is_vendor(path)
+	return needed
+
+
+def _zip_entry_to_module_name(entry):
+	"""Zip entry path to dotted module name; '__init__' entries collapse to their package."""
+	entry = entry.replace("\\", "/")
+	if entry.endswith("/"):
+		return None
+	root, ext = os.path.splitext(entry)
+	if ext.lower() not in (".py", ".pyc", ".pyo"):
+		return None
+	parts = [part for part in root.split("/") if part]
+	if not parts:
+		return None
+	if parts[-1] == "__init__":
+		parts = parts[:-1]
+	if not parts:
+		return None
+	return ".".join(parts)
+
+
+def _library_zip_path():
+	"""Locate NVDA's library.zip from a loaded module's __file__, falling back to beside sys.executable."""
+	for _name, module in list(sys.modules.items()):
+		path = getattr(module, "__file__", None)
+		if not path:
 			continue
-		names.add(name)
-	return sorted(names)
+		lowered = path.lower()
+		if "library.zip" in lowered:
+			index = lowered.index("library.zip")
+			return path[: index + len("library.zip")]
+	candidate = os.path.join(os.path.dirname(sys.executable), "library.zip")
+	if os.path.isfile(candidate):
+		return candidate
+	return None
+
+
+def _provided_names(library_zip_path):
+	"""Names NVDA's frozen runtime actually provides: the zip, the program directory, and builtins."""
+	provided = set(sys.builtin_module_names)
+	with zipfile.ZipFile(library_zip_path) as archive:
+		for entry in archive.namelist():
+			module_name = _zip_entry_to_module_name(entry)
+			if module_name:
+				provided.add(module_name)
+	program_dir = os.path.dirname(library_zip_path)
+	try:
+		for entry in os.listdir(program_dir):
+			if entry.lower().endswith((".py", ".pyd", ".dll")):
+				provided.add(os.path.splitext(entry)[0])
+	except OSError:
+		pass
+	return provided
+
+
+def _missing_names(needed, provided):
+	"""needed minus provided, sorted -- the category 1 list."""
+	return sorted(name for name in needed if name not in provided)
 
 
 def probe_0():
@@ -54,13 +133,25 @@ def probe_0():
 
 
 def probe_1():
-	"""Force the add-on's own import graph to be present before measuring."""
+	"""Force the add-on's import graph -- including call-time imports -- to be present before measuring."""
 	lines = ["== PROBE 1: exercise WordBridge's import graph =="]
 	targets = [
-		("auth stack", "from coseeing_auth import CoseeingAuthClient"),
+		("auth stack (import)", "from coseeing_auth import CoseeingAuthClient"),
+		(
+			"auth stack (call-time)",
+			"from coseeing_auth import AuthConfig; AuthConfig("
+			"issuer='https://sso.coseeing.org', client_id='wordbridge', "
+			"scopes=('openid', 'profile', 'email', 'offline_access'), "
+			"login_redirect_uri='http://127.0.0.1:8000/auth-callback', "
+			"logout_redirect_uri='http://127.0.0.1:8000/logout-callback', "
+			"callback_timeout=180)",
+		),
 		("local correction", "from pypinyin import lazy_pinyin"),
+		("local correction (call-time)", "from pypinyin import lazy_pinyin; lazy_pinyin('測試')"),
 		("local correction", "import chinese_converter"),
 		("local correction", "from hanzidentifier import identify"),
+		("local correction (call-time)", "from hanzidentifier import identify; identify('測試')"),
+		("local correction (zhon, call-time)", "from zhon import cedict; cedict.all"),
 	]
 	for label, statement in targets:
 		try:
@@ -73,47 +164,49 @@ def probe_1():
 
 
 def probe_2():
-	"""Ask a clean interpreter which of those names it cannot import."""
-	lines = ["== PROBE 2: stdlib names NVDA cannot import on its own =="]
-	names = _candidate_stdlib_names()
-	lines.append(f"candidate stdlib names in play: {len(names)}")
+	"""Diff WordBridge's needed stdlib names against what NVDA's frozen runtime provides on disk."""
+	lines = ["== PROBE 2: stdlib names NVDA's frozen runtime does not provide =="]
+	needed = _needed_stdlib_names()
+	lines.append(f"needed stdlib names in play (dotted submodules included): {len(needed)}")
 
-	code = (
-		"import sys\n"
-		"missing = []\n"
-		"for name in sys.argv[1:]:\n"
-		"    try:\n"
-		"        __import__(name)\n"
-		"    except Exception as error:\n"
-		"        missing.append(f'{name}: {type(error).__name__}')\n"
-		"print('\\n'.join(missing))\n"
-	)
+	zip_path = _library_zip_path()
+	if zip_path is None:
+		lines.append("")
+		lines.append("PROBE2 FAILED: could not locate NVDA's library.zip.")
+		lines.append("  tried: the __file__ of every loaded module for a 'library.zip' path segment,")
+		lines.append(f"  and {os.path.join(os.path.dirname(sys.executable), 'library.zip')!r} beside sys.executable.")
+		lines.append("  Cannot measure what NVDA provides -- no category 1 list follows.")
+		return lines
+
+	lines.append(f"library.zip: {zip_path}")
 	try:
-		result = subprocess.run(
-			[sys.executable, "-I", "-S", "-c", code, *names],
-			capture_output=True,
-			text=True,
-			timeout=120,
-		)
+		provided = _provided_names(zip_path)
 	except Exception as error:
-		lines.append(f"PROBE2 FAILED to run isolated interpreter: {type(error).__name__}: {error}")
+		lines.append(f"PROBE2 FAILED to read library.zip: {type(error).__name__}: {error}")
 		lines.append(traceback.format_exc())
 		return lines
 
-	missing = [line for line in result.stdout.splitlines() if line.strip()]
+	lines.append(f"names NVDA's runtime provides (zip + program dir + builtins): {len(provided)}")
+	missing = _missing_names(needed, provided)
 	lines.append("")
-	lines.append(f"-- CATEGORY 1 LIST: stdlib names this interpreter cannot import ({len(missing)}) --")
+	lines.append(f"-- CATEGORY 1 LIST: needed stdlib names NVDA's runtime does not provide ({len(missing)}) --")
 	if missing:
-		lines.extend(f"  {entry}" for entry in missing)
-		lines.append("  ^ every name here needs a copy in package/_stdlib_gapfill/")
+		for name in missing:
+			tag = "shimmed-by-addon" if needed[name] else "NOT YET SHIMMED"
+			lines.append(f"  {name}  [{tag}]")
+		lines.append("  ^ every name here needs a copy in package/_stdlib_gapfill/, if not already there")
 	else:
 		lines.append("  NONE")
-		lines.append("  ^ if this contradicts package/secrets.py existing, the -I -S isolation")
-		lines.append("    is not reproducing NVDA's trimmed environment; report that rather")
-		lines.append("    than concluding the gap-fill is unnecessary.")
-	if result.stderr.strip():
-		lines.append("")
-		lines.append(f"isolated interpreter stderr: {result.stderr.strip()[:500]}")
+		lines.append("  ^ SANITY CHECK: 'secrets' is already known to be missing (package/secrets.py")
+		lines.append("    exists to fill that gap). If 'secrets' is not in the list above, this result")
+		lines.append("    is wrong. Check, in order:")
+		lines.append("    1. the probe could not locate the correct library.zip -- re-check the")
+		lines.append("       'library.zip:' line above; a wrong fallback guess can still open as a")
+		lines.append("       valid, mostly-empty zip instead of failing outright.")
+		lines.append("    2. probe 1 above did not actually import 'secrets' into sys.modules before")
+		lines.append("       this probe ran (check probe 1's lines for an OK against the auth stack).")
+		lines.append("    3. NVDA's library.zip or program directory genuinely contains a 'secrets'")
+		lines.append("       entry on this build, meaning fact 9 is stale for this NVDA version.")
 	return lines
 
 
