@@ -524,3 +524,51 @@ def test_coseeing_auth_reports_unavailable_when_no_bundle_resolves(tmp_path):
 		[sys.executable, "-S", "-c", code, str(addon), str(package)],
 		check=True, capture_output=True, text=True,
 	)
+
+
+def test_plugin_entry_point_no_longer_injects_sys_path():
+	source = Path("addon/globalPlugins/WordBridge/__init__.py").read_text(encoding="utf8")
+
+	assert "sys.path.insert" not in source
+	assert "vendor.install" in source
+
+
+def test_installing_the_sandbox_adds_exactly_one_global_name(sandbox_root, install_sandbox):
+	path_before = list(sys.path)
+	modules_before = set(sys.modules)
+
+	install_sandbox([str(sandbox_root)], "_wb_t5", {"alpha"})
+
+	assert sys.path == path_before
+	assert set(sys.modules) - modules_before == {"_wb_t5"}
+
+
+def test_local_correction_imports_resolve_through_the_prefix():
+	"""The add-on's own modules must not rely on package/ being on sys.path."""
+	for relative in (
+		"lib/tasks/typo/prompt.py",
+		"lib/tasks/typo/utils.py",
+		"lib/tasks/typo/text_policy.py",
+		"lib/text/chinese.py",
+	):
+		source = Path("addon/globalPlugins/WordBridge") / relative
+		text = source.read_text(encoding="utf8")
+		for bare in ("from pypinyin", "from chinese_converter", "import chinese_converter", "from hanzidentifier"):
+			assert f"\n{bare}" not in f"\n{text}", f"{relative} still imports {bare!r} bare"
+
+
+def test_plugin_entry_point_installs_the_sandbox_before_importing_coseeing_auth():
+	"""Pins the lifecycle's hard constraint: installing the sandbox must
+	precede every `_wb_vendor` import, including the transitive one inside
+	`lib/coseeing_auth.py`.  A source-order assertion is cheap and catches a
+	future edit that moves the install below the import without needing to
+	actually exercise plugin load end-to-end.
+	"""
+	source = Path("addon/globalPlugins/WordBridge/__init__.py").read_text(encoding="utf8")
+
+	install_index = source.index("vendor.install(")
+	coseeing_auth_import_index = source.index("from .lib import coseeing_auth")
+	hanzidentifier_import_index = source.index("from _wb_vendor.hanzidentifier import has_chinese")
+
+	assert install_index < coseeing_auth_import_index
+	assert install_index < hanzidentifier_import_index

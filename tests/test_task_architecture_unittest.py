@@ -22,14 +22,14 @@ sys.modules.setdefault("addonHandler", addon_handler)
 chinese_converter_module = types.ModuleType("chinese_converter")
 chinese_converter_module.to_traditional = lambda text: text
 chinese_converter_module.to_simplified = lambda text: text
-sys.modules.setdefault("chinese_converter", chinese_converter_module)
+sys.modules.setdefault("_wb_vendor.chinese_converter", chinese_converter_module)
 
 hanzidentifier_module = types.ModuleType("hanzidentifier")
 hanzidentifier_module.MIXED = "mixed"
 hanzidentifier_module.SIMPLIFIED = "simplified"
 hanzidentifier_module.TRADITIONAL = "traditional"
 hanzidentifier_module.identify = lambda text: hanzidentifier_module.TRADITIONAL if text else ""
-sys.modules.setdefault("hanzidentifier", hanzidentifier_module)
+sys.modules.setdefault("_wb_vendor.hanzidentifier", hanzidentifier_module)
 
 
 class TaskArchitectureTests(unittest.TestCase):
@@ -467,7 +467,7 @@ class _nvda_module_stubs:
 		sys.modules["textInfos"] = types.SimpleNamespace(POSITION_SELECTION=object())
 		sys.modules["tones"] = types.SimpleNamespace(beep=lambda *args: None)
 		sys.modules["ui"] = types.SimpleNamespace(message=lambda message: None)
-		sys.modules["hanzidentifier"] = types.SimpleNamespace(has_chinese=lambda text: True)
+		sys.modules["_wb_vendor.hanzidentifier"] = types.SimpleNamespace(has_chinese=lambda text: True)
 
 		dictionary_package = types.ModuleType("WordBridge.dictionary")
 		dictionary_package.__path__ = []

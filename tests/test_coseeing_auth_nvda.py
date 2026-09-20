@@ -150,7 +150,7 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued):
 	monkeypatch.setitem(sys.modules, "textInfos", SimpleNamespace(POSITION_SELECTION=object()))
 	monkeypatch.setitem(sys.modules, "tones", SimpleNamespace(beep=lambda *args: None))
 	monkeypatch.setitem(sys.modules, "ui", SimpleNamespace(message=lambda *args: None))
-	monkeypatch.setitem(sys.modules, "hanzidentifier", SimpleNamespace(has_chinese=lambda text: True))
+	monkeypatch.setitem(sys.modules, "_wb_vendor.hanzidentifier", SimpleNamespace(has_chinese=lambda text: True))
 	monkeypatch.setitem(sys.modules, "configobj.validate", SimpleNamespace(
 		VdtValueTooBigError=ValueError,
 		VdtValueTooSmallError=ValueError,

@@ -1,8 +1,8 @@
 import random
 
 from difflib import SequenceMatcher
-from chinese_converter import to_simplified, to_traditional
-from pypinyin import pinyin
+from _wb_vendor.chinese_converter import to_simplified, to_traditional
+from _wb_vendor.pypinyin import pinyin
 
 from ...text.chinese import (
 	PUNCTUATION,

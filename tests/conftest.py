@@ -14,7 +14,14 @@ package_path = addon_path / "package"
 
 sys.path.insert(0, str(tests_path))
 sys.path.insert(0, str(addon_path))
-sys.path.insert(0, str(package_path))
+
+# Tests import add-on modules directly, bypassing the plugin entry point, so
+# they must stand the sandbox up themselves.  package/ deliberately does NOT
+# go on sys.path -- that is the behaviour under test.
+from lib import vendor
+
+vendor.install(vendor.default_roots(package_path))
+vendor.install_stdlib_gapfill(package_path)
 
 # NVDA's addonHandler does not exist on this host. lib/coseeing_auth.py imports
 # it unconditionally at module scope, so any test file that imports that

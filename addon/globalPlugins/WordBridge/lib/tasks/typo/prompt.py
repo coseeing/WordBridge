@@ -2,7 +2,7 @@ from copy import deepcopy
 import json
 import os
 
-from pypinyin import Style, lazy_pinyin
+from _wb_vendor.pypinyin import Style, lazy_pinyin
 
 from ...llm.prompt_bundle import PromptBundle
 from ...text.chinese import PUNCTUATION, is_chinese_character

@@ -37,12 +37,12 @@ class _Style:
 	TONE3 = object()
 
 pypinyin_module.Style = _Style
-sys.modules.setdefault("pypinyin", pypinyin_module)
+sys.modules.setdefault("_wb_vendor.pypinyin", pypinyin_module)
 
 chinese_converter_module = types.ModuleType("chinese_converter")
 chinese_converter_module.to_traditional = lambda text: text
 chinese_converter_module.to_simplified = lambda text: text
-sys.modules.setdefault("chinese_converter", chinese_converter_module)
+sys.modules.setdefault("_wb_vendor.chinese_converter", chinese_converter_module)
 
 
 class ProviderModelAdapterTests(unittest.TestCase):

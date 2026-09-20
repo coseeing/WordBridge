@@ -1,4 +1,4 @@
-import chinese_converter
+from _wb_vendor import chinese_converter
 
 from ...text.chinese import SEPERATOR, has_chinese, has_simplified_chinese_char, has_traditional_chinese_char
 from ..base import BaseTextPolicy

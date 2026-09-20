@@ -9,7 +9,14 @@ import time
 
 PATH = os.path.dirname(__file__)
 PACKAGE_PATH = os.path.join(PATH, "package")
-sys.path.insert(0, PACKAGE_PATH)
+
+# Installing the sandbox must precede every _wb_vendor import below, and it
+# replaces the sys.path injection that used to expose package/ to the whole
+# NVDA process.  See lib/vendor.py.
+from .lib import vendor
+
+vendor.install(vendor.default_roots(PACKAGE_PATH))
+vendor.install_stdlib_gapfill(PACKAGE_PATH)
 
 import addonHandler
 import api
@@ -39,12 +46,28 @@ from .lib.coseeing_auth import shutdown_coseeing_auth, start_coseeing_auth
 from .lib.decimalUtils import decimal_to_str_0
 from .lib.tasks.typo.utils import strings_diff
 from .lib.viewHTML import text2template
-from hanzidentifier import has_chinese
+from _wb_vendor.hanzidentifier import has_chinese
 
 
 DEBUG_MODE = False
 addonHandler.initTranslation()
 ADDON_SUMMARY = "WordBridge"
+
+try:
+	# Make _unavailable_reason() observable: without this, the auth half can
+	# fail to load with nothing in NVDA's log to diagnose it from. Only the
+	# exception type and str(error) that _unavailable_reason() already formats
+	# are logged -- never _AUTH_IMPORT_ERROR itself or exc_info=True, both of
+	# which would keep its traceback (and, for a SyntaxError, the add-on
+	# install path -- hence the Windows username) in the log. Logging this is
+	# diagnostic, not load-bearing, so a failure here (e.g. a stand-in
+	# coseeing_auth or logHandler module in a test) must not stop the add-on
+	# from loading.
+	if not coseeing_auth.AUTH_AVAILABLE:
+		log.warning(coseeing_auth._unavailable_reason())
+except Exception:
+	pass
+
 CORRECTOR_TASK_CONFIG_PATH = os.path.join(PATH, "setting", "task", "corrector.json")
 correctorTaskConfig = load_corrector_task_config(CORRECTOR_TASK_CONFIG_PATH)
 
