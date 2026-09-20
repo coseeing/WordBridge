@@ -65,7 +65,7 @@ else:
 	_AUTH_IMPORT_ERROR = None
 
 
-def _unavailable_reason() -> str:
+def unavailable_reason() -> str:
 	runtime = vendor.runtime_key()
 	if runtime is None:
 		runtime = f"unsupported (sys.platform={sys.platform!r}, python={sys.version_info[:2]!r})"
@@ -587,7 +587,7 @@ _auth_state = AuthSessionState()
 def _get_singleton_pair() -> tuple[CoseeingAuthSession, _NvdaAuthAdapter]:
 	global _singleton_adapter, _singleton_session
 	if not AUTH_AVAILABLE:
-		raise CoseeingAuthUnavailableError(_unavailable_reason())
+		raise CoseeingAuthUnavailableError(unavailable_reason())
 	with _singleton_lock:
 		if _shutdown_future is not None:
 			raise ClientClosedError("access_token")

@@ -66,9 +66,10 @@ for _module_name, _original_module in _ORIGINAL_IMPORT_MODULES.items():
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
+_STUB_UNAVAILABLE_REASON = "stub unavailable reason for test"
 
 
-def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued):
+def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_available=True, log_warnings=None):
 	class Config(dict):
 		def save(self):
 			pass
@@ -144,7 +145,8 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued):
 	monkeypatch.setitem(sys.modules, "globalPluginHandler", SimpleNamespace(GlobalPlugin=ParentPlugin))
 	monkeypatch.setitem(sys.modules, "addonHandler", SimpleNamespace(initTranslation=lambda: None))
 	monkeypatch.setitem(sys.modules, "api", SimpleNamespace())
-	monkeypatch.setitem(sys.modules, "logHandler", SimpleNamespace(log=SimpleNamespace()))
+	warning_sink = (lambda *args, **kwargs: log_warnings.append(args[0] if args else kwargs)) if log_warnings is not None else (lambda *args, **kwargs: None)
+	monkeypatch.setitem(sys.modules, "logHandler", SimpleNamespace(log=SimpleNamespace(warning=warning_sink)))
 	monkeypatch.setitem(sys.modules, "nvwave", SimpleNamespace())
 	monkeypatch.setitem(sys.modules, "scriptHandler", SimpleNamespace(script=lambda **kwargs: lambda function: function))
 	monkeypatch.setitem(sys.modules, "textInfos", SimpleNamespace(POSITION_SELECTION=object()))
@@ -174,6 +176,8 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued):
 	clean_future.set_result(None)
 	auth_module.clean_coseeing_auth = lambda: clean_future
 	auth_module.has_saved_coseeing_refresh_token = lambda: False
+	auth_module.AUTH_AVAILABLE = auth_available
+	auth_module.unavailable_reason = lambda: _STUB_UNAVAILABLE_REASON
 	reset_future = Future()
 	reset_future.set_result(None)
 	auth_module.reset_coseeing_auth = lambda: auth_calls.append("reset") or reset_future
@@ -239,6 +243,46 @@ def test_global_plugin_starts_normalized_coseeing_auth_and_guards_queued_callbac
 	assert auth_calls == ["shutdown", "shutdown", "Coseeing", "shutdown"]
 	assert gui.settingsDialogs.NVDASettingsDialog.categoryClasses == []
 	assert config.conf["WordBridge"]["settings"]["execution_channel"] == "Coseeing"
+
+
+def test_plugin_load_logs_the_unavailable_auth_reason(monkeypatch):
+	"""Carried item (a)/(b): __init__.py must log coseeing_auth's unavailable
+	reason at plugin load when AUTH_AVAILABLE is False, using only the reason
+	string (never the raw exception or a traceback).
+	"""
+	auth_calls = []
+	queued = []
+	warnings = []
+	settings = {
+		"corrector_config_id": "gemini-3.1-pro-preview&Google",
+		"execution_channel": "local",
+		"api_key": {},
+	}
+
+	_load_nvda_plugin(
+		monkeypatch, settings, auth_calls, queued,
+		auth_available=False, log_warnings=warnings,
+	)
+
+	assert warnings == [_STUB_UNAVAILABLE_REASON]
+
+
+def test_plugin_load_does_not_log_when_auth_is_available(monkeypatch):
+	auth_calls = []
+	queued = []
+	warnings = []
+	settings = {
+		"corrector_config_id": "gemini-3.1-pro-preview&Google",
+		"execution_channel": "local",
+		"api_key": {},
+	}
+
+	_load_nvda_plugin(
+		monkeypatch, settings, auth_calls, queued,
+		auth_available=True, log_warnings=warnings,
+	)
+
+	assert warnings == []
 
 
 def test_settings_save_preserves_coseeing_refresh_token_and_starts_selected_channel(monkeypatch):
@@ -422,15 +466,19 @@ def test_settings_panel_uses_clean_button_without_legacy_credential_controls(mon
 
 
 def test_nvda_module_setup_leaves_real_bundle_exports_importable(monkeypatch):
-	cached_bundle = sys.modules.get("coseeing_auth")
+	"""The real, unmodified package/coseeing_auth still imports and exports what
+	it should -- resolved through the sandbox, not through package/ sitting on
+	sys.path (which this task removes).
+	"""
+	cached_bundle = sys.modules.get("_wb_vendor.coseeing_auth")
 	if cached_bundle is not None:
 		assert Path(cached_bundle.__file__).resolve().is_relative_to(ADDON_PATH / "package")
-	authlib = types.ModuleType("authlib")
-	oauth2 = types.ModuleType("authlib.oauth2")
-	rfc6749 = types.ModuleType("authlib.oauth2.rfc6749")
-	errors = types.ModuleType("authlib.oauth2.rfc6749.errors")
-	integrations = types.ModuleType("authlib.integrations")
-	requests_client = types.ModuleType("authlib.integrations.requests_client")
+	authlib = types.ModuleType("_wb_vendor.authlib")
+	oauth2 = types.ModuleType("_wb_vendor.authlib.oauth2")
+	rfc6749 = types.ModuleType("_wb_vendor.authlib.oauth2.rfc6749")
+	errors = types.ModuleType("_wb_vendor.authlib.oauth2.rfc6749.errors")
+	integrations = types.ModuleType("_wb_vendor.authlib.integrations")
+	requests_client = types.ModuleType("_wb_vendor.authlib.integrations.requests_client")
 
 	class OAuth2Error(Exception):
 		pass
@@ -446,9 +494,9 @@ def test_nvda_module_setup_leaves_real_bundle_exports_importable(monkeypatch):
 	requests_client.OAuth2Session = OAuth2Session
 	for dependency in (authlib, oauth2, rfc6749, errors, integrations, requests_client):
 		monkeypatch.setitem(sys.modules, dependency.__name__, dependency)
-	monkeypatch.setitem(sys.modules, "jwt", types.ModuleType("jwt"))
+	monkeypatch.setitem(sys.modules, "_wb_vendor.jwt", types.ModuleType("_wb_vendor.jwt"))
 
-	bundle = importlib.import_module("coseeing_auth")
+	bundle = importlib.import_module("_wb_vendor.coseeing_auth")
 	assert Path(bundle.__file__).resolve().is_relative_to(ADDON_PATH / "package")
 	assert callable(bundle.WindowsCredentialStore)
 

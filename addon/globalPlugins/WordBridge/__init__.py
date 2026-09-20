@@ -3,7 +3,6 @@ from dataclasses import dataclass
 import json
 import os
 import shutil
-import sys
 import threading
 import time
 
@@ -53,20 +52,14 @@ DEBUG_MODE = False
 addonHandler.initTranslation()
 ADDON_SUMMARY = "WordBridge"
 
-try:
-	# Make _unavailable_reason() observable: without this, the auth half can
-	# fail to load with nothing in NVDA's log to diagnose it from. Only the
-	# exception type and str(error) that _unavailable_reason() already formats
-	# are logged -- never _AUTH_IMPORT_ERROR itself or exc_info=True, both of
-	# which would keep its traceback (and, for a SyntaxError, the add-on
-	# install path -- hence the Windows username) in the log. Logging this is
-	# diagnostic, not load-bearing, so a failure here (e.g. a stand-in
-	# coseeing_auth or logHandler module in a test) must not stop the add-on
-	# from loading.
-	if not coseeing_auth.AUTH_AVAILABLE:
-		log.warning(coseeing_auth._unavailable_reason())
-except Exception:
-	pass
+# Make the unavailable-auth reason observable: without this, the auth half
+# can fail to load with nothing in NVDA's log to diagnose it from. Only the
+# exception type and str(error) that unavailable_reason() already formats are
+# logged -- never _AUTH_IMPORT_ERROR itself or exc_info=True, both of which
+# would keep its traceback (and, for a SyntaxError, the add-on install path --
+# hence the Windows username) in the log.
+if not coseeing_auth.AUTH_AVAILABLE:
+	log.warning(coseeing_auth.unavailable_reason())
 
 CORRECTOR_TASK_CONFIG_PATH = os.path.join(PATH, "setting", "task", "corrector.json")
 correctorTaskConfig = load_corrector_task_config(CORRECTOR_TASK_CONFIG_PATH)

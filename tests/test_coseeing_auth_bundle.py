@@ -214,13 +214,20 @@ def test_coseeing_auth_bundle_contains_native_refresh_token_storage():
 
 @pytest.fixture
 def _coseeing_auth_import_dependencies(monkeypatch):
-	"""Provide pure-Python import seams for the Windows-only bundled runtime."""
-	authlib = types.ModuleType("authlib")
-	oauth2 = types.ModuleType("authlib.oauth2")
-	rfc6749 = types.ModuleType("authlib.oauth2.rfc6749")
-	errors = types.ModuleType("authlib.oauth2.rfc6749.errors")
-	integrations = types.ModuleType("authlib.integrations")
-	requests_client = types.ModuleType("authlib.integrations.requests_client")
+	"""Provide pure-Python import seams for the Windows-only bundled runtime.
+
+	Registered under the ``_wb_vendor`` prefix: ``package/`` no longer sits on
+	``sys.path`` (see the r03-import-isolation design), so the real
+	``package/coseeing_auth`` is only reachable through the sandbox, which
+	rewrites its internal ``import authlib...`` / ``import jwt`` statements to
+	``_wb_vendor.authlib...`` / ``_wb_vendor.jwt``.
+	"""
+	authlib = types.ModuleType("_wb_vendor.authlib")
+	oauth2 = types.ModuleType("_wb_vendor.authlib.oauth2")
+	rfc6749 = types.ModuleType("_wb_vendor.authlib.oauth2.rfc6749")
+	errors = types.ModuleType("_wb_vendor.authlib.oauth2.rfc6749.errors")
+	integrations = types.ModuleType("_wb_vendor.authlib.integrations")
+	requests_client = types.ModuleType("_wb_vendor.authlib.integrations.requests_client")
 
 	class OAuth2Error(Exception):
 		pass
@@ -236,12 +243,12 @@ def _coseeing_auth_import_dependencies(monkeypatch):
 	requests_client.OAuth2Session = OAuth2Session
 	for module in (authlib, oauth2, rfc6749, errors, integrations, requests_client):
 		monkeypatch.setitem(sys.modules, module.__name__, module)
-	monkeypatch.setitem(sys.modules, "jwt", types.ModuleType("jwt"))
+	monkeypatch.setitem(sys.modules, "_wb_vendor.jwt", types.ModuleType("_wb_vendor.jwt"))
 
 
 @pytest.mark.usefixtures("_coseeing_auth_import_dependencies")
 def test_coseeing_auth_exports_windows_store_and_saved_session_api():
-	from coseeing_auth import CoseeingAuthClient, FutureAuthClient, WindowsCredentialStore
+	from _wb_vendor.coseeing_auth import CoseeingAuthClient, FutureAuthClient, WindowsCredentialStore
 
 	assert WindowsCredentialStore.__module__.endswith("storage.windows_credentials")
 	assert callable(CoseeingAuthClient.restore_saved_session)

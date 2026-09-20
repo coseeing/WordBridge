@@ -1,5 +1,6 @@
 import hashlib
 import importlib
+import re
 import shutil
 import struct
 import subprocess
@@ -20,6 +21,7 @@ PACKAGE_ROOT = (
 	Path(__file__).resolve().parent.parent
 	/ "addon" / "globalPlugins" / "WordBridge" / "package"
 )
+ADDON_ROOT = PACKAGE_ROOT.parent
 
 
 @pytest.fixture
@@ -527,7 +529,7 @@ def test_coseeing_auth_reports_unavailable_when_no_bundle_resolves(tmp_path):
 
 
 def test_plugin_entry_point_no_longer_injects_sys_path():
-	source = Path("addon/globalPlugins/WordBridge/__init__.py").read_text(encoding="utf8")
+	source = (ADDON_ROOT / "__init__.py").read_text(encoding="utf8")
 
 	assert "sys.path.insert" not in source
 	assert "vendor.install" in source
@@ -551,10 +553,40 @@ def test_local_correction_imports_resolve_through_the_prefix():
 		"lib/tasks/typo/text_policy.py",
 		"lib/text/chinese.py",
 	):
-		source = Path("addon/globalPlugins/WordBridge") / relative
+		source = ADDON_ROOT / relative
 		text = source.read_text(encoding="utf8")
 		for bare in ("from pypinyin", "from chinese_converter", "import chinese_converter", "from hanzidentifier"):
 			assert f"\n{bare}" not in f"\n{text}", f"{relative} still imports {bare!r} bare"
+
+
+_BARE_VENDORED_IMPORT = re.compile(
+	r"^[ \t]*(?:from|import)[ \t]+"
+	r"(pypinyin|zhon|hanzidentifier|chinese_converter|coseeing_auth|authlib|jwt|joserfc|cryptography)\b"
+)
+
+
+def test_no_bare_vendored_import_exists_anywhere_outside_package():
+	"""Standing gate for Step 7's grep, run as part of the suite rather than by
+	hand: walks every .py file under the add-on except package/ itself (the
+	vendored sources legitimately import each other bare -- the sandbox's
+	__import__ shim rewrites those at load time) and fails on any bare import
+	of a vendored package name, catching a violation the four hand-picked
+	files in the test above cannot see (any other module, `import pypinyin`
+	without `from`, `import zhon`, ...).  Only meaningful once package/ is off
+	sys.path for the whole test session -- otherwise a violation would still
+	resolve at runtime and this test alone would not catch it.
+	"""
+	violations = []
+	for path in sorted(ADDON_ROOT.rglob("*.py")):
+		relative = path.relative_to(ADDON_ROOT)
+		if relative.parts[0] == "package":
+			continue
+		text = path.read_text(encoding="utf8")
+		for line_number, line in enumerate(text.splitlines(), start=1):
+			if _BARE_VENDORED_IMPORT.match(line):
+				violations.append(f"{relative}:{line_number}: {line.strip()}")
+
+	assert violations == []
 
 
 def test_plugin_entry_point_installs_the_sandbox_before_importing_coseeing_auth():
@@ -563,12 +595,25 @@ def test_plugin_entry_point_installs_the_sandbox_before_importing_coseeing_auth(
 	`lib/coseeing_auth.py`.  A source-order assertion is cheap and catches a
 	future edit that moves the install below the import without needing to
 	actually exercise plugin load end-to-end.
-	"""
-	source = Path("addon/globalPlugins/WordBridge/__init__.py").read_text(encoding="utf8")
 
-	install_index = source.index("vendor.install(")
+	Asserts against the *first* relative import in the file (`.dialogs`,
+	which transitively reaches `lib/tasks/typo/text_policy.py`'s own
+	`_wb_vendor` import) rather than only the two imports named below, so
+	moving the install below an earlier consumer -- not just below
+	`coseeing_auth` or `hanzidentifier` specifically -- still fails here.
+	"""
+	source = (ADDON_ROOT / "__init__.py").read_text(encoding="utf8")
+
+	install_index = source.index("\nvendor.install(")
+	# The *first* relative import overall is "from .lib import vendor" itself
+	# (needed to reach vendor.install in the first place, so it necessarily
+	# precedes it) -- what must come after the install is the first relative
+	# import following it, since any of those can transitively reach a
+	# _wb_vendor consumer such as lib/tasks/typo/text_policy.py.
+	first_relative_import_after_install_index = source.index("\nfrom .", install_index)
 	coseeing_auth_import_index = source.index("from .lib import coseeing_auth")
 	hanzidentifier_import_index = source.index("from _wb_vendor.hanzidentifier import has_chinese")
 
+	assert install_index < first_relative_import_after_install_index
 	assert install_index < coseeing_auth_import_index
 	assert install_index < hanzidentifier_import_index

@@ -11,10 +11,7 @@ from urllib.parse import urlparse
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
-PACKAGE_PATH = ADDON_PATH / "package"
-
 sys.path.insert(0, str(ADDON_PATH))
-sys.path.insert(0, str(PACKAGE_PATH))
 
 addon_handler = types.ModuleType("addonHandler")
 addon_handler.initTranslation = lambda: None
