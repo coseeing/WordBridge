@@ -123,34 +123,36 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self._feedback_thread,
 		]
 		try:
-			for worker in workers:
-				if worker is None or not worker.is_alive():
-					continue
-				remaining = deadline - time.monotonic()
-				if remaining <= 0:
-					break
-				worker.join(timeout=remaining)
-			if any(worker is not None and worker.is_alive() for worker in workers):
-				log.warning(
-					"WordBridge: background work still running after %s seconds, abandoning it",
-					TERMINATE_WAIT_SECONDS,
-				)
-		except Exception:
-			log.exception("WordBridge: error while waiting for background work to finish during terminate()")
-		try:
-			shutdown_coseeing_auth()
-		except Exception:
-			log.exception("WordBridge: shutdown_coseeing_auth() failed during terminate()")
-		try:
-			categoryClasses = gui.settingsDialogs.NVDASettingsDialog.categoryClasses
-			if LLMSettingsPanel in categoryClasses:
-				categoryClasses.remove(LLMSettingsPanel)
-		except Exception:
-			log.exception("WordBridge: removing LLMSettingsPanel failed during terminate()")
-		try:
-			super().terminate(*args, **kwargs)
-		except Exception:
-			log.exception("WordBridge: super().terminate() failed")
+			try:
+				for worker in workers:
+					if worker is None or not worker.is_alive():
+						continue
+					remaining = deadline - time.monotonic()
+					if remaining <= 0:
+						break
+					worker.join(timeout=remaining)
+				if any(worker is not None and worker.is_alive() for worker in workers):
+					log.warning(
+						"WordBridge: background work still running after %s seconds, abandoning it",
+						TERMINATE_WAIT_SECONDS,
+					)
+			except Exception:
+				log.exception("WordBridge: error while waiting for background work to finish during terminate()")
+		finally:
+			try:
+				shutdown_coseeing_auth()
+			except Exception:
+				log.exception("WordBridge: shutdown_coseeing_auth() failed during terminate()")
+			try:
+				categoryClasses = gui.settingsDialogs.NVDASettingsDialog.categoryClasses
+				if LLMSettingsPanel in categoryClasses:
+					categoryClasses.remove(LLMSettingsPanel)
+			except Exception:
+				log.exception("WordBridge: removing LLMSettingsPanel failed during terminate()")
+			try:
+				super().terminate(*args, **kwargs)
+			except Exception:
+				log.exception("WordBridge: super().terminate() failed")
 
 	def _run_on_ui(self, function, *args):
 		if self._shutdown.is_set():

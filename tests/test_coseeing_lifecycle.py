@@ -3,6 +3,8 @@ import time
 from concurrent.futures import Future
 from types import SimpleNamespace
 
+import pytest
+
 from test_coseeing_auth_nvda import _load_nvda_plugin
 
 SETTINGS = {
@@ -69,7 +71,7 @@ def test_request_uses_explicit_connect_and_read_timeouts(monkeypatch):
 
 def test_post_holds_no_lock_across_the_http_call(monkeypatch):
 	"""terminate() must not block on an in-flight HTTP call: no lock guards the post."""
-	plugin_module, config, gui = _load_nvda_plugin(monkeypatch, SETTINGS, [], [])
+	plugin_module, _, gui = _load_nvda_plugin(monkeypatch, SETTINGS, [], [])
 	instance = _instance(plugin_module)
 	instance.correct_typo_thread = None
 	instance._feedback_thread = None
@@ -399,5 +401,35 @@ def test_terminate_survives_shutdown_coseeing_auth_raising(monkeypatch):
 
 	assert instance._shutdown.is_set()
 	assert exceptions_logged, "the shutdown_coseeing_auth() exception must be logged, not swallowed silently"
+	assert plugin_module.LLMSettingsPanel not in gui.settingsDialogs.NVDASettingsDialog.categoryClasses
+	assert plugin_module.GlobalPlugin.terminated == 1, "the parent's terminate() must still run"
+
+
+def test_terminate_runs_cleanup_tail_when_join_raises_keyboardinterrupt(monkeypatch):
+	"""Round 2 regression: a BaseException (not an Exception) from the join
+	loop must not skip the cleanup tail. terminate() MAY still propagate a
+	BaseException such as KeyboardInterrupt -- that is intended, since
+	swallowing the process's own exit request in a screen reader's teardown
+	would be worse -- but shutdown_coseeing_auth(), the categoryClasses
+	removal, and the parent's terminate() must all still run first.
+	"""
+	auth_calls = []
+	plugin_module, _, gui = _load_nvda_plugin(monkeypatch, SETTINGS, auth_calls, [])
+	instance = _instance(plugin_module)
+	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(warning=lambda *args: None))
+	gui.settingsDialogs.NVDASettingsDialog.categoryClasses = [plugin_module.LLMSettingsPanel]
+
+	class ExplodingWorker:
+		def is_alive(self):
+			raise KeyboardInterrupt("is_alive boom")
+
+	instance.correct_typo_thread = ExplodingWorker()
+	instance._feedback_thread = None
+
+	with pytest.raises(KeyboardInterrupt):
+		plugin_module.GlobalPlugin.terminate(instance)
+
+	assert instance._shutdown.is_set()
+	assert auth_calls.count("shutdown") == 1, "shutdown_coseeing_auth() must still run"
 	assert plugin_module.LLMSettingsPanel not in gui.settingsDialogs.NVDASettingsDialog.categoryClasses
 	assert plugin_module.GlobalPlugin.terminated == 1, "the parent's terminate() must still run"
