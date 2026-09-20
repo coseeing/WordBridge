@@ -1,3 +1,4 @@
+import sys
 import threading
 from collections.abc import Callable
 from concurrent.futures import CancelledError, Future, InvalidStateError
@@ -27,16 +28,22 @@ try:
 		TokenUnavailableError,
 		TokenValidationError,
 	)
-except ImportError as error:  # noqa: F841 - kept for the diagnostic below
+except Exception as error:
 	AUTH_AVAILABLE = False
 	_AUTH_IMPORT_ERROR = error
 
 	class _UnavailableAuthError(Exception):
-		"""Never raised.
+		"""Placeholder base bound only when the real auth bundle failed to import.
 
-		Binding the names keeps every `except ClientClosedError:` in this file
-		valid, so the terminate() path needs no None guards on a runtime where
-		the bundle is absent.
+		Binds `OAuthError`, `ClientClosedError`, `RestoreError`,
+		`TokenUnavailableError` and `TokenValidationError` to placeholder
+		subclasses of this class so the `isinstance()` checks in `_fail()` and
+		the `raise ClientClosedError(...)` sites elsewhere in this file stay
+		valid on a runtime where the bundle is absent. `_get_singleton_pair()`
+		refuses to construct a session while `AUTH_AVAILABLE` is False, so in
+		practice those sites never run against these placeholders -- but
+		`CoseeingAuthSession` is public and directly constructible, so that is a
+		guarantee from the call site, not from these classes being unraisable.
 		"""
 
 	class OAuthError(_UnavailableAuthError):
@@ -60,7 +67,15 @@ else:
 
 def _unavailable_reason() -> str:
 	runtime = vendor.runtime_key()
-	detail = f"{type(_AUTH_IMPORT_ERROR).__name__}: {_AUTH_IMPORT_ERROR}" if _AUTH_IMPORT_ERROR else "not loaded"
+	if runtime is None:
+		runtime = f"unsupported (sys.platform={sys.platform!r}, python={sys.version_info[:2]!r})"
+	if _AUTH_IMPORT_ERROR is None:
+		return f"Coseeing auth dependencies unavailable (runtime={runtime}, not loaded)"
+	detail = f"{type(_AUTH_IMPORT_ERROR).__name__}: {_AUTH_IMPORT_ERROR}"
+	missing_name = getattr(_AUTH_IMPORT_ERROR, "name", None)
+	top_level = missing_name.split(".")[0] if missing_name else None
+	if top_level in vendor.HOST_ONLY:
+		detail = f"{detail} (host environment changed: {top_level!r} is expected from NVDA, not the bundle)"
 	return f"Coseeing auth dependencies unavailable (runtime={runtime}, {detail})"
 
 

@@ -153,6 +153,7 @@ def test_auth_error_classes_bind_when_the_sandbox_resolves_the_bundle(tmp_path):
 	vendor.install(vendor.default_roots(sys.argv[2]))
 	import lib.coseeing_auth as module
 	assert module.AUTH_AVAILABLE is True, module._AUTH_IMPORT_ERROR
+	assert module.OAuthError.__module__.startswith("_wb_vendor.")
 	assert issubclass(module.OAuthError, Exception)
 	assert issubclass(module.ClientClosedError, Exception)
 	assert issubclass(module.RestoreError, Exception)

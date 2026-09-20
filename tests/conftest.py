@@ -1,5 +1,6 @@
 import sys
 import os
+import types
 from pathlib import Path
 from dotenv import load_dotenv
 import pytest
@@ -14,6 +15,17 @@ package_path = addon_path / "package"
 sys.path.insert(0, str(tests_path))
 sys.path.insert(0, str(addon_path))
 sys.path.insert(0, str(package_path))
+
+# NVDA's addonHandler does not exist on this host. lib/coseeing_auth.py imports
+# it unconditionally at module scope, so any test file that imports that
+# module -- directly or transitively -- needs a stand-in. setdefault() makes
+# this idempotent: whichever test module (or file collection order) reaches
+# here first wins, and later imports of lib.coseeing_auth see a module already
+# satisfied, so this file no longer depends on cross-file collection order to
+# pass standalone.
+_addon_handler_stub = types.ModuleType("addonHandler")
+_addon_handler_stub.initTranslation = lambda: None
+sys.modules.setdefault("addonHandler", _addon_handler_stub)
 
 @pytest.fixture
 def model_config():

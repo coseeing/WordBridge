@@ -1,6 +1,8 @@
 import hashlib
 import importlib
+import shutil
 import struct
+import subprocess
 import sys
 import types
 from importlib.machinery import ExtensionFileLoader, ModuleSpec, SourceFileLoader
@@ -469,8 +471,56 @@ def test_has_saved_refresh_token_is_false_without_the_bundle(monkeypatch):
 
 
 def test_no_module_deletion_or_path_injection_remains():
-	source = Path("addon/globalPlugins/WordBridge/lib/coseeing_auth.py").read_text(encoding="utf8")
+	source = (PACKAGE_ROOT.parent / "lib" / "coseeing_auth.py").read_text(encoding="utf8")
 
 	assert "del sys.modules" not in source
 	assert "sys.path.insert" not in source
 	assert "_prepare_auth_dependencies" not in source
+
+
+def test_coseeing_auth_reports_unavailable_when_no_bundle_resolves(tmp_path):
+	"""Exercises the actual `except Exception` branch in coseeing_auth.py.
+
+	`test_coseeing_auth_module_imports_without_the_bundle` above only passes
+	against a module whose import already succeeded (see
+	tests/test_coseeing_auth.py, which registers working `_wb_vendor.*` stubs
+	before this file's tests run), so it never proves the placeholder branch
+	exists or works. This test installs the sandbox in a fresh subprocess
+	against a package tree with no `coseeing_auth` or `authlib` packages in it
+	at all -- nothing resolvable, from any file order -- and asserts
+	`AUTH_AVAILABLE` actually goes False and every placeholder name binds to a
+	subclass of the module's own `_UnavailableAuthError`.
+	"""
+	addon = tmp_path / "addon"
+	lib = addon / "lib"
+	package = addon / "package"
+	lib.mkdir(parents=True)
+	package.mkdir(parents=True)  # deliberately empty: no coseeing_auth, no authlib
+
+	shutil.copy2(PACKAGE_ROOT.parent / "lib" / "coseeing_auth.py", lib / "coseeing_auth.py")
+	shutil.copy2(PACKAGE_ROOT.parent / "lib" / "__init__.py", lib / "__init__.py")
+	shutil.copy2(PACKAGE_ROOT.parent / "lib" / "vendor.py", lib / "vendor.py")
+
+	code = """
+	import sys
+	import types
+	sys.path.insert(0, sys.argv[1])
+	addon_handler = types.ModuleType("addonHandler")
+	addon_handler.initTranslation = lambda: None
+	sys.modules["addonHandler"] = addon_handler
+	from lib import vendor
+	vendor.install(vendor.default_roots(sys.argv[2]))
+	import lib.coseeing_auth as module
+	assert module.AUTH_AVAILABLE is False, "expected no bundle to resolve"
+	names = (
+		"OAuthError", "ClientClosedError", "RestoreError",
+		"TokenUnavailableError", "TokenValidationError",
+	)
+	for name in names:
+		cls = getattr(module, name)
+		assert issubclass(cls, module._UnavailableAuthError), name
+	"""
+	subprocess.run(
+		[sys.executable, "-S", "-c", code, str(addon), str(package)],
+		check=True, capture_output=True, text=True,
+	)
