@@ -469,6 +469,7 @@ class _nvda_module_stubs:
 
 		dictionary_package = types.ModuleType("WordBridge.dictionary")
 		dictionary_package.__path__ = []
+		dictionary_package.WBW_DICTIONARY_PATH = "/tmp/wordbridge-test-dictionary"
 		sys.modules["WordBridge.dictionary"] = dictionary_package
 		sys.modules["WordBridge.dictionary.dialog"] = types.SimpleNamespace(DictionaryEntryDialog=object)
 		sys.modules["WordBridge.lib.coseeing"] = types.SimpleNamespace(build_coseeing_headers=lambda token: {} if token is None else {"Authorization": f"Bearer {token}"})

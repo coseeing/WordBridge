@@ -187,6 +187,7 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued):
 	monkeypatch.setitem(sys.modules, f"{package_name}.lib.application.task_runner", SimpleNamespace(run_typo_correction=lambda *args, **kwargs: None))
 	dictionary_package = type(sys)(f"{package_name}.dictionary")
 	dictionary_package.__path__ = [str(ADDON_PATH / "dictionary")]
+	dictionary_package.WBW_DICTIONARY_PATH = "/tmp/wordbridge-test-dictionary"
 	monkeypatch.setitem(sys.modules, dictionary_package.__name__, dictionary_package)
 	monkeypatch.setitem(sys.modules, f"{package_name}.dictionary.dialog", SimpleNamespace(DictionaryEntryDialog=object))
 
