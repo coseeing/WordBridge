@@ -115,33 +115,30 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# categoryClasses removal (which would otherwise leak the settings
 		# panel for the rest of the NVDA session) and super().terminate()
 		# must all still run. Every caught exception is logged with a
-		# traceback rather than swallowed.
-		# The outer try/finally exists on top of that: it keeps the cleanup
-		# tail running even when the wait loop raises something the
-		# except Exception handlers below do not catch, such as a
-		# KeyboardInterrupt.
+		# traceback rather than swallowed. The finally must run even when the
+		# wait loop raises something except Exception does not catch, such
+		# as a KeyboardInterrupt.
 		self._shutdown.set()
 		deadline = time.monotonic() + TERMINATE_WAIT_SECONDS
-		workers = [
-			self.correct_typo_thread,
-			self._feedback_thread,
-		]
 		try:
-			try:
-				for worker in workers:
-					if worker is None or not worker.is_alive():
-						continue
-					remaining = deadline - time.monotonic()
-					if remaining <= 0:
-						break
-					worker.join(timeout=remaining)
-				if any(worker is not None and worker.is_alive() for worker in workers):
-					log.warning(
-						"WordBridge: background work still running after %s seconds, abandoning it",
-						TERMINATE_WAIT_SECONDS,
-					)
-			except Exception:
-				log.exception("WordBridge: error while waiting for background work to finish during terminate()")
+			workers = [
+				self.correct_typo_thread,
+				self._feedback_thread,
+			]
+			for worker in workers:
+				if worker is None or not worker.is_alive():
+					continue
+				remaining = deadline - time.monotonic()
+				if remaining <= 0:
+					break
+				worker.join(timeout=remaining)
+			if any(worker is not None and worker.is_alive() for worker in workers):
+				log.warning(
+					"WordBridge: background work still running after %s seconds, abandoning it",
+					TERMINATE_WAIT_SECONDS,
+				)
+		except Exception:
+			log.exception("WordBridge: error while waiting for background work to finish during terminate()")
 		finally:
 			try:
 				shutdown_coseeing_auth()
@@ -498,12 +495,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category=ADDON_SUMMARY,
 	)
 	def script_showCorrectionReport(self, gesture):
-		if self.latest_action.diff is None:
+		diff = self.latest_action.diff
+		if diff is None:
 			ui.message(_("No report has been generated yet."))
 			log.warning(_("No report has been generated yet."))
 			return
 
-		self.showReport(self.latest_action.diff)
+		self.showReport(diff)
 
 	@script(
 		gesture="kb:NVDA+alt+f",
@@ -538,6 +536,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				feedback_value = feedbackDialog.feedbackTextCtrl.GetValue()
 				if not feedback_value:
 					return
+			# ShowModal() above runs a nested wx event loop, so terminate()
+			# can be dispatched and run to completion while the dialog was
+			# open. Re-check here, now that the dialog is closed, so a
+			# feedback thread is not started after terminate() has already
+			# joined the workers and shut auth down.
+			if self._shutdown.is_set():
+				return
 			interaction_id = latest_action.interaction_id
 			self._feedback_thread = threading.Thread(
 				target=self._send_coseeing_feedback,

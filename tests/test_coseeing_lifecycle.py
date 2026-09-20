@@ -280,6 +280,68 @@ def test_feedback_reads_one_internally_consistent_snapshot_despite_nested_event_
 	assert record["json"]["interaction_id"] == "i-first"
 
 
+def test_feedback_thread_is_not_started_once_terminate_ran_inside_showmodal(monkeypatch):
+	# ShowModal() runs a nested wx event loop, so terminate() can be dispatched
+	# and run to completion while the dialog is open. show()'s top-of-closure
+	# guard was already evaluated before the dialog opened, so without a
+	# second guard right after the dialog closes, show() walks past it and
+	# starts a new feedback thread after terminate() has already joined the
+	# workers and shut auth down.
+	queued = []
+	auth_calls = []
+	plugin_module, _, gui = _load_nvda_plugin(monkeypatch, SETTINGS, auth_calls, queued)
+	instance = _instance(plugin_module)
+	instance.latest_action = plugin_module.CorrectionAction(
+		interaction_id="i-1", request="req", response="resp"
+	)
+	instance.correct_typo_thread = None
+	instance._feedback_thread = None
+	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(warning=lambda *args, **kwargs: None))
+	gui.settingsDialogs.NVDASettingsDialog.categoryClasses = [plugin_module.LLMSettingsPanel]
+
+	future = Future()
+	future.set_result(None)
+	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
+
+	posts = []
+	monkeypatch.setattr(
+		plugin_module.requests,
+		"post",
+		lambda *args, **kwargs: posts.append((args, kwargs)),
+		raising=False,
+	)
+
+	class Dialog:
+		feedbackTextCtrl = SimpleNamespace(GetValue=lambda: "feedback text")
+
+		def __init__(self, *args):
+			pass
+
+		def __enter__(self):
+			return self
+
+		def __exit__(self, *args):
+			return False
+
+		def ShowModal(self):
+			# Simulate terminate() running to completion inside the nested
+			# wx event loop that ShowModal() pumps.
+			plugin_module.GlobalPlugin.terminate(instance)
+			return plugin_module.wx.ID_OK
+
+	monkeypatch.setattr(plugin_module, "FeedbackDialog", Dialog)
+	plugin_module.wx.ID_OK = plugin_module.wx.OK
+
+	plugin_module.GlobalPlugin.script_correctionFeedback(instance, None)
+	assert len(queued) == 1
+	show, args = queued.pop()
+	show(*args)
+
+	assert instance._feedback_thread is None, "no feedback thread should start once terminate() has already run"
+	assert auth_calls == ["shutdown"]
+	assert posts == []
+
+
 def test_terminate_returns_within_budget_while_a_worker_is_blocked(monkeypatch):
 	# Both workers must be real, live daemon threads so a per-worker budget
 	# (join each worker for the full TERMINATE_WAIT_SECONDS) is distinguishable
