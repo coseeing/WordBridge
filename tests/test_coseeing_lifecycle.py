@@ -313,7 +313,7 @@ def test_terminate_returns_within_budget_while_a_worker_is_blocked(monkeypatch):
 
 def test_terminate_is_safe_when_called_twice(monkeypatch):
 	auth_calls = []
-	plugin_module, config, gui = _load_nvda_plugin(monkeypatch, SETTINGS, auth_calls, [])
+	plugin_module, _, gui = _load_nvda_plugin(monkeypatch, SETTINGS, auth_calls, [])
 	instance = _instance(plugin_module)
 	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(warning=lambda *args: None))
 	gui.settingsDialogs.NVDASettingsDialog.categoryClasses = [plugin_module.LLMSettingsPanel]
@@ -330,3 +330,74 @@ def test_terminate_is_safe_when_called_twice(monkeypatch):
 	# twice, and that the stubbed auth shutdown was invoked twice too.
 	assert auth_calls.count("shutdown") == 2
 	assert plugin_module.GlobalPlugin.terminated == 2
+
+
+def test_terminate_survives_worker_is_alive_raising(monkeypatch):
+	"""R02: terminate() never raises, even if a worker's is_alive() blows up.
+
+	The rest of the cleanup tail (shutdown_coseeing_auth(), the
+	categoryClasses removal, and the parent's terminate()) must still run.
+	"""
+	auth_calls = []
+	plugin_module, _, gui = _load_nvda_plugin(monkeypatch, SETTINGS, auth_calls, [])
+	instance = _instance(plugin_module)
+	exceptions_logged = []
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args: None,
+			exception=lambda *args, **kwargs: exceptions_logged.append(args),
+		),
+	)
+	gui.settingsDialogs.NVDASettingsDialog.categoryClasses = [plugin_module.LLMSettingsPanel]
+
+	class ExplodingWorker:
+		def is_alive(self):
+			raise RuntimeError("is_alive boom")
+
+	instance.correct_typo_thread = ExplodingWorker()
+	instance._feedback_thread = None
+
+	plugin_module.GlobalPlugin.terminate(instance)
+
+	assert instance._shutdown.is_set()
+	assert exceptions_logged, "the is_alive() exception must be logged, not swallowed silently"
+	assert auth_calls.count("shutdown") == 1, "shutdown_coseeing_auth() must still run"
+	assert plugin_module.LLMSettingsPanel not in gui.settingsDialogs.NVDASettingsDialog.categoryClasses
+	assert plugin_module.GlobalPlugin.terminated == 1, "the parent's terminate() must still run"
+
+
+def test_terminate_survives_shutdown_coseeing_auth_raising(monkeypatch):
+	"""R02: terminate() never raises, even if shutdown_coseeing_auth() blows up.
+
+	The categoryClasses removal and the parent's terminate() must still run
+	-- otherwise the WordBridge settings panel leaks into NVDA's settings
+	dialog for the rest of the session.
+	"""
+	plugin_module, _, gui = _load_nvda_plugin(monkeypatch, SETTINGS, [], [])
+	instance = _instance(plugin_module)
+	exceptions_logged = []
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args: None,
+			exception=lambda *args, **kwargs: exceptions_logged.append(args),
+		),
+	)
+	monkeypatch.setattr(
+		plugin_module,
+		"shutdown_coseeing_auth",
+		lambda: (_ for _ in ()).throw(RuntimeError("shutdown boom")),
+	)
+	gui.settingsDialogs.NVDASettingsDialog.categoryClasses = [plugin_module.LLMSettingsPanel]
+	instance.correct_typo_thread = None
+	instance._feedback_thread = None
+
+	plugin_module.GlobalPlugin.terminate(instance)
+
+	assert instance._shutdown.is_set()
+	assert exceptions_logged, "the shutdown_coseeing_auth() exception must be logged, not swallowed silently"
+	assert plugin_module.LLMSettingsPanel not in gui.settingsDialogs.NVDASettingsDialog.categoryClasses
+	assert plugin_module.GlobalPlugin.terminated == 1, "the parent's terminate() must still run"

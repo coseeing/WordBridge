@@ -109,6 +109,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			start_coseeing_auth(channel)
 
 	def terminate(self, *args, **kwargs):
+		# R02: terminate() must never raise. Each step below is isolated in
+		# its own try/except so that a failure in one step cannot skip the
+		# steps after it -- in particular shutdown_coseeing_auth(), the
+		# categoryClasses removal (which would otherwise leak the settings
+		# panel for the rest of the NVDA session) and super().terminate()
+		# must all still run. Every caught exception is logged with a
+		# traceback rather than swallowed.
 		self._shutdown.set()
 		deadline = time.monotonic() + TERMINATE_WAIT_SECONDS
 		workers = [
@@ -128,12 +135,22 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					"WordBridge: background work still running after %s seconds, abandoning it",
 					TERMINATE_WAIT_SECONDS,
 				)
-		finally:
+		except Exception:
+			log.exception("WordBridge: error while waiting for background work to finish during terminate()")
+		try:
 			shutdown_coseeing_auth()
+		except Exception:
+			log.exception("WordBridge: shutdown_coseeing_auth() failed during terminate()")
+		try:
 			categoryClasses = gui.settingsDialogs.NVDASettingsDialog.categoryClasses
 			if LLMSettingsPanel in categoryClasses:
 				categoryClasses.remove(LLMSettingsPanel)
+		except Exception:
+			log.exception("WordBridge: removing LLMSettingsPanel failed during terminate()")
+		try:
 			super().terminate(*args, **kwargs)
+		except Exception:
+			log.exception("WordBridge: super().terminate() failed")
 
 	def _run_on_ui(self, function, *args):
 		if self._shutdown.is_set():
