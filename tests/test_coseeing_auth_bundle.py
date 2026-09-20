@@ -10,7 +10,10 @@ from pathlib import Path
 import pytest
 
 
-PACKAGE_ROOT = Path("addon/globalPlugins/WordBridge/package")
+PACKAGE_ROOT = (
+	Path(__file__).resolve().parent.parent
+	/ "addon" / "globalPlugins" / "WordBridge" / "package"
+)
 RUNTIME_BUNDLES = {
 	"py313-win_amd64": {
 		"_cffi_backend.cp313-win_amd64.pyd",
@@ -146,7 +149,7 @@ def test_runtime_bundle_contains_resolved_package_versions():
 	assert actual == EXPECTED_PACKAGE_VERSIONS
 
 
-def test_windows_bundle_imports_dependencies_from_addon_package():
+def test_windows_bundle_imports_dependencies_through_the_sandbox():
 	if sys.platform != "win32":
 		pytest.skip("Windows NVDA bundle import requires a Windows target runtime")
 
@@ -156,44 +159,90 @@ def test_windows_bundle_imports_dependencies_from_addon_package():
 import sys
 import struct
 import os
+import builtins
+from importlib.machinery import ExtensionFileLoader
 from pathlib import Path
 
 bundle = Path(sys.argv[1]).resolve()
 assert "PYTHONPATH" not in os.environ
 assert (sys.version_info.major, sys.version_info.minor) == (3, 13)
 assert struct.calcsize('P') == 8
-runtime = "py313-win_amd64"
-deps = bundle / "_coseeing_auth_deps" / runtime
+deps = bundle / "_coseeing_auth_deps" / "py313-win_amd64"
 assert deps.is_dir()
-sys.path.insert(0, str(deps))
-sys.path.insert(0, str(bundle))
-import authlib
-import coseeing_auth
-import joserfc
-from authlib.integrations.requests_client import OAuth2Session
-import jwt
-from jwt.algorithms import RSAAlgorithm
-import requests
-import cryptography
-import cffi
-import _cffi_backend
-import charset_normalizer
-import certifi
-import idna
-import urllib3
-import pycparser
 
-assert Path(coseeing_auth.__file__).resolve().is_relative_to(bundle)
+sys.path.insert(0, str(bundle.parent))
+from lib import vendor
+
+vendor.install(vendor.default_roots(bundle))
+vendor.install_stdlib_gapfill(bundle)
+
+import _wb_vendor.authlib
+import _wb_vendor.coseeing_auth
+import _wb_vendor.joserfc
+import _wb_vendor.jwt
+import _wb_vendor.cryptography
+import _wb_vendor.cryptography.hazmat.bindings._rust as wb_rust
+import _wb_vendor.pypinyin
+import _wb_vendor.zhon
+import _wb_vendor.hanzidentifier
+import _wb_vendor.chinese_converter
+from _wb_vendor.authlib.integrations.requests_client import OAuth2Session
+from _wb_vendor.jwt.algorithms import RSAAlgorithm
+
 assert callable(OAuth2Session)
 assert callable(RSAAlgorithm)
-assert callable(requests.Session)
-for module in (authlib, coseeing_auth, joserfc, jwt, requests, cryptography,
-               cffi, _cffi_backend, charset_normalizer, certifi, idna, urllib3,
-               pycparser):
-    assert Path(module.__file__).resolve().is_relative_to(deps)
+
+for name in ("authlib", "joserfc", "jwt", "cryptography"):
+    module = sys.modules["_wb_vendor." + name]
+    assert Path(module.__file__).resolve().is_relative_to(deps), name
+for name in ("coseeing_auth", "pypinyin", "zhon", "hanzidentifier", "chinese_converter"):
+    module = sys.modules["_wb_vendor." + name]
+    assert Path(module.__file__).resolve().is_relative_to(bundle), name
+
+for name in vendor.ISOLATED:
+    assert name not in sys.modules, "leaked global name: " + name
+
+for name in vendor.HOST_ONLY:
+    module = sys.modules.get(name)
+    if module is None or getattr(module, "__file__", None) is None:
+        continue
+    assert not Path(module.__file__).resolve().is_relative_to(deps), name
+
+# (a) The sandbox is fail-open by construction: the prefix namespace's
+# __path__ is a working import root that the stock PathFinder serves on its
+# own, so if _SandboxFinder is ever missing, displaced, or declines a name,
+# the import still succeeds -- just unwrapped, with the real __import__ and
+# no rewriting. Assert every loaded _wb_vendor.* module with a source origin
+# (excludes the manually-built _wb_vendor namespace module itself and any
+# extension module, neither of which goes through _SandboxLoader) actually
+# received the rewritten __import__ rather than the real one.
+for name, module in list(sys.modules.items()):
+    if not name.startswith("_wb_vendor."):
+        continue
+    spec = getattr(module, "__spec__", None)
+    origin = getattr(spec, "origin", None)
+    if not isinstance(origin, str) or not origin.endswith(".py"):
+        continue
+    module_builtins = module.__dict__.get("__builtins__")
+    if isinstance(module_builtins, dict):
+        sandboxed_import = module_builtins.get("__import__")
+    else:
+        sandboxed_import = getattr(module_builtins, "__import__", None)
+    assert sandboxed_import is not None, name
+    assert sandboxed_import is not builtins.__import__, name
+
+# (b) cryptography/hazmat/bindings/_rust/ ships only .pyi stubs and has no
+# __init__.py, so it is a PEP 420 namespace portion unless the sibling
+# _rust.pyd shadows it -- which is only true because FileFinder prefers an
+# extension module over a namespace portion of the same name. That ordering
+# is unprovable off Windows; here it is proven for real, on the real
+# runtime. If it ever broke, _SandboxFinder would raise ModuleNotFoundError
+# for this name instead of the import quietly degrading.
+assert isinstance(wb_rust.__loader__, ExtensionFileLoader), type(wb_rust.__loader__)
+assert wb_rust.__spec__.origin.endswith(".pyd"), wb_rust.__spec__.origin
 """
 	subprocess.run(
-		[sys.executable, "-I", "-S", "-c", code, str(bundle)],
+		[sys.executable, "-I", "-c", code, str(bundle)],
 		check=True,
 		capture_output=True,
 		text=True,

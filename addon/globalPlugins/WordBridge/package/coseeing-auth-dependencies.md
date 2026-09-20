@@ -32,3 +32,23 @@ The Windows import test uses isolated mode, selects the matching runtime
 directory, and verifies all direct and transitive modules resolve from that
 directory. It is skipped on non-Windows development hosts and must be run on
 the supported NVDA Python runtime on Windows before release.
+
+## Import categories
+
+The add-on loads these through the private `_wb_vendor` sandbox rather than by
+modifying `sys.path` or `sys.modules`. See
+`docs/superpowers/specs/2026-09-20-r03-import-isolation-design.md`.
+
+| Category | Members | Resolution |
+| --- | --- | --- |
+| stdlib NVDA removed | `secrets` | canonical name, registered only when the host lacks it, sources in `package/_stdlib_gapfill/` |
+| must come from us | `cryptography`, `authlib`, `joserfc`, `jwt`, `coseeing_auth`, `pypinyin`, `zhon`, `hanzidentifier`, `chinese_converter` | `_wb_vendor.*` only; never a global top-level name |
+| must come from the host | `requests`, `urllib3`, `certifi`, `idna`, `charset_normalizer`, `cffi`, `_cffi_backend`, `pycparser` | NVDA's copies; the bundled copies are never loaded and there is no fallback to them |
+
+`cryptography` needs isolating because NVDA ships a trimmed 48.0.1 that lacks
+the six modules `authlib`'s joserfc import pulls in:
+`hazmat.primitives.kdf{,.concatkdf,.hkdf,.pbkdf2}`, `hazmat.primitives.keywrap`
+and `hazmat.primitives.padding`.
+
+Adding a package to this directory without adding it to a category list fails
+`tests/test_vendor_sandbox.py::test_every_bundled_top_level_name_is_classified`.
