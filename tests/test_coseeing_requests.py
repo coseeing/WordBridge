@@ -236,6 +236,10 @@ def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeyp
 			return False
 
 		def ShowModal(self):
+			# ShowModal runs a nested wx event loop; simulate a correction
+			# for a DIFFERENT task completing and publishing its snapshot
+			# while this dialog is still open, before returning ID_OK.
+			instance.latest_action = plugin_module.CorrectionAction(interaction_id="i-new", request="原文", response="修正")
 			return plugin_module.wx.ID_OK
 
 	monkeypatch.setattr(plugin_module, "FeedbackDialog", Dialog)
@@ -249,7 +253,6 @@ def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeyp
 	assert len(queued) == 1
 	show, args = queued.pop()
 	show(*args)
-	instance.latest_action = plugin_module.CorrectionAction(interaction_id="i-new", request="原文", response="修正")
 	assert record == {}
 
 	future.set_result(None)

@@ -1,5 +1,6 @@
 import threading
 import time
+from concurrent.futures import Future
 from types import SimpleNamespace
 
 from test_coseeing_auth_nvda import _load_nvda_plugin
@@ -166,9 +167,6 @@ def test_onpreview_callback_is_inert_if_shutdown_happens_before_delivery(monkeyp
 	assert opened == []
 
 
-from concurrent.futures import Future
-
-
 def test_latest_action_is_published_as_one_snapshot_on_the_ui_thread(monkeypatch):
 	queued = []
 	plugin_module = _plugin(monkeypatch, queued)
@@ -214,6 +212,68 @@ def test_correction_action_is_immutable(monkeypatch):
 		assert type(error).__name__ == "FrozenInstanceError"
 	else:
 		assert False, "CorrectionAction must be frozen"
+
+
+def test_feedback_reads_one_internally_consistent_snapshot_despite_nested_event_loop(monkeypatch):
+	# Spec Tests item 8: latest_action observed from the UI thread is always
+	# internally consistent -- request, response and interaction_id come from
+	# the same task, even though FeedbackDialog.ShowModal() runs a nested wx
+	# event loop that can deliver a pending _set_latest_action callback for a
+	# second, unrelated task while the dialog is still open.
+	queued = []
+	plugin_module = _plugin(monkeypatch, queued)
+	instance = _instance(plugin_module)
+	instance.latest_action = plugin_module.CorrectionAction(
+		interaction_id="i-first", request="first-req", response="first-resp"
+	)
+	future = Future()
+	future.set_result(None)
+	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
+	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=lambda *args, **kwargs: None))
+	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(warning=lambda *args, **kwargs: None))
+
+	dialog_args = []
+	record = {}
+
+	class Dialog:
+		feedbackTextCtrl = SimpleNamespace(GetValue=lambda: "feedback text")
+
+		def __init__(self, *args):
+			dialog_args.append(args)
+
+		def __enter__(self):
+			return self
+
+		def __exit__(self, *args):
+			return False
+
+		def ShowModal(self):
+			# Simulate a second, unrelated correction completing and
+			# publishing its own snapshot while this dialog is open.
+			instance.latest_action = plugin_module.CorrectionAction(
+				interaction_id="i-second", request="second-req", response="second-resp"
+			)
+			return plugin_module.wx.ID_OK
+
+	monkeypatch.setattr(plugin_module, "FeedbackDialog", Dialog)
+	plugin_module.wx.ID_OK = plugin_module.wx.OK
+	monkeypatch.setattr(
+		plugin_module.requests,
+		"post",
+		lambda url, **kwargs: record.update(url=url, **kwargs) or SimpleNamespace(status_code=200, json=lambda: {}),
+		raising=False,
+	)
+
+	plugin_module.GlobalPlugin.script_correctionFeedback(instance, None)
+	assert len(queued) == 1
+	show, args = queued.pop()
+	show(*args)
+
+	worker = instance._feedback_thread
+	worker.join(timeout=1)
+
+	assert dialog_args[0][1:] == ("first-req", "first-resp")
+	assert record["json"]["interaction_id"] == "i-first"
 
 
 def test_terminate_returns_within_budget_while_a_worker_is_blocked(monkeypatch):

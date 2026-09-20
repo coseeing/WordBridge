@@ -148,6 +148,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._run_on_ui(ui.message, message)
 
 	def _set_latest_action(self, action):
+		# Sole writer of self.latest_action. Must only ever be invoked via
+		# self._run_on_ui(self._set_latest_action, ...), so it always runs on
+		# the UI thread -- this is what makes a single self.latest_action read
+		# on the UI thread internally consistent (request/response/
+		# interaction_id all from the same task) without needing a lock.
 		self.latest_action = action
 
 	def _post_coseeing_request(self, url, **kwargs):
@@ -480,7 +485,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category=ADDON_SUMMARY,
 	)
 	def script_correctionFeedback(self, gesture):
-		if self.latest_action.interaction_id is None:
+		# Sample latest_action exactly once, here, before show() is scheduled.
+		# ShowModal() below runs a nested wx event loop, which can deliver a
+		# pending _set_latest_action callback for a different, later task
+		# while the dialog is open. Reading self.latest_action again after
+		# ShowModal() returns would then attach this feedback to the wrong
+		# interaction. The guard, the dialog and the POST must all close over
+		# this one local instead.
+		latest_action = self.latest_action
+		if latest_action.interaction_id is None:
 			ui.message(_("You have not run a typos correction task with the Coseeing service provider yet."))
 
 			log.warning(_("You have not run a typos correction task with the Coseeing service provider yet."))
@@ -491,15 +504,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				return
 			with FeedbackDialog(
 				gui.mainFrame,
-				self.latest_action.request,
-				self.latest_action.response
+				latest_action.request,
+				latest_action.response
 			) as feedbackDialog:
 				if feedbackDialog.ShowModal() != wx.ID_OK:
 					return
 				feedback_value = feedbackDialog.feedbackTextCtrl.GetValue()
 				if not feedback_value:
 					return
-			interaction_id = self.latest_action.interaction_id
+			interaction_id = latest_action.interaction_id
 			self._feedback_thread = threading.Thread(
 				target=self._send_coseeing_feedback,
 				args=(interaction_id, feedback_value),
