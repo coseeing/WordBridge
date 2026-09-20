@@ -71,6 +71,9 @@ COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
 COSEEING_CONNECT_TIMEOUT = 10
 COSEEING_READ_TIMEOUT = 120
 COSEEING_TIMEOUT = (COSEEING_CONNECT_TIMEOUT, COSEEING_READ_TIMEOUT)
+# terminate() must not wait for an in-flight request. Workers are daemons, so
+# whatever is still running when this budget expires is abandoned.
+TERMINATE_WAIT_SECONDS = 3
 
 
 def get_coseeing_access_token(*, reconsider_guest=False):
@@ -106,8 +109,27 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def terminate(self, *args, **kwargs):
 		self._shutdown.set()
+		deadline = time.monotonic() + TERMINATE_WAIT_SECONDS
+		workers = [
+			getattr(self, "correct_typo_thread", None),
+			getattr(self, "_feedback_thread", None),
+		]
+		for worker in workers:
+			if worker is None or not worker.is_alive():
+				continue
+			remaining = deadline - time.monotonic()
+			if remaining <= 0:
+				break
+			worker.join(timeout=remaining)
+		if any(worker is not None and worker.is_alive() for worker in workers):
+			log.warning(
+				"WordBridge: background work still running after %s seconds, abandoning it",
+				TERMINATE_WAIT_SECONDS,
+			)
 		shutdown_coseeing_auth()
-		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(LLMSettingsPanel)
+		categoryClasses = gui.settingsDialogs.NVDASettingsDialog.categoryClasses
+		if LLMSettingsPanel in categoryClasses:
+			categoryClasses.remove(LLMSettingsPanel)
 		super().terminate(*args, **kwargs)
 
 	def _run_on_ui(self, function, *args):
@@ -381,7 +403,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self._notify(_("Only one proofreading task can run at a time. Please wait until the current task has finished before starting another."))
 			return
 
-		self.correct_typo_thread = threading.Thread(target=self.correctTypo, args=(text,))
+		self.correct_typo_thread = threading.Thread(target=self.correctTypo, args=(text,), daemon=True)
 		self.correct_typo_thread.start()
 
 		while self.correct_typo_thread.is_alive():
@@ -425,7 +447,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		text = self.getSelectedText()
 		if not self.isTextValid(text):
 			return
-		action_thread = threading.Thread(target=self.correctionAction, args=(text,))
+		action_thread = threading.Thread(target=self.correctionAction, args=(text,), daemon=True)
 		action_thread.start()
 
 	@script(

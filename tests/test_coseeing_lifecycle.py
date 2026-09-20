@@ -1,4 +1,5 @@
 import threading
+import time
 from types import SimpleNamespace
 
 from test_coseeing_auth_nvda import _load_nvda_plugin
@@ -213,3 +214,40 @@ def test_correction_action_is_immutable(monkeypatch):
 		assert type(error).__name__ == "FrozenInstanceError"
 	else:
 		assert False, "CorrectionAction must be frozen"
+
+
+def test_terminate_returns_within_budget_while_a_worker_is_blocked(monkeypatch):
+	queued = []
+	plugin_module = _plugin(monkeypatch, queued)
+	instance = _instance(plugin_module)
+	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(warning=lambda *args: None))
+	plugin_module.gui.settingsDialogs.NVDASettingsDialog.categoryClasses = [plugin_module.LLMSettingsPanel]
+
+	release = threading.Event()
+	worker = threading.Thread(target=lambda: release.wait(30), daemon=True)
+	worker.start()
+	instance.correct_typo_thread = worker
+	instance._feedback_thread = None
+
+	started = time.monotonic()
+	plugin_module.GlobalPlugin.terminate(instance)
+	elapsed = time.monotonic() - started
+	release.set()
+
+	assert instance._shutdown.is_set()
+	assert elapsed < plugin_module.TERMINATE_WAIT_SECONDS + 2
+	assert worker.is_alive(), "terminate must not wait for the worker to finish"
+
+
+def test_terminate_is_safe_when_called_twice(monkeypatch):
+	plugin_module = _plugin(monkeypatch, [])
+	instance = _instance(plugin_module)
+	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(warning=lambda *args: None))
+	plugin_module.gui.settingsDialogs.NVDASettingsDialog.categoryClasses = [plugin_module.LLMSettingsPanel]
+	instance.correct_typo_thread = None
+	instance._feedback_thread = None
+
+	plugin_module.GlobalPlugin.terminate(instance)
+	plugin_module.GlobalPlugin.terminate(instance)
+
+	assert instance._shutdown.is_set()
