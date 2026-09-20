@@ -287,25 +287,55 @@
 						const descs_before = data.descs_before || [];
 						const descs_after = data.descs_after || [];
 
-						const buildDescriptionList = (descriptions) => descriptions.reduce((a, b) => {
-							let chr = "";
-							let descs = [];
-							try{
-								chr = b[0];
-								descs = b[1].slice(",");
-							} catch(e){
-							}
-							const descriptionsHtml = descs.length
-								? "<ul>" + descs.reduce((a, b) => `${a}<li>${b}</li>`, "") + "</ul>"
-								: "";
-							return `${a}<div class="correction-dialog__entry"><p class="correction-dialog__text">${chr}</p>${descriptionsHtml}</div>`;
-						}, "");
-						const html = data.operation === "文字替換"
-							? `<section class="correction-dialog__section"><h3 class="correction-dialog__label correction-dialog__label--original">原始文字</h3>${buildDescriptionList(descs_before)}</section><section class="correction-dialog__section"><h3 class="correction-dialog__label correction-dialog__label--corrected">修正文字</h3>${buildDescriptionList(descs_after)}</section>`
-							: buildDescriptionList([...descs_before, ...descs_after]);
+						const buildDescriptionList = (descriptions) => {
+							const fragment = document.createDocumentFragment();
+							descriptions.forEach((description) => {
+								let chr = "";
+								let descs = [];
+								try {
+									chr = description[0];
+									descs = description[1].slice(",");
+								} catch (e) {
+								}
+								const entry = document.createElement("div");
+								entry.className = "correction-dialog__entry";
+								const text = document.createElement("p");
+								text.className = "correction-dialog__text";
+								text.textContent = chr;
+								entry.appendChild(text);
+								if (descs.length) {
+									const list = document.createElement("ul");
+									descs.forEach((desc) => {
+										const item = document.createElement("li");
+										item.textContent = desc;
+										list.appendChild(item);
+									});
+									entry.appendChild(list);
+								}
+								fragment.appendChild(entry);
+							});
+							return fragment;
+						};
+						const buildSection = (labelText, labelModifier, descriptions) => {
+							const section = document.createElement("section");
+							section.className = "correction-dialog__section";
+							const label = document.createElement("h3");
+							label.className = "correction-dialog__label correction-dialog__label--" + labelModifier;
+							label.textContent = labelText;
+							section.appendChild(label);
+							section.appendChild(buildDescriptionList(descriptions));
+							return section;
+						};
+						const container = document.createElement("div");
+						if (data.operation === "文字替換") {
+							container.appendChild(buildSection("原始文字", "original", descs_before));
+							container.appendChild(buildSection("修正文字", "corrected", descs_after));
+						} else {
+							container.appendChild(buildDescriptionList([...descs_before, ...descs_after]));
+						}
 						Swal.fire({
-							title: data.operation,
-							html,
+							titleText: data.operation,
+							html: container,
 							buttonsStyling: false,
 							confirmButtonText: "關閉",
 							customClass: {

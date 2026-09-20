@@ -76,3 +76,28 @@ def test_numeric_character_reference_is_decoded_then_escaped(monkeypatch, tmp_pa
 def test_each_dangerous_character_is_escaped(monkeypatch, character, escape):
 	view_html = _load_view_html(monkeypatch)
 	assert view_html._escape_for_inline_script(character) == escape
+
+
+TEMPLATE_PATH = ADDON_PATH / "web" / "templates" / "index.template"
+
+
+def _template_text():
+	return TEMPLATE_PATH.read_text(encoding="utf8")
+
+
+def test_dialog_does_not_interpolate_content_into_html_strings():
+	template = _template_text()
+	assert "${chr}" not in template
+	assert "<li>${" not in template
+	assert '"<ul>"' not in template
+
+
+def test_dialog_assigns_text_through_text_content():
+	template = _template_text()
+	assert "textContent" in template
+
+
+def test_dialog_passes_an_element_to_sweetalert():
+	template = _template_text()
+	assert "html: container" in template
+	assert "titleText: data.operation" in template

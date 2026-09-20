@@ -23,13 +23,52 @@ def _open_replace_dialog_html():
 		const vm = require("node:vm");
 		let component;
 		let dialog;
+
+		// Minimal DOM shim: index.template now builds the dialog via
+		// document.createElement/createDocumentFragment instead of HTML
+		// strings, so the sandbox needs just enough of a DOM to run that
+		// code and a serializer that reproduces the strings the tests
+		// below assert on. It is test scaffolding, not a DOM library:
+		// only tag, className and textContent/children are supported.
+		function createDomNode(tag) {{
+			return {{
+				tag,
+				className: "",
+				textContent: null,
+				children: [],
+				appendChild(child) {{ this.children.push(child); }},
+			}};
+		}}
+		function createDomFragment() {{
+			return {{
+				isFragment: true,
+				children: [],
+				appendChild(child) {{ this.children.push(child); }},
+			}};
+		}}
+		function serializeDomNode(node) {{
+			if (node.isFragment) {{
+				return node.children.map(serializeDomNode).join("");
+			}}
+			const content = node.textContent !== null
+				? node.textContent
+				: node.children.map(serializeDomNode).join("");
+			return node.className
+				? `<${{node.tag}} class="${{node.className}}">${{content}}</${{node.tag}}>`
+				: `<${{node.tag}}>${{content}}</${{node.tag}}>`;
+		}}
+
 		const context = {{
 			Vue: {{
 				createApp(value) {{ component = value; return {{ mount() {{}} }}; }},
 				ref(value) {{ return {{ value }}; }},
 			}},
 			Swal: {{ fire(options) {{ dialog = options; }} }},
-			document: {{ title: "" }},
+			document: {{
+				title: "",
+				createElement(tag) {{ return createDomNode(tag); }},
+				createDocumentFragment() {{ return createDomFragment(); }},
+			}},
 			window: {{ contentConfig: {{ title: "測試", data: "[]", raw: "[]" }} }},
 		}};
 		vm.runInNewContext({json.dumps(application_script)}, context);
@@ -38,7 +77,7 @@ def _open_replace_dialog_html():
 			descs_before: [["錯", ["錯字詞"]]],
 			descs_after: [["對", ["正確詞"]]],
 		}});
-		process.stdout.write(dialog.html);
+		process.stdout.write(serializeDomNode(dialog.html));
 	"""
 	result = subprocess.run(
 		["node", "-e", node_script],
