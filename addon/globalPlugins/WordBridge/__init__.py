@@ -116,6 +116,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# panel for the rest of the NVDA session) and super().terminate()
 		# must all still run. Every caught exception is logged with a
 		# traceback rather than swallowed.
+		# The outer try/finally exists on top of that: it keeps the cleanup
+		# tail running even when the wait loop raises something the
+		# except Exception handlers below do not catch, such as a
+		# KeyboardInterrupt.
 		self._shutdown.set()
 		deadline = time.monotonic() + TERMINATE_WAIT_SECONDS
 		workers = [
