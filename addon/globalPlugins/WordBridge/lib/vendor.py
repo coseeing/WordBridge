@@ -15,7 +15,7 @@ import os
 import struct
 import sys
 import types
-from importlib.machinery import ExtensionFileLoader, PathFinder
+from importlib.machinery import ExtensionFileLoader, ModuleSpec, PathFinder
 
 PREFIX = "_wb_vendor"
 
@@ -55,9 +55,14 @@ class _SandboxLoader(importlib.abc.Loader):
 	"""Wraps a real loader to give the module a sandboxed ``__import__``.
 
 	``exec()`` only inserts ``__builtins__`` into a globals dict that lacks it,
-	so setting it before ``exec_module`` makes every absolute import in the
-	module -- including ones written inside functions and executed much later --
-	go through our rewrite.
+	so setting it before ``exec_module`` makes every ``import`` statement and
+	every direct ``__import__()`` call in the module -- including ones written
+	inside functions and executed much later -- go through our rewrite.  It does
+	not reach ``importlib.import_module()`` or any other resolution that
+	bypasses a module's own ``__import__``: spec fact 7 found zero such call
+	sites across the bundled category 2 packages, and the Windows gate (test 12)
+	asserts module origins rather than trusting the mechanism, to catch a future
+	dependency version that adds one.
 	"""
 
 	def __init__(self, loader, sandbox_import):
@@ -65,7 +70,8 @@ class _SandboxLoader(importlib.abc.Loader):
 		self._sandbox_import = sandbox_import
 
 	def create_module(self, spec):
-		return self._loader.create_module(spec)
+		creator = getattr(self._loader, "create_module", None)
+		return creator(spec) if creator else None
 
 	def exec_module(self, module):
 		sandboxed_builtins = dict(vars(builtins))
@@ -111,7 +117,7 @@ def runtime_key():
 
 
 def default_roots(package_path):
-	"""The sandbox roots that actually exist, in search order."""
+	"""The candidate roots in search order; existence is filtered by ``install()``."""
 	roots = [str(package_path)]
 	key = runtime_key()
 	if key is not None:
@@ -120,16 +126,26 @@ def default_roots(package_path):
 
 
 def install(roots, *, prefix=PREFIX, isolated=None):
-	"""Install the sandbox once.  Never raises; a second call is a no-op."""
-	existing = sys.modules.get(prefix)
-	if existing is not None:
-		return existing
-	if isolated is None:
-		isolated = ISOLATED
-	namespace = types.ModuleType(prefix)
-	namespace.__path__ = [str(root) for root in roots if os.path.isdir(str(root))]
-	namespace.__doc__ = "WordBridge's private vendored-dependency namespace."
-	sys.modules[prefix] = namespace
-	sandbox_import = _make_sandbox_import(prefix, isolated, builtins.__import__)
-	sys.meta_path.insert(0, _SandboxFinder(prefix, sandbox_import))
+	"""Install the sandbox.  Never raises; installs whichever half is missing.
+
+	The namespace module and the meta path finder are tracked as two separate
+	conditions rather than one "installed" flag, so a half-completed install --
+	an exception between the two, or external state tampering, such as a test
+	tearing one down without the other -- repairs itself on the next call
+	instead of either wedging in a state that looks installed but is not, or
+	inserting a second finder alongside the first.
+	"""
+	namespace = sys.modules.get(prefix)
+	if namespace is None:
+		namespace = types.ModuleType(prefix)
+		namespace.__path__ = [str(root) for root in roots if os.path.isdir(str(root))]
+		namespace.__doc__ = "WordBridge's private vendored-dependency namespace."
+		namespace.__spec__ = ModuleSpec(prefix, None, is_package=True)
+		sys.modules[prefix] = namespace
+	has_finder = any(getattr(finder, "prefix", None) == prefix for finder in sys.meta_path)
+	if not has_finder:
+		if isolated is None:
+			isolated = ISOLATED
+		sandbox_import = _make_sandbox_import(prefix, isolated, builtins.__import__)
+		sys.meta_path.insert(0, _SandboxFinder(prefix, sandbox_import))
 	return namespace
