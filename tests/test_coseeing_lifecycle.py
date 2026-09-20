@@ -66,18 +66,24 @@ def test_request_uses_explicit_connect_and_read_timeouts(monkeypatch):
 
 
 def test_post_holds_no_lock_across_the_http_call(monkeypatch):
-	"""terminate() must be able to set the flag while a request is in flight."""
-	plugin_module = _plugin(monkeypatch, [])
+	"""terminate() must not block on an in-flight HTTP call: no lock guards the post."""
+	plugin_module, config, gui = _load_nvda_plugin(monkeypatch, SETTINGS, [], [])
 	instance = _instance(plugin_module)
-	flag_set_during_request = threading.Event()
+	gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(plugin_module.LLMSettingsPanel)
+	terminate_finished = threading.Event()
 
 	def post(url, **kwargs):
-		setter = threading.Thread(target=lambda: (instance._shutdown.set(), flag_set_during_request.set()))
-		setter.start()
-		setter.join(timeout=2)
+		def call_terminate():
+			plugin_module.GlobalPlugin.terminate(instance)
+			terminate_finished.set()
+
+		terminator = threading.Thread(target=call_terminate)
+		terminator.start()
+		terminator.join(timeout=2)
+		assert not terminator.is_alive(), "terminate() blocked while the HTTP call was in flight"
 		return SimpleNamespace(status_code=200)
 
 	monkeypatch.setattr(plugin_module.requests, "post", post, raising=False)
 	plugin_module.GlobalPlugin._post_coseeing_request(instance, "http://example.invalid")
 
-	assert flag_set_during_request.is_set()
+	assert terminate_finished.is_set()
