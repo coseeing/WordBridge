@@ -1,4 +1,5 @@
 import csv
+from dataclasses import dataclass
 import json
 import os
 import shutil
@@ -76,6 +77,14 @@ def get_coseeing_access_token(*, reconsider_guest=False):
 	return coseeing_auth.get_coseeing_access_token(reconsider_guest=reconsider_guest)
 
 
+@dataclass(frozen=True)
+class CorrectionAction:
+	request: str | None = None
+	response: str | None = None
+	diff: list | None = None
+	interaction_id: str | None = None
+
+
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
@@ -88,12 +97,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			settings["execution_channel"],
 		)
 		wx.CallAfter(self._start_coseeing_auth, channel)
-		self.latest_action = {
-			"request": None,
-			"response": None,
-			"diff": None,
-			"interaction_id": None,
-		}
+		self.latest_action = CorrectionAction()
 		self.correct_typo_thread = None
 
 	def _start_coseeing_auth(self, channel):
@@ -120,6 +124,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def _notify(self, message):
 		self._run_on_ui(ui.message, message)
+
+	def _set_latest_action(self, action):
+		self.latest_action = action
 
 	def _post_coseeing_request(self, url, **kwargs):
 		if self._shutdown.is_set():
@@ -343,12 +350,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		diff = strings_diff(request, response)
 
-		self.latest_action = {
-			"request": request,
-			"response": response,
-			"diff": diff,
-			"interaction_id": interaction_id,
-		}
+		self._run_on_ui(self._set_latest_action, CorrectionAction(
+			request=request,
+			response=response,
+			diff=diff,
+			interaction_id=interaction_id,
+		))
 
 		if request == response:
 			self._notify(_("No errors in the selected text."))
@@ -438,12 +445,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category=ADDON_SUMMARY,
 	)
 	def script_showCorrectionReport(self, gesture):
-		if self.latest_action["diff"] is None:
+		if self.latest_action.diff is None:
 			ui.message(_("No report has been generated yet."))
 			log.warning(_("No report has been generated yet."))
 			return
 
-		self.showReport(self.latest_action["diff"])
+		self.showReport(self.latest_action.diff)
 
 	@script(
 		gesture="kb:NVDA+alt+f",
@@ -451,7 +458,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		category=ADDON_SUMMARY,
 	)
 	def script_correctionFeedback(self, gesture):
-		if self.latest_action["interaction_id"] is None:
+		if self.latest_action.interaction_id is None:
 			ui.message(_("You have not run a typos correction task with the Coseeing service provider yet."))
 
 			log.warning(_("You have not run a typos correction task with the Coseeing service provider yet."))
@@ -462,15 +469,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				return
 			with FeedbackDialog(
 				gui.mainFrame,
-				self.latest_action["request"],
-				self.latest_action["response"]
+				self.latest_action.request,
+				self.latest_action.response
 			) as feedbackDialog:
 				if feedbackDialog.ShowModal() != wx.ID_OK:
 					return
 				feedback_value = feedbackDialog.feedbackTextCtrl.GetValue()
 				if not feedback_value:
 					return
-			interaction_id = self.latest_action["interaction_id"]
+			interaction_id = self.latest_action.interaction_id
 			self._feedback_thread = threading.Thread(
 				target=self._send_coseeing_feedback,
 				args=(interaction_id, feedback_value),

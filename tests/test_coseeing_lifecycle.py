@@ -163,3 +163,53 @@ def test_onpreview_callback_is_inert_if_shutdown_happens_before_delivery(monkeyp
 	callback(*args)
 
 	assert opened == []
+
+
+from concurrent.futures import Future
+
+
+def test_latest_action_is_published_as_one_snapshot_on_the_ui_thread(monkeypatch):
+	queued = []
+	plugin_module = _plugin(monkeypatch, queued)
+	instance = _instance(plugin_module)
+	instance.latest_action = plugin_module.CorrectionAction()
+	instance.readDictionary = lambda: []
+	future = Future()
+	future.set_result("access")
+	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
+	monkeypatch.setattr(plugin_module, "strings_diff", lambda request, response: ["d"])
+	monkeypatch.setattr(plugin_module.api, "copyToClip", lambda text: None, raising=False)
+	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(warning=lambda *args: None))
+	monkeypatch.setattr(
+		plugin_module.requests,
+		"post",
+		lambda url, **kwargs: SimpleNamespace(
+			status_code=200,
+			json=lambda: {"response": "修正", "interaction_id": "i-1", "cost": 0},
+		),
+		raising=False,
+	)
+	before = instance.latest_action
+
+	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
+
+	assert instance.latest_action is before, "the worker thread must not write latest_action"
+
+	for callback, args in list(queued):
+		callback(*args)
+
+	assert instance.latest_action.request == "原文"
+	assert instance.latest_action.response == "修正"
+	assert instance.latest_action.interaction_id == "i-1"
+	assert instance.latest_action.diff == ["d"]
+
+
+def test_correction_action_is_immutable(monkeypatch):
+	plugin_module = _plugin(monkeypatch, [])
+	action = plugin_module.CorrectionAction(request="a")
+	try:
+		action.request = "b"
+	except Exception as error:
+		assert type(error).__name__ == "FrozenInstanceError"
+	else:
+		assert False, "CorrectionAction must be frozen"

@@ -55,7 +55,7 @@ class TaskArchitectureTests(unittest.TestCase):
 			nvda_stubs.config.conf["WordBridge"]["settings"]["typo_correction_mode"] = "lite"
 			instance = object.__new__(plugin.GlobalPlugin)
 			instance.readDictionary = lambda: []
-			instance.latest_action = {}
+			instance.latest_action = plugin.CorrectionAction()
 			instance._shutdown = threading.Event()
 
 			original_post = plugin.requests.post

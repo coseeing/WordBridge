@@ -39,7 +39,7 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 		"auto_display_report": False,
 	}, [], queued)
 	instance = object.__new__(plugin_module.GlobalPlugin)
-	instance.latest_action = {}
+	instance.latest_action = plugin_module.CorrectionAction()
 	instance.readDictionary = lambda: []
 	instance._shutdown = threading.Event()
 	future = Future()
@@ -92,7 +92,7 @@ def test_proofreader_auth_failure_skips_post_and_queues_ui_notification(monkeypa
 		"auto_display_report": False,
 	}, [], queued)
 	instance = object.__new__(plugin_module.GlobalPlugin)
-	instance.latest_action = {}
+	instance.latest_action = plugin_module.CorrectionAction()
 	instance.readDictionary = lambda: []
 	instance._shutdown = threading.Event()
 	future = Future()
@@ -126,7 +126,7 @@ def test_proofreader_termination_before_worker_request_skips_post_and_ui(monkeyp
 		"auto_display_report": False,
 	}, [], queued)
 	instance = object.__new__(plugin_module.GlobalPlugin)
-	instance.latest_action = {}
+	instance.latest_action = plugin_module.CorrectionAction()
 	instance.readDictionary = lambda: []
 	instance._shutdown = threading.Event()
 	instance._shutdown.set()
@@ -156,7 +156,7 @@ def test_proofreader_failures_use_stable_notification(monkeypatch, failure):
 		"auto_display_report": False,
 	}, [], queued)
 	instance = object.__new__(plugin_module.GlobalPlugin)
-	instance.latest_action = {}
+	instance.latest_action = plugin_module.CorrectionAction()
 	instance.readDictionary = lambda: []
 	instance._shutdown = threading.Event()
 	future = Future()
@@ -218,7 +218,7 @@ def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeyp
 	}, [], queued)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance._shutdown = threading.Event()
-	instance.latest_action = {"interaction_id": "i-old", "request": "原文", "response": "修正"}
+	instance.latest_action = plugin_module.CorrectionAction(interaction_id="i-old", request="原文", response="修正")
 	future = Future()
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
 	record = {}
@@ -249,7 +249,7 @@ def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeyp
 	assert len(queued) == 1
 	show, args = queued.pop()
 	show(*args)
-	instance.latest_action["interaction_id"] = "i-new"
+	instance.latest_action = plugin_module.CorrectionAction(interaction_id="i-new", request="原文", response="修正")
 	assert record == {}
 
 	future.set_result(None)
