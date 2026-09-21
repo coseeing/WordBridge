@@ -20,17 +20,38 @@ class CoseeingAuthUnavailableError(Exception):
 	"""The Coseeing auth dependencies are not loadable on this runtime."""
 
 
+_AUTH_IMPORT_ERROR = None
+_AUTH_IMPORT_MODULE = None
+
+# Two separate try/except blocks -- rather than one try wrapping both imports
+# -- so a failure can be attributed to the specific import statement that
+# raised it. Only two statements are ever in scope, so naming them is cheap,
+# and it is what lets unavailable_reason() name "which module" for spec
+# failure row 2 regardless of the exception type the failing module raises
+# (deferred minor folded in alongside the row 1/row 2 fix below: with this
+# broadened `except Exception`, a bundle module raising something other than
+# ImportError -- e.g. RuntimeError('boom') -- has no `.name` attribute to
+# fall back on, so the import statement itself is the only way to know which
+# module was being imported).
 try:
 	from _wb_vendor.authlib.integrations.base_client.errors import OAuthError
-	from _wb_vendor.coseeing_auth.errors import (
-		ClientClosedError,
-		RestoreError,
-		TokenUnavailableError,
-		TokenValidationError,
-	)
 except Exception as error:
-	AUTH_AVAILABLE = False
 	_AUTH_IMPORT_ERROR = error
+	_AUTH_IMPORT_MODULE = "_wb_vendor.authlib.integrations.base_client.errors"
+else:
+	try:
+		from _wb_vendor.coseeing_auth.errors import (
+			ClientClosedError,
+			RestoreError,
+			TokenUnavailableError,
+			TokenValidationError,
+		)
+	except Exception as error:
+		_AUTH_IMPORT_ERROR = error
+		_AUTH_IMPORT_MODULE = "_wb_vendor.coseeing_auth.errors"
+
+if _AUTH_IMPORT_ERROR is not None:
+	AUTH_AVAILABLE = False
 
 	class _UnavailableAuthError(Exception):
 		"""Placeholder base bound only when the real auth bundle failed to import.
@@ -44,6 +65,11 @@ except Exception as error:
 		practice those sites never run against these placeholders -- but
 		`CoseeingAuthSession` is public and directly constructible, so that is a
 		guarantee from the call site, not from these classes being unraisable.
+
+		All five are bound here regardless of which of the two import
+		statements above failed: whichever one raised, neither import
+		completed, so no real error class from either module is available to
+		bind any of the five names to.
 		"""
 
 	class OAuthError(_UnavailableAuthError):
@@ -62,21 +88,43 @@ except Exception as error:
 		pass
 else:
 	AUTH_AVAILABLE = True
-	_AUTH_IMPORT_ERROR = None
 
 
 def unavailable_reason() -> str:
+	"""Diagnostic string for the auth half being unavailable.
+
+	Spec:284 requires four failure rows stay distinguishable, because their
+	remedies differ. Including `_wb_vendor.__path__` is what separates rows 1
+	and 2: with the runtime deps directory absent, it is `[.../package]`; with
+	a present-but-broken bundle, it is `[.../package, .../py313-win_amd64]` --
+	otherwise both read as the identical
+	`ModuleNotFoundError: No module named '_wb_vendor.authlib'`. Row 2 also
+	names which of the two import statements failed (`_AUTH_IMPORT_MODULE`),
+	so a non-ImportError failure -- which has no `.name` attribute -- is still
+	attributable to a module.
+
+	Only the exception type and str(error) are ever included, never a
+	traceback, tokens or user text.
+	"""
 	runtime = vendor.runtime_key()
 	if runtime is None:
 		runtime = f"unsupported (sys.platform={sys.platform!r}, python={sys.version_info[:2]!r})"
+	namespace = sys.modules.get(vendor.PREFIX)
+	roots = list(getattr(namespace, "__path__", []) or []) if namespace is not None else None
 	if _AUTH_IMPORT_ERROR is None:
-		return f"Coseeing auth dependencies unavailable (runtime={runtime}, not loaded)"
-	detail = f"{type(_AUTH_IMPORT_ERROR).__name__}: {_AUTH_IMPORT_ERROR}"
+		return (
+			f"Coseeing auth dependencies unavailable "
+			f"(runtime={runtime}, _wb_vendor.__path__={roots}, not loaded)"
+		)
+	detail = f"{_AUTH_IMPORT_MODULE}: {type(_AUTH_IMPORT_ERROR).__name__}: {_AUTH_IMPORT_ERROR}"
 	missing_name = getattr(_AUTH_IMPORT_ERROR, "name", None)
 	top_level = missing_name.split(".")[0] if missing_name else None
 	if top_level in vendor.HOST_ONLY:
 		detail = f"{detail} (host environment changed: {top_level!r} is expected from NVDA, not the bundle)"
-	return f"Coseeing auth dependencies unavailable (runtime={runtime}, {detail})"
+	return (
+		f"Coseeing auth dependencies unavailable "
+		f"(runtime={runtime}, _wb_vendor.__path__={roots}, {detail})"
+	)
 
 
 class AuthSessionState:
@@ -615,8 +663,35 @@ def get_coseeing_access_token(*, reconsider_guest: bool = False, silent: bool | 
 		return _completed_future(error)
 
 
+def _notify_auth_unavailable() -> None:
+	"""Report the domain error when the user selects the Coseeing channel while
+	the auth half is unavailable.
+
+	`get_coseeing_access_token()` never raises `CoseeingAuthUnavailableError`
+	here: it swallows it into a failed `Future` (see its `except` clause), so
+	`start_coseeing_auth()`'s own `except` never fires, and no adapter exists
+	yet to deliver the failure through `notify_completion` -- `_singleton_adapter`
+	is only ever set once `_get_singleton_pair()` has confirmed the auth half is
+	available. Without this, selecting the Coseeing channel while unavailable
+	produces complete silence (spec:278-281 requires it be reported).
+
+	NVDA modules are imported lazily here, matching `_NvdaAuthAdapter.__init__`.
+	"""
+	import ui
+	import wx
+
+	try:
+		wx.CallAfter(ui.message, _("Coseeing authentication is unavailable on this installation."))
+	except Exception:
+		pass
+
+
 def start_coseeing_auth(execution_channel: str, *, silent: bool = True) -> None:
 	if execution_channel != "Coseeing":
+		return
+	if not AUTH_AVAILABLE:
+		if not silent:
+			_notify_auth_unavailable()
 		return
 	try:
 		future = get_coseeing_access_token(reconsider_guest=True, silent=silent)
