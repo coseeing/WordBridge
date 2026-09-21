@@ -196,6 +196,13 @@ def install(roots, *, prefix=PREFIX, isolated=None):
 		namespace.__path__ = [str(root) for root in roots if os.path.isdir(str(root))]
 		namespace.__doc__ = "WordBridge's private vendored-dependency namespace."
 		namespace.__spec__ = ModuleSpec(prefix, None, is_package=True)
+		# ModuleSpec(..., is_package=True) defaults submodule_search_locations
+		# to its own empty list, independent of __path__ above. The import
+		# machinery itself only ever consults __path__, so that alone is
+		# harmless -- but pkgutil.iter_modules() and importlib.resources read
+		# __spec__.submodule_search_locations instead, and would see an empty
+		# package. Point it at the exact same list object rather than a copy.
+		namespace.__spec__.submodule_search_locations = namespace.__path__
 		sys.modules[prefix] = namespace
 	has_finder = any(getattr(finder, "prefix", None) == prefix for finder in sys.meta_path)
 	if not has_finder:
@@ -232,11 +239,28 @@ def install_stdlib_gapfill(package_path):
 	that is simply absent, so our copy registers over it; that is accepted
 	because a host module that cannot finish importing is not a usable one
 	either way.
+
+	Never raises (spec:270): the per-file work below -- the host probe and,
+	when it stands down, executing our own copy -- is wrapped in a single
+	``except Exception``, so one broken file (a host module raising something
+	other than ``ImportError`` while it is probed, or our own copy failing to
+	exec) cannot take the rest of the directory, or the caller, down with it.
+	A module partially executed by our own copy is still removed from
+	``sys.modules`` before the failure is recorded, exactly as it was before
+	this was caught here instead of propagating to the caller.
+
+	Returns ``(registered, failures)``: ``registered`` is the list of names
+	newly bound under their canonical name, in the shape this function always
+	returned; ``failures`` is a list of ``(name, exception)`` pairs, one per
+	file that raised, for the caller to log. Logging is this function's
+	caller's job, not its own -- it has no NVDA ``log`` to write to and must
+	not decide what the caller does with a broken gap-fill file.
 	"""
 	directory = os.path.join(str(package_path), STDLIB_GAPFILL_DIRNAME)
 	if not os.path.isdir(directory):
-		return []
+		return [], []
 	registered = []
+	failures = []
 	for entry in sorted(os.listdir(directory)):
 		name, extension = os.path.splitext(entry)
 		if extension != ".py" or name.startswith("__"):
@@ -244,21 +268,25 @@ def install_stdlib_gapfill(package_path):
 		if name in sys.modules:
 			continue
 		try:
-			builtins.__import__(name)
-		except ImportError:
-			pass
-		else:
-			continue
-		spec = importlib.util.spec_from_file_location(name, os.path.join(directory, entry))
-		module = importlib.util.module_from_spec(spec)
-		sys.modules[name] = module
-		try:
-			spec.loader.exec_module(module)
-		except BaseException:
 			try:
-				del sys.modules[name]
-			except KeyError:
+				builtins.__import__(name)
+			except ImportError:
 				pass
-			raise
+			else:
+				continue
+			spec = importlib.util.spec_from_file_location(name, os.path.join(directory, entry))
+			module = importlib.util.module_from_spec(spec)
+			sys.modules[name] = module
+			try:
+				spec.loader.exec_module(module)
+			except BaseException:
+				try:
+					del sys.modules[name]
+				except KeyError:
+					pass
+				raise
+		except Exception as error:
+			failures.append((name, error))
+			continue
 		registered.append(name)
-	return registered
+	return registered, failures

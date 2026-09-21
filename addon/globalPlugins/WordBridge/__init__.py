@@ -15,7 +15,15 @@ PACKAGE_PATH = os.path.join(PATH, "package")
 from .lib import vendor
 
 vendor.install(vendor.default_roots(PACKAGE_PATH))
-vendor.install_stdlib_gapfill(PACKAGE_PATH)
+# install_stdlib_gapfill() no longer raises (spec:270), but a defensive guard
+# stays here too: it is called before `log` exists (see below), so a failure
+# recorded in _STDLIB_GAPFILL_FAILURES is logged once the NVDA log module is
+# available, instead of ever taking the add-on down at this line.
+try:
+	_STDLIB_GAPFILL_REGISTERED, _STDLIB_GAPFILL_FAILURES = vendor.install_stdlib_gapfill(PACKAGE_PATH)
+except Exception as _stdlib_gapfill_install_error:
+	_STDLIB_GAPFILL_REGISTERED = []
+	_STDLIB_GAPFILL_FAILURES = [("install_stdlib_gapfill", _stdlib_gapfill_install_error)]
 
 import addonHandler
 import api
@@ -60,6 +68,14 @@ ADDON_SUMMARY = "WordBridge"
 # hence the Windows username) in the log.
 if not coseeing_auth.AUTH_AVAILABLE:
 	log.warning(coseeing_auth.unavailable_reason())
+
+# Same privacy rule as above: only the exception type and str(error) for each
+# gap-fill failure are logged, never a traceback.
+for _gapfill_name, _gapfill_error in _STDLIB_GAPFILL_FAILURES:
+	log.warning(
+		"WordBridge: stdlib gap-fill module failed to load name=%s type=%s: %s",
+		_gapfill_name, type(_gapfill_error).__name__, _gapfill_error,
+	)
 
 CORRECTOR_TASK_CONFIG_PATH = os.path.join(PATH, "setting", "task", "corrector.json")
 correctorTaskConfig = load_corrector_task_config(CORRECTOR_TASK_CONFIG_PATH)
