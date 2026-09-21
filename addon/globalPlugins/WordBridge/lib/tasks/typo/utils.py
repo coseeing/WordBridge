@@ -9,7 +9,7 @@ from ...text.chinese import (
 	get_descs,
 	is_chinese_character,
 )
-from .chinese_dictionary import pinyin_to_string, string_to_pinyin
+from .chinese_dictionary import get_pinyin_to_string, get_string_to_pinyin
 
 # create_single_char_mapping() maps each distinct token to one character from
 # the CJK block starting at U+4E00, so it cannot encode more tokens than the
@@ -23,7 +23,7 @@ def lookup_char_pinyin(char: str) -> list:
 	# user input, so it needs a lookup that never raises. .get() (rather than
 	# the defaultdict's [] subscript) avoids growing string_to_pinyin with a
 	# new entry for every distinct miss over the process's lifetime.
-	pinyins_set = set(string_to_pinyin.get(char, [])) | set(pinyin(char, heteronym=True)[0])
+	pinyins_set = set(get_string_to_pinyin().get(char, [])) | set(pinyin(char, heteronym=True)[0])
 	return list(pinyins_set)
 
 
@@ -37,6 +37,8 @@ def typo_augmentation(text: str, is_traditional: bool, error_rate: float = 0.125
 	if not is_traditional:
 		text = to_traditional(text)
 
+	string_to_pinyin = get_string_to_pinyin()
+	pinyin_to_string = get_pinyin_to_string()
 	text_aug = ""
 	for char in text:
 		if char not in string_to_pinyin or random.random() > error_rate:
@@ -124,7 +126,8 @@ def analyze_diff(char_original: str, char_corrected: str) -> list:
 	elif char_original != char_traditional and char_traditional == char_corrected:
 		tags.append("Simplified to tranditional")
 
-	if set(string_to_pinyin[char_original]) & set(string_to_pinyin[char_corrected]):
+	string_to_pinyin = get_string_to_pinyin()
+	if set(string_to_pinyin.get(char_original, [])) & set(string_to_pinyin.get(char_corrected, [])):
 		tags.append("Share the same pronunciation")
 	else:
 		tags.append("Do not share the same pronunciation")

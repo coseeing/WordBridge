@@ -74,7 +74,16 @@ i18nSources: list[str] = pythonSources + ["buildVars.py"]
 # e.g. package/pypinyin/__pycache__/*.pyc, written the moment a developer
 # imports the bundle (running pytest is enough), which scons would otherwise
 # happily zip up as stale, developer-machine-specific .pyc files.
-excludedFiles: list[str] = ["__pycache__/*"]
+# site_scons/site_tools/NVDATool/addon.py matches these with Path.match(),
+# which matches from the right, so a bare suffix pattern needs no path prefix.
+# CSV is deliberately not excluded: the runtime pinyin dictionary is a CSV.
+excludedFiles: list[str] = [
+	"__pycache__/*",
+	"*.pyc",
+	"*.pyo",
+	"*.xlsx",
+	"web/workspace/*",
+]
 
 # Base language for the NVDA add-on
 # If your add-on is written in a language other than english, modify this variable.

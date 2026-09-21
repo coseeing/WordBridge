@@ -10,17 +10,7 @@ from typing import NamedTuple
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SOURCE = PROJECT_ROOT / "workspace" / "evals" / "datasets" / "gpt4_250_sentence_gt.txt"
 DEFAULT_OUTPUT = PROJECT_ROOT / "workspace" / "evals" / "datasets" / "zhuyin_1_error_top1_seed0.csv"
-DEFAULT_DICTIONARY = (
-	PROJECT_ROOT
-	/ "addon"
-	/ "globalPlugins"
-	/ "WordBridge"
-	/ "lib"
-	/ "tasks"
-	/ "typo"
-	/ "data"
-	/ "chinese_dictionary_bopomofo.csv"
-)
+DEFAULT_DICTIONARY = PROJECT_ROOT / "workspace" / "data" / "chinese_dictionary_bopomofo.csv"
 
 
 def is_cjk_character(char: str) -> bool:
