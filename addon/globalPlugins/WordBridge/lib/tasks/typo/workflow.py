@@ -33,7 +33,11 @@ class TypoCorrectionWorkflow:
 		for res in results:
 			text_corrected += res.output_text
 
-		recorrection_history = None
+		# Keyed by segment text, not by index: the text is re-segmented every
+		# round, so a list index means a different segment from one round to
+		# the next. The history answers "you have already tried these for this
+		# text", which is a property of the text.
+		recorrection_history: dict[str, list[str]] = {}
 		for i in range(self.max_correction_attempts):
 			text_corrected_revised, typo_indices = find_correction_errors(input_text, text_corrected)
 			if text_corrected_revised == text_corrected:
@@ -41,13 +45,13 @@ class TypoCorrectionWorkflow:
 
 			text_corrected = ""
 			segments_revised = text_segmentation(text_corrected_revised, max_length=20)
-			if recorrection_history is None:
-				recorrection_history = [[] for _ in range(len(segments_revised))]
 
 			segments_to_recorrect = get_segments_to_recorrect(segments_revised, typo_indices)
-			history_for_correction = (
-				recorrection_history if i >= self.max_correction_attempts / 3 else [[] for _ in range(len(segments_revised))]
-			)
+			use_history = i >= self.max_correction_attempts / 3
+			history_for_correction = [
+				recorrection_history.get(segment, []) if use_history else []
+				for segment in segments_revised
+			]
 
 			if batch_mode:
 				results = parallel_map(
@@ -58,17 +62,18 @@ class TypoCorrectionWorkflow:
 			else:
 				results = [
 					self._execute_segment(seg, h)
-					for seg, h in zip(segments_to_recorrect, history_for_correction)
+					for seg, h in zip(segments_to_recorrect, history_for_correction, strict=True)
 				]
 
-			for j in range(len(segments_revised)):
-				if results[j].output_text:
-					res_text = results[j].output_text
+			for segment, result in zip(segments_revised, results, strict=True):
+				if result.output_text:
+					res_text = result.output_text
 					text_corrected += res_text
-					if res_text not in recorrection_history[j] and len(res_text) < len(input_text) * 2:
-						recorrection_history[j].append(res_text)
+					history = recorrection_history.setdefault(segment, [])
+					if res_text not in history and len(res_text) < len(input_text) * 2:
+						history.append(res_text)
 				else:
-					text_corrected += segments_revised[j]
+					text_corrected += segment
 
 		final_text = review_correction_errors(input_text, text_corrected)
 		diff = strings_diff(input_text, final_text)
