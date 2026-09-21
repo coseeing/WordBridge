@@ -31,6 +31,8 @@ def test_executor_messages_go_through_the_installed_translation(monkeypatch):
 
 	monkeypatch.setattr(builtins, "_", lambda text: f"<<{text}>>")
 
+	response_payload = {"unexpected": True}
+
 	class _Adapter:
 		model_name = "fake-model"
 
@@ -44,7 +46,7 @@ def test_executor_messages_go_through_the_installed_translation(monkeypatch):
 		setting = {}
 
 		def send(self, payload, model_name):
-			return {"unexpected": True}
+			return response_payload
 
 	class _Policy:
 		def has_target_language(self, text):
@@ -69,7 +71,16 @@ def test_executor_messages_go_through_the_installed_translation(monkeypatch):
 			text_policy=_Policy(),
 		)
 
-	assert str(excinfo.value).startswith("<<")
+	# This is the "marker" pattern: a distinctive translation function makes it
+	# observable both that the message went through _() at all, and -- by
+	# asserting the fully rendered string rather than just a prefix -- that
+	# the interpolated response value actually survived the .format() call.
+	# A source-level check alone (see test_executor_parse_error_message_is_extractable)
+	# cannot tell a real .format(response=response_json) from a dropped one
+	# that ships a raw "{response}" placeholder to the user.
+	assert str(excinfo.value) == (
+		f"<<Parsing error. Unexpected server response. Response: {response_payload}>>"
+	)
 
 
 def test_executor_parse_error_message_is_extractable():
@@ -79,9 +90,14 @@ def test_executor_parse_error_message_is_extractable():
 	assert '_(f"' not in source
 
 
-def test_fallback_engages_when_no_translation_is_available():
+@pytest.mark.parametrize(
+	"module_path",
+	["lib.llm.provider", "configManager", "lib.llm.executor"],
+)
+def test_fallback_engages_when_no_translation_is_available(module_path):
 	code = textwrap.dedent(
 		f"""
+		import importlib
 		import sys
 		import types
 		from pathlib import Path
@@ -97,10 +113,10 @@ def test_fallback_engages_when_no_translation_is_available():
 
 		vendor.install(vendor.default_roots(str(ADDON / "package")))
 
-		from lib.llm import provider
+		module = importlib.import_module({module_path!r})
 
-		assert "_" in vars(provider), "no builtin _ was available, so the fallback should exist"
-		assert provider._("raw") == "raw"
+		assert "_" in vars(module), "no builtin _ was available, so the fallback should exist"
+		assert module._("raw") == "raw"
 		"""
 	)
 	result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)

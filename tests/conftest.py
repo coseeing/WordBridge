@@ -24,13 +24,6 @@ from lib import vendor
 vendor.install(vendor.default_roots(package_path))
 vendor.install_stdlib_gapfill(package_path)
 
-# NVDA's addonHandler does not exist on this host. lib/coseeing_auth.py imports
-# it unconditionally at module scope, so any test file that imports that
-# module -- directly or transitively -- needs a stand-in. setdefault() makes
-# this idempotent: whichever test module (or file collection order) reaches
-# here first wins, and later imports of lib.coseeing_auth see a module already
-# satisfied, so this file no longer depends on cross-file collection order to
-# pass standalone.
 def _install_translation():
 	# NVDA's initTranslation() installs _ into builtins. A no-op stub leaves
 	# _ undefined everywhere, which makes it impossible to tell a correctly
@@ -40,6 +33,13 @@ def _install_translation():
 		builtins._ = lambda text: text
 
 
+# NVDA's addonHandler does not exist on this host. lib/coseeing_auth.py imports
+# it unconditionally at module scope, so any test file that imports that
+# module -- directly or transitively -- needs a stand-in. setdefault() makes
+# this idempotent: whichever test module (or file collection order) reaches
+# here first wins, and later imports of lib.coseeing_auth see a module already
+# satisfied, so this file no longer depends on cross-file collection order to
+# pass standalone.
 _addon_handler_stub = types.ModuleType("addonHandler")
 _addon_handler_stub.initTranslation = _install_translation
 sys.modules.setdefault("addonHandler", _addon_handler_stub)
