@@ -170,7 +170,16 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	monkeypatch.setitem(sys.modules, "addonHandler", SimpleNamespace(initTranslation=lambda: None))
 	monkeypatch.setitem(sys.modules, "api", SimpleNamespace())
 	warning_sink = (lambda *args, **kwargs: log_warnings.append(args[0] if args else kwargs)) if log_warnings is not None else (lambda *args, **kwargs: None)
-	monkeypatch.setitem(sys.modules, "logHandler", SimpleNamespace(log=SimpleNamespace(warning=warning_sink)))
+	monkeypatch.setitem(
+		sys.modules,
+		"logHandler",
+		SimpleNamespace(log=SimpleNamespace(
+			warning=warning_sink,
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		)),
+	)
 	monkeypatch.setitem(sys.modules, "nvwave", SimpleNamespace())
 	monkeypatch.setitem(sys.modules, "scriptHandler", SimpleNamespace(script=lambda **kwargs: lambda function: function))
 	monkeypatch.setitem(sys.modules, "textInfos", SimpleNamespace(POSITION_SELECTION=object()))
@@ -762,7 +771,12 @@ def test_nvda_adapter_maps_dialog_choices(monkeypatch):
 		message=SimpleNamespace(MessageDialog=Dialog, DefaultButtonSet=Wx.DefaultButtonSet),
 	))
 	monkeypatch.setitem(__import__("sys").modules, "ui", Ui())
-	monkeypatch.setitem(__import__("sys").modules, "logHandler", SimpleNamespace(log=SimpleNamespace(warning=lambda *args: None)))
+	monkeypatch.setitem(__import__("sys").modules, "logHandler", SimpleNamespace(log=SimpleNamespace(
+		warning=lambda *args, **kwargs: None,
+		info=lambda *args, **kwargs: None,
+		debug=lambda *args, **kwargs: None,
+		exception=lambda *args, **kwargs: None,
+	)))
 	monkeypatch.setattr(module, "_", lambda text: text, raising=False)
 	adapter = module._NvdaAuthAdapter()
 	for result, expected in ((Wx.ID_YES, "login"), (Wx.ID_NO, "guest"), (Wx.ID_CANCEL, "cancel")):
@@ -797,7 +811,12 @@ def test_nvda_dialog_is_destroyed_after_each_choice(monkeypatch):
 		message=SimpleNamespace(MessageDialog=Dialog, DefaultButtonSet=Wx.DefaultButtonSet),
 	))
 	monkeypatch.setitem(__import__("sys").modules, "ui", SimpleNamespace(message=lambda text: None))
-	monkeypatch.setitem(__import__("sys").modules, "logHandler", SimpleNamespace(log=SimpleNamespace(warning=lambda *args: None)))
+	monkeypatch.setitem(__import__("sys").modules, "logHandler", SimpleNamespace(log=SimpleNamespace(
+		warning=lambda *args, **kwargs: None,
+		info=lambda *args, **kwargs: None,
+		debug=lambda *args, **kwargs: None,
+		exception=lambda *args, **kwargs: None,
+	)))
 	monkeypatch.setattr(module, "_", lambda text: text, raising=False)
 	adapter = module._NvdaAuthAdapter()
 	Dialog.result = Wx.ID_CANCEL

@@ -27,16 +27,19 @@ class TypoTextPolicy(BaseTextPolicy):
 		if self.suffix and text.endswith(self.suffix):
 			text = text[:-len(self.suffix)]
 
-		while input_text_tmp[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
+		# input_text_tmp is empty whenever input_text is and there is no
+		# prefix/suffix, so every subscript below needs its own guard. The
+		# punctuation-preservation rules themselves are unchanged.
+		while input_text_tmp and input_text_tmp[-1] not in SEPERATOR and text and text[-1] in SEPERATOR:
 			text = text[:-1]
 
-		if text and text[-1] not in SEPERATOR and input_text[-1] in SEPERATOR:
+		if text and text[-1] not in SEPERATOR and input_text and input_text[-1] in SEPERATOR:
 			for i in range(len(input_text_tmp)):
 				if input_text_tmp[-1 - i] not in SEPERATOR:
 					text += input_text_tmp[-i:]
 					break
 
-		while input_text_tmp[0] not in SEPERATOR and text and text[0] in SEPERATOR:
+		while input_text_tmp and input_text_tmp[0] not in SEPERATOR and text and text[0] in SEPERATOR:
 			text = text[1:]
 
 		return text

@@ -458,7 +458,12 @@ class _nvda_module_stubs:
 		global_plugin_handler.GlobalPlugin = object
 		sys.modules["globalPluginHandler"] = global_plugin_handler
 		sys.modules["api"] = types.SimpleNamespace(copyToClip=lambda text: None, getFocusObject=lambda: None)
-		sys.modules["logHandler"] = types.SimpleNamespace(log=types.SimpleNamespace(warning=lambda message: None))
+		sys.modules["logHandler"] = types.SimpleNamespace(log=types.SimpleNamespace(
+			warning=lambda *args, **kwargs: None,
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		))
 		sys.modules["nvwave"] = types.SimpleNamespace(playWaveFile=lambda *args, **kwargs: None)
 		sys.modules["scriptHandler"] = types.SimpleNamespace(script=lambda **kwargs: lambda function: function)
 		sys.modules["textInfos"] = types.SimpleNamespace(POSITION_SELECTION=object())

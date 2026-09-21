@@ -61,7 +61,12 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 	monkeypatch.setattr(plugin_module, "strings_diff", lambda request, response: [])
 	monkeypatch.setattr(plugin_module.api, "copyToClip", lambda text: None, raising=False)
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=lambda message: None))
-	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(warning=lambda *args: None))
+	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
+		warning=lambda *args, **kwargs: None,
+		info=lambda *args, **kwargs: None,
+		debug=lambda *args, **kwargs: None,
+		exception=lambda *args, **kwargs: None,
+	))
 	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
 
 	assert record == {

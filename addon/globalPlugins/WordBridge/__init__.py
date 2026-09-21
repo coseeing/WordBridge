@@ -1,5 +1,6 @@
 import csv
 from dataclasses import dataclass
+from decimal import InvalidOperation
 import json
 import os
 import shutil
@@ -207,6 +208,22 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def _notify(self, message):
 		self._run_on_ui(ui.message, message)
 
+	def _report_cost(self, cost):
+		try:
+			cost_text = decimal_to_str_0(cost)
+		except (TypeError, ValueError, InvalidOperation) as error:
+			# Never fabricate a zero and never hide the cause: the user is
+			# told the number is unavailable, the log says why.
+			log.warning(
+				"WordBridge: could not format the task cost type=%s: %s",
+				type(error).__name__,
+				error,
+			)
+			self._notify(_("This task's cost is unavailable."))
+			return
+		self._notify(_("This task costs {cost} USD.").format(cost=cost_text))
+		log.info(_("This task costs {cost} USD.").format(cost=cost_text))
+
 	def _publish_latest_action(self, action):
 		# Sole writer of self.latest_action. Must only ever be invoked via
 		# self._run_on_ui(self._publish_latest_action, ...), so it always runs
@@ -254,8 +271,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		try:
 			shutil.rmtree(raw_folder)
-		except BaseException:
+		except FileNotFoundError:
 			pass
+		except OSError as error:
+			log.warning("WordBridge: could not clear %s: %s", raw_folder, error)
 		if not os.path.exists(raw_folder):
 			os.makedirs(raw_folder)
 
@@ -265,8 +284,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		try:
 			shutil.rmtree(review_folder)
-		except BaseException:
+		except FileNotFoundError:
 			pass
+		except OSError as error:
+			log.warning("WordBridge: could not clear %s: %s", review_folder, error)
 		if not os.path.exists(review_folder):
 			os.makedirs(review_folder)
 
@@ -388,9 +409,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					backoff=1,
 				)
 			except Exception as e:
+				# The user has already been notified. Re-raising here only
+				# leaves an unhandled exception in a worker thread, which
+				# lands in the NVDA log with nothing to act on.
 				self._notify(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 				log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
-				raise e
 				return
 			response = result.corrected_text
 			interaction_id = None
@@ -457,19 +480,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		if request == response:
 			self._notify(_("No errors in the selected text."))
-			log.warning(_("No errors in the selected text."))
+			log.info(_("No errors in the selected text."))
 			return
 
 		self._run_on_ui(api.copyToClip, response)
 		self._notify(_("The corrected text has been copied to the clipboard."))
-		log.warning(_("The corrected text has been copied to the clipboard."))
+		log.info(_("The corrected text has been copied to the clipboard."))
 
-		try:
-			cost = decimal_to_str_0(cost)
-		except:
-			pass
-		self._notify(_("This task costs {cost} USD.").format(cost=cost))
-		log.warning(_("This task costs {cost} USD.").format(cost=cost))
+		self._report_cost(cost)
 
 		if config.conf["WordBridge"]["settings"]["auto_display_report"]:
 			self._run_on_ui(self.showReport, diff)

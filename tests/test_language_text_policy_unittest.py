@@ -65,6 +65,48 @@ class LanguageTextPolicyTests(unittest.TestCase):
 			with patch("lib.tasks.typo.text_policy.chinese_converter.to_traditional", return_value="繁體結果"):
 				self.assertEqual(policy.normalize_response("简体结果"), "繁體結果")
 
+	def test_lite_policy_handles_empty_input(self):
+		from lib.tasks.typo.text_policy import LiteTypoTextPolicy
+
+		policy = LiteTypoTextPolicy("zh_traditional")
+
+		self.assertEqual(policy.postprocess_output("你好", ""), "你好")
+
+	def test_lite_policy_handles_empty_response(self):
+		from lib.tasks.typo.text_policy import LiteTypoTextPolicy
+
+		policy = LiteTypoTextPolicy("zh_traditional")
+
+		self.assertEqual(policy.postprocess_output("", "今天天氣真好"), "")
+
+	def test_lite_policy_handles_punctuation_only_response(self):
+		from lib.tasks.typo.text_policy import LiteTypoTextPolicy
+
+		policy = LiteTypoTextPolicy("zh_traditional")
+
+		self.assertEqual(policy.postprocess_output("。。。", "今天天氣真好"), "")
+
+	def test_standard_policy_handles_empty_input(self):
+		from lib.tasks.typo.text_policy import StandardTypoTextPolicy
+
+		policy = StandardTypoTextPolicy("zh_traditional")
+
+		self.assertEqual(policy.postprocess_output("我說你好", ""), "你好")
+
+	def test_standard_policy_handles_a_response_the_prefix_consumes_entirely(self):
+		from lib.tasks.typo.text_policy import StandardTypoTextPolicy
+
+		policy = StandardTypoTextPolicy("zh_traditional")
+
+		self.assertEqual(policy.postprocess_output("我說", "今天天氣真好"), "")
+
+	def test_simplified_standard_policy_handles_empty_input(self):
+		from lib.tasks.typo.text_policy import StandardTypoTextPolicy
+
+		policy = StandardTypoTextPolicy("zh_simplified")
+
+		self.assertEqual(policy.postprocess_output("我说你好", ""), "你好")
+
 
 if __name__ == "__main__":
 	unittest.main()
