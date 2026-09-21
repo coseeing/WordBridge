@@ -49,6 +49,18 @@ def _stubbed_missing_build_tools():
 	had = {name: name in sys.modules for name in fakes}
 	prior = {name: sys.modules.get(name) for name in fakes}
 
+	# The exec below also imports and caches site_scons and every submodule it
+	# pulls in (site_scons.site_tools.NVDATool, .addon, .manifests, .docs,
+	# .typings, .utils) into sys.modules as a side effect, with
+	# site_scons.site_tools.NVDATool.docs.markdown permanently bound to our
+	# throwaway markdown stub and .Environment/.Builder bound to `object`.
+	# Popping just the three fake keys leaves those cached, stub-poisoned
+	# modules behind. Nothing else in this repo imports site_scons today, but
+	# this batch has already been bitten twice by cross-test module-cache
+	# contamination, so snapshot what is cached before the exec and drop every
+	# site_scons* key the exec added, in the same finally as the fakes.
+	before_modules = set(sys.modules)
+
 	sys.modules.update(fakes)
 	try:
 		yield
@@ -58,6 +70,9 @@ def _stubbed_missing_build_tools():
 				sys.modules[name] = prior[name]
 			else:
 				sys.modules.pop(name, None)
+		for name in list(sys.modules):
+			if name not in before_modules and (name == "site_scons" or name.startswith("site_scons.")):
+				del sys.modules[name]
 
 
 def _load_build_vars():
@@ -100,3 +115,33 @@ def test_bundle_keeps_the_report_assets(bundle_names):
 
 def test_bundle_keeps_the_vendored_auth_package(bundle_names):
 	assert any("/package/" in name or name.startswith("package/") for name in bundle_names)
+
+
+def test_bundle_excludes_a_developer_machines_leftover_correction_reports(tmp_path):
+	# web/workspace/ does not exist in git -- __init__.py's showReport() only
+	# creates it at runtime, one level deeper than "web/workspace/*" reaches:
+	# Path.match()'s "*" does not cross a path separator, so the bare pattern
+	# only matches files directly inside web/workspace/, never inside
+	# web/workspace/default/ or web/workspace/review/ where the add-on
+	# actually writes. Build a throwaway source tree that reproduces that
+	# layout so the exclusion patterns get genuinely exercised, since there is
+	# no tracked fixture to bundle.
+	source = tmp_path / "addon-src"
+	leftover_files = [
+		"globalPlugins/WordBridge/web/workspace/default/report.html",
+		"globalPlugins/WordBridge/web/workspace/review/index.html",
+	]
+	for relative_path in leftover_files:
+		path = source / relative_path
+		path.parent.mkdir(parents=True, exist_ok=True)
+		path.write_text("leftover from a previous run")
+
+	bundler = _load_bundler()
+	build_vars = _load_build_vars()
+	dest = tmp_path / "test.nvda-addon"
+	bundler.createAddonBundleFromPath(source, str(dest), build_vars.excludedFiles)
+	with zipfile.ZipFile(dest) as archive:
+		names = archive.namelist()
+
+	assert [name for name in names if name.endswith("report.html")] == []
+	assert [name for name in names if name.endswith("index.html")] == []

@@ -131,3 +131,33 @@ def test_a_missing_dictionary_file_raises():
 		"""
 	)
 	assert result.returncode == 0, result.stderr
+
+
+def test_repeated_misses_do_not_grow_the_process_lifetime_mapping():
+	# get_string_to_pinyin()/get_pinyin_to_string() return the same defaultdict
+	# for the whole process. .get(char, []) (rather than the defaultdict's []
+	# subscript) is load-bearing: [] would insert a new empty entry for every
+	# distinct character that misses, an unbounded process-lifetime leak for
+	# any caller fed arbitrary text (lookup_char_pinyin has none of the
+	# validation get_char_pinyin does). A subprocess, because another test
+	# module may already have warmed the cache in this process.
+	result = _run(
+		"""
+		from lib.tasks.typo import chinese_dictionary
+		from lib.tasks.typo.utils import analyze_diff, lookup_char_pinyin
+
+		before = len(chinese_dictionary.get_string_to_pinyin())
+
+		# A stream of distinct characters from outside the CJK block the
+		# dictionary is drawn from, guaranteed to miss on every lookup.
+		misses = [chr(0x1F300 + offset) for offset in range(500)]
+		for char in misses:
+			lookup_char_pinyin(char)
+		for char_original, char_corrected in zip(misses, misses[1:]):
+			analyze_diff(char_original, char_corrected)
+
+		after = len(chinese_dictionary.get_string_to_pinyin())
+		assert after == before, (before, after)
+		"""
+	)
+	assert result.returncode == 0, result.stderr
