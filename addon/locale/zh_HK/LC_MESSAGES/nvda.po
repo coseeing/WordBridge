@@ -386,6 +386,10 @@ msgstr "以訪客身分繼續"
 msgid "Coseeing authentication failed."
 msgstr "Coseeing 驗證失敗。"
 
+#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:684
+msgid "Coseeing authentication is unavailable on this installation."
+msgstr "此安裝無法使用 Coseeing 驗證。"
+
 #: addon\globalPlugins\WordBridge\dictionary\dialog.py:14
 msgid ""
 "Guideline:\n"

@@ -63,9 +63,14 @@ ADDON_SUMMARY = "WordBridge"
 # Make the unavailable-auth reason observable: without this, the auth half
 # can fail to load with nothing in NVDA's log to diagnose it from. Only the
 # exception type and str(error) that unavailable_reason() already formats are
-# logged -- never _AUTH_IMPORT_ERROR itself or exc_info=True, both of which
-# would keep its traceback (and, for a SyntaxError, the add-on install path --
-# hence the Windows username) in the log.
+# logged -- never _AUTH_IMPORT_ERROR itself or exc_info=True, either of which
+# would add a traceback (and, for a SyntaxError, arbitrary source text) to the
+# log. unavailable_reason() does deliberately include the sandbox roots
+# (_wb_vendor.__path__), and on Windows that is the add-on install path --
+# hence the Windows username. That's kept in because it's what distinguishes
+# "the runtime bundle is missing" from "the bundle is present but a module
+# failed to load"; the two are otherwise byte-identical, and without the path
+# the message would not be actionable.
 if not coseeing_auth.AUTH_AVAILABLE:
 	log.warning(coseeing_auth.unavailable_reason())
 

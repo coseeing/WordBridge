@@ -174,6 +174,7 @@ def test_sandboxed_code_resolves_a_real_host_module(sandbox_root, install_sandbo
 
 	assert gamma.get_json() is host_json
 	assert gamma.json is host_json
+	assert gamma.__dict__["__builtins__"]["__import__"] is not builtins.__import__
 
 
 def test_install_is_idempotent(sandbox_root, install_sandbox):
