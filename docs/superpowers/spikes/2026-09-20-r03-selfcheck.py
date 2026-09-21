@@ -95,7 +95,8 @@ def _verdict(passed, message):
 def check_namespace():
 	lines = ["== namespace =="]
 	namespace = sys.modules.get(PREFIX)
-	lines.append(_verdict(namespace is not None, f"{PREFIX} is installed"))
+	installed = namespace is not None
+	lines.append(_verdict(installed, f"{PREFIX} is installed" if installed else f"{PREFIX} is NOT installed"))
 	if namespace is None:
 		lines.append("  (the add-on is disabled, or this build predates R03)")
 		return lines, None
@@ -108,7 +109,10 @@ def check_namespace():
 	# default_roots() appends only the py3xx-win_amd64 runtime root beside
 	# it), but "correct today" must fail loudly the day it stops being true,
 	# not silently downgrade every dependent check to SKIPPED/INFO.
-	lines.append(_verdict(root is not None, f"a package root was identified: {root}"))
+	if root is not None:
+		lines.append(_verdict(True, f"a package root was identified: {root}"))
+	else:
+		lines.append(_verdict(False, "no package root could be identified"))
 	return lines, root
 
 
@@ -291,8 +295,10 @@ def check_sandboxed_import(package_root):
 			sandboxed_import = getattr(module_builtins, "__import__", None)
 		if sandboxed_import is None:
 			lines.append(_verdict(False, f"{name} has no __import__ in __builtins__ (displaced finder?)"))
+		elif sandboxed_import is not builtins.__import__:
+			lines.append(_verdict(True, f"{name} carries a sandboxed __import__"))
 		else:
-			lines.append(_verdict(sandboxed_import is not builtins.__import__, f"{name} carries a sandboxed __import__"))
+			lines.append(_verdict(False, f"{name} carries the REAL __import__, not a sandboxed one (displaced finder?)"))
 	if not seen:
 		lines.append("INFO: no checkable (non-extension) _wb_vendor.* module is loaded yet in this session")
 	return lines
@@ -339,7 +345,10 @@ def check_stdlib_gapfill(package_root):
 		# the root is simply unknown rather than genuinely not ours.
 		lines.append(f"INFO: cannot judge (no package root); secrets -> {path}")
 	elif _is_under(path, package_root):
-		lines.append(_verdict("_stdlib_gapfill" in path, "our copy comes from _stdlib_gapfill/"))
+		if "_stdlib_gapfill" in path:
+			lines.append(_verdict(True, "our copy comes from _stdlib_gapfill/"))
+		else:
+			lines.append(_verdict(False, f"our copy does NOT come from _stdlib_gapfill/ -> {path}"))
 	else:
 		lines.append(_verdict(True, "the host provides secrets; our copy correctly stood down"))
 	return lines

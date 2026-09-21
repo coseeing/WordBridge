@@ -184,22 +184,22 @@ def probe_1():
 	"""Force the add-on's import graph -- including call-time imports -- to be present before measuring."""
 	lines = ["== PROBE 1: exercise WordBridge's import graph =="]
 	targets = [
-		("auth stack (import)", "from coseeing_auth import CoseeingAuthClient"),
+		("auth stack (import)", "from _wb_vendor.coseeing_auth import CoseeingAuthClient"),
 		(
 			"auth stack (call-time)",
-			"from coseeing_auth import AuthConfig; AuthConfig("
+			"from _wb_vendor.coseeing_auth import AuthConfig; AuthConfig("
 			"issuer='https://sso.coseeing.org', client_id='wordbridge', "
 			"scopes=('openid', 'profile', 'email', 'offline_access'), "
 			"login_redirect_uri='http://127.0.0.1:8000/auth-callback', "
 			"logout_redirect_uri='http://127.0.0.1:8000/logout-callback', "
 			"callback_timeout=180)",
 		),
-		("local correction", "from pypinyin import lazy_pinyin"),
-		("local correction (call-time)", "from pypinyin import lazy_pinyin; lazy_pinyin('測試')"),
-		("local correction", "import chinese_converter"),
-		("local correction", "from hanzidentifier import identify"),
-		("local correction (call-time)", "from hanzidentifier import identify; identify('測試')"),
-		("local correction (zhon, call-time)", "from zhon import cedict; cedict.all"),
+		("local correction", "from _wb_vendor.pypinyin import lazy_pinyin"),
+		("local correction (call-time)", "from _wb_vendor.pypinyin import lazy_pinyin; lazy_pinyin('測試')"),
+		("local correction", "import _wb_vendor.chinese_converter"),
+		("local correction", "from _wb_vendor.hanzidentifier import identify"),
+		("local correction (call-time)", "from _wb_vendor.hanzidentifier import identify; identify('測試')"),
+		("local correction (zhon, call-time)", "from _wb_vendor.zhon import cedict; cedict.all"),
 	]
 	for label, statement in targets:
 		try:
