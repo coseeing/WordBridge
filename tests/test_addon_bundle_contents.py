@@ -118,15 +118,20 @@ def test_bundle_keeps_the_vendored_auth_package(bundle_names):
 
 
 def test_bundle_excludes_a_developer_machines_leftover_correction_reports(tmp_path):
-	# web/workspace/ does not exist in git -- __init__.py's showReport()
-	# (lines 273-314) only creates it at runtime, and Path.match()'s "*" does
-	# not cross a path separator, so a pattern has to name each depth it needs
-	# to reach explicitly. These are showReport()'s *actual* filenames, not
+	# web/workspace/ does not exist in git. showReport() used to rmtree() and
+	# recreate it inside the add-on install directory on every report,
+	# copytree()-ing web/templates/modules/ (flat -- vue.js and
+	# sweetalert2.all.min.js, no deeper nesting) into it each time; reports
+	# now go to the user workspace instead (lib/report.py's generate_report())
+	# and web/workspace/ is never written by current code. The exclusion
+	# patterns below stay regardless: they guard a developer machine that
+	# still carries a web/workspace/ directory left over from an older build,
+	# which bundling must still exclude. Path.match()'s "*" does not cross a
+	# path separator, so a pattern has to name each depth it needs to reach
+	# explicitly; these are the old showReport()'s *actual* filenames, not
 	# invented placeholders -- an earlier round used "report.html"/
 	# "index.html" and that mismatch with reality was exactly why it missed
-	# web/workspace/review/modules/ (populated by copytree() from
-	# web/templates/modules/, which is flat -- vue.js and
-	# sweetalert2.all.min.js, no deeper nesting).
+	# web/workspace/review/modules/.
 	source = tmp_path / "addon-src"
 	leftover_files = [
 		"globalPlugins/WordBridge/web/workspace/default/result.txt",

@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import re
 import secrets
 import shutil
@@ -18,9 +17,13 @@ TEMPLATE_MODULES_PATH = ADDON_PATH / "web" / "templates" / "modules"
 
 REPORTS_DIR_NAME = "reports"
 MODULES_DIR_NAME = "modules"
-# Deliberately anchored: only directories this module created are ever
-# eligible for deletion.
-REPORT_DIR_PATTERN = re.compile(r"\d{8}-\d{6}-[0-9a-f]{4}")
+# Anchored with \A/\Z (not just \A...\Z as bare start/end, which multiline
+# mode could weaken) and restricted to ASCII digits: only directories this
+# module created -- never anything a fullmatch-bypassing caller or a
+# non-ASCII-digit lookalike could sneak past -- are ever eligible for
+# deletion. Every call site still MUST use fullmatch(); this pattern alone
+# does not guard against .search()/.match().
+REPORT_DIR_PATTERN = re.compile(r"\A[0-9]{8}-[0-9]{6}-[0-9a-f]{4}\Z")
 DEFAULT_KEEP = 10
 
 
@@ -43,13 +46,25 @@ def _provision_modules(reports_root: Path) -> None:
 		shutil.copyfile(source, target)
 
 
-def _prune_old_reports(reports_root: Path, keep: int) -> None:
+def _prune_old_reports(reports_root: Path, keep: int, *, protect: Path | None = None) -> None:
+	"""Delete the oldest matching report directories beyond `keep`.
+
+	`protect`, when given, is never deleted even if it sorts among the
+	directories that would otherwise be pruned. The directory-name timestamp
+	has only one-second resolution, so two reports generated within the same
+	second tie-break on a random suffix and "newest" is undefined by name
+	alone -- `protect` is how the caller guarantees the report it just
+	produced (and is about to hand back to the user) survives regardless.
+	"""
 	directories = sorted(
 		(path for path in reports_root.iterdir()
 		 if path.is_dir() and REPORT_DIR_PATTERN.fullmatch(path.name)),
 		key=lambda path: path.name,
 	)
-	for path in directories[:-keep] if keep > 0 else directories:
+	doomed = directories[:-keep] if keep > 0 else directories
+	for path in doomed:
+		if protect is not None and path == protect:
+			continue
 		try:
 			shutil.rmtree(path)
 		except OSError as error:
@@ -80,7 +95,13 @@ def generate_report(diff_data, *, root: Path | None = None, keep: int = DEFAULT_
 	text2template(str(raw_path), str(html_path))
 
 	# Retention runs last, after the new report exists, so a retention failure
-	# can never cost the report that was just produced.
-	_prune_old_reports(reports_root, keep)
+	# can never cost the report that was just produced. The whole call is
+	# wrapped, not just shutil.rmtree() inside it: reports_root.iterdir() (or
+	# anything else retention does) can also raise OSError, and none of that
+	# is allowed to cost the user the report that was just written.
+	try:
+		_prune_old_reports(reports_root, keep, protect=report_dir)
+	except OSError as error:
+		log.warning("WordBridge: could not prune old reports: %s: %s", type(error).__name__, error)
 
 	return html_path

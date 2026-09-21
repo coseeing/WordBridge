@@ -1,7 +1,6 @@
 import csv
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
-import json
 import os
 import threading
 import time
@@ -53,7 +52,6 @@ from .lib.coseeing_auth import shutdown_coseeing_auth, start_coseeing_auth
 from .lib.decimalUtils import decimal_to_str_0
 from .lib.report import generate_report
 from .lib.tasks.typo.utils import strings_diff
-from .lib.viewHTML import text2template
 from _wb_vendor.hanzidentifier import has_chinese
 
 
