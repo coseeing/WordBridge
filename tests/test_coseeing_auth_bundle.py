@@ -75,10 +75,10 @@ import _wb_vendor.coseeing_auth as coseeing_auth
 
 value = build_auth_config()
 assert value.issuer == "https://sso.coseeing.org"
-assert value.client_id == "a11yvillage"
+assert value.client_id == "wordbridge"
 assert set(value.scopes) == {"openid", "profile", "email", "offline_access"}
-assert value.login_redirect_uri == "http://127.0.0.1:8765/auth-callback"
-assert value.logout_redirect_uri == "http://127.0.0.1:8765/logout-callback"
+assert value.login_redirect_uri == "http://127.0.0.1:8000/auth-callback"
+assert value.logout_redirect_uri == "http://127.0.0.1:8000/logout-callback"
 assert value.callback_timeout == 180
 assert Path(coseeing_auth.__file__).resolve().is_relative_to(fixture)
 """
@@ -114,10 +114,10 @@ import _wb_vendor.coseeing_auth as coseeing_auth
 
 value = build_auth_config()
 assert value.issuer == "https://sso.coseeing.org"
-assert value.client_id == "a11yvillage"
+assert value.client_id == "wordbridge"
 assert set(value.scopes) == {"openid", "profile", "email", "offline_access"}
-assert value.login_redirect_uri == "http://127.0.0.1:8765/auth-callback"
-assert value.logout_redirect_uri == "http://127.0.0.1:8765/logout-callback"
+assert value.login_redirect_uri == "http://127.0.0.1:8000/auth-callback"
+assert value.logout_redirect_uri == "http://127.0.0.1:8000/logout-callback"
 assert value.callback_timeout == 180
 assert Path(coseeing_auth.__file__).resolve().is_relative_to(bundle)
 """

@@ -93,8 +93,6 @@ config.conf.spec["WordBridge"] = {
 		"language": f"string(default={LANGUAGE_DEFAULT})",
 		"typo_correction_mode": f"string(default={TYPO_CORRECTION_MODE_DEFAULT})",
 		"api_key": {},
-		"coseeing_username": "string(default=\0)",
-		"coseeing_password": "string(default=\0)",
 		"max_char_count": "integer(default=512,min=256,max=4096)",
 		"auto_display_report": "boolean(default=False)",
 		"customized_words_enable": "boolean(default=True)",
