@@ -207,12 +207,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def _notify(self, message):
 		self._run_on_ui(ui.message, message)
 
-	def _set_latest_action(self, action):
+	def _publish_latest_action(self, action):
 		# Sole writer of self.latest_action. Must only ever be invoked via
-		# self._run_on_ui(self._set_latest_action, ...), so it always runs on
-		# the UI thread -- this is what makes a single self.latest_action read
-		# on the UI thread internally consistent (request/response/
+		# self._run_on_ui(self._publish_latest_action, ...), so it always runs
+		# on the UI thread -- this is what makes a single self.latest_action
+		# read on the UI thread internally consistent (request/response/
 		# interaction_id all from the same task) without needing a lock.
+		#
+		# THE NAME IS LOAD-BEARING: this must NOT be called _set_latest_action.
+		# GlobalPlugin inherits NVDA's baseObject.AutoPropertyObject, whose
+		# AutoPropertyType metaclass turns every `_get_x`/`_set_x`/`_del_x`
+		# method in the class body into a property `x`:
+		#     props = {n[5:] for n in namespace if n[0:5] in ("_get_","_set_","_del_")}
+		# With a `_set_latest_action` method, `self.latest_action = action`
+		# below stops being an attribute store and becomes a call back into
+		# this same method -- unbounded recursion, triggered on the very first
+		# write in __init__. NVDA wedges during global plugin initialization
+		# with no traceback, which takes the whole screen reader down.
 		self.latest_action = action
 
 	def _post_coseeing_request(self, url, **kwargs):
@@ -437,7 +448,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		diff = strings_diff(request, response)
 
-		self._run_on_ui(self._set_latest_action, CorrectionAction(
+		self._run_on_ui(self._publish_latest_action, CorrectionAction(
 			request=request,
 			response=response,
 			diff=diff,
@@ -548,7 +559,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def script_correctionFeedback(self, gesture):
 		# Sample latest_action exactly once, here, before show() is scheduled.
 		# ShowModal() below runs a nested wx event loop, which can deliver a
-		# pending _set_latest_action callback for a different, later task
+		# pending _publish_latest_action callback for a different, later task
 		# while the dialog is open. Reading self.latest_action again after
 		# ShowModal() returns would then attach this feedback to the wrong
 		# interaction. The guard, the dialog and the POST must all close over

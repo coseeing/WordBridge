@@ -77,7 +77,31 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	config = SimpleNamespace(conf=Config({"WordBridge": {"settings": settings}}))
 	config.conf.spec = {}
 
-	class ParentPlugin:
+	class AutoPropertyType(type):
+		"""Faithful stand-in for NVDA's baseObject.AutoPropertyType.
+
+		The real GlobalPlugin inherits AutoPropertyObject, whose metaclass
+		turns every `_get_x`/`_set_x`/`_del_x` method in a class body into a
+		property `x`. A plain stub base hides that entirely, which is how a
+		`_set_latest_action` method shipped: under the real metaclass the
+		`self.latest_action = ...` inside it recursed without bound and wedged
+		NVDA during global plugin initialization, with no traceback.
+
+		Only the naming rule is reproduced -- that is the part that bites.
+		"""
+
+		def __init__(cls, name, bases, namespace, **kwargs):
+			super().__init__(name, bases, namespace, **kwargs)
+			props = {n[5:] for n in namespace if n[0:5] in ("_get_", "_set_", "_del_")}
+			for prop in props:
+				getter = namespace.get(f"_get_{prop}")
+				setter = namespace.get(f"_set_{prop}")
+				deleter = namespace.get(f"_del_{prop}")
+				if prop in namespace:
+					raise TypeError(f"{prop} is already a class attribute")
+				setattr(cls, prop, property(getter, setter, deleter))
+
+	class ParentPlugin(metaclass=AutoPropertyType):
 		initialized = 0
 		terminated = 0
 

@@ -222,7 +222,7 @@ def test_feedback_reads_one_internally_consistent_snapshot_despite_nested_event_
 	# Spec Tests item 8: latest_action observed from the UI thread is always
 	# internally consistent -- request, response and interaction_id come from
 	# the same task, even though FeedbackDialog.ShowModal() runs a nested wx
-	# event loop that can deliver a pending _set_latest_action callback for a
+	# event loop that can deliver a pending _publish_latest_action callback for a
 	# second, unrelated task while the dialog is still open.
 	queued = []
 	plugin_module = _plugin(monkeypatch, queued)
