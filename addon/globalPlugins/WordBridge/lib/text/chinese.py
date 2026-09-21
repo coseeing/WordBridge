@@ -30,8 +30,11 @@ ZH_UNICODE_INTERVALS = [
 
 
 def is_chinese_character(char: str) -> bool:
-	assert len(char) <= 1, "Length of char should not be larger than 1."
-	if not char:
+	# The tokenizer merges runs of non-Chinese characters into one token, so
+	# callers legitimately pass strings longer than one character. A token
+	# that is not exactly one character is, by definition, not a single
+	# Chinese character.
+	if len(char) != 1:
 		return False
 
 	for interval in ZH_UNICODE_INTERVALS:

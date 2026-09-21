@@ -83,3 +83,121 @@ def test_analyze_diff_uses_the_real_vendored_converter():
 		"""
 	)
 	assert result.returncode == 0, result.stderr
+
+
+def test_strings_diff_survives_a_multi_character_latin_token():
+	from lib.tasks.typo.utils import strings_diff
+
+	diff = strings_diff("我用 iPhone15 拍照", "我用 iPhone16 拍照")
+
+	assert "".join(entry["before_text"] for entry in diff) == "我用 iPhone15 拍照"
+
+
+def test_strings_diff_survives_a_url_token():
+	from lib.tasks.typo.utils import strings_diff
+
+	diff = strings_diff("請看 http://a.example 說明", "請看 http://b.example 說明")
+
+	assert "".join(entry["after_text"] for entry in diff) == "請看 http://b.example 說明"
+
+
+def test_find_correction_errors_keeps_non_chinese_text_without_scheduling_a_rerun():
+	from lib.tasks.typo.utils import find_correction_errors
+
+	fixed, typo_indices = find_correction_errors("我用 iPhone15 拍照", "我用 iPhone16 拍照")
+
+	assert fixed == "我用 iPhone15 拍照"
+	assert typo_indices == []
+
+
+def test_review_correction_errors_rejects_a_non_chinese_replacement():
+	from lib.tasks.typo.utils import review_correction_errors
+
+	assert review_correction_errors("我用 iPhone15 拍照", "我用 iPhone16 拍照") == "我用 iPhone15 拍照"
+
+
+def test_find_correction_errors_still_flags_a_non_homophone_chinese_replacement():
+	from lib.tasks.typo.utils import find_correction_errors
+
+	fixed, typo_indices = find_correction_errors("今天天氣真好", "今天天堂真好")
+
+	assert fixed == "今天天氣真好"
+	assert typo_indices == [3]
+
+
+def test_is_chinese_character_rejects_multi_character_strings():
+	from lib.text.chinese import is_chinese_character
+
+	assert is_chinese_character("我") is True
+	assert is_chinese_character("iPhone15") is False
+	assert is_chinese_character("") is False
+
+
+def test_get_char_pinyin_rejects_anything_but_a_single_chinese_character():
+	from lib.tasks.typo.utils import get_char_pinyin
+
+	with pytest.raises(ValueError):
+		get_char_pinyin("iPhone15")
+
+
+def test_create_single_char_mapping_rejects_too_many_tokens():
+	from lib.tasks.typo.utils import MAX_MAPPED_TOKENS, create_single_char_mapping
+
+	with pytest.raises(ValueError):
+		create_single_char_mapping(["x"] * (MAX_MAPPED_TOKENS + 1))
+
+
+def test_mixed_text_behaves_identically_under_python_O():
+	result = run_in_subprocess(
+		"""
+		from lib.tasks.typo.utils import find_correction_errors, review_correction_errors, strings_diff
+
+		before = "我用 iPhone15 拍照"
+		after = "我用 iPhone16 拍照"
+		if "".join(e["before_text"] for e in strings_diff(before, after)) != before:
+			raise SystemExit("strings_diff lost text under -O")
+		if find_correction_errors(before, after) != (before, []):
+			raise SystemExit("find_correction_errors differs under -O")
+		if review_correction_errors(before, after) != before:
+			raise SystemExit("review_correction_errors differs under -O")
+		""",
+		optimized=True,
+	)
+	assert result.returncode == 0, result.stderr
+
+
+def test_find_word_candidate_matches_a_customized_word_after_non_chinese_prefix():
+	from lib.tasks.typo.prompt import TypoPromptStrategy
+
+	strategy = TypoPromptStrategy(
+		language="zh_traditional",
+		template_name="Lite_v1.json",
+		customized_words=["天器"],
+	)
+
+	assert strategy._find_word_candidate("abc天器", ["天器"]) == ["天器"]
+
+
+def test_find_word_candidate_falls_back_to_exact_equality_for_non_chinese_characters():
+	from lib.tasks.typo.prompt import TypoPromptStrategy
+
+	strategy = TypoPromptStrategy(
+		language="zh_traditional",
+		template_name="Lite_v1.json",
+		customized_words=["abc"],
+	)
+
+	assert strategy._find_word_candidate("xxabcxx", ["abc"]) == ["abc"]
+	assert strategy._find_word_candidate("xxabdxx", ["abc"]) == []
+
+
+def test_find_word_candidate_does_not_raise_for_a_chinese_non_chinese_pair():
+	from lib.tasks.typo.prompt import TypoPromptStrategy
+
+	strategy = TypoPromptStrategy(
+		language="zh_traditional",
+		template_name="Lite_v1.json",
+		customized_words=["天器"],
+	)
+
+	assert strategy._find_word_candidate("天x", ["天器"]) == []

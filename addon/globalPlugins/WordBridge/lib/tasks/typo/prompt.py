@@ -88,7 +88,16 @@ class TypoPromptStrategy(BasePromptStrategy):
 			for i in range(len(input_text) - len(word) + 1):
 				flag = True
 				for j in range(len(word)):
-					if len(set(get_char_pinyin(word[j])) & set(get_char_pinyin(input_text[i + j]))) == 0:
+					char_word = word[j]
+					char_input = input_text[i + j]
+					# Pronunciation comparison is only defined for single Chinese
+					# characters (same policy as the diff path); anything else
+					# falls back to exact equality.
+					if is_chinese_character(char_word) and is_chinese_character(char_input):
+						matches = len(set(get_char_pinyin(char_word)) & set(get_char_pinyin(char_input))) > 0
+					else:
+						matches = char_word == char_input
+					if not matches:
 						flag = False
 						break
 				if flag:

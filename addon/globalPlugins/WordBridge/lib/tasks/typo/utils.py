@@ -11,9 +11,15 @@ from ...text.chinese import (
 )
 from .chinese_dictionary import pinyin_to_string, string_to_pinyin
 
+# create_single_char_mapping() maps each distinct token to one character from
+# the CJK block starting at U+4E00, so it cannot encode more tokens than the
+# span it draws from.
+MAX_MAPPED_TOKENS = 20000
+
 
 def get_char_pinyin(char: str) -> list:
-	assert len(char) == 1, "Length of char should be 1."
+	if not is_chinese_character(char):
+		raise ValueError(f"get_char_pinyin expects a single Chinese character, got {char!r}")
 	pinyins_set = set(string_to_pinyin[char]) | set(pinyin(char, heteronym=True)[0])
 	return list(pinyins_set)
 
@@ -58,7 +64,8 @@ def tokenizer(text):
 
 
 def create_single_char_mapping(tokens):
-	assert len(tokens) <= 20000
+	if len(tokens) > MAX_MAPPED_TOKENS:
+		raise ValueError(f"strings_diff supports at most {MAX_MAPPED_TOKENS} tokens, got {len(tokens)}")
 
 	mapping = {}
 	chinese_char = 19968
@@ -178,7 +185,6 @@ def strings_diff(string_before: str, string_after: str) -> dict:
 				"".join(tokens_before[index_start_before + i]),
 				"".join(tokens_after[index_start_after + i]),
 			)
-			assert len(operation_dict["before_text"]) == 1 and len(operation_dict["after_text"]) == 1
 			diff.append(operation_dict)
 
 	return diff
@@ -197,11 +203,21 @@ def find_correction_errors(text, text_corrected):
 			typo_indices.append(max(len(text_corrected_fixed) - 1, 0))
 			continue
 
-		if len(set(get_char_pinyin(diff["before_text"])) & set(get_char_pinyin(diff["after_text"]))) == 0:
-			text_corrected_fixed += diff["before_text"]
+		before_text = diff["before_text"]
+		after_text = diff["after_text"]
+		if not (is_chinese_character(before_text) and is_chinese_character(after_text)):
+			# review_correction_errors() already refuses to accept a
+			# replacement unless both sides are single Chinese characters, so
+			# flagging this position would only schedule a re-correction round
+			# that cannot change the outcome.
+			text_corrected_fixed += before_text
+			continue
+
+		if len(set(get_char_pinyin(before_text)) & set(get_char_pinyin(after_text))) == 0:
+			text_corrected_fixed += before_text
 			typo_indices.append(len(text_corrected_fixed) - 1)
 		else:
-			text_corrected_fixed += diff["after_text"]
+			text_corrected_fixed += after_text
 
 	return text_corrected_fixed, typo_indices
 
