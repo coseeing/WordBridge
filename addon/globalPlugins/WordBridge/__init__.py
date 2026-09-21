@@ -1,6 +1,6 @@
 import csv
 from dataclasses import dataclass
-from decimal import InvalidOperation
+from decimal import Decimal, InvalidOperation
 import json
 import os
 import shutil
@@ -210,6 +210,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def _report_cost(self, cost):
 		try:
+			# The Coseeing channel hands back cost as a plain JSON int/float
+			# (data.json()["cost"]); the local channel already hands back a
+			# Decimal (Executor.get_total_cost()). Coercing here, in the one
+			# place both channels converge, means decimal_to_str_0() -- which
+			# rejects non-Decimal input outright -- never sees anything but a
+			# Decimal, from either channel. str() first avoids the
+			# binary-float artefact Decimal(0.1) would produce.
+			cost = cost if isinstance(cost, Decimal) else Decimal(str(cost))
 			cost_text = decimal_to_str_0(cost)
 		except (TypeError, ValueError, InvalidOperation) as error:
 			# Never fabricate a zero and never hide the cause: the user is
