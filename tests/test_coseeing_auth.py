@@ -70,6 +70,7 @@ from concurrent.futures import CancelledError, Future
 import shutil
 import subprocess
 import sys
+import textwrap
 from threading import Event, Thread, current_thread
 import threading
 from pathlib import Path
@@ -161,7 +162,7 @@ def test_auth_error_classes_bind_when_the_sandbox_resolves_the_bundle(tmp_path):
 	assert issubclass(module.TokenValidationError, Exception)
 	"""
 	subprocess.run(
-		[sys.executable, "-S", "-c", code, str(addon), str(package)],
+		[sys.executable, "-S", "-c", textwrap.dedent(code), str(addon), str(package)],
 		check=True, capture_output=True, text=True,
 	)
 

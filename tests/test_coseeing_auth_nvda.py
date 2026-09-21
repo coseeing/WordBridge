@@ -203,10 +203,34 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 		ADDON_PATH / "__init__.py",
 		submodule_search_locations=[str(ADDON_PATH)],
 	)
+	# Spec test 8: this exec_module call is a real, unstubbed run of the real
+	# __init__.py -- the only NVDA-side modules faked above are the ones this
+	# helper builds stand-ins for; `.lib.vendor`, `.dialogs` and
+	# `.configManager` are the genuine files on disk. Snapshotting immediately
+	# around it and asserting the delta is what actually proves "leaves
+	# sys.path unmodified and adds no global sys.modules key except
+	# _wb_vendor and any category 1 registration" -- executing the file
+	# without checking either only proves it did not raise.
+	modules_before = set(sys.modules)
+	path_before = list(sys.path)
 	plugin = importlib.util.module_from_spec(spec)
 	sys.modules[package_name] = plugin
 	spec.loader.exec_module(plugin)
 	plugin.dialogs = sys.modules[f"{package_name}.dialogs"]
+
+	assert sys.path == path_before, "exec_module must never mutate sys.path"
+	# The real pollution spec test 8 cares about is a category 2 top-level
+	# name becoming globally importable (the whole reason this design exists);
+	# it is not "no new sys.modules key at all" -- this minimal harness, unlike
+	# a real NVDA process that has already warmed most of the stdlib by the
+	# time an add-on loads, does not have e.g. `csv` pre-imported, and
+	# __init__.py's ordinary `import csv` is not the pollution under test.
+	from lib import vendor
+
+	added = set(sys.modules) - modules_before
+	leaked = added & vendor.ISOLATED
+	assert not leaked, f"category 2 name(s) leaked as bare global sys.modules key(s): {sorted(leaked)}"
+
 	return plugin, config, gui
 
 
@@ -630,6 +654,47 @@ def test_coseeing_channel_reconsiders_guest(monkeypatch):
 	monkeypatch.setattr(module, "get_coseeing_access_token", lambda **kw: calls.append(kw) or completed, raising=False)
 	module.start_coseeing_auth("Coseeing")
 	assert calls == [{"reconsider_guest": True, "silent": True}]
+
+
+def test_coseeing_channel_notifies_when_auth_is_unavailable_and_not_silent(monkeypatch):
+	"""Spec:278-281: selecting the Coseeing channel while the auth half is
+	unavailable must be reported by the UI when the user asked for it (not
+	silent), rather than silence.
+
+	Before this fix: get_coseeing_access_token() swallows
+	CoseeingAuthUnavailableError into a failed Future rather than raising, so
+	start_coseeing_auth()'s own `except` never fires; it then reads
+	`_singleton_adapter`, which is None because `_get_singleton_pair()` never
+	got far enough to build one, and returns -- nothing is ever notified and
+	the Future's exception is never retrieved.
+	"""
+	messages = []
+	monkeypatch.setattr(module, "AUTH_AVAILABLE", False)
+	monkeypatch.setattr(module, "_singleton_adapter", None)
+	monkeypatch.setitem(sys.modules, "wx", SimpleNamespace(CallAfter=lambda function, *args: function(*args)))
+	monkeypatch.setitem(sys.modules, "ui", SimpleNamespace(message=lambda text: messages.append(text)))
+	monkeypatch.setattr(module, "_", lambda text: text, raising=False)
+
+	module.start_coseeing_auth("Coseeing", silent=False)
+
+	assert messages == ["Coseeing authentication is unavailable on this installation."]
+
+
+def test_coseeing_channel_stays_silent_when_auth_unavailable_and_silent_requested(monkeypatch):
+	"""silent=True -- the case at plugin construction, __init__.py:118 -- must
+	stay silent even when the auth half is unavailable. Only the explicit,
+	user-initiated selection (dialogs.py:276, silent=False) should notify.
+	"""
+	messages = []
+	monkeypatch.setattr(module, "AUTH_AVAILABLE", False)
+	monkeypatch.setattr(module, "_singleton_adapter", None)
+	monkeypatch.setitem(sys.modules, "wx", SimpleNamespace(CallAfter=lambda function, *args: function(*args)))
+	monkeypatch.setitem(sys.modules, "ui", SimpleNamespace(message=lambda text: messages.append(text)))
+	monkeypatch.setattr(module, "_", lambda text: text, raising=False)
+
+	module.start_coseeing_auth("Coseeing", silent=True)
+
+	assert messages == []
 
 
 def test_nvda_adapter_maps_dialog_choices(monkeypatch):

@@ -1,3 +1,5 @@
+import builtins
+from collections import Counter
 import hashlib
 import importlib
 import re
@@ -5,6 +7,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import textwrap
 import types
 from importlib.machinery import ExtensionFileLoader, ModuleSpec, SourceFileLoader
 from pathlib import Path
@@ -91,7 +94,11 @@ def test_bare_isolated_name_is_prefixed(recording_import):
 
 @pytest.fixture
 def sandbox_root(tmp_path):
-	"""A fabricated two-package tree: alpha lazily imports beta by absolute name."""
+	"""A fabricated tree: alpha lazily imports beta by absolute name; gamma
+	imports a real host stdlib module (json) -- gamma is never a name in the
+	fabricated ISOLATED set, so its plain `import json` is category 3 shaped:
+	delegated unchanged, resolving to the real host copy.
+	"""
 	alpha = tmp_path / "alpha"
 	alpha.mkdir()
 	(alpha / "__init__.py").write_text(
@@ -103,6 +110,14 @@ def sandbox_root(tmp_path):
 	beta = tmp_path / "beta"
 	beta.mkdir()
 	(beta / "__init__.py").write_text("VALUE = 'sandbox'\n", encoding="utf8")
+	gamma = tmp_path / "gamma"
+	gamma.mkdir()
+	(gamma / "__init__.py").write_text(
+		"import json\n"
+		"def get_json():\n"
+		"\treturn json\n",
+		encoding="utf8",
+	)
 	return tmp_path
 
 
@@ -132,6 +147,33 @@ def test_namespace_path_holds_only_roots_that_exist(sandbox_root, install_sandbo
 	namespace = install_sandbox([str(sandbox_root), str(missing)], "_wb_t1", {"alpha"})
 
 	assert namespace.__path__ == [str(sandbox_root)]
+
+
+def test_namespace_spec_submodule_search_locations_matches_path(sandbox_root, install_sandbox):
+	"""The import machinery only ever consults __path__, but pkgutil.iter_modules()
+	and importlib.resources read __spec__.submodule_search_locations instead;
+	ModuleSpec(..., is_package=True) defaults that to its own empty list, so
+	without this the namespace would look like an empty package to either tool.
+	"""
+	namespace = install_sandbox([str(sandbox_root)], "_wb_t1b", {"alpha"})
+
+	assert namespace.__spec__.submodule_search_locations is namespace.__path__
+
+
+def test_sandboxed_code_resolves_a_real_host_module(sandbox_root, install_sandbox):
+	"""Spec test 3, at integration level: a category-3-shaped name imported
+	from real sandboxed code -- run through the actual installed sandbox
+	end to end, not the `recording_import` stand-in `test_host_name_is_
+	delegated_untouched` above uses -- resolves to the real host copy.
+	"""
+	import json as host_json
+
+	install_sandbox([str(sandbox_root)], "_wb_t1c", {"alpha", "beta"})
+
+	gamma = importlib.import_module("_wb_t1c.gamma")
+
+	assert gamma.get_json() is host_json
+	assert gamma.json is host_json
 
 
 def test_install_is_idempotent(sandbox_root, install_sandbox):
@@ -235,14 +277,22 @@ def test_finder_still_resolves_a_real_package_and_a_real_subpackage(install_sand
 	stand-in, so a future dependency version that ships a subpackage without
 	an __init__.py fails loudly here instead of silently degrading to a
 	namespace portion.
+
+	Also imports the real ``hanzidentifier``, on the eager local-correction
+	path every user hits: its ``from zhon import cedict`` is the exact
+	rewrite the spec names by example (spec:92-93), and had no auto coverage
+	of its own before this.
 	"""
-	install_sandbox([str(PACKAGE_ROOT)], "_wb_t7", {"pypinyin"})
+	install_sandbox([str(PACKAGE_ROOT)], "_wb_t7", {"pypinyin", "hanzidentifier", "zhon"})
 
 	top = importlib.import_module("_wb_t7.pypinyin")
 	sub = importlib.import_module("_wb_t7.pypinyin.contrib")
+	hanzi = importlib.import_module("_wb_t7.hanzidentifier")
 
 	assert top.__name__ == "_wb_t7.pypinyin"
 	assert sub.__name__ == "_wb_t7.pypinyin.contrib"
+	assert hanzi.__name__ == "_wb_t7.hanzidentifier"
+	assert hanzi.cedict.__name__ == "_wb_t7.zhon.cedict"
 
 
 def test_finder_leaves_extension_loaders_unwrapped_but_wraps_source_loaders(monkeypatch):
@@ -304,20 +354,26 @@ def test_every_bundled_top_level_name_is_classified():
 	deps_root = PACKAGE_ROOT / "_coseeing_auth_deps"
 	roots = [PACKAGE_ROOT] + sorted(entry for entry in deps_root.glob("*") if entry.is_dir())
 	skip = {"__pycache__", "_stdlib_gapfill", "_coseeing_auth_deps"}
-	found = set()
+	names = []
 	for root in roots:
 		for entry in root.iterdir():
 			if entry.name in skip:
 				continue
 			if entry.is_dir():
 				if not entry.name.endswith(".dist-info"):
-					found.add(entry.name)
+					names.append(entry.name)
 			elif entry.name.endswith(".py"):
-				found.add(entry.name[:-3])
+				names.append(entry.name[:-3])
 			elif entry.name.endswith(".pyd"):
-				found.add(entry.name.split(".")[0])
+				names.append(entry.name.split(".")[0])
 
-	assert found == vendor.ISOLATED | vendor.HOST_ONLY
+	assert set(names) == vendor.ISOLATED | vendor.HOST_ONLY
+	# The same top-level name present in more than one root is the precondition
+	# for a namespace __path__ that spans both -- vendor.install() would then
+	# resolve it to whichever root's copy PathFinder happens to walk first, a
+	# nondeterministic winner that varies with filesystem/OS listing order.
+	duplicated = {name for name, count in Counter(names).items() if count > 1}
+	assert not duplicated, f"present in more than one root: {duplicated}"
 
 
 def test_categories_do_not_overlap():
@@ -345,9 +401,10 @@ def test_gapfill_skips_a_module_the_host_already_provides(tmp_path):
 	host_json = sys.modules["json"]
 
 	try:
-		registered = vendor.install_stdlib_gapfill(tmp_path)
+		registered, failures = vendor.install_stdlib_gapfill(tmp_path)
 
 		assert registered == []
+		assert failures == []
 		assert sys.modules["json"] is host_json
 	finally:
 		# If the implementation ever regressed to unconditional registration,
@@ -371,9 +428,10 @@ def test_gapfill_probes_the_host_for_a_module_not_yet_imported(tmp_path):
 	(directory / f"{name}.py").write_text("RAISE = 'ours'\n", encoding="utf8")
 
 	try:
-		registered = vendor.install_stdlib_gapfill(tmp_path)
+		registered, failures = vendor.install_stdlib_gapfill(tmp_path)
 
 		assert registered == []
+		assert failures == []
 		assert not hasattr(sys.modules[name], "RAISE")
 	finally:
 		sys.modules.pop(name, None)
@@ -385,9 +443,10 @@ def test_gapfill_registers_a_module_the_host_lacks(tmp_path, monkeypatch):
 	(directory / "wbfakegap.py").write_text("VALUE = 'gapfill'\n", encoding="utf8")
 	monkeypatch.delitem(sys.modules, "wbfakegap", raising=False)
 
-	registered = vendor.install_stdlib_gapfill(tmp_path)
+	registered, failures = vendor.install_stdlib_gapfill(tmp_path)
 	try:
 		assert registered == ["wbfakegap"]
+		assert failures == []
 		assert sys.modules["wbfakegap"].VALUE == "gapfill"
 		assert sys.modules["wbfakegap"].__name__ == "wbfakegap"
 	finally:
@@ -407,16 +466,80 @@ def test_gapfill_registers_a_module_whose_name_has_a_single_leading_underscore(
 	(directory / "_wbfakegap.py").write_text("VALUE = 'gapfill'\n", encoding="utf8")
 	monkeypatch.delitem(sys.modules, "_wbfakegap", raising=False)
 
-	registered = vendor.install_stdlib_gapfill(tmp_path)
+	registered, failures = vendor.install_stdlib_gapfill(tmp_path)
 	try:
 		assert registered == ["_wbfakegap"]
+		assert failures == []
 		assert sys.modules["_wbfakegap"].VALUE == "gapfill"
 	finally:
 		sys.modules.pop("_wbfakegap", None)
 
 
 def test_gapfill_is_a_no_op_without_the_directory(tmp_path):
-	assert vendor.install_stdlib_gapfill(tmp_path) == []
+	assert vendor.install_stdlib_gapfill(tmp_path) == ([], [])
+
+
+def test_gapfill_records_a_failure_without_raising_when_our_own_copy_fails_to_exec(tmp_path, monkeypatch):
+	"""spec:270: installing the sandbox never raises, even when a gap-fill file
+	we ship ourselves is the one that is broken -- e.g. Task 1's probe adding a
+	second file whose own import is missing. A broken file must not stop the
+	rest of the directory from being registered, and a module it partially
+	executed must not linger in sys.modules.
+	"""
+	directory = tmp_path / "_stdlib_gapfill"
+	directory.mkdir()
+	(directory / "wbbrokengap.py").write_text(
+		"import this_module_does_not_exist_anywhere\n", encoding="utf8"
+	)
+	(directory / "wbgoodgap.py").write_text("VALUE = 'gapfill'\n", encoding="utf8")
+	monkeypatch.delitem(sys.modules, "wbbrokengap", raising=False)
+	monkeypatch.delitem(sys.modules, "wbgoodgap", raising=False)
+
+	try:
+		registered, failures = vendor.install_stdlib_gapfill(tmp_path)
+
+		assert registered == ["wbgoodgap"]
+		assert sys.modules["wbgoodgap"].VALUE == "gapfill"
+		assert len(failures) == 1
+		failed_name, error = failures[0]
+		assert failed_name == "wbbrokengap"
+		assert isinstance(error, ImportError)
+		assert "wbbrokengap" not in sys.modules
+	finally:
+		sys.modules.pop("wbbrokengap", None)
+		sys.modules.pop("wbgoodgap", None)
+
+
+def test_gapfill_records_a_failure_without_raising_when_the_host_probe_itself_raises(tmp_path, monkeypatch):
+	"""The host probe (`builtins.__import__(name)`) only treats ImportError as
+	"the host does not have this module" (fact 9's documented case). A host
+	module that exists on disk but raises something else while it executes --
+	e.g. a RuntimeError -- must still be recorded as a failure rather than
+	crashing install_stdlib_gapfill() and, through it, add-on load.
+	"""
+	name = "wbforcedhostprobefailure"
+	directory = tmp_path / "_stdlib_gapfill"
+	directory.mkdir()
+	(directory / f"{name}.py").write_text("VALUE = 'gapfill'\n", encoding="utf8")
+	monkeypatch.delitem(sys.modules, name, raising=False)
+
+	real_import = builtins.__import__
+
+	def fake_import(imported_name, *args, **kwargs):
+		if imported_name == name:
+			raise RuntimeError("boom")
+		return real_import(imported_name, *args, **kwargs)
+
+	monkeypatch.setattr(builtins, "__import__", fake_import)
+
+	registered, failures = vendor.install_stdlib_gapfill(tmp_path)
+
+	assert registered == []
+	assert len(failures) == 1
+	failed_name, error = failures[0]
+	assert failed_name == name
+	assert isinstance(error, RuntimeError)
+	assert name not in sys.modules
 
 
 def test_secrets_gapfill_ships_and_stays_verbatim():
@@ -436,6 +559,71 @@ def test_coseeing_auth_module_imports_without_the_bundle():
 	assert hasattr(coseeing_auth, "AUTH_AVAILABLE")
 	assert issubclass(coseeing_auth.ClientClosedError, BaseException)
 	assert issubclass(coseeing_auth.OAuthError, BaseException)
+
+
+def test_unavailable_reason_distinguishes_missing_directory_from_broken_bundle(monkeypatch):
+	"""Spec:284 row 1 (runtime key underivable or directory absent) and row 2
+	(bundle present, module fails to load) must stay distinguishable, because
+	their remedies differ. Without _wb_vendor.__path__ in the message, both
+	read as the byte-identical
+	"ModuleNotFoundError: No module named '_wb_vendor.authlib...'".
+	"""
+	from lib import coseeing_auth
+
+	same_error = ModuleNotFoundError(
+		"No module named '_wb_vendor.authlib.integrations.base_client.errors'",
+		name="_wb_vendor.authlib.integrations.base_client.errors",
+	)
+	monkeypatch.setattr(coseeing_auth, "_AUTH_IMPORT_ERROR", same_error)
+	monkeypatch.setattr(coseeing_auth, "_AUTH_IMPORT_MODULE", "_wb_vendor.authlib.integrations.base_client.errors")
+	monkeypatch.setattr(coseeing_auth.vendor, "runtime_key", lambda: "py313-win_amd64")
+
+	directory_absent = types.ModuleType("_wb_vendor")
+	directory_absent.__path__ = [r"C:\addon\package"]
+	monkeypatch.setitem(sys.modules, "_wb_vendor", directory_absent)
+	message_directory_absent = coseeing_auth.unavailable_reason()
+
+	bundle_present_but_broken = types.ModuleType("_wb_vendor")
+	bundle_present_but_broken.__path__ = [r"C:\addon\package", r"C:\addon\package\_coseeing_auth_deps\py313-win_amd64"]
+	monkeypatch.setitem(sys.modules, "_wb_vendor", bundle_present_but_broken)
+	message_bundle_present = coseeing_auth.unavailable_reason()
+
+	assert message_directory_absent != message_bundle_present
+	assert r"['C:\\addon\\package']" in message_directory_absent
+	assert "_coseeing_auth_deps" in message_bundle_present
+
+
+def test_unavailable_reason_names_which_import_statement_failed(monkeypatch):
+	"""Deferred minor folded into the row 1/row 2 fix: with the broadened
+	`except Exception`, a bundle module raising something other than
+	ImportError has no `.name` attribute to name a module with, so the two
+	import statements in lib/coseeing_auth.py must name themselves.
+	"""
+	from lib import coseeing_auth
+
+	monkeypatch.setattr(coseeing_auth, "_AUTH_IMPORT_ERROR", RuntimeError("boom"))
+	monkeypatch.setattr(coseeing_auth, "_AUTH_IMPORT_MODULE", "_wb_vendor.coseeing_auth.errors")
+
+	message = coseeing_auth.unavailable_reason()
+
+	assert "_wb_vendor.coseeing_auth.errors" in message
+	assert "RuntimeError: boom" in message
+
+
+def test_unavailable_reason_flags_a_host_only_name_going_missing(monkeypatch):
+	"""Spec:284 row 3: a category 3 (host-only) package going missing must say
+	the host environment changed, not just name the module.
+	"""
+	from lib import coseeing_auth
+
+	error = ModuleNotFoundError("No module named 'requests'", name="requests")
+	monkeypatch.setattr(coseeing_auth, "_AUTH_IMPORT_ERROR", error)
+	monkeypatch.setattr(coseeing_auth, "_AUTH_IMPORT_MODULE", "_wb_vendor.authlib.integrations.base_client.errors")
+
+	message = coseeing_auth.unavailable_reason()
+
+	assert "host environment changed" in message
+	assert "'requests'" in message
 
 
 def test_unavailable_auth_yields_a_failed_future_not_an_exception(monkeypatch):
@@ -523,7 +711,7 @@ def test_coseeing_auth_reports_unavailable_when_no_bundle_resolves(tmp_path):
 		assert issubclass(cls, module._UnavailableAuthError), name
 	"""
 	subprocess.run(
-		[sys.executable, "-S", "-c", code, str(addon), str(package)],
+		[sys.executable, "-S", "-c", textwrap.dedent(code), str(addon), str(package)],
 		check=True, capture_output=True, text=True,
 	)
 
