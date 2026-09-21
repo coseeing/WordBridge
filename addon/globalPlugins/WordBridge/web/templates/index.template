@@ -6,8 +6,8 @@
 		<script>
 			window.contentConfig = __CONTEXT__;
 		</script>
-		<script src="modules/sweetalert2.all.min.js"></script>
-		<script src="modules/vue.js"></script>
+		<script src="../modules/sweetalert2.all.min.js"></script>
+		<script src="../modules/vue.js"></script>
 		<style>
 			html {
 				font-size: 62.5%;

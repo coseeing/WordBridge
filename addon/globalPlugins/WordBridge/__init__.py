@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 import json
 import os
-import shutil
 import threading
 import time
 
@@ -52,6 +51,7 @@ from .lib.coseeing import build_coseeing_headers
 from .lib import coseeing_auth
 from .lib.coseeing_auth import shutdown_coseeing_auth, start_coseeing_auth
 from .lib.decimalUtils import decimal_to_str_0
+from .lib.report import generate_report
 from .lib.tasks.typo.utils import strings_diff
 from .lib.viewHTML import text2template
 from _wb_vendor.hanzidentifier import has_chinese
@@ -271,47 +271,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._run_on_ui(openfile)
 
 	def showReport(self, diff_data):
-		template_folder = os.path.join(PATH, "web", "templates")
-		raw_folder = os.path.join(PATH, "web", "workspace", "default")
-		review_folder = os.path.join(PATH, "web", "workspace", "review")
-
 		try:
-			shutil.rmtree(raw_folder)
-		except FileNotFoundError:
-			pass
+			report_path = generate_report(diff_data)
 		except OSError as error:
-			log.warning("WordBridge: could not clear %s: %s", raw_folder, error)
-		if not os.path.exists(raw_folder):
-			os.makedirs(raw_folder)
-
-		raw = os.path.join(raw_folder, "result.txt")
-		with open(raw, "w", encoding="utf8") as f:
-			f.write(json.dumps(diff_data))
-
-		try:
-			shutil.rmtree(review_folder)
-		except FileNotFoundError:
-			pass
-		except OSError as error:
-			log.warning("WordBridge: could not clear %s: %s", review_folder, error)
-		if not os.path.exists(review_folder):
-			os.makedirs(review_folder)
-
-		shutil.copytree(
-			os.path.join(template_folder, "modules"),
-			os.path.join(review_folder, "modules")
-		)
-
-		src = os.path.join(review_folder, os.path.basename(raw))
-		shutil.copyfile(
-			raw,
-			src,
-		)
-
-		dst = os.path.join(review_folder, "result.html")
-		text2template(src, dst)
-
-		self.OnPreview(dst)
+			log.warning("WordBridge: could not generate the report: %s: %s", type(error).__name__, error)
+			self._notify(_("The correction report could not be generated."))
+			return
+		self.OnPreview(str(report_path))
 
 	def getSelectedText(self):
 		obj = api.getFocusObject()

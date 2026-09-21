@@ -1,16 +1,7 @@
 import os
 
+from ..lib.paths import user_workspace_root
 
-user_folder = os.path.dirname(
-	os.path.dirname(
-		os.path.dirname(
-			os.path.dirname(
-				os.path.dirname(
-					os.path.dirname(__file__)
-				)
-			)
-		)
-	)
-)
-WBW_DICTIONARY_PATH = os.path.join(user_folder, "WordBridge-workspace", "dictionary")
+
+WBW_DICTIONARY_PATH = os.path.join(str(user_workspace_root()), "dictionary")
 os.makedirs(WBW_DICTIONARY_PATH, exist_ok=True)
