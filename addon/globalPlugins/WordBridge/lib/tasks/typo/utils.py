@@ -17,11 +17,20 @@ from .chinese_dictionary import pinyin_to_string, string_to_pinyin
 MAX_MAPPED_TOKENS = 20000
 
 
+def lookup_char_pinyin(char: str) -> list:
+	# Total: answers for any single character, Chinese or not, with no
+	# validation. _find_word_candidate() in prompt.py feeds this arbitrary
+	# user input, so it needs a lookup that never raises. .get() (rather than
+	# the defaultdict's [] subscript) avoids growing string_to_pinyin with a
+	# new entry for every distinct miss over the process's lifetime.
+	pinyins_set = set(string_to_pinyin.get(char, [])) | set(pinyin(char, heteronym=True)[0])
+	return list(pinyins_set)
+
+
 def get_char_pinyin(char: str) -> list:
 	if not is_chinese_character(char):
 		raise ValueError(f"get_char_pinyin expects a single Chinese character, got {char!r}")
-	pinyins_set = set(string_to_pinyin[char]) | set(pinyin(char, heteronym=True)[0])
-	return list(pinyins_set)
+	return lookup_char_pinyin(char)
 
 
 def typo_augmentation(text: str, is_traditional: bool, error_rate: float = 0.125) -> str:

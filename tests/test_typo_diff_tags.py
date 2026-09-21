@@ -166,26 +166,21 @@ def test_mixed_text_behaves_identically_under_python_O():
 	assert result.returncode == 0, result.stderr
 
 
-def test_find_word_candidate_matches_a_customized_word_after_non_chinese_prefix():
+def test_find_word_candidate_matches_a_chinese_character_against_its_bare_ascii_pinyin_letter():
+	# 阿's pinyin set includes the bare letter "a" (a, ā, á, ǎ, à are all
+	# pronunciations of 阿), so a customized word of 阿 has always matched
+	# input containing a bare "a" -- this pins that pre-existing behaviour.
 	from lib.tasks.typo.prompt import TypoPromptStrategy
 
-	strategy = TypoPromptStrategy(
-		language="zh_traditional",
-		template_name="Lite_v1.json",
-		customized_words=["天器"],
-	)
+	strategy = TypoPromptStrategy(language="zh_traditional", template_name="Lite_v1.json")
 
-	assert strategy._find_word_candidate("abc天器", ["天器"]) == ["天器"]
+	assert strategy._find_word_candidate("hello a world", ["阿"]) == ["阿"]
 
 
-def test_find_word_candidate_falls_back_to_exact_equality_for_non_chinese_characters():
+def test_find_word_candidate_matches_a_non_chinese_customized_word_against_an_identical_run():
 	from lib.tasks.typo.prompt import TypoPromptStrategy
 
-	strategy = TypoPromptStrategy(
-		language="zh_traditional",
-		template_name="Lite_v1.json",
-		customized_words=["abc"],
-	)
+	strategy = TypoPromptStrategy(language="zh_traditional", template_name="Lite_v1.json")
 
 	assert strategy._find_word_candidate("xxabcxx", ["abc"]) == ["abc"]
 	assert strategy._find_word_candidate("xxabdxx", ["abc"]) == []
@@ -194,10 +189,23 @@ def test_find_word_candidate_falls_back_to_exact_equality_for_non_chinese_charac
 def test_find_word_candidate_does_not_raise_for_a_chinese_non_chinese_pair():
 	from lib.tasks.typo.prompt import TypoPromptStrategy
 
-	strategy = TypoPromptStrategy(
-		language="zh_traditional",
-		template_name="Lite_v1.json",
-		customized_words=["天器"],
-	)
+	strategy = TypoPromptStrategy(language="zh_traditional", template_name="Lite_v1.json")
 
 	assert strategy._find_word_candidate("天x", ["天器"]) == []
+
+
+def test_find_word_candidate_matches_homophonous_astral_plane_characters():
+	# U+24EBA and U+28778 are both real entries in the vendored pinyin
+	# dictionary (pronounced "tán") but neither is in is_chinese_character()'s
+	# BMP-only interval table, so this pins the astral-plane half of the
+	# pre-existing lookup behaviour.
+	from lib.tasks.typo.prompt import TypoPromptStrategy
+	from lib.text.chinese import is_chinese_character
+
+	first, second = chr(0x24EBA), chr(0x28778)
+	assert not is_chinese_character(first)
+	assert not is_chinese_character(second)
+
+	strategy = TypoPromptStrategy(language="zh_traditional", template_name="Lite_v1.json")
+
+	assert strategy._find_word_candidate(f"x{first}x", [second]) == [second]

@@ -7,7 +7,7 @@ from _wb_vendor.pypinyin import Style, lazy_pinyin
 from ...llm.prompt_bundle import PromptBundle
 from ...text.chinese import PUNCTUATION, is_chinese_character
 from ..base import BasePromptStrategy
-from .utils import get_char_pinyin
+from .utils import lookup_char_pinyin
 
 
 class TypoPromptStrategy(BasePromptStrategy):
@@ -88,16 +88,11 @@ class TypoPromptStrategy(BasePromptStrategy):
 			for i in range(len(input_text) - len(word) + 1):
 				flag = True
 				for j in range(len(word)):
-					char_word = word[j]
-					char_input = input_text[i + j]
-					# Pronunciation comparison is only defined for single Chinese
-					# characters (same policy as the diff path); anything else
-					# falls back to exact equality.
-					if is_chinese_character(char_word) and is_chinese_character(char_input):
-						matches = len(set(get_char_pinyin(char_word)) & set(get_char_pinyin(char_input))) > 0
-					else:
-						matches = char_word == char_input
-					if not matches:
+					# This call site compares arbitrary input characters, not
+					# necessarily Chinese ones, so it needs the total pronunciation
+					# lookup; get_char_pinyin()'s strict contract is what guards the
+					# correction path instead.
+					if len(set(lookup_char_pinyin(word[j])) & set(lookup_char_pinyin(input_text[i + j]))) == 0:
 						flag = False
 						break
 				if flag:
