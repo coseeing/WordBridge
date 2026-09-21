@@ -101,8 +101,8 @@ def analyze_diff(char_original: str, char_corrected: str) -> list:
 		return ["Correction for non-Chinese case"]
 
 	tags = []
-	char_simplified = char_original
-	char_traditional = char_original
+	char_simplified = to_simplified(char_original)
+	char_traditional = to_traditional(char_original)
 	if char_original != char_simplified and char_simplified == char_corrected:
 		tags.append("Tranditional to simplified")
 	elif char_original != char_traditional and char_traditional == char_corrected:
