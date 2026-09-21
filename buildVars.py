@@ -70,7 +70,11 @@ i18nSources: list[str] = pythonSources + ["buildVars.py"]
 # Paths are relative to the addon directory, not to the root directory of your addon sources.
 # You can either list every file (using ""/") as a path separator,
 # or use glob expressions.
-excludedFiles: list[str] = []
+# "__pycache__/*" excludes compiled bytecode caches anywhere under addon/ --
+# e.g. package/pypinyin/__pycache__/*.pyc, written the moment a developer
+# imports the bundle (running pytest is enough), which scons would otherwise
+# happily zip up as stale, developer-machine-specific .pyc files.
+excludedFiles: list[str] = ["__pycache__/*"]
 
 # Base language for the NVDA add-on
 # If your add-on is written in a language other than english, modify this variable.
