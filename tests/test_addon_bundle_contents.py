@@ -118,30 +118,42 @@ def test_bundle_keeps_the_vendored_auth_package(bundle_names):
 
 
 def test_bundle_excludes_a_developer_machines_leftover_correction_reports(tmp_path):
-	# web/workspace/ does not exist in git -- __init__.py's showReport() only
-	# creates it at runtime, one level deeper than "web/workspace/*" reaches:
-	# Path.match()'s "*" does not cross a path separator, so the bare pattern
-	# only matches files directly inside web/workspace/, never inside
-	# web/workspace/default/ or web/workspace/review/ where the add-on
-	# actually writes. Build a throwaway source tree that reproduces that
-	# layout so the exclusion patterns get genuinely exercised, since there is
-	# no tracked fixture to bundle.
+	# web/workspace/ does not exist in git -- __init__.py's showReport()
+	# (lines 273-314) only creates it at runtime, and Path.match()'s "*" does
+	# not cross a path separator, so a pattern has to name each depth it needs
+	# to reach explicitly. These are showReport()'s *actual* filenames, not
+	# invented placeholders -- an earlier round used "report.html"/
+	# "index.html" and that mismatch with reality was exactly why it missed
+	# web/workspace/review/modules/ (populated by copytree() from
+	# web/templates/modules/, which is flat -- vue.js and
+	# sweetalert2.all.min.js, no deeper nesting).
 	source = tmp_path / "addon-src"
 	leftover_files = [
-		"globalPlugins/WordBridge/web/workspace/default/report.html",
-		"globalPlugins/WordBridge/web/workspace/review/index.html",
+		"globalPlugins/WordBridge/web/workspace/default/result.txt",
+		"globalPlugins/WordBridge/web/workspace/review/result.txt",
+		"globalPlugins/WordBridge/web/workspace/review/result.html",
+		"globalPlugins/WordBridge/web/workspace/review/modules/vue.js",
+		"globalPlugins/WordBridge/web/workspace/review/modules/sweetalert2.all.min.js",
 	]
-	for relative_path in leftover_files:
+	# Same basename as one of the leftovers, but the actual template source
+	# showReport() copies *from* -- must survive bundling. Without this, an
+	# over-broad rule (e.g. excluding "*" or "*.js" everywhere) would make the
+	# assertions below pass for the wrong reason; this makes the test fail in
+	# both directions.
+	survivor_file = "globalPlugins/WordBridge/web/templates/modules/vue.js"
+
+	for relative_path in leftover_files + [survivor_file]:
 		path = source / relative_path
 		path.parent.mkdir(parents=True, exist_ok=True)
-		path.write_text("leftover from a previous run")
+		path.write_text("stub content")
 
 	bundler = _load_bundler()
 	build_vars = _load_build_vars()
 	dest = tmp_path / "test.nvda-addon"
 	bundler.createAddonBundleFromPath(source, str(dest), build_vars.excludedFiles)
 	with zipfile.ZipFile(dest) as archive:
-		names = archive.namelist()
+		names = set(archive.namelist())
 
-	assert [name for name in names if name.endswith("report.html")] == []
-	assert [name for name in names if name.endswith("index.html")] == []
+	for relative_path in leftover_files:
+		assert relative_path not in names, f"{relative_path} should have been excluded"
+	assert survivor_file in names, "an over-broad exclusion pattern would also drop this"

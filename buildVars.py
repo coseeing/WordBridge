@@ -77,15 +77,22 @@ i18nSources: list[str] = pythonSources + ["buildVars.py"]
 # site_scons/site_tools/NVDATool/addon.py matches these with Path.match(), so
 # a bare suffix pattern (no path prefix) matches anywhere under addon/ -- but
 # Path.match()'s "*" does not cross a path separator, and this codebase does
-# not use full_match() (3.13+), so a pattern cannot express "this directory
-# and everything under it, at any depth" the way a bare suffix pattern can.
-# __init__.py's showReport() writes correction reports into
-# web/workspace/default/ and web/workspace/review/, one level below what
-# "web/workspace/*" reaches, so a developer machine that ran an older build
-# still has that directory on disk and would ship its own correction reports
-# unless the two sub-paths are also listed explicitly. This still does not
-# reach further nesting (e.g. web/workspace/review/modules/*) -- see
-# tests/test_addon_bundle_contents.py for what it does and does not cover.
+# not use full_match() (3.13+), so a single pattern cannot express "this
+# directory and everything under it, at any depth" the way a bare suffix
+# pattern can. __init__.py's showReport() (lines 273-314) writes correction
+# reports into a fixed, fully enumerable set of paths under web/workspace/,
+# and a developer machine that ran an older build still has that directory on
+# disk and would ship its own stale correction reports unless every one of
+# those paths is listed explicitly:
+#   web/workspace/default/result.txt
+#   web/workspace/review/result.txt
+#   web/workspace/review/result.html
+#   web/workspace/review/modules/vue.js
+#   web/workspace/review/modules/sweetalert2.all.min.js  (copied from
+#   web/templates/modules/, which is flat -- no deeper nesting to chase)
+# "web/workspace/*" plus the three sub-path patterns below together match
+# every one of those. See tests/test_addon_bundle_contents.py, which mirrors
+# showReport()'s real filenames rather than inventing placeholder ones.
 # CSV is deliberately not excluded: the runtime pinyin dictionary is a CSV.
 excludedFiles: list[str] = [
 	"__pycache__/*",
@@ -95,6 +102,7 @@ excludedFiles: list[str] = [
 	"web/workspace/*",
 	"web/workspace/default/*",
 	"web/workspace/review/*",
+	"web/workspace/review/modules/*",
 ]
 
 # Base language for the NVDA add-on
