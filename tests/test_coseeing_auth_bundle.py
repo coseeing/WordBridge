@@ -67,17 +67,11 @@ assert "PYTHONPATH" not in __import__("os").environ
 addon_handler = types.ModuleType("addonHandler")
 addon_handler.initTranslation = lambda: None
 sys.modules["addonHandler"] = addon_handler
-authlib = types.ModuleType("authlib")
-integrations = types.ModuleType("authlib.integrations")
-base_client = types.ModuleType("authlib.integrations.base_client")
-errors = types.ModuleType("authlib.integrations.base_client.errors")
-errors.OAuthError = type("OAuthError", (Exception,), {})
-for module in (authlib, integrations, base_client, errors):
-    sys.modules[module.__name__] = module
-sys.path.insert(0, str(fixture.parent))
 sys.path.insert(0, str(addon))
+from lib import vendor
+vendor.install([str(fixture.parent)])
 from lib.coseeing_auth import build_auth_config
-import coseeing_auth
+import _wb_vendor.coseeing_auth as coseeing_auth
 
 value = build_auth_config()
 assert value.issuer == "https://sso.coseeing.org"
@@ -88,13 +82,19 @@ assert value.logout_redirect_uri == "http://127.0.0.1:8765/logout-callback"
 assert value.callback_timeout == 180
 assert Path(coseeing_auth.__file__).resolve().is_relative_to(fixture)
 """
-		subprocess.run(
+		result = subprocess.run(
 			[sys.executable, "-I", "-S", "-c", code, str(addon), str(fixture)],
-			check=True,
+			check=False,
 			capture_output=True,
 			text=True,
 			env={},
 		)
+		if result.returncode:
+			pytest.fail(
+				f"sandboxed subprocess failed ({result.returncode})\n"
+				f"--- stderr ---\n{result.stderr}\n"
+				f"--- stdout ---\n{result.stdout}"
+			)
 		return
 
 	dependencies = bundle / "_coseeing_auth_deps"
@@ -106,14 +106,13 @@ bundle = Path(sys.argv[1]).resolve()
 assert "PYTHONPATH" not in __import__("os").environ
 assert (sys.version_info.major, sys.version_info.minor) == (3, 13)
 assert __import__('struct').calcsize('P') == 8
-runtime = "py313-win_amd64"
-deps = bundle / "_coseeing_auth_deps" / runtime
 sys.path.insert(0, str(bundle.parent))
+from lib import vendor
+vendor.install(vendor.default_roots(bundle))
 from lib.coseeing_auth import build_auth_config
-import coseeing_auth
+import _wb_vendor.coseeing_auth as coseeing_auth
 
 value = build_auth_config()
-assert sys.path.index(str(deps)) < sys.path.index(str(bundle.parent))
 assert value.issuer == "https://sso.coseeing.org"
 assert value.client_id == "a11yvillage"
 assert set(value.scopes) == {"openid", "profile", "email", "offline_access"}
@@ -122,13 +121,19 @@ assert value.logout_redirect_uri == "http://127.0.0.1:8765/logout-callback"
 assert value.callback_timeout == 180
 assert Path(coseeing_auth.__file__).resolve().is_relative_to(bundle)
 """
-	subprocess.run(
+	result = subprocess.run(
 		[sys.executable, "-I", "-S", "-c", code, str(bundle)],
-		check=True,
+		check=False,
 		capture_output=True,
 		text=True,
 		env=_sanitized_windows_environment(dependencies, bundle),
 	)
+	if result.returncode:
+		pytest.fail(
+			f"sandboxed subprocess failed ({result.returncode})\n"
+			f"--- stderr ---\n{result.stderr}\n"
+			f"--- stdout ---\n{result.stdout}"
+		)
 
 
 def test_runtime_bundles_contain_native_backend_for_each_supported_runtime():
@@ -235,6 +240,7 @@ for name in vendor.HOST_ONLY:
 # exactly "_wb_vendor", with no trailing dot; the origin filter here only
 # excludes extension modules, which do not go through _SandboxLoader) actually
 # received the rewritten __import__ rather than the real one.
+checked = 0
 for name, module in list(sys.modules.items()):
     if not name.startswith("_wb_vendor."):
         continue
@@ -249,6 +255,13 @@ for name, module in list(sys.modules.items()):
         sandboxed_import = getattr(module_builtins, "__import__", None)
     assert sandboxed_import is not None, name
     assert sandboxed_import is not builtins.__import__, name
+    checked += 1
+# This loop is the only instrument that catches the fail-open degradation the
+# whole design rests on (see (a) above): a loop over zero matches passes
+# every assertion inside it vacuously. Both category 2 packages and their
+# eagerly-imported dependents (e.g. authlib pulling in joserfc) are loaded
+# above, so this must never be zero on a healthy run.
+assert checked > 0
 
 # (b) cryptography/hazmat/bindings/_rust/ ships only .pyi stubs and has no
 # __init__.py, so it is a PEP 420 namespace portion unless the sibling
