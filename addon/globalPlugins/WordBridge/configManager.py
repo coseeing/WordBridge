@@ -6,10 +6,15 @@ try:
 	import addonHandler
 	addonHandler.initTranslation()
 except ImportError:
-	def _(s):
-		return s
+	pass
 
-if "_" not in globals():
+# Under NVDA _ is a builtin and never a global, so `if "_" not in globals()`
+# was always true and shadowed the translation function. A bare _ lookup here
+# resolves through globals and then builtins, so the fallback is only defined
+# when neither has one.
+try:
+	_
+except NameError:
 	def _(s):
 		return s
 

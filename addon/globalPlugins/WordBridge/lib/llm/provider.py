@@ -7,14 +7,20 @@ from pathlib import Path
 import requests
 from requests.utils import urlparse
 
-def _(s):
-	return s
-
 try:
 	import addonHandler
 	addonHandler.initTranslation()
 except ImportError:
 	pass
+
+# initTranslation() installs _ into builtins. A module-level def would shadow
+# it, so only define a fallback when no _ is reachable at all -- which is the
+# case outside NVDA, for example when workspace/evals imports this module.
+try:
+	_
+except NameError:
+	def _(s):
+		return s
 
 
 log = logging.getLogger(__name__)

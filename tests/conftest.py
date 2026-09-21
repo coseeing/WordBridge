@@ -1,3 +1,4 @@
+import builtins
 import sys
 import os
 import types
@@ -30,9 +31,19 @@ vendor.install_stdlib_gapfill(package_path)
 # here first wins, and later imports of lib.coseeing_auth see a module already
 # satisfied, so this file no longer depends on cross-file collection order to
 # pass standalone.
+def _install_translation():
+	# NVDA's initTranslation() installs _ into builtins. A no-op stub leaves
+	# _ undefined everywhere, which makes it impossible to tell a correctly
+	# bound message from one that would raise NameError in production.
+	# Identity keeps every existing assertion about message text valid.
+	if not hasattr(builtins, "_"):
+		builtins._ = lambda text: text
+
+
 _addon_handler_stub = types.ModuleType("addonHandler")
-_addon_handler_stub.initTranslation = lambda: None
+_addon_handler_stub.initTranslation = _install_translation
 sys.modules.setdefault("addonHandler", _addon_handler_stub)
+_install_translation()
 
 @pytest.fixture
 def model_config():

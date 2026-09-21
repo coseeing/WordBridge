@@ -8,6 +8,14 @@ try:
 	import addonHandler
 	addonHandler.initTranslation()
 except ImportError:
+	pass
+
+# See lib/llm/provider.py: the fallback must not shadow the builtin that
+# initTranslation() installs, and `except ImportError` alone does not cover
+# the case where addonHandler imports but installs nothing.
+try:
+	_
+except NameError:
 	def _(s):
 		return s
 
@@ -50,7 +58,11 @@ class LLMExecutor:
 			sentence = self.adapter_object.parse_response(response_json)
 		except KeyError:
 			log.error("%s", response_json)
-			raise Exception(_(f"Parsing error. Unexpected server response. Response: {response_json}"))
+			raise Exception(
+				_("Parsing error. Unexpected server response. Response: {response}").format(
+					response=response_json
+				)
+			)
 
 		response_text = text_policy.normalize_response(sentence)
 		output_text = text_policy.postprocess_output(response_text, input_text)
