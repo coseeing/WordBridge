@@ -453,7 +453,9 @@ mapping。
 
 - 只有直接位於 `reports/` 底下、名稱符合 `YYYYmmdd-HHMMSS-xxxx` 格式的目錄才可被
   刪除。`modules/` 與其他任何東西都不會被碰。
-- 保留最近 20 份報表目錄，較舊的刪除。「最近」以目錄名稱判定，不用檔案系統 mtime：
+- 清理在 `generate_report()` 的最後執行，也就是新報表寫完之後：這樣清理失敗絕不會
+  賠上剛產生的那份報表，而新報表本身也計入上限。
+- 保留最近 10 份報表目錄，較舊的刪除。「最近」以目錄名稱判定，不用檔案系統 mtime：
   `YYYYmmdd-HHMMSS-xxxx` 前綴的字典序即時間序，而 mtime 會在瀏覽器或使用者觸碰報表
   時改變。
 - 刪除失敗（瀏覽器佔用檔案、權限不足）記錄後繼續，不中止本次報表產生。
@@ -489,7 +491,7 @@ mapping。
 | `tests/test_addon_bundle_contents.py`（新增） | T9：以 `buildVars.excludedFiles` 呼叫 `site_scons/site_tools/NVDATool/addon.py` 的 `createAddonBundleFromPath()` 打包到 `tmp_path`；斷言不含 `__pycache__`、`.pyc`、`.xlsx`，且 runtime CSV、`package/` auth bundle 與 `web/templates/modules/vue.js` 都在 |
 | `tests/test_provider_naming.py`（修復＋擴充） | T11：檔名由 catalog 推導；每個 `setting/ai/*.json` 的 provider 都對應得到 provider 設定檔與 `price.json` 條目 |
 | `tests/test_coseeing_auth_bundle.py`（修復） | T11：`client_id == "wordbridge"` |
-| `tests/test_report_output.py`（新增） | T12：寫入 `WordBridge-workspace/reports/`，絕不寫入安裝目錄；連續兩份報表互不覆蓋；`modules/` 只準備一次並以相對路徑引用；保留策略保留 20 份且只刪符合格式的目錄；安裝目錄唯讀時仍能產生完整報表；刪除失敗不影響產生 |
+| `tests/test_report_output.py`（新增） | T12：寫入 `WordBridge-workspace/reports/`，絕不寫入安裝目錄；連續兩份報表互不覆蓋；`modules/` 只準備一次並以相對路徑引用；清理在新報表寫完之後執行、保留 10 份且只刪符合格式的目錄；安裝目錄唯讀時仍能產生完整報表；刪除失敗不影響產生 |
 
 `tests/test_addon_bundle_contents.py` 要壓縮一棵 62M 的檔案樹。實作時會實測其耗時，
 若超過數秒就標記為 `slow`。

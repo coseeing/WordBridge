@@ -518,7 +518,10 @@ across browsers, which would need Windows verification to trust.
 - Only directories directly under `reports/` whose names match the
   `YYYYmmdd-HHMMSS-xxxx` pattern are eligible for deletion. `modules/` and
   anything else is never touched.
-- The most recent 20 report directories are kept; older ones are deleted.
+- Retention runs at the end of `generate_report()`, after the new report has
+  been written: a retention failure can then never cost the report that was just
+  produced, and the new report itself counts towards the limit.
+- The most recent 10 report directories are kept; older ones are deleted.
   "Most recent" is decided by directory name, not by filesystem mtime: the
   `YYYYmmdd-HHMMSS-xxxx` prefix sorts lexicographically in chronological order,
   and mtime changes when a browser or the user touches a report.
@@ -559,7 +562,7 @@ New or changed test files, all runnable on this host:
 | `tests/test_addon_bundle_contents.py` (new) | T9: calls `createAddonBundleFromPath()` from `site_scons/site_tools/NVDATool/addon.py` into `tmp_path` with `buildVars.excludedFiles`; asserts no `__pycache__`, `.pyc` or `.xlsx`, and that the runtime CSV, the `package/` auth bundle and `web/templates/modules/vue.js` are present |
 | `tests/test_provider_naming.py` (fix + extend) | T11: filenames derived from the catalog; every `setting/ai/*.json` provider resolves to a provider config and a `price.json` entry |
 | `tests/test_coseeing_auth_bundle.py` (fix) | T11: `client_id == "wordbridge"` |
-| `tests/test_report_output.py` (new) | T12: writes under `WordBridge-workspace/reports/`, never into the install directory; two consecutive reports do not overwrite each other; `modules/` is provisioned once and referenced relatively; retention keeps 20 and deletes only pattern-matching directories; a read-only install directory still produces a full report; a failed deletion does not break generation |
+| `tests/test_report_output.py` (new) | T12: writes under `WordBridge-workspace/reports/`, never into the install directory; two consecutive reports do not overwrite each other; `modules/` is provisioned once and referenced relatively; retention runs after the new report is written, keeps 10 and deletes only pattern-matching directories; a read-only install directory still produces a full report; a failed deletion does not break generation |
 
 `tests/test_addon_bundle_contents.py` zips a 62M tree. Its runtime is measured
 during implementation; if it exceeds a few seconds it is marked `slow`.
