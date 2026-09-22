@@ -1,7 +1,24 @@
 import json
+from pathlib import Path
+
 import pytest
 
 from lib.application.task_factory import create_typo_workflow
+from lib.catalog.document import build_catalog
+from lib.catalog.model import make_corrector_config_id
+from lib.catalog.sources import BundledCatalogSource
+from lib.llm import SUPPORTED_PROVIDERS
+
+_CATALOG = None
+
+
+def _catalog():
+	global _CATALOG
+	if _CATALOG is None:
+		setting_dir = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge" / "setting"
+		document, _issues = BundledCatalogSource(setting_dir).load()
+		_CATALOG = build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
+	return _CATALOG
 
 
 def run_workflow_or_skip_transient_failure(workflow, test_text, batch_mode=True):
@@ -45,10 +62,16 @@ def build_typo_workflow_for_provider(
 ):
 	config = model_config(model_name, provider_name)
 	creds = credentials(provider_name)
+	catalog = _catalog()
+	provider_entry = catalog.get_provider(provider_name)
+	model_entry = catalog.get_model(make_corrector_config_id(config["name"], provider_name))
+	price_entry = model_entry.price_entry() if model_entry is not None else {}
 	return create_typo_workflow(
 		provider_name=provider_name,
 		model_name=config["name"],
 		credential=creds,
+		provider_entry=provider_entry,
+		price_entry=price_entry,
 		language=language or config["language"],
 		template_name=template_name or config["template_name"],
 		corrector_mode=corrector_mode,

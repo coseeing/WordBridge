@@ -35,6 +35,22 @@ def _bootstrap_addon_env():
 _bootstrap_addon_env()
 
 from lib.application.task_runner import run_typo_correction
+from lib.catalog.document import build_catalog
+from lib.catalog.model import make_corrector_config_id
+from lib.catalog.sources import BundledCatalogSource
+from lib.llm import SUPPORTED_PROVIDERS
+
+_CATALOG = None
+
+
+def _catalog():
+    global _CATALOG
+    if _CATALOG is None:
+        setting_dir = Path(__file__).resolve().parents[2] / "addon" / "globalPlugins" / "WordBridge" / "setting"
+        document, _issues = BundledCatalogSource(setting_dir).load()
+        _CATALOG = build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
+    return _CATALOG
+
 
 DEFAULT_LANGUAGE = "zh_traditional"
 DEFAULT_CORRECTOR_MODE = "standard"
@@ -211,12 +227,21 @@ def call_api(_prompt, options, context):
     credential = _get_credential(config["provider_name"], config["local"])
 
     try:
+        catalog = _catalog()
+        provider_entry = catalog.get_provider(config["provider_name"])
+        model_entry = catalog.get_model(
+            make_corrector_config_id(config["model_name"], config["provider_name"])
+        )
+        price_entry = model_entry.price_entry() if model_entry is not None else {}
+
         result = run_typo_correction(
             request=input_text,
             batch_mode=False,
             provider_name=config["provider_name"],
             model_name=config["model_name"],
             credential=credential,
+            provider_entry=provider_entry,
+            price_entry=price_entry,
             language=config["language"],
             template_name=config["template_name"],
             corrector_mode=config["corrector_mode"],

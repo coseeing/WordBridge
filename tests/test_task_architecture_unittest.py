@@ -281,11 +281,11 @@ class TaskArchitectureTests(unittest.TestCase):
 		original_get_provider = task_factory.get_provider
 		original_get_provider_model_adapter = task_factory.get_provider_model_adapter
 		try:
-			def fake_get_provider(provider_name, credential, retries=2, backoff=1):
+			def fake_get_provider(provider_name, credential, retries=2, backoff=1, *, provider_entry):
 				captured["provider_name"] = provider_name
 				return FakeProvider()
 
-			def fake_get_provider_model_adapter(provider_name, model_name):
+			def fake_get_provider_model_adapter(provider_name, model_name, *, price_entry):
 				captured["adapter_provider_name"] = provider_name
 				captured["model_name"] = model_name
 				return FakeAdapter()
@@ -297,6 +297,8 @@ class TaskArchitectureTests(unittest.TestCase):
 				provider_name="OpenAI",
 				model_name="gpt-4.1-2025-04-14",
 				credential={"api_key": "test"},
+				provider_entry=object(),
+				price_entry={},
 				language="zh_traditional",
 				template_name="Lite_v1.json",
 				corrector_mode="lite",

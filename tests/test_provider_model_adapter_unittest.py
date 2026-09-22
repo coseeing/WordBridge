@@ -41,13 +41,36 @@ chinese_converter_module.to_traditional = lambda text: text
 chinese_converter_module.to_simplified = lambda text: text
 sys.modules.setdefault("_wb_vendor.chinese_converter", chinese_converter_module)
 
+SETTING_DIR = ADDON_PATH / "setting"
+
+
+def _catalog():
+	from lib.catalog.document import build_catalog
+	from lib.catalog.sources import BundledCatalogSource
+	from lib.llm import SUPPORTED_PROVIDERS
+
+	document, issues = BundledCatalogSource(SETTING_DIR).load()
+	assert issues == ()
+	return build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
+
+
+def _provider_entry(provider_name):
+	return _catalog().get_provider(provider_name)
+
+
+def _price_entry(model_name, provider_name):
+	from lib.catalog.model import make_corrector_config_id
+
+	model_entry = _catalog().get_model(make_corrector_config_id(model_name, provider_name))
+	return model_entry.price_entry() if model_entry is not None else {}
+
 
 class ProviderModelAdapterTests(unittest.TestCase):
 	def test_gpt_5_6_uses_reasoning_none_and_retains_sampling_settings(self):
 		from lib.llm.adapter import get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("OpenAI", "gpt-5.6-sol")
+		adapter = get_provider_model_adapter("OpenAI", "gpt-5.6-sol", price_entry={})
 		payload = adapter.format_request(
 			PromptBundle(
 				messages=[{"role": "user", "content": "原始文字"}],
@@ -74,12 +97,12 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.adapter import ProviderModelAdapter
 
 		with self.assertRaises(TypeError):
-			ProviderModelAdapter("OpenAI", "gpt-4.1-2025-04-14")
+			ProviderModelAdapter("OpenAI", "gpt-4.1-2025-04-14", price_entry={})
 
 	def test_openai_factory_preserves_existing_responses_provider_contract(self):
 		from lib.llm.provider import OpenAIProvider, get_provider
 
-		provider = get_provider("OpenAI", {"api_key": "test"})
+		provider = get_provider("OpenAI", {"api_key": "test"}, provider_entry=_provider_entry("OpenAI"))
 
 		self.assertIsInstance(provider, OpenAIProvider)
 		self.assertEqual(provider.get_api_url(), "https://api.openai.com/v1/responses")
@@ -87,7 +110,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 	def test_openai_provider_disables_reasoning_in_provider_settings(self):
 		from lib.llm.provider import get_provider
 
-		provider = get_provider("OpenAI", {"api_key": "test"})
+		provider = get_provider("OpenAI", {"api_key": "test"}, provider_entry=_provider_entry("OpenAI"))
 
 		self.assertEqual(provider.setting["reasoning"], {"effort": "none"})
 
@@ -95,7 +118,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.adapter import AnthropicAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("Anthropic", "claude-opus-5")
+		adapter = get_provider_model_adapter("Anthropic", "claude-opus-5", price_entry={})
 
 		self.assertIsInstance(adapter, AnthropicAdapter)
 		payload = adapter.format_request(
@@ -114,7 +137,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 	def test_anthropic_adapter_parses_text_after_thinking_block(self):
 		from lib.llm.adapter import get_provider_model_adapter
 
-		adapter = get_provider_model_adapter("Anthropic", "claude-sonnet-5")
+		adapter = get_provider_model_adapter("Anthropic", "claude-sonnet-5", price_entry={})
 		response = {
 			"content": [
 				{"type": "thinking", "thinking": "", "signature": "signature"},
@@ -127,7 +150,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 	def test_anthropic_provider_disables_thinking(self):
 		from lib.llm.provider import get_provider
 
-		provider = get_provider("Anthropic", {"api_key": "test"})
+		provider = get_provider("Anthropic", {"api_key": "test"}, provider_entry=_provider_entry("Anthropic"))
 
 		self.assertEqual(provider.setting["thinking"], {"type": "disabled"})
 
@@ -135,7 +158,9 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.adapter import OpenAIAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("OpenAI", "gpt-5.6-terra")
+		adapter = get_provider_model_adapter(
+			"OpenAI", "gpt-5.6-terra", price_entry=_price_entry("gpt-5.6-terra", "OpenAI")
+		)
 		self.assertIsInstance(adapter, OpenAIAdapter)
 
 		payload = adapter.format_request(
@@ -195,7 +220,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 	def test_provider_chat_completion_delegates_to_send(self):
 		from lib.llm.provider import OpenAIProvider
 
-		provider = OpenAIProvider({"api_key": "test"})
+		provider = OpenAIProvider({"api_key": "test"}, provider_entry=_provider_entry("OpenAI"))
 		payload = {"model": "gpt-5.6-sol", "input": "prepared payload"}
 
 		with patch.object(provider, "send", return_value={"output_text": "ok"}) as send:
@@ -222,7 +247,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			],
 			"usage": {"input_tokens": 11, "output_tokens": 7},
 		}
-		provider = OpenAIProvider({"api_key": "test"})
+		provider = OpenAIProvider({"api_key": "test"}, provider_entry=_provider_entry("OpenAI"))
 		provider.retries = 1
 
 		with patch("lib.llm.provider.requests.post", return_value=FakeResponse()):
@@ -239,7 +264,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			def json(self):
 				raise AssertionError("error responses must not be returned as JSON")
 
-		provider = OpenAIProvider({"api_key": "test"})
+		provider = OpenAIProvider({"api_key": "test"}, provider_entry=_provider_entry("OpenAI"))
 		provider.retries = 1
 
 		with patch("lib.llm.provider.requests.post", return_value=FakeResponse()):
@@ -264,7 +289,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			captured["timeout"] = timeout
 			return FakeResponse()
 
-		provider = OpenAIProvider({"api_key": "test"})
+		provider = OpenAIProvider({"api_key": "test"}, provider_entry=_provider_entry("OpenAI"))
 		provider.retries = 1
 		provider.backoff = 1
 
@@ -292,7 +317,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			captured["timeout"] = timeout
 			return FakeResponse()
 
-		provider = GoogleProvider({"api_key": "google-key"})
+		provider = GoogleProvider({"api_key": "google-key"}, provider_entry=_provider_entry("Google"))
 		payload = {"contents": [{"role": "user", "parts": [{"text": "已格式化內容"}]}]}
 
 		provider.retries = 1
@@ -311,7 +336,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.adapter import GoogleAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("Google", "gemini-3.8-flash")
+		adapter = get_provider_model_adapter("Google", "gemini-3.8-flash", price_entry={})
 		self.assertIsInstance(adapter, GoogleAdapter)
 
 		payload = adapter.format_request(
@@ -346,7 +371,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.adapter import DeepSeekAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("DeepSeek", "deepseek-v4-flash")
+		adapter = get_provider_model_adapter("DeepSeek", "deepseek-v4-flash", price_entry={})
 		self.assertIsInstance(adapter, DeepSeekAdapter)
 
 		payload = adapter.format_request(
@@ -375,14 +400,16 @@ class ProviderModelAdapterTests(unittest.TestCase):
 	def test_deepseek_provider_disables_thinking_in_provider_settings(self):
 		from lib.llm.provider import get_provider
 
-		provider = get_provider("DeepSeek", {"api_key": "test"})
+		provider = get_provider("DeepSeek", {"api_key": "test"}, provider_entry=_provider_entry("DeepSeek"))
 
 		self.assertEqual(provider.setting["thinking"], {"type": "disabled"})
 
 	def test_openai_response_adapter_calculates_terra_usage_and_cost_from_usage_history(self):
 		from lib.llm.adapter import get_provider_model_adapter
 
-		adapter = get_provider_model_adapter("OpenAI", "gpt-5.6-terra")
+		adapter = get_provider_model_adapter(
+			"OpenAI", "gpt-5.6-terra", price_entry=_price_entry("gpt-5.6-terra", "OpenAI")
+		)
 		usage_history = [
 			{"input_tokens": 10, "output_tokens": 5},
 			{"input_tokens": 1, "output_tokens": 2},
@@ -523,6 +550,8 @@ class ProviderModelAdapterTests(unittest.TestCase):
 				provider_name="OpenAI",
 				model_name="gpt-4.1-2025-04-14",
 				credential={"api_key": "test"},
+				provider_entry=object(),
+				price_entry={},
 				language="zh_traditional",
 				template_name="Lite_v1.json",
 				corrector_mode="lite",

@@ -6,14 +6,26 @@ import pytest
 
 ADDON_PATH = Path(__file__).parents[1] / "addon" / "globalPlugins" / "WordBridge"
 sys.path.insert(0, str(ADDON_PATH))
+from lib.catalog.document import build_catalog
+from lib.catalog.model import make_corrector_config_id
+from lib.catalog.sources import BundledCatalogSource
+from lib.llm import SUPPORTED_PROVIDERS
 from lib.llm.adapter import get_provider_model_adapter
 from lib.llm.provider import get_provider
 
+
+SETTING_DIR = ADDON_PATH / "setting"
 
 PROVIDER_PATH = Path(__file__).parents[1] / "workspace" / "evals" / "provider.py"
 spec = importlib.util.spec_from_file_location("wordbridge_eval_provider", PROVIDER_PATH)
 provider_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(provider_module)
+
+
+def _catalog():
+	document, issues = BundledCatalogSource(SETTING_DIR).load()
+	assert issues == ()
+	return build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
 
 
 def test_get_config_reads_explicit_wordbridge_settings():
@@ -85,6 +97,11 @@ def test_call_api_forwards_provider_config_to_application_runner(monkeypatch):
         {"vars": {"input": "測試文字"}},
     )
 
+    catalog = _catalog()
+    provider_entry = catalog.get_provider("OpenAI")
+    model_entry = catalog.get_model(make_corrector_config_id("gpt-5.6-luna", "OpenAI"))
+    price_entry = model_entry.price_entry() if model_entry is not None else {}
+
     assert result is not None
     assert captured == {
         "request": "測試文字",
@@ -92,6 +109,8 @@ def test_call_api_forwards_provider_config_to_application_runner(monkeypatch):
         "provider_name": "OpenAI",
         "model_name": "gpt-5.6-luna",
         "credential": {"api_key": "test-key"},
+        "provider_entry": provider_entry,
+        "price_entry": price_entry,
         "language": "zh_traditional",
         "template_name": "Standard_v3.json",
         "corrector_mode": "standard",
@@ -106,8 +125,9 @@ def test_call_api_forwards_provider_config_to_application_runner(monkeypatch):
 
 
 def test_ollama_provider_uses_its_provider_setting_file():
-    provider = get_provider("Ollama", {"api_key": "ollama"})
-    adapter = get_provider_model_adapter("Ollama", "qwen2")
+    entry = _catalog().get_provider("Ollama")
+    provider = get_provider("Ollama", {"api_key": "ollama"}, provider_entry=entry)
+    adapter = get_provider_model_adapter("Ollama", "qwen2", price_entry={})
 
     assert provider.url == "http://localhost:11434/v1/chat/completions"
     assert adapter.model_name == "qwen2"

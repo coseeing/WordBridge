@@ -2,7 +2,6 @@ import json
 import logging
 import random
 import time
-from pathlib import Path
 
 import requests
 from requests.utils import urlparse
@@ -27,19 +26,18 @@ log = logging.getLogger(__name__)
 
 
 class Provider:
-	def __init__(self, credential: dict, retries: int = 2, backoff: int = 1):
+	def __init__(self, credential: dict, retries: int = 2, backoff: int = 1, *, provider_entry):
 		self.credential = credential
 		self.retries = retries
 		self.backoff = backoff
 
-		setting_dir = Path(__file__).resolve().parents[2] / "setting" / "provider"
-		setting_path = setting_dir / f"{getattr(self, 'setting_name', self.name)}.json"
-		with setting_path.open("r", encoding="utf8") as f:
-			data = json.load(f)
-			self.url = data["url"]
-			self.setting = data["setting"]
-			self.timeout0 = data["timeout0"]
-			self.timeout_max = data["timeout_max"]
+		# Injected, never read from disk: the live catalog may come from a
+		# remote source, and a second file-reading path here would silently
+		# diverge from it.
+		self.url = provider_entry.url
+		self.setting = provider_entry.setting
+		self.timeout0 = provider_entry.timeout0
+		self.timeout_max = provider_entry.timeout_max
 
 	@property
 	def base_url(self):
@@ -187,18 +185,19 @@ class OllamaProvider(Provider):
 	name = "Ollama"
 
 
-def get_provider(provider_name: str, credential: dict, retries: int = 2, backoff: int = 1) -> Provider:
-	provider_mapping = {
-		"OpenAI": OpenAIProvider,
-		"Anthropic": AnthropicProvider,
-		"DeepSeek": DeepseekProvider,
-		"Ollama": OllamaProvider,
-		"Google": GoogleProvider,
-		"OpenRouter": OpenrouterProvider,
-	}
+PROVIDER_CLASSES = {
+	"OpenAI": OpenAIProvider,
+	"Anthropic": AnthropicProvider,
+	"DeepSeek": DeepseekProvider,
+	"Ollama": OllamaProvider,
+	"Google": GoogleProvider,
+	"OpenRouter": OpenrouterProvider,
+}
 
-	provider_class = provider_mapping.get(provider_name)
+
+def get_provider(provider_name: str, credential: dict, retries: int = 2, backoff: int = 1, *, provider_entry) -> Provider:
+	provider_class = PROVIDER_CLASSES.get(provider_name)
 	if not provider_class:
 		raise ValueError(f"Unsupported provider: {provider_name}")
 
-	return provider_class(credential, retries=retries, backoff=backoff)
+	return provider_class(credential, retries=retries, backoff=backoff, provider_entry=provider_entry)

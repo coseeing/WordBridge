@@ -1,17 +1,17 @@
-import json
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from decimal import Decimal
-from pathlib import Path
 
 from .cost_calculator import CostCalculator
 
 
 class ProviderModelAdapter(ABC):
-	def __init__(self, provider_name: str, model_name: str):
+	def __init__(self, provider_name: str, model_name: str, *, price_entry: dict):
 		self.provider_name = provider_name
 		self.model_name = model_name
-		self._model_entry = self._load_model_entry()
+		# {} when the catalog has no price for this pair, which is exactly what
+		# the old price.json lookup returned via .get(key, {}).
+		self._model_entry = price_entry or {}
 		self._cost_calculator = CostCalculator(self._model_entry)
 
 	@abstractmethod
@@ -39,12 +39,6 @@ class ProviderModelAdapter(ABC):
 
 	def get_cost_for_usage(self, usage: dict) -> Decimal:
 		return self._cost_calculator.get_total_cost([usage])
-
-	def _load_model_entry(self) -> dict:
-		config_path = Path(__file__).resolve().parents[2] / "setting" / "price.json"
-		with config_path.open("r", encoding="utf8") as f:
-			config = json.load(f)
-		return config.get(f"{self.model_name}&{self.provider_name}", {})
 
 
 class OpenAIAdapter(ProviderModelAdapter):
@@ -144,16 +138,18 @@ class DeepSeekAdapter(ProviderModelAdapter):
 		return response["choices"][0]["message"]["content"]
 
 
-def get_provider_model_adapter(provider_name: str, model_name: str) -> ProviderModelAdapter:
-	family_mapping = {
-		"OpenAI": OpenAIAdapter,
-		"Anthropic": AnthropicAdapter,
-		"Google": GoogleAdapter,
-		"OpenRouter": OpenRouterAdapter,
-		"DeepSeek": DeepSeekAdapter,
-		"Ollama": DeepSeekAdapter,
-	}
-	adapter_class = family_mapping.get(provider_name)
+ADAPTER_CLASSES = {
+	"OpenAI": OpenAIAdapter,
+	"Anthropic": AnthropicAdapter,
+	"Google": GoogleAdapter,
+	"OpenRouter": OpenRouterAdapter,
+	"DeepSeek": DeepSeekAdapter,
+	"Ollama": DeepSeekAdapter,
+}
+
+
+def get_provider_model_adapter(provider_name: str, model_name: str, *, price_entry: dict) -> ProviderModelAdapter:
+	adapter_class = ADAPTER_CLASSES.get(provider_name)
 	if not adapter_class:
 		raise ValueError(f"Unsupported provider/model adapter: {provider_name}/{model_name}")
-	return adapter_class(provider_name, model_name)
+	return adapter_class(provider_name, model_name, price_entry=price_entry)

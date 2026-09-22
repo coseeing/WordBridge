@@ -11,6 +11,8 @@ def create_typo_workflow(
 	provider_name: str,
 	model_name: str,
 	credential: dict,
+	provider_entry,
+	price_entry: dict,
 	language: str,
 	template_name: str,
 	corrector_mode: str,
@@ -20,8 +22,10 @@ def create_typo_workflow(
 	backoff: int = 1,
 	max_correction_attempts: int = 3,
 ):
-	provider_object = get_provider(provider_name, credential, retries=retries, backoff=backoff)
-	adapter_object = get_provider_model_adapter(provider_name, model_name)
+	provider_object = get_provider(
+		provider_name, credential, retries=retries, backoff=backoff, provider_entry=provider_entry
+	)
+	adapter_object = get_provider_model_adapter(provider_name, model_name, price_entry=price_entry)
 	executor = LLMExecutor(provider_object, adapter_object)
 
 	customized_words = customized_words or []
