@@ -570,6 +570,22 @@ class CoseeingAuthClient:
                 "authorization callback was invalid",
                 operation="login", stage="callback", code="invalid_callback", retryable=True,
             )
+        if stage == "token_validation":
+            # Without this, an unrecognised failure while validating the token
+            # -- a TypeError out of PyJWT, say -- fell through to the clause
+            # below and was reported as a token_exchange failure. The exchange
+            # had already succeeded by then, so the log pointed at the wrong
+            # stage entirely, and at the token endpoint rather than at the
+            # verifier.
+            return LoginError(
+                "token validation failed",
+                operation="login", stage="token_validation", code="token_validation_failed",
+                retryable=False,
+            )
+        # Every remaining stage keeps the historical code. The name is wrong
+        # for `discovery`, which is the last one that can still reach here, but
+        # the codes are a published vocabulary; renaming one is a separate
+        # change from fixing the stage that actually misreported.
         return LoginError(
             "token exchange failed",
             operation="login", stage="token_exchange", code="token_exchange_failed", retryable=False,
