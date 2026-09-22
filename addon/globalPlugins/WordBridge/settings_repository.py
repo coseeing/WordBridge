@@ -65,13 +65,13 @@ class SettingsRepository:
 		self._settings["typo_correction_mode"] = value
 
 	def api_key(self, provider: str) -> str:
-		keys = self._settings.setdefault("api_key", {})
+		keys = self._settings["api_key"]
 		if provider not in keys:
 			keys[provider] = ""
 		return keys[provider]
 
 	def save_api_key(self, provider: str, value: str) -> None:
-		self._settings.setdefault("api_key", {})[provider] = value
+		self._settings["api_key"][provider] = value
 
 	def max_char_count(self) -> int:
 		return self._settings["max_char_count"]

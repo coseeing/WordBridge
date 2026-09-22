@@ -49,6 +49,28 @@ os_default_language = settings_repository.os_default_language
 RUNNABLE = frozenset({"OpenAI"})
 
 
+class AggregatedSectionLike:
+	"""Minimal NVDA AggregatedSection interface used by SettingsRepository."""
+
+	def __init__(self, values):
+		self._values = {
+			key: AggregatedSectionLike(value) if isinstance(value, dict) else value
+			for key, value in values.items()
+		}
+
+	def __getitem__(self, key):
+		return self._values[key]
+
+	def __setitem__(self, key, value):
+		self._values[key] = value
+
+	def __contains__(self, key):
+		return key in self._values
+
+	def get(self, key, default=None):
+		return self._values.get(key, default)
+
+
 def catalog():
 	return build_catalog(
 		{
@@ -180,6 +202,15 @@ def test_an_unknown_correction_mode_resolves_to_the_default():
 
 def test_an_api_key_defaults_to_empty_and_is_created_on_read():
 	repo, settings = repository()
+
+	assert repo.api_key("OpenAI") == ""
+	repo.save_api_key("OpenAI", "sk-test")
+	assert settings["api_key"]["OpenAI"] == "sk-test"
+
+
+def test_api_keys_support_nvda_aggregated_sections_without_setdefault():
+	settings = AggregatedSectionLike({"api_key": {}})
+	repo = SettingsRepository(settings, catalog)
 
 	assert repo.api_key("OpenAI") == ""
 	repo.save_api_key("OpenAI", "sk-test")
