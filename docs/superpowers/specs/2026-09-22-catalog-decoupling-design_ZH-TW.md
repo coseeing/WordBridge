@@ -28,6 +28,7 @@ catalog——model、顯示名稱、價格與 provider 參數。**
 | 6 | `SettingsRepository` 收納 `config.conf["WordBridge"]["settings"]` 的**全部**鍵，不只 catalog 相關的兩項。 |
 | 7 | document 有四個頂層 key：`schema_version`、`providers`、`models`、`coseeings`。Coseeing 是一個**通道**而非 provider，其條目只需要 id 與 label，永遠不需要 provider 參數、價格或 `usage_key`。出現在 `models` **即代表**有本地通道，出現在 `coseeings` **即代表**有 Coseeing 通道。不再有 `local` / `coseeing` 布林旗標。 |
 | 8 | `coseeings` 條目自足：`label` 必填，且**永不**從 `models` 中同 id 的條目繼承。`coseeings` 裡本來就會有 `models` 中完全不存在的條目，回查規則會讓行為取決於「碰巧有沒有」。`setting/provider/Coseeing.json` 刪除——Coseeing 不再是 provider，且它的 `url` 從來沒被讀過，真正的端點是 `__init__.py` 的 `COSEEING_BASE_URL` 常數。 |
+| 9 | document 中每一個 `label` 都必填——provider 條目、`models` 條目、`coseeings` 條目一律如此。給預設是 source 的職責而非 schema 的：`BundledCatalogSource` 在產生 document 時提供 `LABEL_DICT.get(name, name)`，consumer 因此永遠不需要知道哪些欄位可能缺席。 |
 
 決策 5 除了產品面的理由，還有一個可靠度理由：只在其他東西全壞時才出現的 fallback，
 是一條沒人走過的路。讓它成為日常預設，等於災難路徑就是那條已知能動的路徑。
@@ -158,7 +159,7 @@ NVDA 自己 new `LLMSettingsPanel`（`categoryClasses` 裡放的是類別），�
 | --- | --- | --- | --- |
 | `provider` | 是 | — | 不得含 `&` |
 | `model` | 是 | — | 不得含 `&` |
-| `label` | 否 | `model` 字串本身 | 顯示名稱。把它移出 `LABEL_DICT` 正是遠端 payload 能新增 model 的前提 |
+| `label` | **是** | — | 顯示名稱。把它移出 `LABEL_DICT` 正是遠端 payload 能新增 model 的前提。必填的理由與別處相同：document 要嘛完整、要嘛無效。`BundledCatalogSource` 產出 `LABEL_DICT.get(model, model)`，與今天 `configManager.py:97` 一致 |
 | `active` | 否 | `true` | |
 | `pricing` | 否 | `None` | **刻意選配**：`qwen2&Ollama` 今天就沒有價格條目，且必須維持可用 |
 | `usage_key` | 否 | `None` | 與 `pricing` 成對 |
@@ -223,7 +224,7 @@ coseeing 條目不帶 `pricing`、`usage_key` 與 provider 參數，因為請求
 | provider 名稱不在 `runnable_providers` 中 | 條目丟棄。記 issue。 |
 | provider 條目缺 `label` / `url` / `setting` / `timeout0` / `timeout_max` | provider 丟棄；其下 model 依上兩列處理。 |
 | provider 未被任何 `models` 條目引用 | 合法，只記 lint 級 issue。 |
-| `model` 或 `provider` 為空，或含 `&` | 條目丟棄。記 issue。 |
+| `model`、`provider` 或 `label` 為空或缺少，或 `model` / `provider` 含 `&` | 條目丟棄。記 issue。 |
 | `models` 內 `corrector_config_id` 重複 | 首筆勝出，其餘丟棄。記 issue。（今天這會 `raise ValueError`，在 import 期讓整個 add-on 掛掉。） |
 
 **`coseeings` 條目**：

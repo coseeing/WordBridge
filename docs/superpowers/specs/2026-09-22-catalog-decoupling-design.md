@@ -31,6 +31,7 @@ recorded because several of them are not recoverable from the code.
 | 6 | `SettingsRepository` owns every `config.conf["WordBridge"]["settings"]` key, not only the catalog-related ones. |
 | 7 | The document has four top-level keys: `schema_version`, `providers`, `models`, `coseeings`. Coseeing is a channel, not a provider — its entries need only an id and a label, never provider parameters, pricing or a `usage_key`. Presence in `models` *is* the local channel; presence in `coseeings` *is* the Coseeing channel. No `local` / `coseeing` booleans. |
 | 8 | A `coseeings` entry is self-contained: `label` is required and is never inherited from a same-id `models` entry. Entries exist in `coseeings` that have no counterpart in `models` at all, and a lookup rule would make the behaviour depend on whether one happens to be there. `setting/provider/Coseeing.json` is deleted, since Coseeing is no longer a provider and its `url` was never read — `COSEEING_BASE_URL` in `__init__.py` is the real endpoint. |
+| 9 | Every `label` in the document is required — on a provider entry, a `models` entry and a `coseeings` entry alike. Defaulting is the source's job, not the schema's: `BundledCatalogSource` supplies `LABEL_DICT.get(name, name)` while producing the document, so a consumer never has to know which fields might be absent. |
 
 Decision 5 carries a reliability argument beyond the product one: a fallback
 that appears only when everything else is broken is a path nobody has
@@ -175,7 +176,7 @@ server recognises. Today exactly one model is in both
 | --- | --- | --- | --- |
 | `provider` | yes | — | Must not contain `&` |
 | `model` | yes | — | Must not contain `&` |
-| `label` | no | the `model` string | Display name. Moving this out of `LABEL_DICT` is what lets a remote payload add a model |
+| `label` | **yes** | — | Display name. Moving this out of `LABEL_DICT` is what lets a remote payload add a model. Required for the same reason as everywhere else: a document is complete or invalid. `BundledCatalogSource` emits `LABEL_DICT.get(model, model)`, matching `configManager.py:97` today |
 | `active` | no | `true` | |
 | `pricing` | no | `None` | **Optional on purpose**: `qwen2&Ollama` ships with no price entry today and must stay usable |
 | `usage_key` | no | `None` | Paired with `pricing` |
@@ -247,7 +248,7 @@ apply unconditionally:
 | The provider name is not in `runnable_providers` | Entry dropped. Issue recorded. |
 | Provider entry missing `label` / `url` / `setting` / `timeout0` / `timeout_max` | Provider dropped; its models follow the two rows above. |
 | Provider referenced by no `models` entry | Legal. Lint-level issue only. |
-| `model` or `provider` empty, or containing `&` | Entry dropped. Issue recorded. |
+| `model`, `provider` or `label` empty or absent, or `model` / `provider` containing `&` | Entry dropped. Issue recorded. |
 | Duplicate `corrector_config_id` within `models` | First wins, rest dropped. Issue recorded. (Today this raises `ValueError` and takes the add-on down at import.) |
 
 **`coseeings` entries**:
