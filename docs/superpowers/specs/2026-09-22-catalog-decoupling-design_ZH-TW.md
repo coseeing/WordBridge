@@ -26,6 +26,8 @@ catalog——model、顯示名稱、價格與 provider 參數。**
 | 4 | 全數無效時使用內建 fallback catalog，內含**一筆** Coseeing 條目，其 `corrector_config_id` 為 sentinel `"default"`。Coseeing 伺服器接受 `"default"` 並自行挑選 model，因此 Python 裡不寫死任何 model / provider / 價格字串。 |
 | 5 | 該 sentinel 條目**同時存在於正常 catalog 中且永遠可選**，並且是新安裝的預設選擇。 |
 | 6 | `SettingsRepository` 收納 `config.conf["WordBridge"]["settings"]` 的**全部**鍵，不只 catalog 相關的兩項。 |
+| 7 | document 有四個頂層 key：`schema_version`、`providers`、`models`、`coseeings`。Coseeing 是一個**通道**而非 provider，其條目只需要 id 與 label，永遠不需要 provider 參數、價格或 `usage_key`。出現在 `models` **即代表**有本地通道，出現在 `coseeings` **即代表**有 Coseeing 通道。不再有 `local` / `coseeing` 布林旗標。 |
+| 8 | `coseeings` 條目自足：`label` 必填，且**永不**從 `models` 中同 id 的條目繼承。`coseeings` 裡本來就會有 `models` 中完全不存在的條目，回查規則會讓行為取決於「碰巧有沒有」。`setting/provider/Coseeing.json` 刪除——Coseeing 不再是 provider，且它的 `url` 從來沒被讀過，真正的端點是 `__init__.py` 的 `COSEEING_BASE_URL` 常數。 |
 
 決策 5 除了產品面的理由，還有一個可靠度理由：只在其他東西全壞時才出現的 fallback，
 是一條沒人走過的路。讓它成為日常預設，等於災難路徑就是那條已知能動的路徑。
@@ -47,6 +49,7 @@ catalog——model、顯示名稱、價格與 provider 參數。**
 - `lib/llm/provider.py`、`lib/llm/adapter.py` — 不再讀檔，改為接收條目
 - `lib/application/task_factory.py`、`lib/application/task_runner.py` — 傳遞條目
 - `setting/ai/` — 新增 sentinel 那一筆
+- `setting/provider/Coseeing.json` — 刪除
 - `workspace/evals/provider.py` — 一處呼叫點更新
 
 明確排除：
@@ -98,6 +101,9 @@ NVDA 自己 new `LLMSettingsPanel`（`categoryClasses` 裡放的是類別），�
 這是 wire format。`BundledCatalogSource` 把今天四組資料攤平成它；未來的
 `RemoteCatalogSource` 會從一次 HTTP 回應產生同樣形狀。
 
+磁碟上的 `setting/ai/*.json` **不改**：攤平它們正是 `BundledCatalogSource` 的職責，
+它會為每個 `coseeing` 為真的檔案產生一筆 `coseeings` 條目。零資料遷移。
+
 ```jsonc
 {
   "schema_version": 1,
@@ -116,23 +122,31 @@ NVDA 自己 new `LLMSettingsPanel`（`categoryClasses` 裡放的是類別），�
       "model": "gpt-5.6-sol",
       "label": "gpt-5.6-sol",
       "active": true,
-      "coseeing": false,
-      "local": true,
       "pricing": { "input_tokens": 1.25, "output_tokens": 10, "base_unit": 1000000 },
       "usage_key": "usage"
-    },
+    }
+  ],
+  "coseeings": [
     {
-      "provider": "Coseeing",
       "model": "default",
       "corrector_config_id": "default",
       "label": "Coseeing 預設（由伺服器決定）",
-      "active": true,
-      "coseeing": true,
-      "local": false
+      "active": true
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "provider": "DeepSeek",
+      "label": "deepseek-v4-flash",
+      "active": true
     }
   ]
 }
 ```
+
+`models` 與 `coseeings` 是**兩份 offer 清單**，一個通道一份，而不是一份清單加上通道
+旗標。同時由兩個通道服務的 model 會在兩邊各出現一次，因為這兩個 offer 本質不同：
+本地那份需要 provider 參數、`Provider` 子類與價格；Coseeing 那份只需要一個伺服器
+認得的 id。今天恰好只有一個 model 兩邊都有（`deepseek-v4-flash&DeepSeek`）。
 
 ### model 條目欄位
 
@@ -140,11 +154,9 @@ NVDA 自己 new `LLMSettingsPanel`（`categoryClasses` 裡放的是類別），�
 | --- | --- | --- | --- |
 | `provider` | 是 | — | 不得含 `&` |
 | `model` | 是 | — | 不得含 `&` |
-| `corrector_config_id` | 否 | `make_corrector_config_id(model, provider)` | 顯式形式是為 sentinel 而存在，其 id 為 `"default"`，不含 `&` |
+| `corrector_config_id` | 否 | `make_corrector_config_id(model, provider)` | 顯式形式在此是為了與 `coseeings` 對稱而接受；出貨的每一筆 `models` 條目都採推導 |
 | `label` | 否 | `model` 字串本身 | 顯示名稱。把它移出 `LABEL_DICT` 正是遠端 payload 能新增 model 的前提 |
 | `active` | 否 | `true` | |
-| `coseeing` | 否 | `false` | 提供 Coseeing 通道 |
-| `local` | 否 | `true` | 省略即為 true，使現有 13 個 `setting/ai/*.json` 一字不改仍然正確 |
 | `pricing` | 否 | `None` | **刻意選配**：`qwen2&Ollama` 今天就沒有價格條目，且必須維持可用 |
 | `usage_key` | 否 | `None` | 與 `pricing` 成對 |
 
@@ -154,10 +166,23 @@ NVDA 自己 new `LLMSettingsPanel`（`categoryClasses` 裡放的是類別），�
 價格屬於 (provider, model) **這一對**，不屬於其中任一方——`setting/price.json` 正是
 以這一對為 key——所以它巢狀在 model 條目裡，而不是放在 `providers`。
 
+### coseeing 條目欄位
+
+| 欄位 | 必填 | 預設 | 說明 |
+| --- | --- | --- | --- |
+| `model` | 是 | — | 不得含 `&` |
+| `label` | **是** | — | 永不從 `models` 中同 id 的條目繼承。見決策 8 |
+| `corrector_config_id` | 否 | `make_corrector_config_id(model, provider)` | 伺服器端專屬條目（如 sentinel，id 為 `"default"`）使用顯式形式 |
+| `provider` | 否 | — | 僅用於推導「同時也有本地 offer 的 model」之 id。不得含 `&`。**絕不**用來到 `providers` 裡查任何東西 |
+| `active` | 否 | `true` | |
+
+coseeing 條目不帶 `pricing`、`usage_key` 與 provider 參數，因為請求只帶 id 送往
+`COSEEING_BASE_URL/proofreader`，成本由回應帶回。
+
 ### provider 條目欄位
 
 `label`、`url`、`setting`、`timeout0`、`timeout_max`。除 `label` 外皆為必填；
-`label` 預設為 provider 名稱。
+`label` 預設為 provider 名稱。`providers` 只描述本地 provider，Coseeing 在此沒有條目。
 
 ## 驗證與降級
 
@@ -165,30 +190,45 @@ NVDA 自己 new `LLMSettingsPanel`（`categoryClasses` 裡放的是類別），�
 （`CatalogIssue(code, location, detail)` 的 tuple），永不是例外。呼叫端不需要
 `try`/`except`。
 
-兩條 provider 規則**只對要求 local 通道的條目生效**。`local: false` 的條目已聲明它
-沒有 local 通道，兩條規則皆不適用、也不為它產生 issue——sentinel 的 provider
-`Coseeing` 沒有 `Provider` 子類，不該被回報為問題。
+兩份清單各自獨立驗證。因為通道由「條目在哪一份清單」承載，沒有任何一條規則需要先問
+這個條目想要哪些通道。
+
+**`models` 條目** — 每一筆都是本地 offer，所以 provider 規則無條件適用：
 
 | 情況 | 處置 |
 | --- | --- |
 | `pricing` 缺 | 條目保留，`pricing=None`。不算錯誤。 |
-| `local: true` 且 provider 在 `providers` 中無有效條目 | 該 model 的 **local** 通道被抑制；Coseeing 通道不受影響。記 issue。 |
-| `local: true` 且 provider 名稱不在 `runnable_providers` 中 | **local** 通道被抑制。記 issue。 |
-| 兩個通道都被抑制 | 該條目產生零個可選項目。記 issue。 |
+| provider 在 `providers` 中無有效條目 | 條目丟棄。記 issue。 |
+| provider 名稱不在 `runnable_providers` 中 | 條目丟棄。記 issue。 |
 | provider 條目缺 `url` / `setting` / `timeout0` / `timeout_max` | provider 丟棄；其下 model 依上兩列處理。 |
-| provider 未被任何 model 條目引用（不論該條目的通道為何） | 合法，只記 lint 級 issue。sentinel 指名 provider `Coseeing`，因此 `Coseeing.json` 即使對應條目為 `local: false` 仍算被引用。 |
+| provider 未被任何 `models` 條目引用 | 合法，只記 lint 級 issue。 |
 | `model` 或 `provider` 為空，或含 `&` | 條目丟棄。記 issue。 |
-| `corrector_config_id` 重複 | 首筆勝出，其餘丟棄。記 issue。（今天這會 `raise ValueError`，在 import 期讓整個 add-on 掛掉。） |
-| `schema_version` 主版本不認得 | 整份 document 不採用，改用 fallback。 |
+| `models` 內 `corrector_config_id` 重複 | 首筆勝出，其餘丟棄。記 issue。（今天這會 `raise ValueError`，在 import 期讓整個 add-on 掛掉。） |
 
-### 為何是抑制 local 通道，而不是丟棄整筆
+**`coseeings` 條目**：
+
+| 情況 | 處置 |
+| --- | --- |
+| `model` 或 `label` 缺少或為空 | 條目丟棄。記 issue。 |
+| `model` 或 `provider` 含 `&` | 條目丟棄。記 issue。 |
+| `coseeings` 內 `corrector_config_id` 重複 | 首筆勝出，其餘丟棄。記 issue。 |
+| 該 id 同時出現在 `models` | **不算**重複。那是同一個 model 由兩個通道提供，也正是 `deepseek-v4-flash&DeepSeek` 的出貨狀態。 |
+| 指名的 provider 不存在，或根本沒指名 | 無關緊要。coseeing 條目永遠不會去查 `providers`。 |
+
+**整份 document**：`schema_version` 主版本不認得時整份不採用，改用 fallback。
+
+### 為何丟棄一筆 `models` 條目不會藏起那個 model
+
+在單一清單的設計下這條規則需要但書，因為丟棄整筆會連它的 Coseeing offer 一起帶走。
+改成兩份清單後不需要任何但書：丟棄一筆 `models` 條目，移除的是一個本來就不可能運作的
+本地 offer，而該 model 的 Coseeing offer 是另一筆條目，不受影響。
 
 一次本地校正需要三樣 Coseeing 通道不需要的東西：provider 參數、`Provider` 子類、
-對應的 adapter。資料本身補不出後兩者——新的 provider 家族需要發新版 add-on。
+對應的 adapter。資料本身補不出後兩者——新的 provider 家族需要發新版 add-on。因此：
 
-- 遠端 payload 指名某個 model、沒附 provider 參數、但 `coseeing: true`：這是伺服器
-  **跑得動**的 model。丟棄整筆等於藏起一個可用選項。
-- 遠端 payload 為本 build 沒有程式碼的家族附上完整 provider 參數：若不擋，使用者會
+- 遠端 payload 指名某個 model 卻沒附 provider 參數時，它仍能透過 `coseeings` 條目
+  觸及使用者——那正是伺服器實際跑得動的東西。
+- 遠端 payload 為本 build 沒有程式碼的家族附上完整 provider 參數時，若不擋，使用者會
   選得到、然後按下快捷鍵時得到 `ValueError: Unsupported provider`。`runnable_providers`
   規則把這個執行期爆炸變成「選單裡不出現」。
 
@@ -200,17 +240,23 @@ NVDA 自己 new `LLMSettingsPanel`（`categoryClasses` 裡放的是類別），�
 
 1. **正常** — 至少一個可選項目。
 2. **降級** — 部分條目被丟棄，其餘照常運作，issues 可見。
-3. **全空** — 零個可選項目：改用 `FALLBACK_DOCUMENT`。它只有一筆，形狀與出貨
-   catalog 裡的 sentinel 完全相同，因此是一條程式路徑而非兩套。
+3. **全空** — 零個可選項目：改用 `FALLBACK_DOCUMENT`，即
+   `{"schema_version": 1, "providers": {}, "models": [], "coseeings": [<sentinel>]}`
+   ——與任何其他 document 同一種形狀，由同一個 `build_catalog()` 解析，因此是一條
+   程式路徑而非兩套。
 
 add-on 永遠能載入。損壞的 catalog 絕不會阻止 NVDA 啟動或設定面板開啟。
 
 ### `"default"` sentinel
 
 `correctTypo()` 的 Coseeing 分支本來就把 `corrector_config_id` 原樣送出，所以
-`"default"` 直接抵達伺服器，零特例程式碼。該條目只有 Coseeing 通道
-（`local: false`），因此永遠碰不到會在 `get_provider("Coseeing")` 失敗的本地路徑。
-成本由伺服器回傳，`pricing: None` 不造成任何影響。
+`"default"` 直接抵達伺服器，零特例程式碼。該條目只存在於 `coseeings`，因此會在
+`get_provider("Coseeing")` 失敗的本地路徑在結構上就不可觸及，而不是靠旗標抑制。
+成本由伺服器回傳，沒有價格資料不造成任何影響。
+
+`normalize_selection()` 依兩份清單判斷：儲存的 `execution_channel` 為 `Coseeing` 時，
+只要儲存的 id 在 `coseeings` 中就採用；為 `local` 時，只要 id 在 `models` 中就採用；
+其餘一律回落到 `default_selection()`——它回傳 `coseeings` 的第一筆，也就是 sentinel。
 
 自我痊癒：使用者儲存值為 `"default"` 而 catalog 健康時仍可解析，因為 sentinel 在該
 catalog 中就是一筆正常條目；若未來某份 catalog 省略它，`normalize_selection()` 回落
@@ -316,19 +362,20 @@ add-on 的校正路徑在型別上被迫使用當下的 catalog。
 
 依此順序撰寫。第 2 層必須在**任何 production code 變更之前**就是綠的。
 
-1. **document 驗證**（`tests/test_catalog_document.py`）— 驗證表每一列各一個測試，
-   包含 `qwen2&Ollama` 的缺價守衛與兩條 local 抑制規則。
+1. **document 驗證**（`tests/test_catalog_document.py`）— 兩張驗證表每一列各一個
+   測試，包含 `qwen2&Ollama` 的缺價守衛、兩條 provider 規則，以及那個**不得**被當成
+   重複的情況：同一個 id 同時出現在 `models` 與 `coseeings`。
 2. **bundled 保真度**（`tests/test_catalog_bundled.py`）— characterization test：以
    真實 `setting/` 目錄建 catalog，斷言產出的可選項目、ids、labels 與價格**與今天
    `ConfigManager` + `LABEL_DICT` + `price.json` 的結果逐項相同**。這是「什麼都沒
    弄丟」的證明，因此以現行實作為 oracle，在重構開始前寫好。它並斷言 issue 清單恰好
    只含一筆已知 lint（`OpenRouter.json` 未被任何 model 引用），使未來多出的孤兒檔案
-   會被抓到。
+   會被抓到（`Coseeing.json` 已在本批次刪除，因此不在該清單上）。
 3. **選擇與設定**（`tests/test_selection_state.py`、`tests/test_settings_repository.py`）
    — 還原、未知 id、通道不可用、換組時 model 索引歸零；空字串解析、`ctypes` 失敗降級
    為 `zh_traditional`、寫入確實落到 config。
-4. **fallback**（`tests/test_catalog_fallback.py`）— 壞掉的 document 產生恰好一筆、
-   id 為 `"default"`、僅 Coseeing 的項目；健康 catalog 下儲存值 `"default"` 可解析；
+4. **fallback**（`tests/test_catalog_fallback.py`）— 壞掉的 document 在 Coseeing 分組
+   下產生恰好一筆、id 為 `"default"` 的項目；健康 catalog 下儲存值 `"default"` 可解析；
    且 fallback 條目與出貨 sentinel 產生完全相同的 `SelectableItem`。
 5. **接縫本身**（`tests/test_catalog_source_seam.py`）— 以 `FakeRemoteCatalogSource`
    回傳記憶體中的 document，斷言 catalog、selection 與面板取得的結果與同樣內容來自
@@ -354,7 +401,8 @@ add-on 的校正路徑在型別上被迫使用當下的 catalog。
    開啟，且仍提供 `"default"` 這個 Coseeing 選項。
 3. 單一 `setting/ai/*.json` 損壞時只移除該筆。
 4. 出貨 catalog 產生的可選項目與本次變更前完全相同，外加新的 sentinel 條目——由測試
-   2 斷言。
+   2 斷言。刪除 `setting/provider/Coseeing.json` 不改變任何可觀察行為，因為從來沒有
+   `ai/*.json` 指名它，而 `COSEEING_BASE_URL` 是 `__init__.py` 裡的常數。
 5. `"default"` 是新安裝的預設選擇；既有使用者的儲存選擇不受影響。
 6. 為既有 provider 家族新增 model 只需編輯 catalog 資料——不需要任何 Python 改動，
    包含不需要改 label。
