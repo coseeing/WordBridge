@@ -1,10 +1,49 @@
 import ctypes
+import importlib.util
+import sys
 import types
+from pathlib import Path
 
-import settings_repository
 from lib.catalog.document import SCHEMA_VERSION, build_catalog
 from lib.catalog.model import COSEEING_GROUP
-from settings_repository import LANGUAGE_FALLBACK, SettingsRepository, os_default_language
+
+
+ADDON_PATH = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge"
+
+
+def _load_settings_repository():
+	"""Load settings_repository.py as a package submodule, the way NVDA does.
+
+	settings_repository.py:3 is `from .lib.catalog.selection import
+	normalize_selection` -- a relative import that only resolves when the
+	module is imported as part of a package. A bare top-level `import
+	settings_repository` raises "attempted relative import with no known
+	parent package" once that import is relative (see the fix for the
+	Critical whole-branch finding). Registering a minimal package stub whose
+	__path__ points at the add-on directory reproduces that shape without
+	paying for a full plugin load -- the same technique
+	tests/test_import_purity.py and tests/test_coseeing_auth_nvda.py's
+	_load_nvda_plugin() already use for __init__.py itself.
+	"""
+	package_name = "wordbridge_settings_repository_probe"
+	if package_name not in sys.modules:
+		package = types.ModuleType(package_name)
+		package.__path__ = [str(ADDON_PATH)]
+		sys.modules[package_name] = package
+	spec = importlib.util.spec_from_file_location(
+		f"{package_name}.settings_repository",
+		ADDON_PATH / "settings_repository.py",
+	)
+	module = importlib.util.module_from_spec(spec)
+	sys.modules[spec.name] = module
+	spec.loader.exec_module(module)
+	return module
+
+
+settings_repository = _load_settings_repository()
+LANGUAGE_FALLBACK = settings_repository.LANGUAGE_FALLBACK
+SettingsRepository = settings_repository.SettingsRepository
+os_default_language = settings_repository.os_default_language
 
 
 RUNNABLE = frozenset({"OpenAI"})

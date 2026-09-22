@@ -1,3 +1,4 @@
+import ast
 import subprocess
 import sys
 from pathlib import Path
@@ -5,6 +6,49 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
+
+# The Critical whole-branch finding: settings_repository.py:3 used to be a
+# bare `from lib.catalog.selection import normalize_selection` -- an absolute
+# import of an add-on-internal name. It only ever resolved because
+# tests/conftest.py puts the add-on directory on sys.path; under NVDA, where
+# the add-on's own directory is never on sys.path, that import raises
+# ModuleNotFoundError and takes the whole add-on down. Every other internal
+# import in the tree is relative; this scan is the gate that catches the next
+# one before it ships.
+TOP_LEVEL_INTERNAL_NAMES = frozenset({"lib", "dialogs", "configManager", "dictionary", "settings_repository"})
+
+
+def _internal_python_files():
+	# package/ is vendored third-party code (coseeing_auth et al.), not
+	# add-on-internal source -- excluded deliberately, the same way the spec
+	# excludes it elsewhere.
+	return sorted(
+		path for path in ADDON_PATH.rglob("*.py")
+		if "package" not in path.relative_to(ADDON_PATH).parts
+	)
+
+
+def test_no_addon_module_imports_an_internal_package_absolutely():
+	offenders = []
+	for path in _internal_python_files():
+		tree = ast.parse(path.read_text(encoding="utf8"), filename=str(path))
+		for node in ast.walk(tree):
+			if isinstance(node, ast.Import):
+				for alias in node.names:
+					root = alias.name.split(".")[0]
+					if root in TOP_LEVEL_INTERNAL_NAMES:
+						offenders.append((path, root))
+			elif isinstance(node, ast.ImportFrom):
+				if node.level:  # relative import -- exactly what's required
+					continue
+				root = (node.module or "").split(".")[0]
+				if root in TOP_LEVEL_INTERNAL_NAMES:
+					offenders.append((path, root))
+	assert offenders == [], (
+		"add-on-internal top-level import(s) found -- these only resolve "
+		"because tests put the add-on directory on sys.path, and fail under "
+		f"NVDA: {offenders}"
+	)
 
 # Spec test 6 asks for "importing dialogs and the plugin module": a bare
 # `import dialogs` cannot work standalone, because dialogs.py imports its
@@ -140,3 +184,70 @@ sys.modules["configobj.validate"] = SimpleNamespace(
 	VdtValueTooBigError=ValueError, VdtValueTooSmallError=ValueError
 )
 '''
+
+
+# Production-shaped: unlike PROBE above (and tests/conftest.py:17), the add-on
+# directory itself is never put on sys.path here -- only the tmp_path stub
+# directory is. That is exactly the gap that let settings_repository.py's
+# absolute `from lib.catalog.selection import normalize_selection` (the
+# Critical whole-branch finding) hide behind a green suite for four tasks: it
+# only ever resolved because the add-on directory was importable as a bare
+# top-level location. vendor.py is loaded directly by file path (it has no
+# relative imports of its own) rather than via `from lib import vendor`,
+# since a bare `import lib` is precisely what must NOT be required to load
+# this plugin.
+PRODUCTION_PROBE = r"""
+import sys
+sys.path.insert(0, {tests!r})
+
+import importlib.util
+
+_vendor_spec = importlib.util.spec_from_file_location(
+	"wordbridge_vendor_probe", {addon!r} + "/lib/vendor.py"
+)
+vendor = importlib.util.module_from_spec(_vendor_spec)
+sys.modules[_vendor_spec.name] = vendor
+_vendor_spec.loader.exec_module(vendor)
+vendor.install(vendor.default_roots({package!r}))
+vendor.install_stdlib_gapfill({package!r})
+
+import nvda_stubs  # installs the NVDA module stand-ins
+
+spec = importlib.util.spec_from_file_location(
+	"wordbridge_production_shape_probe",
+	{addon!r} + "/__init__.py",
+	submodule_search_locations=[{addon!r}],
+)
+plugin = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = plugin
+spec.loader.exec_module(plugin)  # noqa: this is the import under test
+print("OK")
+"""
+
+
+def test_the_plugin_package_imports_with_the_addon_directory_off_sys_path(tmp_path):
+	"""Reproduces production: under NVDA the add-on's own directory is never
+	on sys.path -- only globalPlugins/ (its parent) is, and __init__.py loads
+	as a submodule via submodule_search_locations, exactly as
+	spec_from_file_location does here. With only the stub directory on
+	sys.path, an absolute add-on-internal import (like the one this test
+	guards against regressing) raises ModuleNotFoundError instead of quietly
+	resolving the way it does when the add-on directory sits on sys.path, as
+	it does for every other test in this suite via tests/conftest.py:17.
+	"""
+	stub = tmp_path / "nvda_stubs.py"
+	stub.write_text(NVDA_STUBS, encoding="utf8")
+	script = PRODUCTION_PROBE.format(
+		tests=str(tmp_path),
+		addon=str(ADDON_PATH),
+		package=str(ADDON_PATH / "package"),
+	)
+	result = subprocess.run(
+		[sys.executable, "-c", script],
+		capture_output=True,
+		text=True,
+		cwd=str(PROJECT_ROOT),
+	)
+
+	assert result.returncode == 0, result.stderr
+	assert result.stdout.strip() == "OK"

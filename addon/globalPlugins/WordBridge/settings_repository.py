@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from lib.catalog.selection import normalize_selection
+from .lib.catalog.selection import normalize_selection
 
 
 LANGUAGE_VALUES = ["zh_traditional", "zh_simplified"]
