@@ -16,57 +16,11 @@ def shipped_catalog():
 	return build_catalog(document, runnable_providers=RUNNABLE)
 
 
-def legacy_manager():
-	from configManager import ConfigManager
-
-	return ConfigManager(SETTING_DIR / "ai")
-
-
 def test_the_bundled_document_declares_the_current_schema_version():
 	document, _ = BundledCatalogSource(SETTING_DIR).load()
 
 	assert document["schema_version"] == SCHEMA_VERSION
 	assert set(document) == {"schema_version", "providers", "models", "coseeings"}
-
-
-def test_provider_groups_match_the_legacy_manager():
-	assert shipped_catalog().provider_groups == tuple(legacy_manager().provider_groups)
-
-
-def test_every_group_offers_the_same_labels_as_the_legacy_manager():
-	catalog, manager = shipped_catalog(), legacy_manager()
-
-	for group in manager.provider_groups:
-		manager.provider = group
-		assert catalog.labels_for(group) == tuple(manager.model_labels), group
-
-
-def test_every_provider_group_label_matches_the_legacy_manager():
-	catalog, manager = shipped_catalog(), legacy_manager()
-
-	assert tuple(
-		catalog.get_provider(group).label if catalog.get_provider(group) else group
-		for group in catalog.provider_groups
-	) == tuple(manager.endpoint_labels)
-
-
-def test_every_selectable_item_matches_the_legacy_manager():
-	catalog, manager = shipped_catalog(), legacy_manager()
-
-	expected = [
-		(item.provider_group, item.corrector_config_id, item.execution_channel)
-		for group in manager.provider_groups
-		for item in manager.endpoints[group]
-	]
-	actual = [
-		(item.provider_group, item.corrector_config_id, item.execution_channel)
-		for item in catalog.selectable_items
-	]
-	assert actual == expected
-
-
-def test_default_selection_matches_the_legacy_manager():
-	assert shipped_catalog().default_selection() == legacy_manager().default_selection()
 
 
 def test_every_price_entry_matches_price_json():

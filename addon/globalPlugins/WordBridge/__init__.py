@@ -51,9 +51,12 @@ import wx
 
 import requests
 
-from .dialogs import CORRECTOR_CONFIG_ID_DEFAULT, EXECUTION_CHANNEL_DEFAULT, LANGUAGE_DEFAULT, TYPO_CORRECTION_MODE_DEFAULT, configManager
 from .dialogs import LLMSettingsPanel, FeedbackDialog
-from .configManager import load_corrector_task_config, normalize_selection
+from .configManager import CorrectorTaskConfig, load_corrector_task_config
+from .lib.catalog import registry
+from .lib.catalog.fallback import load_catalog
+from .lib.catalog.sources import BundledCatalogSource
+from .lib.llm import SUPPORTED_PROVIDERS
 from .dictionary import WBW_DICTIONARY_PATH
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.application.task_runner import run_typo_correction
@@ -64,6 +67,7 @@ from .lib.decimalUtils import decimal_to_str_0
 from .lib.report import generate_report
 from .lib.progress_cue import ProgressCue
 from .lib.tasks.typo.utils import strings_diff
+from .settings_repository import SettingsRepository
 from _wb_vendor.hanzidentifier import has_chinese
 
 
@@ -106,14 +110,16 @@ for _gapfill_name, _gapfill_error in _STDLIB_GAPFILL_FAILURES:
 	)
 
 CORRECTOR_TASK_CONFIG_PATH = os.path.join(PATH, "setting", "task", "corrector.json")
-correctorTaskConfig = load_corrector_task_config(CORRECTOR_TASK_CONFIG_PATH)
 
 config.conf.spec["WordBridge"] = {
 	"settings": {
-		"corrector_config_id": f"string(default={CORRECTOR_CONFIG_ID_DEFAULT})",
-		"execution_channel": f"string(default={EXECUTION_CHANNEL_DEFAULT})",
-		"language": f"string(default={LANGUAGE_DEFAULT})",
-		"typo_correction_mode": f"string(default={TYPO_CORRECTION_MODE_DEFAULT})",
+		# Empty means "not chosen yet". SettingsRepository resolves it against
+		# the catalog at read time, which is what keeps this spec -- evaluated
+		# at import -- independent of the catalog.
+		"corrector_config_id": "string(default='')",
+		"execution_channel": "string(default='')",
+		"language": "string(default='')",
+		"typo_correction_mode": "string(default='')",
 		"api_key": {},
 		"max_char_count": "integer(default=512,min=256,max=4096)",
 		"auto_display_report": "boolean(default=False)",
@@ -162,19 +168,41 @@ class CorrectionAction:
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
+		self.catalog = load_catalog(
+			BundledCatalogSource(os.path.join(PATH, "setting")),
+			runnable_providers=SUPPORTED_PROVIDERS,
+		)
+		registry.initialize(self.catalog)
+		for issue in self.catalog.issues:
+			log.warning(
+				"WordBridge: catalog issue code=%s location=%s: %s",
+				issue.code, issue.location, issue.detail,
+			)
+		self.correctorTaskConfig = self._load_corrector_task_config()
+		self.settings = SettingsRepository(config.conf["WordBridge"]["settings"], registry.current)
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(LLMSettingsPanel)
 		self._shutdown = threading.Event()
-		settings = config.conf["WordBridge"]["settings"]
-		_, channel, _ = normalize_selection(
-			configManager,
-			settings["corrector_config_id"],
-			settings["execution_channel"],
-		)
+		_, channel = self.settings.corrector_selection()
 		wx.CallAfter(self._start_coseeing_auth, channel)
 		self.latest_action = CorrectionAction()
 		self.correct_typo_thread = None
 		self._feedback_thread = None
 		self._progress_cue = None
+		self._degraded_catalog_announced = False
+
+	def _load_corrector_task_config(self):
+		try:
+			return load_corrector_task_config(CORRECTOR_TASK_CONFIG_PATH)
+		except (OSError, ValueError, KeyError) as error:
+			# A damaged task config used to take the add-on's import down.
+			log.warning(
+				"WordBridge: could not load the corrector task config type=%s: %s",
+				type(error).__name__, error,
+			)
+			return CorrectorTaskConfig(
+				template_name={"standard": "Standard_v1.json", "lite": "Lite_v1.json"},
+				optional_guidance_enable={"keep_non_chinese_char": True, "no_explanation": True},
+			)
 
 	def _start_coseeing_auth(self, channel):
 		if not self._shutdown.is_set():
@@ -326,7 +354,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def isTextValid(self, text):
 		try:
-			max_char_count = config.conf["WordBridge"]["settings"]["max_char_count"]
+			max_char_count = self.settings.max_char_count()
 		except VdtValueTooBigError:
 			max_char_count = int(config.conf.getConfigValidation(
 				("WordBridge", "settings", "max_char_count")
@@ -377,41 +405,33 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, request):
-		corrector_config_id = config.conf["WordBridge"]["settings"]["corrector_config_id"]
-		execution_channel = config.conf["WordBridge"]["settings"]["execution_channel"]
-		corrector_config_id, execution_channel, corrector_config = normalize_selection(
-			configManager,
-			corrector_config_id,
-			execution_channel,
-		)
+		catalog = registry.current()
+		corrector_config_id, execution_channel = self.settings.corrector_selection()
 
-		language = config.conf["WordBridge"]["settings"]["language"]
-		corrector_mode = config.conf["WordBridge"]["settings"]["typo_correction_mode"]
+		language = self.settings.language()
+		corrector_mode = self.settings.typo_correction_mode()
+		template_name = self.correctorTaskConfig.template_name[corrector_mode]
+		optional_guidance_enable = self.correctorTaskConfig.optional_guidance_enable
 
-		provider = corrector_config.provider
-		model_name = corrector_config.model
-		template_name = correctorTaskConfig.template_name[corrector_mode]
-		optional_guidance_enable = correctorTaskConfig.optional_guidance_enable
-
-		if config.conf["WordBridge"]["settings"]["customized_words_enable"]:
+		if self.settings.customized_words_enable():
 			customized_words = [row["text"] for row in self.readDictionary()]
 		else:
 			customized_words = []
 		if execution_channel == "local":
-			if provider not in config.conf["WordBridge"]["settings"]["api_key"]:
-				config.conf["WordBridge"]["settings"]["api_key"][provider] = ""
-			credential = {
-				"api_key": config.conf["WordBridge"]["settings"]["api_key"][provider],
-			}
+			model_entry = catalog.get_model(corrector_config_id)
+			provider_entry = catalog.get_provider(model_entry.provider)
+			credential = {"api_key": self.settings.api_key(model_entry.provider)}
 
 			try:
 				batch_mode = not DEBUG_MODE
 				result = run_typo_correction(
 					request=request,
 					batch_mode=batch_mode,
-					provider_name=provider,
-					model_name=model_name,
+					provider_name=model_entry.provider,
+					model_name=model_entry.model,
 					credential=credential,
+					provider_entry=provider_entry,
+					price_entry=model_entry.price_entry(),
 					language=language,
 					template_name=template_name,
 					corrector_mode=corrector_mode,
@@ -501,7 +521,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		self._report_cost(cost)
 
-		if config.conf["WordBridge"]["settings"]["auto_display_report"]:
+		if self.settings.auto_display_report():
 			self._run_on_ui(self.showReport, diff)
 
 	def startCorrection(self, text):
@@ -541,7 +561,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			cue.stop()
 
 	def _make_progress_cue(self):
-		if config.conf["WordBridge"]["settings"]["sound_effects_enable"]:
+		if self.settings.sound_effects_enable():
 			return ProgressCue(
 				schedule=wx.CallLater,
 				tick=self._play_correction_sound,

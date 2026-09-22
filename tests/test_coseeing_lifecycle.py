@@ -24,6 +24,10 @@ def _plugin(monkeypatch, queued):
 
 def _instance(plugin_module):
 	instance = object.__new__(plugin_module.GlobalPlugin)
+	# correctTypo() now reads self.settings / self.correctorTaskConfig; see
+	# the plugin.settings comment in _load_nvda_plugin.
+	instance.settings = plugin_module.settings
+	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance._shutdown = threading.Event()
 	# GlobalPlugin.__init__ always sets this, and terminate() reads it. Without
 	# it here the AttributeError would be swallowed by terminate()'s own

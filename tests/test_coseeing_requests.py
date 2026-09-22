@@ -39,6 +39,10 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 		"auto_display_report": False,
 	}, [], queued)
 	instance = object.__new__(plugin_module.GlobalPlugin)
+	# correctTypo() now reads self.settings / self.correctorTaskConfig; see
+	# the plugin.settings comment in _load_nvda_plugin.
+	instance.settings = plugin_module.settings
+	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance.latest_action = plugin_module.CorrectionAction()
 	instance.readDictionary = lambda: []
 	instance._shutdown = threading.Event()
@@ -97,6 +101,10 @@ def test_proofreader_auth_failure_skips_post_and_queues_ui_notification(monkeypa
 		"auto_display_report": False,
 	}, [], queued)
 	instance = object.__new__(plugin_module.GlobalPlugin)
+	# correctTypo() now reads self.settings / self.correctorTaskConfig; see
+	# the plugin.settings comment in _load_nvda_plugin.
+	instance.settings = plugin_module.settings
+	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance.latest_action = plugin_module.CorrectionAction()
 	instance.readDictionary = lambda: []
 	instance._shutdown = threading.Event()
@@ -131,6 +139,10 @@ def test_proofreader_termination_before_worker_request_skips_post_and_ui(monkeyp
 		"auto_display_report": False,
 	}, [], queued)
 	instance = object.__new__(plugin_module.GlobalPlugin)
+	# correctTypo() now reads self.settings / self.correctorTaskConfig; see
+	# the plugin.settings comment in _load_nvda_plugin.
+	instance.settings = plugin_module.settings
+	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance.latest_action = plugin_module.CorrectionAction()
 	instance.readDictionary = lambda: []
 	instance._shutdown = threading.Event()
@@ -161,6 +173,10 @@ def test_proofreader_failures_use_stable_notification(monkeypatch, failure):
 		"auto_display_report": False,
 	}, [], queued)
 	instance = object.__new__(plugin_module.GlobalPlugin)
+	# correctTypo() now reads self.settings / self.correctorTaskConfig; see
+	# the plugin.settings comment in _load_nvda_plugin.
+	instance.settings = plugin_module.settings
+	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance.latest_action = plugin_module.CorrectionAction()
 	instance.readDictionary = lambda: []
 	instance._shutdown = threading.Event()

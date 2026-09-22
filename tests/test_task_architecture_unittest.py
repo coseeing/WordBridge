@@ -30,30 +30,56 @@ sys.modules.setdefault("_wb_vendor.hanzidentifier", hanzidentifier_module)
 
 
 class TaskArchitectureTests(unittest.TestCase):
-	def test_dialogs_builds_the_real_thirteen_endpoint_catalog_without_legacy_corrector_directory(self):
-		"""Catches dialogs bootstrapping ConfigManager from the removed legacy directory."""
-		with _nvda_module_stubs():
-			dialogs = _load_module("WordBridge.dialogs", ADDON_PATH / "dialogs.py")
+	def test_shipped_catalog_matches_the_ai_directory_without_a_legacy_corrector_directory(self):
+		"""Catches the shipped catalog drifting from the on-disk ai/ directory.
 
-		self.assertEqual(len(dialogs.configManager.configs), 13)
-		self.assertEqual(len(dialogs.configManager.config_by_id), 13)
+		dialogs.py no longer bootstraps a ConfigManager (or anything else) at
+		import time -- that was the point of this task -- so this now builds
+		the real catalog the same way GlobalPlugin.__init__ does and checks it
+		against the on-disk ai/ directory count directly.
+		"""
+		from lib.catalog.document import build_catalog
+		from lib.catalog.sources import BundledCatalogSource
+		from lib.llm import SUPPORTED_PROVIDERS
+
+		document, issues = BundledCatalogSource(ADDON_PATH / "setting").load()
+		catalog = build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
+
+		self.assertEqual(len(catalog.models), 13)
+		self.assertEqual(len({entry.corrector_config_id for entry in catalog.models}), 13)
 
 	def test_plugin_local_correction_uses_endpoint_and_task_configs_with_unchanged_runner_interface(self):
-		"""Catches task-config reads and a local-routing regression without network calls."""
+		"""Catches task-config reads, a local-routing regression, and provider/price
+		entry-injection drift (Task 4/6) without network calls."""
 		captured = {}
 		with _nvda_module_stubs(captured) as nvda_stubs:
 			nvda_stubs.track_corrector_task_loader()
 			plugin = _load_module("WordBridge", ADDON_PATH / "__init__.py", package=True)
+
+			instance = object.__new__(plugin.GlobalPlugin)
+			instance.readDictionary = lambda: []
+			instance.latest_action = plugin.CorrectionAction()
+			instance._shutdown = threading.Event()
+
+			# Build the catalog and register it the same way GlobalPlugin.__init__
+			# does, without running the rest of __init__ (categoryClasses
+			# registration, starting Coseeing auth) that this test doesn't want.
+			catalog = plugin.load_catalog(
+				plugin.BundledCatalogSource(str(ADDON_PATH / "setting")),
+				runnable_providers=plugin.SUPPORTED_PROVIDERS,
+			)
+			plugin.registry.initialize(catalog)
+			instance.settings = plugin.SettingsRepository(
+				nvda_stubs.config.conf["WordBridge"]["settings"], plugin.registry.current
+			)
+
+			instance.correctorTaskConfig = instance._load_corrector_task_config()
 			self.assertEqual(
 				nvda_stubs.corrector_task_loader_paths,
 				[str(ADDON_PATH / "setting" / "task" / "corrector.json")],
 			)
 			expected_task_config = nvda_stubs.sentinel_task_config
 			nvda_stubs.config.conf["WordBridge"]["settings"]["typo_correction_mode"] = "lite"
-			instance = object.__new__(plugin.GlobalPlugin)
-			instance.readDictionary = lambda: []
-			instance.latest_action = plugin.CorrectionAction()
-			instance._shutdown = threading.Event()
 
 			original_post = plugin.requests.post
 
@@ -70,10 +96,17 @@ class TaskArchitectureTests(unittest.TestCase):
 
 			self.assertIs(plugin.requests.post, original_post)
 
+			expected_provider_entry = catalog.get_provider("OpenAI")
+			expected_price_entry = catalog.get_model("gpt-5.6-sol&OpenAI").price_entry()
+
 		self.assertEqual(
 			nvda_stubs.corrector_task_loader_paths,
 			[str(ADDON_PATH / "setting" / "task" / "corrector.json")],
 		)
+		provider_entry = captured.pop("provider_entry")
+		price_entry = captured.pop("price_entry")
+		self.assertEqual(provider_entry, expected_provider_entry)
+		self.assertEqual(price_entry, expected_price_entry)
 		self.assertEqual(
 			captured,
 			{
@@ -484,16 +517,23 @@ class _nvda_module_stubs:
 		sys.modules["WordBridge.lib.viewHTML"] = types.SimpleNamespace(text2template=lambda src, dst: None)
 		if self.captured_runner_args is not None:
 			def run_typo_correction(
-				*, request, batch_mode, provider_name, model_name, credential, language,
+				*, request, batch_mode, provider_name, model_name, credential,
+				provider_entry, price_entry, language,
 				template_name, corrector_mode, optional_guidance_enable,
 				customized_words, retries, backoff,
 			):
+				# provider_entry/price_entry are required, keyword-only, and
+				# there is no **kwargs catch-all -- an unexpected or a missing
+				# keyword from the real call site both raise a TypeError
+				# instead of this stub silently accepting the drift.
 				self.captured_runner_args.update({
 					"request": request,
 					"batch_mode": batch_mode,
 					"provider_name": provider_name,
 					"model_name": model_name,
 					"credential": credential,
+					"provider_entry": provider_entry,
+					"price_entry": price_entry,
 					"language": language,
 					"template_name": template_name,
 					"corrector_mode": corrector_mode,

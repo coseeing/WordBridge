@@ -72,6 +72,9 @@ def _fake_threading(monkeypatch, plugin_module):
 
 def _instance(plugin_module, monkeypatch, *, corrected=None):
 	instance = object.__new__(plugin_module.GlobalPlugin)
+	# _make_progress_cue() reads self.settings.sound_effects_enable(); see the
+	# comment on the plugin.settings assignment in _load_nvda_plugin.
+	instance.settings = plugin_module.settings
 	instance._shutdown = threading.Event()
 	instance.correct_typo_thread = None
 	instance._feedback_thread = None

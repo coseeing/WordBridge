@@ -5,6 +5,7 @@ import ctypes
 from threading import Event, RLock, Thread, current_thread
 from types import SimpleNamespace
 from pathlib import Path
+from urllib.parse import urlparse
 import sys
 import types
 import pytest
@@ -225,7 +226,21 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 		VdtValueTooSmallError=ValueError,
 	))
 	monkeypatch.setitem(sys.modules, "configobj", SimpleNamespace(validate=sys.modules["configobj.validate"]))
-	monkeypatch.setitem(sys.modules, "requests", SimpleNamespace())
+	# GlobalPlugin.__init__ now builds a catalog, which pulls in the real
+	# lib.llm package (SUPPORTED_PROVIDERS) -- unlike lib.application.task_runner
+	# below, that module is never stubbed away, so lib/llm/provider.py's own
+	# `import requests` / `from requests.utils import urlparse` really execute.
+	# A bare SimpleNamespace() has no `.utils`, so that import used to raise
+	# "'requests' is not a package". `from package.module import name` always
+	# goes through the import system for "package.module" -- a plain `.utils`
+	# attribute on the fake `requests` object is not enough, sys.modules needs
+	# a "requests.utils" entry too. urlparse is read-only data plumbing (no
+	# network I/O), so wiring in the real one keeps this a fake network client
+	# while letting the real import machinery resolve it; every test that
+	# could otherwise reach the network still replaces `.get`/`.post` itself.
+	fake_requests = SimpleNamespace(utils=SimpleNamespace(urlparse=urlparse))
+	monkeypatch.setitem(sys.modules, "requests", fake_requests)
+	monkeypatch.setitem(sys.modules, "requests.utils", fake_requests.utils)
 	monkeypatch.setattr(
 		ctypes,
 		"windll",
@@ -297,6 +312,24 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	added = set(sys.modules) - modules_before
 	leaked = added & vendor.ISOLATED
 	assert not leaked, f"category 2 name(s) leaked as bare global sys.modules key(s): {sorted(leaked)}"
+
+	# GlobalPlugin.__init__ now builds a catalog and a SettingsRepository
+	# before anything else runs (registry.initialize() at __init__.py's
+	# catalog line). Many tests below construct their plugin instance via
+	# object.__new__(plugin.GlobalPlugin), deliberately bypassing __init__ so
+	# they don't also start Coseeing auth or register the settings panel --
+	# but correctTypo() and _make_progress_cue() now reach self.settings and
+	# registry.current() regardless. Doing this once here, against the real
+	# shipped setting/ tree, means callers just assign instance.settings /
+	# instance.correctorTaskConfig from plugin.settings / plugin.correctorTaskConfig
+	# instead of each reimplementing catalog bootstrap.
+	plugin.catalog = plugin.load_catalog(
+		plugin.BundledCatalogSource(str(ADDON_PATH / "setting")),
+		runnable_providers=plugin.SUPPORTED_PROVIDERS,
+	)
+	plugin.registry.initialize(plugin.catalog)
+	plugin.correctorTaskConfig = plugin.load_corrector_task_config(plugin.CORRECTOR_TASK_CONFIG_PATH)
+	plugin.settings = plugin.SettingsRepository(config.conf["WordBridge"]["settings"], plugin.registry.current)
 
 	return plugin, config, gui
 
@@ -440,16 +473,21 @@ def test_settings_save_preserves_coseeing_refresh_token_and_starts_selected_chan
 		def GetValue(self):
 			return self.value
 
-	class Manager:
-		endpoints = {"OpenAI": [object()], "Coseeing": [object()]}
-		channel = "Coseeing"
+	class FakeSelection:
+		# Stands in for SelectionState: onSave() only ever writes the two
+		# index attributes and reads current_item() back, so a fixed item
+		# (deliberately not what providerList/modelList's indices would
+		# resolve to in the real catalog) is what makes this deterministic
+		# without needing a real catalog/registry here.
+		provider_group_index = 0
+		model_index = 0
 
-		def get_item_by_index(self, provider_index, model_index):
-			return SimpleNamespace(corrector_config_id="deepseek&DeepSeek", execution_channel=self.channel)
+		def current_item(self):
+			return SimpleNamespace(corrector_config_id="deepseek&DeepSeek", execution_channel="Coseeing")
 
-	dialogs.configManager = Manager()
-	assert dialogs.configManager.get_item_by_index(0, 0).execution_channel == "Coseeing"
 	panel = object.__new__(dialogs.LLMSettingsPanel)
+	panel.selection = FakeSelection()
+	panel.settings = dialogs.SettingsRepository(settings, lambda: None)
 	panel.providerList = Control(0)
 	panel.modelList = Control(0)
 	panel.languageList = Control(0)

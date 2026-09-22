@@ -2,8 +2,6 @@ from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
 from concurrent.futures import Future
 
 import config
-import ctypes
-import locale
 import os
 import wx
 
@@ -14,16 +12,25 @@ from gui import guiHelper, nvdaControls
 from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
 
-from . configManager import ConfigManager, normalize_selection
 from .dictionary.dialog import DictionaryEntryDialog
+from .lib.catalog import registry
+from .lib.catalog.selection import SelectionState
 from .lib.coseeing_auth import (
 	clean_coseeing_auth,
 	has_saved_coseeing_refresh_token,
 	start_coseeing_auth,
 )
+from .settings_repository import (
+	LANGUAGE_VALUES,
+	TYPO_CORRECTION_MODE_VALUES,
+	SettingsRepository,
+)
 
 addonHandler.initTranslation()
 
+# UI strings only. Model and provider display names live in the catalog now;
+# sending them through here would make a future remote payload a channel for
+# rewriting the interface's own wording.
 LABEL_DICT = {
 	"zh_traditional": _("Traditional Chinese"),
 	"zh_simplified": _("Simplified Chinese"),
@@ -32,25 +39,10 @@ LABEL_DICT = {
 	"personal_api_key": _("Personal API Key"),
 	"coseeing_account": _("Coseeing Account"),
 }
-
-os_language_code = locale.windows_locale[ctypes.windll.kernel32.GetUserDefaultUILanguage()]
-if os_language_code in ["zh_TW", "zh_MO", "zh_HK"]:
-	LANGUAGE_DEFAULT = "zh_traditional"
-else:
-	LANGUAGE_DEFAULT = "zh_simplified"
-AI_CONFIG_FOLDER_PATH = os.path.join(os.path.dirname(__file__), "setting", "ai")
-TYPO_CORRECTION_MODE_DEFAULT = "standard"
-
-LANGUAGE_VALUES = ["zh_traditional", "zh_simplified"]
-LANGUAGE_LABELS = [LABEL_DICT[val] for val in LANGUAGE_VALUES]
-
-TYPO_CORRECTION_MODE_VALUES = ["standard", "lite"]
-TYPO_CORRECTION_MODE_LABELS = [LABEL_DICT[val] for val in TYPO_CORRECTION_MODE_VALUES]
+LANGUAGE_LABELS = [LABEL_DICT[value] for value in LANGUAGE_VALUES]
+TYPO_CORRECTION_MODE_LABELS = [LABEL_DICT[value] for value in TYPO_CORRECTION_MODE_VALUES]
 
 SOUND_EFFECTS_URL = "https://www.zapsplat.com/music/medium-underwater-movement-whoosh-pass-by-1/"
-
-configManager = ConfigManager(AI_CONFIG_FOLDER_PATH)
-CORRECTOR_CONFIG_ID_DEFAULT, EXECUTION_CHANNEL_DEFAULT = configManager.default_selection()
 
 
 class LLMSettingsPanel(SettingsPanel):
@@ -60,72 +52,55 @@ class LLMSettingsPanel(SettingsPanel):
 	def makeSettings(self, settingsSizer):
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 
-		config_id = config.conf["WordBridge"]["settings"]["corrector_config_id"]
-		execution_channel = config.conf["WordBridge"]["settings"]["execution_channel"]
-		config_id, execution_channel, selected_config = normalize_selection(
-			configManager,
-			config_id,
-			execution_channel,
-		)
-		(provider_index, model_index) = configManager.find_selection(config_id, execution_channel)
-		if (provider_index, model_index) == (-1, -1):
-			(provider_index, model_index) = configManager.find_selection(
-				CORRECTOR_CONFIG_ID_DEFAULT,
-				EXECUTION_CHANNEL_DEFAULT,
-			)
+		self.catalog = registry.current()
+		self.settings = SettingsRepository(config.conf["WordBridge"]["settings"], registry.current)
+		self.selection = SelectionState.restore(self.catalog, *self.settings.corrector_selection())
 
 		# For selecting provider
 		providerLabelText = _("Service Provider:")
 		self.providerList = settingsSizerHelper.addLabeledControl(
 			providerLabelText,
 			wx.Choice,
-			choices=list(configManager.endpoint_labels)
+			choices=list(self.catalog.provider_groups),
 		)
 		self.providerList.SetToolTip(wx.ToolTip(_("Choose the service provider for the WordBridge")))
-
 		self.providerList.Bind(wx.EVT_CHOICE, self.onChangeProviderChoice)
-		self.providerList.SetSelection(provider_index)
-
-		provider_index = self.providerList.GetSelection()
-		configManager.provider = configManager.provider_groups[provider_index]
+		self.providerList.SetSelection(self.selection.provider_group_index)
 
 		# For selecting LLM
 		modelLabelText = _("Large Language Model:")
 		self.modelList = settingsSizerHelper.addLabeledControl(
 			modelLabelText,
 			wx.Choice,
-			choices=configManager.model_labels
+			choices=list(self.catalog.labels_for(self.selection.provider_group)),
 		)
 		self.modelList.SetToolTip(wx.ToolTip(_("Choose the large language model for the Word Bridge")))
-
-		self.modelList.SetSelection(model_index)
+		self.modelList.SetSelection(self.selection.model_index)
 
 		# For setting account information
 		self.accountGroupSizerMap = {}
 		self.accountTextCtrlMap = {}
-		for endpoint, label in zip(configManager.provider_groups, configManager.endpoint_labels):
+		for group in self.catalog.provider_groups:
 			accountBoxSizer = wx.StaticBoxSizer(
 				wx.VERTICAL,
 				self,
-				label=label+" "+_("Authentication")
+				label=group + " " + _("Authentication")
 			)
-			self.accountGroupSizerMap[endpoint] = accountBoxSizer
+			self.accountGroupSizerMap[group] = accountBoxSizer
 			self.accountGroupSizerHelper = guiHelper.BoxSizerHelper(self, sizer=accountBoxSizer)
 			settingsSizerHelper.addItem(self.accountGroupSizerHelper)
-			if endpoint == "Coseeing":
+			if group == "Coseeing":
 				self.coseeingCleanButton = wx.Button(self, label=_("clean"))
 				self.coseeingCleanButton.Enable(has_saved_coseeing_refresh_token())
 				self.coseeingCleanButton.Bind(wx.EVT_BUTTON, self.onCleanCoseeingAuth)
 				self.accountGroupSizerHelper.addItem(self.coseeingCleanButton)
 				continue
-			if endpoint not in config.conf["WordBridge"]["settings"]["api_key"]:
-				config.conf["WordBridge"]["settings"]["api_key"][endpoint] = ""
 
-			self.accountTextCtrlMap[endpoint] = self.accountGroupSizerHelper.addLabeledControl(
+			self.accountTextCtrlMap[group] = self.accountGroupSizerHelper.addLabeledControl(
 				_("API Key:"),
 				wx.TextCtrl,
 				size=(self.scaleSize(375), -1),
-				value=config.conf["WordBridge"]["settings"]["api_key"][endpoint],
+				value=self.settings.api_key(group),
 			)
 
 		self._refreshAccountInfo()
@@ -138,14 +113,9 @@ class LLMSettingsPanel(SettingsPanel):
 			choices=LANGUAGE_LABELS
 		)
 		self.languageList.SetToolTip(wx.ToolTip(_("Choose the language for the Word Bridge")))
-		if config.conf["WordBridge"]["settings"]["language"] in LANGUAGE_VALUES:
-			self.languageList.SetSelection(LANGUAGE_VALUES.index(config.conf["WordBridge"]["settings"]["language"]))
-		else:
-			config.conf["WordBridge"]["settings"]["language"] = LANGUAGE_DEFAULT
-			self.languageList.SetSelection(LANGUAGE_VALUES.index(config.conf["WordBridge"]["settings"]["language"]))
+		self.languageList.SetSelection(LANGUAGE_VALUES.index(self.settings.language()))
 
 		# For selecting typo correction mode
-
 		typoCorrectionModeLabelText = _("Correction Mode:")
 		self.typoCorrectionModeList = settingsSizerHelper.addLabeledControl(
 			typoCorrectionModeLabelText,
@@ -153,16 +123,21 @@ class LLMSettingsPanel(SettingsPanel):
 			choices=TYPO_CORRECTION_MODE_LABELS
 		)
 		self.typoCorrectionModeList.SetToolTip(wx.ToolTip(_("Choose the typo correction mode for the Word Bridge")))
-		if config.conf["WordBridge"]["settings"]["typo_correction_mode"] in TYPO_CORRECTION_MODE_VALUES:
-			self.typoCorrectionModeList.SetSelection(TYPO_CORRECTION_MODE_VALUES.index(config.conf["WordBridge"]["settings"]["typo_correction_mode"]))
-		else:
-			config.conf["WordBridge"]["settings"]["typo_correction_mode"] = TYPO_CORRECTION_MODE_DEFAULT
-			self.typoCorrectionModeList.SetSelection(TYPO_CORRECTION_MODE_VALUES.index(config.conf["WordBridge"]["settings"]["typo_correction_mode"]))
+		self.typoCorrectionModeList.SetSelection(
+			TYPO_CORRECTION_MODE_VALUES.index(self.settings.typo_correction_mode())
+		)
 
 		# For setting upper bound of correction character count
 		maxTokensLabelText = _("Max character count")
+		# max_char_count() is a bare subscript (SettingsRepository is the sole
+		# reader of the settings mapping), but the clamp bounds themselves
+		# come from config.conf.getConfigValidation(), not from the settings
+		# mapping -- so catching the validator's exceptions here, around the
+		# repository call, keeps that read the settings mapping's only reader
+		# without silently losing the clamp-to-bounds behaviour for an
+		# out-of-range stored value.
 		try:
-			maxCharCount = config.conf["WordBridge"]["settings"]["max_char_count"]
+			maxCharCount = self.settings.max_char_count()
 		except VdtValueTooBigError:
 			maxCharCount = int(config.conf.getConfigValidation(
 				("WordBridge", "settings", "max_char_count")
@@ -190,13 +165,13 @@ class LLMSettingsPanel(SettingsPanel):
 		self.autoDisplayReportEnable = settingsSizerHelper.addItem(
 			wx.CheckBox(self, label=_("Auto display typo report"))
 		)
-		self.autoDisplayReportEnable.SetValue(config.conf["WordBridge"]["settings"]["auto_display_report"])
+		self.autoDisplayReportEnable.SetValue(self.settings.auto_display_report())
 
 		# For setting custom dictionary
 		self.customizedWordEnable = settingsSizerHelper.addItem(
 			wx.CheckBox(self, label=_("Apply personal dictionary"))
 		)
-		self.customizedWordEnable.SetValue(config.conf["WordBridge"]["settings"]["customized_words_enable"])
+		self.customizedWordEnable.SetValue(self.settings.customized_words_enable())
 
 		self.wordDictionaryCtrl = settingsSizerHelper.addItem(
 			wx.Button(
@@ -210,7 +185,7 @@ class LLMSettingsPanel(SettingsPanel):
 		self.soundEffectsEnable = settingsSizerHelper.addItem(
 			wx.CheckBox(self, label=_("Enable sound effect cues"))
 		)
-		self.soundEffectsEnable.SetValue(config.conf["WordBridge"]["settings"]["sound_effects_enable"])
+		self.soundEffectsEnable.SetValue(self.settings.sound_effects_enable())
 
 		self.soundEffectsCtrl = settingsSizerHelper.addItem(
 			wx.Button(
@@ -223,15 +198,15 @@ class LLMSettingsPanel(SettingsPanel):
 		self.settingsSizer = settingsSizer
 
 	def _refreshModelChoice(self):
-		self.modelList.SetItems(configManager.model_labels)
+		self.modelList.SetItems(list(self.catalog.labels_for(self.selection.provider_group)))
 		self.modelList.SetSelection(0)
 
 	def _refreshAccountInfo(self):
-		for ep in configManager.endpoints.keys():
-			if ep == configManager.provider:
-				self.settingsSizer.Show(self.accountGroupSizerMap[ep], recursive=True)
+		for group in self.catalog.provider_groups:
+			if group == self.selection.provider_group:
+				self.settingsSizer.Show(self.accountGroupSizerMap[group], recursive=True)
 			else:
-				self.settingsSizer.Hide(self.accountGroupSizerMap[ep], recursive=True)
+				self.settingsSizer.Hide(self.accountGroupSizerMap[group], recursive=True)
 
 	def onCleanCoseeingAuth(self, event) -> None:
 		self.coseeingCleanButton.Disable()
@@ -257,27 +232,28 @@ class LLMSettingsPanel(SettingsPanel):
 		wx.CallAfter(openfile)
 
 	def onSave(self):
-		provider_index = self.providerList.GetSelection()
-		model_index = self.modelList.GetSelection()
-		selected_item = configManager.get_item_by_index(provider_index, model_index)
-		config.conf["WordBridge"]["settings"]["corrector_config_id"] = selected_item.corrector_config_id
-		config.conf["WordBridge"]["settings"]["execution_channel"] = selected_item.execution_channel
-		config.conf["WordBridge"]["settings"]["language"] = LANGUAGE_VALUES[self.languageList.GetSelection()]
-		config.conf["WordBridge"]["settings"]["typo_correction_mode"] = TYPO_CORRECTION_MODE_VALUES[self.typoCorrectionModeList.GetSelection()]
-		config.conf["WordBridge"]["settings"]["max_char_count"] = self.maxCharCountSpinCtrl.GetValue()
-		config.conf["WordBridge"]["settings"]["auto_display_report"] = self.autoDisplayReportEnable.GetValue()
-		config.conf["WordBridge"]["settings"]["customized_words_enable"] = self.customizedWordEnable.GetValue()
-		config.conf["WordBridge"]["settings"]["sound_effects_enable"] = self.soundEffectsEnable.GetValue()
+		self.selection.provider_group_index = self.providerList.GetSelection()
+		self.selection.model_index = self.modelList.GetSelection()
+		selected_item = self.selection.current_item()
+		self.settings.save_corrector_selection(
+			selected_item.corrector_config_id, selected_item.execution_channel
+		)
+		self.settings.save_language(LANGUAGE_VALUES[self.languageList.GetSelection()])
+		self.settings.save_typo_correction_mode(
+			TYPO_CORRECTION_MODE_VALUES[self.typoCorrectionModeList.GetSelection()]
+		)
+		self.settings.save_max_char_count(self.maxCharCountSpinCtrl.GetValue())
+		self.settings.save_auto_display_report(self.autoDisplayReportEnable.GetValue())
+		self.settings.save_customized_words_enable(self.customizedWordEnable.GetValue())
+		self.settings.save_sound_effects_enable(self.soundEffectsEnable.GetValue())
 
-		for ep in configManager.endpoints.keys():
-			if ep in self.accountTextCtrlMap:
-				config.conf["WordBridge"]["settings"]["api_key"][ep] = self.accountTextCtrlMap[ep].GetValue()
+		for group, control in self.accountTextCtrlMap.items():
+			self.settings.save_api_key(group, control.GetValue())
 
 		wx.CallAfter(lambda: start_coseeing_auth(selected_item.execution_channel, silent=False))
 
 	def onChangeProviderChoice(self, evt):
-		provider_index = self.providerList.GetSelection()
-		configManager.provider = configManager.provider_groups[provider_index]
+		self.selection.choose_provider_group(self.providerList.GetSelection())
 
 		self.Freeze()
 		# trigger a refresh of the settings
