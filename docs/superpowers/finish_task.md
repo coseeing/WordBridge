@@ -1,10 +1,10 @@
-# P1/P2 修正批次 — 完成報告
+# Corrector catalog 解耦 — 完成報告
 
-- **分支**：`p1-p2-fixes`
-- **Spec**：`docs/superpowers/specs/2026-09-21-p1-p2-fixes-design.md`
-- **Plan**：`docs/superpowers/plans/2026-09-21-p1-p2-fixes.md`
-- **執行方式**：Subagent-Driven Development。每個 task 由 implementation subagent（claude-sonnet-5, high）實作，再由獨立 review subagent（claude-opus-5, high）審閱；有發現就退回修正並重新審閱，直到 review 無 Critical/Important 為止。
-- **日期**：2026-09-21
+- **分支**：`catalog-decoupling`（自 `main` @ `0cc4da0` 開出，尚未合併）
+- **Spec**：`docs/superpowers/specs/2026-09-22-catalog-decoupling-design.md`
+- **Plan**：`docs/superpowers/plans/2026-09-22-catalog-decoupling.md`
+- **執行方式**：Subagent-Driven Development。每個 task 由 implementation subagent（claude-sonnet-5）實作，再由獨立 review subagent（claude-opus-5）審閱；有發現就退回修正並重新審閱，直到 review 沒有 Critical/Important 為止。全部 task 完成後再做一次整支分支的 whole-branch review。
+- **日期**：2026-09-22
 
 ---
 
@@ -12,140 +12,168 @@
 
 | 項目 | 執行前 | 執行後 |
 | --- | --- | --- |
-| 非整合測試 | 238 passed / **2 failed** / 1 skipped | **308 passed / 0 failed / 0 errors** / 1 skipped / 16 deselected |
-| 測試輸出 | — | pristine（無任何 warning） |
-| 附加元件封裝（壓縮後） | 37.34 MiB | **8.16 MiB**（−29.18 MiB） |
-| 附加元件封裝（未壓縮） | 54.57 MiB | **24.57 MiB**（−30.00 MiB） |
-| NVDA 啟動時解析 3.6MB CSV | 是 | 否（改為首次使用時延遲載入） |
+| 非整合測試 | 343 passed / 1 skipped / 16 deselected | **448 passed / 0 failed / 1 skipped / 16 deselected** |
+| 測試輸出 | — | pristine（無 warning） |
+| import 期讀取 `setting/` 檔案 | 有（`dialogs.py` 建 `ConfigManager`、讀 `ai/*.json`） | **無**（由 `tests/test_import_purity.py` 把關） |
+| import 期呼叫 `ctypes.windll` | 有（`dialogs.py:35`） | **無**（改為 lazy + guarded） |
+| 重複的 corrector id 會怎樣 | `ValueError`，整個附加元件在 import 時倒掉 | 記為 issue、保留第一筆，**永不拋例外** |
+| `configManager.py` | 201 行 | **20 行**（只留 `CorrectorTaskConfig` / `load_corrector_task_config`） |
+| 新增模型需要改的東西 | Python（`LABEL_DICT`）+ JSON | **只要 catalog 資料** |
+| 新安裝的預設選擇 | `deepseek-v4-flash&DeepSeek` | **`default`**（由 Coseeing 伺服器決定模型） |
 
-最終全分支審閱（claude-opus-5，14 個 commit、約 122KB diff，分三輪閱讀）判定為 **Ship**：**0 Critical、0 Important**。
-
----
-
-## 二、本次新增的 commit list
-
-依提交順序：
-
-| Commit | 主旨 |
-| --- | --- |
-| `be7886a` | fix: restore the traditional/simplified conversion in analyze_diff |
-| `7727266` | fix: stop using assert for flow control in the diff path |
-| `c264c0b` | fix: reproduce the old pinyin lookup exactly in _find_word_candidate |
-| `65f9a03` | fix: key the re-correction history by segment text |
-| `1cb3857` | fix: stop shadowing NVDA's translation function |
-| `9da4579` | test: cover the reachability fallback for all three modules |
-| `fbd4974` | fix: guard text-policy boundaries and clean up the entry point |
-| `42b1127` | fix: coerce non-Decimal cost before formatting, harden correction tests |
-| `449420d` | fix: align provider config filenames and drop residual config keys |
-| `108ca80` | perf: stop shipping and parsing non-runtime dictionary data |
-| `ef77785` | fix: exclude the report directories where showReport() actually writes |
-| `a4bb91e` | fix: exclude review/modules/, the last web/workspace/ depth showReport() writes |
-| `5b1e561` | fix: write correction reports to the user workspace |
-| `ae2c3c1` | fix: close review findings on T12 report-output extraction |
-
-共 14 個 commit（8 個 task commit + 6 個審閱修正 commit）。
+程式碼變動：24 個 commit、38 個檔案、+3718 / −482。
 
 ---
 
-## 三、各 Task 完成內容
+## 二、這批做了什麼
 
-### Task 1（T5）繁簡轉換標籤 — `be7886a`
-`analyze_diff()` 的兩行轉換呼叫在 2023 年 `f37a090` 被註解掉後從未還原，導致兩個轉換標籤永遠不會產生。還原 `to_simplified()` / `to_traditional()` 呼叫。標籤目前僅寫入報告 JSON，前端渲染屬於另一項功能決策，不在範圍內。
+新增一個**只依賴標準函式庫**的 `lib/catalog/` 套件，擁有一個不可變的 `CorrectorCatalog`，由一份平坦文件（`schema_version` / `providers` / `models` / `coseeings`）建成。`BundledCatalogSource` 負責把今天的 `setting/ai/*.json`、`setting/provider/*.json`、`setting/price.json` 攤平成那份文件；未來的 `RemoteCatalogSource` 只要產出同樣形狀，所有 consumer 都不用動。
 
-### Task 2（T6）移除 assert 流程控制 — `7727266`、`c264c0b`
-四個參與流程控制的 `assert` 全數移除（`-O` 會把 assert 整個剝除，行為不得依賴它們）。`is_chinese_character()` 對長度非 1 的字串回傳 `False`；`get_char_pinyin()` 改為驗證失敗即 `ValueError`；`create_single_char_mapping()` 改拋 `ValueError` 並帶出實際／上限 token 數。
-
-明確的行為變更（spec 唯一認可的一項）：`replace` 的任一側不是單一漢字時，保留原文且**不**加入 `typo_indices`——因為 `review_correction_errors()` 本來就會拒絕該替換，標記只會多花一輪 API 額度。
-
-審閱修正：新增 total helper `lookup_char_pinyin()`，讓 `prompt.py::_find_word_candidate` 取得與修改前**逐位元相同**的行為，同時保留 `get_char_pinyin()` 的嚴格契約。
-
-### Task 3（T4）重校正歷程改以文字為鍵 — `65f9a03`
-`recorrection_history` 只在第一輪建立並固定長度，之後每輪都會重新切段。段數變多時 `parallel_map` 的 `zip` 會截斷，尾端留下 `None` 造成 `AttributeError`；段數變少時不會報錯，但會把**別的段落**被拒絕的答案餵給模型。改為以段落文字為鍵，並讓 `parallel_map` 在長度不符時於送出任何工作**之前**拋 `ValueError`。
-
-### Task 4（T7）翻譯繫結與 gettext 擷取 — `1cb3857`、`9da4579`
-`lib/llm/provider.py`、`configManager.py`、`lib/llm/executor.py` 三處的 `_` 定義改為「只有在完全找不到 `_` 時才建立 fallback」，避免遮蔽。`executor.py` 的 `_(f"...")` 改為靜態字串加 `.format()`，讓 `xgettext` 能擷取。`tests/conftest.py` 的 `initTranslation` 改為實際安裝可辨識的 `_`。
-
-審閱修正：原本只有 `provider` 的 fallback 有測試覆蓋，`executor` 還原成舊寫法不會讓任何測試失敗；改為對三個模組參數化，並逐一在 scratchpad 還原驗證確實會失敗。
-
-### Task 5（T8）邊界防護與進入點清理 — `fbd4974`、`42b1127`
-`postprocess_output()` 三處未防護的 subscript 加上 guard（標點保留規則不變）；移除 worker 中不可達的 `raise e`；費用格式化的 bare `except: pass` 改為明確的例外清單，失敗時記錄原因並回報「費用無法取得」；一般流程訊息由 `log.warning` 降為 `log.info`。
-
-審閱修正（**使用者可見的退化**）：`decimal_to_str_0` 只接受 `Decimal`，而 Coseeing（預設通道）的 cost 來自 JSON 數字，導致每次校正都會顯示「費用無法取得」。改為在 `_report_cost` 內以 `Decimal(str(cost))` 統一轉換。
-
-### Task 6（T11）Provider 設定檔名與殘留設定 — `449420d`
-五個 provider JSON 改名為與 `Provider.name` 一致，移除大小寫不敏感的 glob fallback；移除 `coseeing_username` / `coseeing_password`；naming 測試改為由 catalog 推導期望值（原本寫死的清單正是 `ollama.json` 漂移的原因）。**本批次第一次達到 0 failed。**
-
-### Task 7（T9）資料搬遷與延遲載入 — `108ca80`、`ef77785`、`a4bb91e`
-30MB 的 XLSX（無任何讀取者）與兩個僅供 eval 使用的 CSV 移至 `workspace/data/`；`buildVars.excludedFiles` 補上副檔名樣式（CSV 刻意**不**排除，執行期字典就是 CSV）。`chinese_dictionary.py` 改為以 `threading.Lock` 雙重檢查的延遲載入，字典缺失時直接拋錯而非退化成空 mapping。
-
-審閱修正兩輪：`web/workspace/*` 這個樣式實際上排除不到任何東西（`Path.match()` 的 `*` 不跨路徑分隔符，而報告寫在更深一層），第一輪補的樣式又漏掉 `copytree` 產生的 `review/modules/`。最終以實跑 bundler 驗證：`showReport()` 產出 0 bytes 進入封裝（修正前為 246,686 bytes）。
-
-### Task 8（T12）報告輸出搬離安裝目錄 — `5b1e561`、`ae2c3c1`
-新增 `lib/paths.py`、`lib/report.py`；報告改寫到 `<user folder>/WordBridge-workspace/reports/<timestamp>-<rand>/`，靜態資源只佈署一次並以 `../modules/...` 相對引用；保留最近 10 份，且僅刪除符合命名樣式的目錄，retention 在新報告寫入**之後**才執行。
-
-審閱修正：retention 有機率刪掉剛剛產生的那份報告（60 次試驗中 12 次），以及 retention 失敗會讓使用者看不到已寫好的報告。
+- **驗證逐筆進行、永不致命**：壞的項目被跳過並記成 `CatalogIssue`，`build_catalog()` 一定回傳 catalog。
+- **降級階梯三級**：正常 / 降級（部分項目被丟棄）/ 空（改用內建 fallback，只有一個 id 為 `"default"` 的 Coseeing 項目）。fallback 走的是同一條 `build_catalog()`，不是第二條程式路徑。
+- **`"default"` sentinel 同時也是日常預設值**，不只是災難路徑——這樣「災難路徑」就是每天都被走過的路徑。
+- **`SettingsRepository`** 成為唯一接觸 `config.conf["WordBridge"]["settings"]` 的模組，`config.conf.spec` 的預設值因此可以變成靜態字串。
+- **`lib/llm` 不再讀檔**：`get_provider()` / `get_provider_model_adapter()` 改為必填的 keyword 注入。
+- **`ConfigManager` 與 `LABEL_DICT` 刪除**，catalog 由 `GlobalPlugin.__init__` 明確初始化。
 
 ---
 
-## 四、執行中做出的裁決（Rulings）
+## 三、Commit 清單（24 個，依時間順序）
 
-以下 9 項為 plan 與現況衝突、或 plan 本身有缺陷時所做的決定。**每一項都可以被推翻**，若判斷有誤請直接回退對應變更。
+| # | Commit | 說明 |
+| --- | --- | --- |
+| 1 | `9ffbf5a` | feat: add the corrector catalog data model and document validation |
+| 2 | `4a30a57` | fix: never raise from build_catalog on malformed models, coseeings, or providers |
+| 3 | `5531d34` | feat: flatten the shipped setting tree into a catalog document |
+| 4 | `6d0defa` | fix: guard BundledCatalogSource against non-mapping JSON, pin group labels to the legacy oracle |
+| 5 | `8b32bd5` | feat: add selection state, catalog fallback and the registry |
+| 6 | `2883922` | fix: load_catalog exception safety and normalize_selection active-filtering |
+| 7 | `87dedc3` | feat: inject provider and price entries instead of reading files |
+| 8 | `9dbecce` | fix: match test_eval_provider_config.py's 4-space indentation |
+| 9 | `bda135f` | feat: put every WordBridge setting behind one repository |
+| 10 | `a2a6aa1` | fix: make the os-language probe tests actually falsifiable |
+| 11 | `6d97ec3` | refactor: initialise the catalog explicitly instead of at import |
+| 12 | `92446e2` | fix: total-catch the corrupt task config path and notify the user |
+| 13 | `85db49e` | test: pin the GlobalPlugin.__init__ self._shutdown reorder |
+| 14 | `d3e747c` | feat: ship the Coseeing default sentinel and drop the orphan provider |
+| 15 | `06178ae` | test: cover the degraded-catalog announcement and its __init__ wiring |
+| 16 | `d5e2da8` | test: prove the catalog source seam without implementing HTTP |
+| 17 | `63d5503` | docs: record the catalog-decoupling completion report |
+| 18 | `796b73b` | fix: make settings_repository's catalog import relative and gate it |
+| 19 | `d9aa57c` | fix: close two containment holes in the catalog source seam |
+| 20 | `30a6f45` | fix: surface catalog issues and provider/sentinel labels in the settings panel |
+| 21 | `cacc685` | fix: three worker-thread robustness minors in correctTypo() |
+| 22 | `5df2fb7` | chore: clean up remaining folded-in minors from the whole-branch review |
+| 23 | `26beaa8` | fix: panel catalog-issue summary no longer flags lint-only issues |
+| 24 | `fe38f06` | test: assert the import-purity file scan is non-empty |
 
-1. **Task 2 — `prompt.py` 納入範圍**：brief 的檔案清單漏掉 `_find_word_candidate`，它是 `get_char_pinyin()` 的第二個呼叫端，新的 `ValueError` 契約會讓既有測試失敗。*代價*：該 commit 多動一個檔案。
-2. **Task 2 — 推翻我自己前一項裁決**：我原本判定以「完全相等」比對非漢字可保持行為不變，審閱者實測推翻——`a`、`e`、`o`、`n`、`q` 本身就是合法拼音，8 個漢字的拼音集合含單一 ASCII 字母。改為抽出 total helper 完整重現舊查詢。*代價*：`utils.py` 多一個小 helper。
-3. **Task 3 — 修正 plan 的測試資料**：6 個測試中有 3 個根本跑不起來（迭代器提前耗盡、斷言自相矛盾）。*代價*：兩個測試多一輪 no-op，一個測試改為斷言 1 段而非 2 段初始切分。
-4. **Task 4 — 統一 commit 的 Co-Authored-By trailer**：subagent 用了自己的模型名稱，我在 controller 內 amend（分支無 upstream）。*代價*：一個未推送 commit 的 SHA 改變。
-5. **Task 5 — cost 轉換位置**：在 `_report_cost` 內轉換，而非呼叫端。*代價*：原本不做轉換的路徑多一次轉換。
-6. **Task 6 — SSO port 以產品值為準**：測試期望 8765、產品為 8000。依 git 歷史裁定（`b8ed80e` 出生時是 8765，`8ef7822` 刻意改為 8000，測試從未跟上）；且 8000 已隨多個版本出貨，若與 SSO 註冊值不符，登入早該壞掉。**改測試，不動產品。** *代價*：若判斷有誤，測試會釘住錯誤的 port——但改產品才是真正危險的選項。
-7. **Task 7 — 以 stub 取代安裝 SCons**：`buildVars.py` 會連鎖 import SCons，本機沒有。選擇在測試內 stub 並還原，而非安裝套件或改動 build tool。*代價*：測試比 plan 多四行 stub，但讀的仍是真實的 `excludedFiles`。
-8. **Task 7 — 修正而非擱置 `web/workspace` 排除樣式**：即使 Task 8 會移除寫入端，spec 對該樣式的用途是「防止曾執行過舊版的開發機把自己的報告打包進去」，而那正是 Task 8 修不到的情境。*代價*：Task 8 之後多兩個匹配不到東西的樣式。
-9. **Task 8 — spec 覆蓋 plan 指定的測試**：plan 的 `test_retention_runs_after_the_new_report_is_written` 斷言 `pytest.raises(OSError)`，與 spec 的「刪除失敗只記錄、不中止產生報告」正好相反。依 spec 改寫。*代價*：retention 失敗變成 log 而非使用者可見錯誤——這正是 spec 要的。
-
-### 一項需要更正的紀錄
-
-最終審閱指出我在擱置 `decimalUtils` 缺陷時的**理由有誤**：我寫的是「它是共用工具，`decimal_to_str_10/12` 是其 sibling 的 partial，動它有風險」。實測結果是 `decimal_to_str_0` **只有一個 production 呼叫端**（`__init__.py:217`，本批次自己寫的），而 `decimal_to_str_10/12` 沒有任何 production 呼叫端。**擱置這個決定本身仍然正確**（實際單次費用遠低於 1 美元），但後續處理的成本遠比我當時記錄的低。
-
----
-
-## 五、待辦：建議的後續任務
-
-最終審閱將全部 27 項 deferred minors 判定為 follow-up，無一需在合併前處理。以下依價值排序：
-
-1. **`lib/text/chinese.py:17-27` 區間表逸出字元錯誤**（最高價值）。八個條目被解析成「BMP 逸出字元 + 字面數字」。雙向都有問題：**47,418** 個星形平面 CJK 碼位被判為非漢字，且 **4,290 個 BMP 字元被誤判為漢字**——包含全部平假名與片假名、CJK 部首、以及 `‘ ’ … → ─ ■ ☃` 等符號。後者代表 `review_correction_errors` 會把假名互換當成合法的漢字修正接受。此缺陷為既有問題，Task 2 未改變它，但讓 `is_chinese_character` 成為兩項政策的唯一閘門。
-2. **T7 的前提可能是錯的**（`lib/llm/provider.py:16` 等四處註解）。審閱者指出 NVDA 的 `addonHandler.initTranslation()` 慣例是綁進**呼叫模組的 globals**，而非 builtins；builtins 的 `_` 是 NVDA core 自己的 catalog。佐證：本附加元件自帶 `addon/locale/*/LC_MESSAGES/nvda.po`，其 msgid 不存在於 NVDA core catalog。**出貨的程式碼在兩種模型下都正確**，但註解若誤導後人刪掉 `initTranslation()` 呼叫，字串會靜默綁到錯誤的 catalog。建議在既定的 [manual] 繁中 NVDA 驗證時一併確認，再修正四處註解。
-3. **`lib/viewHTML.py:5,7` 的無用 `import addonHandler`**。實測該模組從未使用 `_`；刪掉這三行，`lib/report.py` 才真正符合 spec 宣稱的「不 import NVDA」。
-4. **`site_scons/site_tools/NVDATool/addon.py:9` 改用 `full_match()`**（3.13+）。這是 `buildVars.py` 必須逐層列舉路徑的根因；改掉之後單一 `web/workspace/*` 即可涵蓋所有深度。
-5. **`lib/decimalUtils.py:30`**：≥10 且 `str()` 含小數點的值會被截斷（`Decimal('10.0')` → `"1"`），且 `Decimal('5E-7')` → `"5E-7"` 與自身 docstring 矛盾。單一呼叫端，修正成本低。
-6. **測試覆蓋缺口**：`showReport()` 新的錯誤分支與 `OnPreview` 交接完全沒有測試；`_provision_modules` 的「安裝目錄檔案較新時重新複製」路徑（即升級情境）沒有測試；`tests/test_addon_bundle_contents.py:97` 的 `.xlsx` 斷言目前是恆真的（`addon/` 下已無任何 `.xlsx`），而 spec 預期該檔案將被未來的 CI 任務原封不動採用。
-
----
-
-## 六、待人工驗證項目（[manual]）
-
-本機為 Linux，以下需由維護者在 Windows/NVDA 環境確認：
-
-- 升級仍持有 `coseeing_username` / `coseeing_password` 的 NVDA 設定檔
-- 實際瀏覽器中的報告產生、資源載入與鍵盤導覽
-- NVDA 啟動時不再讀取 3.6MB CSV（於 Windows 量測）
-- 繁體中文 NVDA 下 provider 與 executor 訊息確實有翻譯
-- `scons pot` 重新產生，確認 executor 的解析錯誤字串有被擷取（本機無 `scons`）
-- 確認 `https://sso.coseeing.org` 註冊的 redirect URI 確為 port 8000
+Task 對應：1–2 → Task 1；3–4 → Task 2；5–6 → Task 3；7–8 → Task 4；9–10 → Task 5；11–13 → Task 6；14–15 → Task 7；16–17 → Task 8；18–24 → whole-branch review 的修正。
 
 ---
 
-## 七、審閱過程中攔截到的實質問題
+## 四、Review 抓到、值得你知道的問題
 
-記錄於此，作為此流程價值的佐證——以下每一項都通過了實作者的自我審閱，但被獨立審閱擋下：
+八個 task 各自通過 review，但**真正嚴重的一個是整支分支 review 才看到的**。
 
-- Task 2：`get_char_pinyin()` 的新契約會讓 `prompt.py` 在使用者自訂詞彙比對時當掉（17 個既有測試失敗）。
-- Task 2：我自己的「完全相等」裁決被實測推翻（8 個漢字 + 276 個星形平面字元的行為改變）。
-- Task 3：plan 的 6 個測試中有 3 個無法執行。
-- Task 4：`executor` 的 fallback 完全沒有測試覆蓋——還原成舊寫法不會讓任何測試失敗。
-- Task 5：**使用者可見的退化**——預設通道每次校正都會顯示「費用無法取得」。
-- Task 5：測試工具把 `decimal_to_str_0` 換成 `str()`，等於原測試從未跑到真正的函式（正是上一項漏網的原因）。
-- Task 6：`client_id` 修好後，同一個測試還有第二個過期期望（port）被遮蔽。
-- Task 7：`buildVars.py` 會連鎖 import SCons，plan 的測試片段無法執行。
-- Task 7：`web/workspace/*` 樣式實際排除不到任何東西；第一輪修正又漏掉深一層的 `review/modules/`（246,686 bytes）。
-- Task 8：retention 有機率刪掉剛產生的報告（60 次中 12 次）。
-- Task 8：retention 失敗會讓使用者看不到已成功寫入的報告。
-- 另有 7 項實作者「已驗證、未發現反例」的宣稱被審閱者實測推翻。
+### 1. Critical — 附加元件在 NVDA 下根本載入不了（`796b73b` 修正）
+
+`settings_repository.py` 用了絕對 import `from lib.catalog.selection import ...`，是整個附加元件裡唯一一處絕對內部 import。它之所以在測試裡能通過，是因為 `tests/conftest.py` 把附加元件目錄放上 `sys.path`；而 NVDA 載入時是以 `globalPlugins.WordBridge` 這個 package 形式載入，那個目錄**不在** `sys.path`，`lib/vendor.py` 也刻意從不動 `sys.path`。由於 `__init__.py` 與 `dialogs.py` 都在 module scope import 它，這是**整個附加元件的載入失敗**。
+
+它在 Task 5 引入，八個 task-scoped gate 全部看不到，因為每個 gate 都照 `conftest.py` 的方式 bootstrap。缺的那道閘門（production 形狀的 import：以 package 方式載入、附加元件目錄不在 `sys.path`）已補上，另加一個 AST 掃描禁止任何內部絕對 import。
+
+**這是這批最重要的流程教訓**：測試環境的 `sys.path` 比正式環境寬鬆，所以「測試全綠」無法證明能載入。
+
+### 2. Important — spec 要求的面板 issue 摘要行從未實作（`30a6f45`、`26beaa8`）
+
+spec 的 Visibility 段落列了三個管道：完整 log、**設定面板摘要行**、每 session 一次的語音公告。只有兩個存在，plan 也沒提到，所以沒有任何 task 負責。由於 `catalog.degraded` 只在「空」那一級為 True，降級階梯的第 2 級（唯一真的會發生的一級——「空」需要整棵樹都讀不到）對使用者**完全無聲**：一個壞掉的 `setting/ai/Google-*.json` 會默默從視障使用者的下拉選單移除一個模型，只在 NVDA log 留一行。
+
+補上之後又發現它反過來製造了假警報（見第 6 點）。
+
+### 3. Important — `ProviderEntry.label` 是 schema 必填卻無人讀取（`30a6f45`）
+
+`document.py` 會拒絕沒有 `label` 的 provider 項目，但面板一直用原始的 provider key 當顯示文字。也就是 acceptance 6（「新增模型只要改資料，連 label 都不用改 Python」）對 model 成立、對 provider 不成立：遠端 payload 改不了 provider 的顯示名稱。已改為透過 `ProviderEntry.label` 渲染（`Coseeing` group 沒有 provider 項目，走原名 fallback）。今天畫面上的文字完全沒變，因為 Task 2 的 oracle 測試證明過每個出貨 provider 的 label 都等於它的 key。
+
+### 4. Important — sentinel 標籤未翻譯，而它是每個新安裝的預設值（`30a6f45`）
+
+`SENTINEL_LABEL = "Coseeing default"`。其他所有 catalog label 都是模型或品牌名的恆等翻譯，「不翻譯」沒有成本；這一個是英文句子片段，而且是**每個新 zh 使用者**在模型下拉選單裡聽到的第一個選項。已改為由面板以 `corrector_config_id` 為 key 做翻譯（對映留在 client 端，因此不會打開 spec 防守的「遠端 payload 改寫介面用字」那扇門）。catalog 資料維持純資料。
+
+**注意**：這只是讓它「可翻譯」。實際文字在 `.po` 重新產生前仍是英文（見第五節）。
+
+### 5. Important × 3 — 三次「測試全綠掩蓋壞掉的路徑」
+
+這是這批反覆出現的失效模式，每次都由 reviewer 用實測證明（把那幾行刪掉、測試依然全綠）：
+
+- 損壞的 `corrector.json` 仍會讓 plugin init 崩潰——fallback 的 `except` 漏接 `TypeError`（頂層是 array / string / number / null 時）。同時 spec 要求的「使用者可見訊息」只做了 log 那一半。
+- `__init__` 若不再設定 `self.settings` / `self.correctorTaskConfig` / `self.catalog`，整組測試仍全綠，而正式路徑會在 worker thread 丟 `AttributeError`——因為七處測試夾具用 `object.__new__` 手動塞了這些屬性。
+- 修正上一項所依賴的 `self._shutdown` 重排，本身沒有任何測試釘住；把它改回原位，91 個測試依然全綠而真實建構路徑會再次崩潰。
+
+### 6. Important — 我的修正自己製造的回歸（`26beaa8`）
+
+補上第 2 點的面板摘要行之後，它在**每個健康安裝**上都會朗讀「1 catalog entries could not be loaded」。原因是出貨 catalog 永遠帶著一個 lint 級 issue（`unreferenced_provider: OpenRouter`，`setting/provider/OpenRouter.json` 沒有任何 `ai/*.json` 指向它），但 `degraded=False`、15 個項目全部可選——什麼都沒有載入失敗。在螢幕閱讀器產品裡，這是每次開設定都會被唸出來的**不實常駐警報**，反而摧毀了這個需求本來要建立的訊號價值。
+
+已改為只計算**真正被丟棄**的項目（spec 的驗證表本身就把 `unreferenced_provider` 標為「Legal. Lint-level issue only.」），log 仍保留全部 issue，並修正單複數文法。
+
+---
+
+## 五、尚未完成、需要人工處理的事
+
+### 1. 翻譯檔（沒有 `scons`，此環境無法執行）
+
+**更正一個常見誤解：這個 repo 裡沒有 `.pot` 檔**。實際存在的是三個已簽入的 `.po`：`addon/locale/{zh_CN,zh_HK,zh_TW}/LC_MESSAGES/nvda.po`。需要處理的是重新產生／合併這三個檔案。
+
+需要補進去的新 msgid（請照字面 grep）：
+
+- `"The bundled correction settings file is damaged; WordBridge is using its built-in defaults."`
+- `"The model list could not be loaded. Coseeing will choose a model for you."`
+- 面板的 catalog issue 摘要行（單數與複數兩個形式）
+- `"Coseeing default"`（sentinel 標籤，第四節第 4 點）
+
+**另外請注意**：這三個 `.po` 檔**在這批之前就已經**缺了至少十個 `__init__.py` 的使用者可見字串（例如 `"This task's cost is unavailable."`、`"The correction report could not be generated."`、`"Only one proofreading task can run at a time..."`）。所以重新合併不是「只加四五條」，而是一次補齊。
+
+同時，model 與 provider 的顯示名稱**離開**了翻譯檔（它們現在是 catalog 資料）。這不是退步：我已逐一確認三個 `.po` 裡那些 msgid 全都是恆等翻譯（`msgid "Anthropic"` / `msgstr "Anthropic"`，`gemini-3.1-pro-preview` → `gemini-3.1-pro` 是改名而非翻譯）。
+
+### 2. Windows / NVDA 實機驗證（這批完全沒做）
+
+設定面板的 wx 接線只被 stub 覆蓋。建議照這個腳本手動走一遍：
+
+1. 開設定面板；切換 provider group，確認模型清單重置到第一項；存檔；重開確認選擇留存。
+2. 弄壞一個 `setting/ai/*.json`，確認**只有**那個模型消失、面板仍可開啟、且出現 issue 摘要行。
+3. 清空 `setting/ai/`，確認面板只剩 `"Coseeing default"`，且第一次校正時公告一次（只有一次）。
+4. 把 `setting/task/corrector.json` 改成 `null`，確認附加元件仍載入並唸出「內建預設值」訊息。
+
+### 3. Coseeing 伺服器的外部契約
+
+選 `"default"` 跑一次真實校正，確認伺服器接受這個裸 sentinel id。這是本 repo 任何測試都無法涵蓋的唯一外部契約（`server/` 目錄是空的）。
+
+### 4. 需要你決定的 spec 矛盾（我刻意沒有動程式）
+
+spec 說未來的 `RemoteCatalogSource` 是「`sources.py` 裡的一個新 class，consumer 不用改」。但 `lib/catalog` 的純標準庫規則（由 AST 測試把關）禁止 `requests` / `_wb_vendor`，而附加元件的 HTTP 是 vendored `requests`。
+
+seam 本身沒問題——`load_catalog` 是 duck-typed，只透過 `source.load()` 接觸 source，所以 remote source 可以放在 `lib/catalog` **外面**而完全不動任何 consumer。但 spec 那句具體承諾照字面無法實現。這批的成本正是由那個未來證成的，所以值得你明確決定並寫回 spec：是放寬白名單、還是把 remote source 放在 `lib/catalog` 外。
+
+### 5. 一個向後相容的細節，值得寫進 release note
+
+acceptance 5 說「既有使用者的既存選擇不受影響」。對**曾經按過設定面板確定鍵**的人來說是對的。但從未按過的既有使用者沒有存過 `corrector_config_id`，空值現在會解析到 sentinel——他們會從 `deepseek-v4-flash&DeepSeek`（舊的 spec 預設）變成「由伺服器選模型」。同一個 channel、不同的模型。這是 spec decision 5 的本意，但範圍比「新安裝」更廣，而 spec 的 Risk 段與前一版完成報告都是用「新安裝」在描述它。
+
+---
+
+## 六、驗收條件逐條核對
+
+| # | 條件 | 結果 |
+| --- | --- | --- |
+| 1 | import 期不讀 `setting/`、不呼叫 `windll` | ✅ `tests/test_import_purity.py`（audit hook 在 import 前安裝、路徑已正規化反斜線，所以在 Windows 上不會變成空測試） |
+| 2 | 空的 `ai/` 仍能載入、開面板、提供 `"default"` | ✅ 資料層已驗（輸出 `True ['default']`）；「面板真的能開」僅以資料流推論，**未在真實 wx/NVDA 下開過**（見第五節） |
+| 3 | 單一壞檔只移除那一筆 | ✅ 測試 + 對真實 `setting/` 複本的端到端檢查（15→14） |
+| 4 | 出貨 catalog 選項與改動前相同，外加 sentinel | ⚠️ 無法用「現在可執行」的 oracle 證明——五個以 `ConfigManager` 為 oracle 的特徵化測試在 Task 6 隨 `ConfigManager` 一起刪除（我的裁定）。證據是它們刪除前確實全綠（Task 8 以暫時 worktree checkout `a2a6aa1` 重跑確認），加上現存的精確值測試 |
+| 5 | `"default"` 是新安裝預設、既存選擇不動 | ✅ 但範圍比字面更廣，見第五節第 5 點 |
+| 6 | 新增模型只需改資料 | ✅ 由 seam 測試直接證明（model 與 provider 皆成立，後者是第四節第 3 點修好的） |
+| 7 | `lib/catalog` 只依賴標準函式庫 | ✅ AST 掃描（走語法樹，不是執行期觀察，所以「剛好沒執行到」的 import 也躲不過） |
+| 8 | 非整合測試全綠 | ✅ 448 passed / 1 skipped / 16 deselected |
+
+---
+
+## 七、給下一批的流程建議
+
+1. **加一個 production 形狀的 import 閘門**，而且從第一個 task 就加。本批唯一的 Critical 就是靠它才抓到，而它在測試環境裡隱形了四個 task。
+2. **「刪掉這幾行、測試是否仍全綠」應該成為 reviewer 的標準動作**。這批三次靠它抓到綠燈掩蓋的壞路徑，一次抓到我自己修正造成的回歸。
+3. **plan 直接給 verbatim 程式碼時，reviewer 要對照 spec 而不是對照 plan**。本批有四處 plan 給的程式碼違反 spec 的約束（`build_catalog` 會拋例外、`normalize_selection` 掉了 `active` 檢查、`import dialogs` 根本不能執行、`max_char_count` 夾值會掉失）。
