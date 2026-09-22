@@ -40,7 +40,7 @@ class CorrectorCatalogTests(unittest.TestCase):
 		self.assertEqual(
 			shipped_catalog().default_selection(),
 			(
-				"deepseek-v4-flash&DeepSeek",
+				"default",
 				"Coseeing",
 			),
 		)

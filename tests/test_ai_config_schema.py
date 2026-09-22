@@ -10,23 +10,32 @@ LLM_MODELS_PATH = SETTING_DIR / "price.json"
 
 
 def test_ai_configs_use_endpoint_only_schema():
-	required_keys = {"model", "provider", "coseeing"}
-	allowed_keys = required_keys | {"active"}
+	allowed_keys = {"model", "provider", "coseeing", "active"}
 	ai_paths = sorted(AI_CONFIG_DIR.glob("*.json"))
 
-	assert len(ai_paths) == 13
+	assert len(ai_paths) == 14
+	coseeing_only = 0
 	for path in ai_paths:
 		with path.open("r", encoding="utf-8") as f:
 			config = json.load(f)
 
-		assert required_keys <= set(config.keys()) <= allowed_keys, path.name
+		assert set(config.keys()) <= allowed_keys, path.name
 		assert "template_name" not in config, path.name
 		assert "optional_guidance_enable" not in config, path.name
 		if "active" in config:
 			assert isinstance(config["active"], bool), path.name
 		assert isinstance(config["model"], str) and config["model"], path.name
-		assert isinstance(config["provider"], str) and config["provider"], path.name
 		assert isinstance(config["coseeing"], bool), path.name
+		if "provider" in config:
+			assert isinstance(config["provider"], str) and config["provider"], path.name
+		else:
+			# No provider means no local offer: the Coseeing server serves it
+			# on its own. Exactly one shipped entry is like this.
+			coseeing_only += 1
+			assert config["coseeing"] is True, path.name
+			assert config["model"] == "default", path.name
+
+	assert coseeing_only == 1
 
 
 def test_ai_catalog_uses_unique_model_provider_pairs():
@@ -36,13 +45,18 @@ def test_ai_catalog_uses_unique_model_provider_pairs():
 		with path.open("r", encoding="utf-8") as f:
 			config = json.load(f)
 
-		pair = (config["model"], config["provider"])
+		pair = (config["model"], config.get("provider"))
 		assert pair not in seen_pairs, path.name
 		seen_pairs.add(pair)
 
 
 def test_ai_catalog_has_no_duplicate_coseeing_files():
-	assert not list(AI_CONFIG_DIR.glob("Coseeing-*.json"))
+	# The one legitimate exception is the shipped sentinel, whose name has to
+	# sort first among "ai/*.json" for BundledCatalogSource to pick it as the
+	# default. Anything else matching this glob would be a duplicate.
+	assert list(AI_CONFIG_DIR.glob("Coseeing-*.json")) == [
+		AI_CONFIG_DIR / "Coseeing-00000-default.json",
+	]
 
 
 def test_corrector_task_config_is_the_only_prompt_setting_file():
@@ -83,7 +97,7 @@ def test_provider_catalogs_preserve_approved_and_unaffected_models():
 	for path in AI_CONFIG_DIR.glob("*.json"):
 		with path.open("r", encoding="utf-8") as f:
 			config = json.load(f)
-		if config["provider"] in ai_models:
+		if config.get("provider") in ai_models:
 			ai_models[config["provider"]].add(config["model"])
 
 	assert price_models == expected

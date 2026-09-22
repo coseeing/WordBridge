@@ -33,6 +33,9 @@ def _instance(plugin_module):
 	# it here the AttributeError would be swallowed by terminate()'s own
 	# never-raise guard, hiding any real failure in the same step.
 	instance._progress_cue = None
+	# correctTypo() now also reads self.catalog / self._degraded_catalog_announced.
+	instance.catalog = plugin_module.catalog
+	instance._degraded_catalog_announced = False
 	return instance
 
 

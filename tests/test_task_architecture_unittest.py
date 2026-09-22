@@ -72,6 +72,9 @@ class TaskArchitectureTests(unittest.TestCase):
 			instance.settings = plugin.SettingsRepository(
 				nvda_stubs.config.conf["WordBridge"]["settings"], plugin.registry.current
 			)
+			# correctTypo() now also reads self.catalog / self._degraded_catalog_announced.
+			instance.catalog = catalog
+			instance._degraded_catalog_announced = False
 
 			instance.correctorTaskConfig = instance._load_corrector_task_config()
 			self.assertEqual(

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from .document import SCHEMA_VERSION
+from .fallback import SENTINEL_ID, SENTINEL_LABEL
 from .model import CatalogIssue
 
 
@@ -10,6 +11,9 @@ from .model import CatalogIssue
 # rename. lib/catalog cannot reach NVDA's translation builtin, and a model
 # name is not translatable content.
 BUNDLED_LABELS = {
+	# The shipped sentinel ai/*.json carries no label of its own (the ai/*.json
+	# schema forbids one), so it must be supplied here like every other entry.
+	SENTINEL_ID: SENTINEL_LABEL,
 	"Anthropic": "Anthropic",
 	"Coseeing": "Coseeing",
 	"DeepSeek": "DeepSeek",

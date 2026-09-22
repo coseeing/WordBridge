@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from lib.catalog.document import SCHEMA_VERSION, build_catalog
+from lib.catalog.model import COSEEING_GROUP
 from lib.catalog.sources import BUNDLED_LABELS, BundledCatalogSource
 
 
@@ -44,19 +45,34 @@ def test_every_provider_entry_matches_its_json_file():
 		assert entry.label == BUNDLED_LABELS.get(path.stem, path.stem)
 
 
-def test_the_shipped_data_produces_only_the_known_lint_issues():
-	# OpenRouter.json is named by no ai config. Coseeing.json is removed in a
-	# later task; until then it is unreferenced too.
+def test_the_shipped_data_produces_only_the_known_lint_issue():
 	catalog = shipped_catalog()
 
-	assert sorted(issue.code for issue in catalog.issues) == [
-		"unreferenced_provider",
-		"unreferenced_provider",
+	assert [(issue.code, issue.location) for issue in catalog.issues] == [
+		("unreferenced_provider", "providers.OpenRouter"),
 	]
-	assert sorted(issue.location for issue in catalog.issues) == [
-		"providers.Coseeing",
-		"providers.OpenRouter",
-	]
+
+
+def test_the_sentinel_is_offered_on_the_coseeing_channel_only():
+	catalog = shipped_catalog()
+
+	assert catalog.get_coseeing("default") is not None
+	assert catalog.get_model("default") is None
+
+
+def test_the_sentinel_is_the_shipped_default_selection():
+	assert shipped_catalog().default_selection() == ("default", COSEEING_GROUP)
+
+
+def test_the_sentinel_matches_the_fallback_entry():
+	from lib.catalog.fallback import FALLBACK_DOCUMENT, SENTINEL_ID, SENTINEL_LABEL
+
+	entry = shipped_catalog().get_coseeing(SENTINEL_ID)
+	assert (entry.model, entry.label, entry.provider) == (
+		FALLBACK_DOCUMENT["coseeings"][0]["model"],
+		SENTINEL_LABEL,
+		None,
+	)
 
 
 def test_an_ai_file_without_a_provider_becomes_a_coseeing_only_entry(tmp_path):

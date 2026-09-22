@@ -436,6 +436,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			customized_words = [row["text"] for row in self.readDictionary()]
 		else:
 			customized_words = []
+		if self.catalog.degraded and not self._degraded_catalog_announced:
+			self._degraded_catalog_announced = True
+			self._notify(_("The model list could not be loaded. Coseeing will choose a model for you."))
 		if execution_channel == "local":
 			model_entry = catalog.get_model(corrector_config_id)
 			provider_entry = catalog.get_provider(model_entry.provider)

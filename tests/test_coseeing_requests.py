@@ -46,6 +46,9 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 	instance.latest_action = plugin_module.CorrectionAction()
 	instance.readDictionary = lambda: []
 	instance._shutdown = threading.Event()
+	# correctTypo() now also reads self.catalog / self._degraded_catalog_announced.
+	instance.catalog = plugin_module.catalog
+	instance._degraded_catalog_announced = False
 	future = Future()
 	future.set_result(access_token)
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
@@ -108,6 +111,9 @@ def test_proofreader_auth_failure_skips_post_and_queues_ui_notification(monkeypa
 	instance.latest_action = plugin_module.CorrectionAction()
 	instance.readDictionary = lambda: []
 	instance._shutdown = threading.Event()
+	# correctTypo() now also reads self.catalog / self._degraded_catalog_announced.
+	instance.catalog = plugin_module.catalog
+	instance._degraded_catalog_announced = False
 	future = Future()
 	future.set_exception(RuntimeError("auth failed"))
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
@@ -146,6 +152,9 @@ def test_proofreader_termination_before_worker_request_skips_post_and_ui(monkeyp
 	instance.latest_action = plugin_module.CorrectionAction()
 	instance.readDictionary = lambda: []
 	instance._shutdown = threading.Event()
+	# correctTypo() now also reads self.catalog / self._degraded_catalog_announced.
+	instance.catalog = plugin_module.catalog
+	instance._degraded_catalog_announced = False
 	instance._shutdown.set()
 	future = Future()
 	future.set_result("access")
@@ -180,6 +189,9 @@ def test_proofreader_failures_use_stable_notification(monkeypatch, failure):
 	instance.latest_action = plugin_module.CorrectionAction()
 	instance.readDictionary = lambda: []
 	instance._shutdown = threading.Event()
+	# correctTypo() now also reads self.catalog / self._degraded_catalog_announced.
+	instance.catalog = plugin_module.catalog
+	instance._degraded_catalog_announced = False
 	future = Future()
 	future.set_result("access")
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
