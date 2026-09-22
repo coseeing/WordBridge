@@ -302,6 +302,22 @@ def test_global_plugin_starts_normalized_coseeing_auth_and_guards_queued_callbac
 	assert config.conf["WordBridge"]["settings"]["execution_channel"] == "Coseeing"
 
 
+_SHADOW_WARNING = "WordBridge: vendored packages not shadowed under their canonical names"
+
+
+def _without_shadow_warning(warnings):
+	"""Drop the shadow warning these tests always provoke.
+
+	`install_shadowed()` finds no Windows runtime bundle on this host, so it
+	stands down and `__init__.py` says so at load. That is correct behaviour
+	off-Windows, and orthogonal to what the auth-reason tests below assert --
+	but it is asserted in its own right by
+	`test_plugin_load_warns_when_nothing_can_be_shadowed`, so filtering it here
+	cannot hide its disappearance.
+	"""
+	return [warning for warning in warnings if _SHADOW_WARNING not in str(warning)]
+
+
 def test_plugin_load_logs_the_unavailable_auth_reason(monkeypatch):
 	"""Carried item (a)/(b): __init__.py must log coseeing_auth's unavailable
 	reason at plugin load when AUTH_AVAILABLE is False, using only the reason
@@ -321,7 +337,7 @@ def test_plugin_load_logs_the_unavailable_auth_reason(monkeypatch):
 		auth_available=False, log_warnings=warnings,
 	)
 
-	assert warnings == [_STUB_UNAVAILABLE_REASON]
+	assert _without_shadow_warning(warnings) == [_STUB_UNAVAILABLE_REASON]
 
 
 def test_plugin_load_does_not_log_when_auth_is_available(monkeypatch):
@@ -339,7 +355,26 @@ def test_plugin_load_does_not_log_when_auth_is_available(monkeypatch):
 		auth_available=True, log_warnings=warnings,
 	)
 
-	assert warnings == []
+	assert _without_shadow_warning(warnings) == []
+
+
+def test_plugin_load_warns_when_nothing_can_be_shadowed(monkeypatch):
+	"""The shadow standing down is what breaks Coseeing login, and it is
+	otherwise silent -- the only later evidence is a TypeError deep inside
+	PyJWT. Loading on a host with no runtime bundle must say so at load.
+	"""
+	warnings = []
+	settings = {
+		"corrector_config_id": "gemini-3.1-pro-preview&Google",
+		"execution_channel": "local",
+		"api_key": {},
+	}
+
+	_load_nvda_plugin(monkeypatch, settings, [], [], log_warnings=warnings)
+
+	assert [w for w in warnings if _SHADOW_WARNING in str(w)] == [
+		_SHADOW_WARNING + ": %s -- Coseeing authentication will not work on this runtime",
+	]
 
 
 def test_settings_save_preserves_coseeing_refresh_token_and_starts_selected_channel(monkeypatch):

@@ -14,6 +14,17 @@ PACKAGE_PATH = os.path.join(PATH, "package")
 from .lib import vendor
 
 vendor.install(vendor.default_roots(PACKAGE_PATH))
+# cryptography cannot live behind the prefix -- its Rust extension resolves
+# Python types by absolute module name -- so it is shadowed under its canonical
+# name instead.  This must run before anything imports it, directly or through
+# _wb_vendor.jwt / _wb_vendor.joserfc.  See SHADOWED in lib/vendor.py.
+try:
+	_SHADOWED, _SHADOW_EVICTED, _SHADOW_SKIPPED = vendor.install_shadowed(
+		vendor.default_roots(PACKAGE_PATH)
+	)
+except Exception as _shadow_install_error:
+	_SHADOWED, _SHADOW_EVICTED = [], []
+	_SHADOW_SKIPPED = [f"install_shadowed: {type(_shadow_install_error).__name__}"]
 # install_stdlib_gapfill() no longer raises (spec:270), but a defensive guard
 # stays here too: it is called before `log` exists (see below), so a failure
 # recorded in _STDLIB_GAPFILL_FAILURES is logged once the NVDA log module is
@@ -72,6 +83,18 @@ ADDON_SUMMARY = "WordBridge"
 # the message would not be actionable.
 if not coseeing_auth.AUTH_AVAILABLE:
 	log.warning(coseeing_auth.unavailable_reason())
+
+# The shadow is what keeps Coseeing login working, and when it stands down it
+# does so silently -- so say so once, at load, rather than leaving a later
+# TypeError deep in PyJWT as the only evidence.
+if _SHADOW_SKIPPED:
+	log.warning(
+		"WordBridge: vendored packages not shadowed under their canonical names: %s"
+		" -- Coseeing authentication will not work on this runtime",
+		", ".join(_SHADOW_SKIPPED),
+	)
+elif _SHADOW_EVICTED:
+	log.debug("WordBridge: shadowed %s, evicted %s", ", ".join(_SHADOWED), ", ".join(_SHADOW_EVICTED))
 
 # Same privacy rule as above: only the exception type and str(error) for each
 # gap-fill failure are logged, never a traceback.
