@@ -216,9 +216,17 @@ nothing but the id, and the cost comes back in the response.
 
 ### Provider entry fields
 
-`label`, `url`, `setting`, `timeout0`, `timeout_max`. All but `label` are
-required; `label` defaults to the provider name. `providers` describes local
-providers only; Coseeing has no entry here.
+`label`, `url`, `setting`, `timeout0`, `timeout_max` — **all required**,
+`label` included. `providers` describes local providers only; Coseeing has no
+entry here.
+
+Today `setting/provider/*.json` carries no `label`, and `LABEL_DICT` supplies
+one for five of the seven providers, with `dialogs.py` falling back to the raw
+name for `Ollama` and `OpenRouter`. That fallback moves into
+`BundledCatalogSource`, which emits `LABEL_DICT.get(name, name)` — identical
+output, but the defaulting now happens where the data is *produced* rather than
+where it is validated. A document is either complete or it is not; a consumer
+should never have to know which fields might be missing.
 
 ## Validation and degradation
 
@@ -237,7 +245,7 @@ apply unconditionally:
 | `pricing` absent | Entry kept, `pricing=None`. Not an error. |
 | The provider has no valid entry in `providers` | Entry dropped. Issue recorded. |
 | The provider name is not in `runnable_providers` | Entry dropped. Issue recorded. |
-| Provider entry missing `url` / `setting` / `timeout0` / `timeout_max` | Provider dropped; its models follow the two rows above. |
+| Provider entry missing `label` / `url` / `setting` / `timeout0` / `timeout_max` | Provider dropped; its models follow the two rows above. |
 | Provider referenced by no `models` entry | Legal. Lint-level issue only. |
 | `model` or `provider` empty, or containing `&` | Entry dropped. Issue recorded. |
 | Duplicate `corrector_config_id` within `models` | First wins, rest dropped. Issue recorded. (Today this raises `ValueError` and takes the add-on down at import.) |

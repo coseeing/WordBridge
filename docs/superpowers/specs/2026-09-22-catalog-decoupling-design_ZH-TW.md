@@ -196,8 +196,14 @@ coseeing 條目不帶 `pricing`、`usage_key` 與 provider 參數，因為請求
 
 ### provider 條目欄位
 
-`label`、`url`、`setting`、`timeout0`、`timeout_max`。除 `label` 外皆為必填；
-`label` 預設為 provider 名稱。`providers` 只描述本地 provider，Coseeing 在此沒有條目。
+`label`、`url`、`setting`、`timeout0`、`timeout_max`——**全部必填**，含 `label`。
+`providers` 只描述本地 provider，Coseeing 在此沒有條目。
+
+今天 `setting/provider/*.json` 沒有 `label` 欄位，`LABEL_DICT` 只為七個 provider 中的
+五個提供名稱，`dialogs.py` 對 `Ollama` 與 `OpenRouter` 回退為原始名稱。那個回退移入
+`BundledCatalogSource`，由它產出 `LABEL_DICT.get(name, name)`——輸出完全相同，但預設
+行為從此發生在**產生**資料的地方，而不是驗證資料的地方。一份 document 要嘛完整、
+要嘛不完整；consumer 不該需要知道哪些欄位可能缺席。
 
 ## 驗證與降級
 
@@ -215,7 +221,7 @@ coseeing 條目不帶 `pricing`、`usage_key` 與 provider 參數，因為請求
 | `pricing` 缺 | 條目保留，`pricing=None`。不算錯誤。 |
 | provider 在 `providers` 中無有效條目 | 條目丟棄。記 issue。 |
 | provider 名稱不在 `runnable_providers` 中 | 條目丟棄。記 issue。 |
-| provider 條目缺 `url` / `setting` / `timeout0` / `timeout_max` | provider 丟棄；其下 model 依上兩列處理。 |
+| provider 條目缺 `label` / `url` / `setting` / `timeout0` / `timeout_max` | provider 丟棄；其下 model 依上兩列處理。 |
 | provider 未被任何 `models` 條目引用 | 合法，只記 lint 級 issue。 |
 | `model` 或 `provider` 為空，或含 `&` | 條目丟棄。記 issue。 |
 | `models` 內 `corrector_config_id` 重複 | 首筆勝出，其餘丟棄。記 issue。（今天這會 `raise ValueError`，在 import 期讓整個 add-on 掛掉。） |
