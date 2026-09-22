@@ -45,6 +45,12 @@ class CorrectorCatalogTests(unittest.TestCase):
 			),
 		)
 
+	def test_provider_groups_include_coseeing_when_enabled_endpoints_exist(self):
+		self.assertEqual(
+			shipped_catalog().provider_groups,
+			("Anthropic", "DeepSeek", "Google", "OpenAI", "Coseeing"),
+		)
+
 	def test_provider_groups_include_coseeing_last(self):
 		groups = shipped_catalog().provider_groups
 		self.assertEqual(groups[-1], COSEEING_GROUP)

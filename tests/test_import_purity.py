@@ -43,14 +43,17 @@ import importlib.util
 
 spec = importlib.util.spec_from_file_location(
 	"wordbridge_import_purity_probe",
-	{addon!r} + {sep!r} + "__init__.py",
+	{addon!r} + "/__init__.py",
 	submodule_search_locations=[{addon!r}],
 )
 plugin = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = plugin
 spec.loader.exec_module(plugin)  # noqa: this is the import under test
 
-setting_reads = [path for path in opened if "setting" + {sep!r} in path]
+# Normalise before filtering: an opened path on Windows uses "\\", and NVDA
+# -- the only platform this add-on actually runs on -- is Windows-only, so a
+# filter that only ever matches "setting/" would go quietly vacuous there.
+setting_reads = [path for path in opened if "setting/" in path.replace("\\", "/")]
 ctypes_calls = [path for path in opened if path.startswith("CTYPES:")]
 print(repr(setting_reads))
 print(repr(ctypes_calls))
@@ -64,7 +67,6 @@ def test_importing_the_plugin_reads_no_setting_file_and_calls_no_windll(tmp_path
 		tests=str(tmp_path),
 		addon=str(ADDON_PATH),
 		package=str(ADDON_PATH / "package"),
-		sep="/",
 	)
 	result = subprocess.run(
 		[sys.executable, "-c", script],

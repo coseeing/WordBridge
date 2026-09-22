@@ -2,6 +2,7 @@ from concurrent.futures import Future
 import importlib
 import importlib.util
 import ctypes
+import json
 from threading import Event, RLock, Thread, current_thread
 from types import SimpleNamespace
 from pathlib import Path
@@ -345,6 +346,15 @@ def test_global_plugin_starts_normalized_coseeing_auth_and_guards_queued_callbac
 	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
 
 	instance = plugin.GlobalPlugin()
+	# The one thing this task's real __init__ must do that no test above
+	# exercises: wire self.settings/self.correctorTaskConfig/self.catalog
+	# onto the instance it constructs. Without this, deleting the line that
+	# does it leaves the suite green while production correctTypo() raises
+	# AttributeError the first time it runs -- see the fix report for the
+	# mutation that proves it.
+	assert isinstance(instance.settings, plugin.SettingsRepository)
+	assert instance.correctorTaskConfig is not None
+	assert instance.catalog is not None
 	assert len(queued) == 1
 	callback, args = queued.pop(0)
 	callback(*args)
@@ -442,6 +452,105 @@ def test_plugin_load_warns_when_nothing_can_be_shadowed(monkeypatch):
 	assert [w for w in warnings if _SHADOW_WARNING in str(w)] == [
 		_SHADOW_WARNING + ": %s -- Coseeing authentication will not work on this runtime",
 	]
+
+
+@pytest.mark.parametrize("payload", [
+	# Each of these parses as JSON but isn't the expected mapping shape, so
+	# raw_config["template_name"] (configManager.py) raises TypeError, not
+	# one of OSError/ValueError/KeyError -- the exact gap that let a corrupt
+	# task config take plugin construction down.
+	"[1, 2]",
+	'"hello"',
+	"123",
+	"null",
+])
+def test_corrupt_task_config_type_error_falls_back_and_notifies(monkeypatch, tmp_path, payload):
+	settings = {
+		"corrector_config_id": "gemini-3.1-pro-preview&Google",
+		"execution_channel": "local",
+		"api_key": {},
+	}
+	queued = []
+	plugin, _config, _gui = _load_nvda_plugin(monkeypatch, settings, [], queued)
+	messages = []
+	monkeypatch.setattr(plugin, "ui", SimpleNamespace(message=messages.append))
+	corrupt = tmp_path / "corrector.json"
+	corrupt.write_text(payload, encoding="utf8")
+	monkeypatch.setattr(plugin, "CORRECTOR_TASK_CONFIG_PATH", str(corrupt))
+	instance = object.__new__(plugin.GlobalPlugin)
+	instance._shutdown = Event()
+
+	task_config = instance._load_corrector_task_config()
+
+	assert task_config.template_name == {"standard": "Standard_v1.json", "lite": "Lite_v1.json"}
+	assert task_config.optional_guidance_enable == {
+		"keep_non_chinese_char": True, "no_explanation": True,
+	}
+	# The notification is deferred (self._notify() -> wx.CallAfter()), the
+	# same way _start_coseeing_auth is -- ui.message() is never called
+	# synchronously, mid-construction.
+	assert messages == []
+	assert len(queued) == 1
+	callback, args = queued.pop()
+	callback(*args)
+	assert messages == [
+		"The bundled correction settings file is damaged; WordBridge is using its built-in defaults."
+	]
+
+
+def test_corrupt_task_config_key_error_falls_back_and_notifies(monkeypatch, tmp_path):
+	# A mapping missing a required key raises KeyError, not TypeError --
+	# both must be caught; see the parametrized TypeError test above.
+	settings = {
+		"corrector_config_id": "gemini-3.1-pro-preview&Google",
+		"execution_channel": "local",
+		"api_key": {},
+	}
+	queued = []
+	plugin, _config, _gui = _load_nvda_plugin(monkeypatch, settings, [], queued)
+	messages = []
+	monkeypatch.setattr(plugin, "ui", SimpleNamespace(message=messages.append))
+	corrupt = tmp_path / "corrector.json"
+	corrupt.write_text(json.dumps({"template_name": {}}), encoding="utf8")
+	monkeypatch.setattr(plugin, "CORRECTOR_TASK_CONFIG_PATH", str(corrupt))
+	instance = object.__new__(plugin.GlobalPlugin)
+	instance._shutdown = Event()
+
+	task_config = instance._load_corrector_task_config()
+
+	assert task_config.template_name == {"standard": "Standard_v1.json", "lite": "Lite_v1.json"}
+	assert task_config.optional_guidance_enable == {
+		"keep_non_chinese_char": True, "no_explanation": True,
+	}
+	callback, args = queued.pop()
+	callback(*args)
+	assert messages == [
+		"The bundled correction settings file is damaged; WordBridge is using its built-in defaults."
+	]
+
+
+def test_task_config_fallback_matches_the_shipped_corrector_json(monkeypatch, tmp_path):
+	"""Nothing else keeps _load_corrector_task_config's hard-coded fallback in
+	sync with setting/task/corrector.json -- pin that they still agree, so an
+	edit to the shipped file that isn't mirrored here is caught.
+	"""
+	settings = {
+		"corrector_config_id": "gemini-3.1-pro-preview&Google",
+		"execution_channel": "local",
+		"api_key": {},
+	}
+	plugin, _config, _gui = _load_nvda_plugin(monkeypatch, settings, [], [])
+	corrupt = tmp_path / "corrector.json"
+	corrupt.write_text("null", encoding="utf8")
+	monkeypatch.setattr(plugin, "CORRECTOR_TASK_CONFIG_PATH", str(corrupt))
+	instance = object.__new__(plugin.GlobalPlugin)
+	instance._shutdown = Event()
+
+	fallback = instance._load_corrector_task_config()
+
+	shipped = json.loads((ADDON_PATH / "setting" / "task" / "corrector.json").read_text(encoding="utf8"))
+	assert fallback.template_name == shipped["template_name"]
+	assert fallback.optional_guidance_enable == shipped["optional_guidance_enable"]
 
 
 def test_settings_save_preserves_coseeing_refresh_token_and_starts_selected_channel(monkeypatch):

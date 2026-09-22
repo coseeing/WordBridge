@@ -168,6 +168,11 @@ class CorrectionAction:
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
+		# Set before anything below that can fail, so a failure -- or the
+		# fallback notification in _load_corrector_task_config() -- can
+		# still safely use self._notify()/self._run_on_ui(), both of which
+		# read self._shutdown.
+		self._shutdown = threading.Event()
 		self.catalog = load_catalog(
 			BundledCatalogSource(os.path.join(PATH, "setting")),
 			runnable_providers=SUPPORTED_PROVIDERS,
@@ -181,7 +186,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self.correctorTaskConfig = self._load_corrector_task_config()
 		self.settings = SettingsRepository(config.conf["WordBridge"]["settings"], registry.current)
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(LLMSettingsPanel)
-		self._shutdown = threading.Event()
 		_, channel = self.settings.corrector_selection()
 		wx.CallAfter(self._start_coseeing_auth, channel)
 		self.latest_action = CorrectionAction()
@@ -193,12 +197,27 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def _load_corrector_task_config(self):
 		try:
 			return load_corrector_task_config(CORRECTOR_TASK_CONFIG_PATH)
-		except (OSError, ValueError, KeyError) as error:
+		except Exception as error:
 			# A damaged task config used to take the add-on's import down.
+			# This must be total (bare Exception, not a specific tuple): a
+			# malformed corrector.json can fail in more ways than OSError/
+			# ValueError/KeyError -- a JSON document that parses but isn't a
+			# mapping (a list, a string, a number, null) raises TypeError out
+			# of raw_config["template_name"], which a narrower tuple let
+			# through and took plugin construction down with it. load_catalog
+			# next door (lib/catalog/fallback.py) already takes this same
+			# total-catch approach for exactly this reason.
 			log.warning(
 				"WordBridge: could not load the corrector task config type=%s: %s",
 				type(error).__name__, error,
 			)
+			# Deferred the same way _start_coseeing_auth is deferred below:
+			# self._notify() -> self._run_on_ui() schedules the real
+			# ui.message() call via wx.CallAfter() instead of calling it here,
+			# synchronously, mid-construction, before NVDA's UI is ready for it.
+			self._notify(_(
+				"The bundled correction settings file is damaged; WordBridge is using its built-in defaults."
+			))
 			return CorrectorTaskConfig(
 				template_name={"standard": "Standard_v1.json", "lite": "Lite_v1.json"},
 				optional_guidance_enable={"keep_non_chinese_char": True, "no_explanation": True},
