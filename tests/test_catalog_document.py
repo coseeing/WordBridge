@@ -183,6 +183,41 @@ def test_a_non_mapping_document_yields_an_empty_catalog():
 	assert codes(catalog) == ["malformed_document"]
 
 
+def test_a_scalar_models_value_does_not_raise_and_is_a_malformed_document_issue():
+	doc = document(models=5)
+	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
+
+	assert catalog.selectable_items == ()
+	matches = [issue for issue in catalog.issues if issue.code == "malformed_document"]
+	assert [issue.location for issue in matches] == ["models"]
+
+
+def test_a_scalar_coseeings_value_does_not_raise_and_is_a_malformed_document_issue():
+	doc = document(coseeings=7)
+	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
+
+	assert catalog.coseeings == ()
+	matches = [issue for issue in catalog.issues if issue.code == "malformed_document"]
+	assert [issue.location for issue in matches] == ["coseeings"]
+
+
+def test_a_non_mapping_providers_value_does_not_raise_and_is_a_malformed_document_issue():
+	doc = document(providers=[])
+	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
+
+	matches = [issue for issue in catalog.issues if issue.code == "malformed_document"]
+	assert [issue.location for issue in matches] == ["providers"]
+
+
+def test_a_non_string_provider_key_does_not_raise():
+	doc = document(providers={"OpenAI": dict(PROVIDER), 123: dict(PROVIDER, label="Bad key")})
+	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
+
+	matches = [issue for issue in catalog.issues if issue.code == "invalid_provider_name"]
+	assert [issue.location for issue in matches] == ["providers.123"]
+	assert catalog.get_provider("OpenAI") is not None
+
+
 def test_coseeing_group_sorts_last_and_local_groups_sort_alphabetically():
 	doc = document(
 		providers={"OpenAI": dict(PROVIDER), "DeepSeek": dict(PROVIDER, label="DeepSeek")},

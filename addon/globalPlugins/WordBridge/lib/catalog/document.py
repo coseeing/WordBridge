@@ -47,12 +47,18 @@ def build_catalog(document, *, runnable_providers) -> CorrectorCatalog:
 
 def _build_providers(raw, issues) -> dict:
 	providers = {}
-	if not isinstance(raw, dict):
+	if raw is None:
 		return providers
-	for name in sorted(raw):
+	if not isinstance(raw, dict):
+		issues.append(CatalogIssue("malformed_document", "providers", f"expected a mapping, got {type(raw).__name__}"))
+		return providers
+	for name in sorted(raw, key=str):
 		location = f"providers.{name}"
 		data = raw[name]
-		if not _text(name) or "&" in name:
+		if not isinstance(name, str):
+			issues.append(CatalogIssue("invalid_provider_name", location, f"provider name must be a string, got {type(name).__name__}"))
+			continue
+		if name == "" or "&" in name:
 			issues.append(CatalogIssue("reserved_separator", location, "provider name is empty or contains '&'"))
 			continue
 		if not isinstance(data, dict):
@@ -76,7 +82,12 @@ def _build_providers(raw, issues) -> dict:
 def _build_models(raw, providers, runnable_providers, issues) -> tuple:
 	entries = []
 	seen = set()
-	for index, data in enumerate(raw or ()):
+	if raw is None:
+		raw = ()
+	elif not isinstance(raw, (list, tuple)):
+		issues.append(CatalogIssue("malformed_document", "models", f"expected a list, got {type(raw).__name__}"))
+		return ()
+	for index, data in enumerate(raw):
 		location = f"models[{index}]"
 		if not isinstance(data, dict):
 			issues.append(CatalogIssue("incomplete_entry", location, "entry is not a mapping"))
@@ -117,7 +128,12 @@ def _build_models(raw, providers, runnable_providers, issues) -> tuple:
 def _build_coseeings(raw, issues) -> tuple:
 	entries = []
 	seen = set()
-	for index, data in enumerate(raw or ()):
+	if raw is None:
+		raw = ()
+	elif not isinstance(raw, (list, tuple)):
+		issues.append(CatalogIssue("malformed_document", "coseeings", f"expected a list, got {type(raw).__name__}"))
+		return ()
+	for index, data in enumerate(raw):
 		location = f"coseeings[{index}]"
 		if not isinstance(data, dict):
 			issues.append(CatalogIssue("incomplete_entry", location, "entry is not a mapping"))
