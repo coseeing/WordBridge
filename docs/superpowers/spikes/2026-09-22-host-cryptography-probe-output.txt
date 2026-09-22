@@ -1,0 +1,55 @@
+WordBridge host-cryptography probe 2026-09-22 09:36:52
+python=(3, 13, 13) platform=win32
+== host cryptography ==
+INFO version=48.0.1
+INFO file=C:\Program Files\NVDA\library.zip\cryptography\__init__.pyc
+INFO loader=zipimporter
+INFO _rust=?
+== PyJWT requirements (critical path) ==
+PASS cryptography (1 names)
+PASS cryptography.exceptions (2 names)
+PASS cryptography.hazmat.backends (1 names)
+PASS cryptography.hazmat.primitives (1 names)
+PASS cryptography.hazmat.primitives.asymmetric (1 names)
+PASS cryptography.hazmat.primitives.asymmetric.ec (10 names)
+PASS cryptography.hazmat.primitives.asymmetric.ed25519 (2 names)
+PASS cryptography.hazmat.primitives.asymmetric.ed448 (2 names)
+PASS cryptography.hazmat.primitives.asymmetric.rsa (8 names)
+PASS cryptography.hazmat.primitives.asymmetric.types (2 names)
+PASS cryptography.hazmat.primitives.asymmetric.utils (2 names)
+PASS cryptography.hazmat.primitives.serialization (8 names)
+== joserfc requirements (only if loaded) ==
+PASS cryptography.exceptions (2 names)
+PASS cryptography.hazmat.primitives.asymmetric.ec (3 names)
+PASS cryptography.hazmat.primitives.asymmetric.rsa (1 names)
+PASS cryptography.hazmat.primitives.asymmetric.x25519 (2 names)
+PASS cryptography.hazmat.primitives.asymmetric.x448 (2 names)
+PASS cryptography.hazmat.primitives.ciphers (1 names)
+PASS cryptography.hazmat.primitives.ciphers.algorithms (1 names)
+PASS cryptography.hazmat.primitives.ciphers.modes (2 names)
+FAIL cryptography.hazmat.primitives.kdf.concatkdf does not import: ModuleNotFoundError: No module named 'cryptography.hazmat.primitives.kdf'
+FAIL cryptography.hazmat.primitives.kdf.hkdf does not import: ModuleNotFoundError: No module named 'cryptography.hazmat.primitives.kdf'
+FAIL cryptography.hazmat.primitives.kdf.pbkdf2 does not import: ModuleNotFoundError: No module named 'cryptography.hazmat.primitives.kdf'
+FAIL cryptography.hazmat.primitives.keywrap does not import: ModuleNotFoundError: No module named 'cryptography.hazmat.primitives.keywrap'
+FAIL cryptography.hazmat.primitives.padding does not import: ModuleNotFoundError: No module named 'cryptography.hazmat.primitives.padding'
+PASS cryptography.hazmat.primitives.serialization (4 names)
+PASS cryptography.x509 (1 names)
+== RS256 sign/verify on the host copy ==
+PASS sign/verify with a generated key
+PASS verify through RSAPublicNumbers(...).public_key()
+PASS a bad signature raises InvalidSignature
+== loaded right now ==
+INFO cryptography: C:\Program Files\NVDA\library.zip\cryptography\__init__.pyc
+INFO _wb_vendor.cryptography: C:\Users\tseng\AppData\Roaming\nvda\addons\WordBridge\globalPlugins\WordBridge\package\_coseeing_auth_deps\py313-win_amd64\cryptography\__init__.py
+INFO jwt: not loaded
+INFO joserfc: not loaded
+INFO authlib: not loaded
+INFO _wb_vendor.jwt: loaded
+INFO _wb_vendor.joserfc: loaded
+INFO _wb_vendor.authlib: loaded
+INFO _wb_vendor top-level names loaded: ['authlib', 'chinese_converter', 'coseeing_auth', 'cryptography', 'hanzidentifier', 'joserfc', 'jwt', 'pypinyin', 'zhon']
+== verdict ==
+INFO jwt: ok
+INFO joserfc: INCOMPLETE
+INFO rs256: ok
+VERDICT host cryptography can replace the bundled copy for the login path

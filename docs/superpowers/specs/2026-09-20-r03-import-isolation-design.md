@@ -64,6 +64,66 @@ NVDA's copy off disk instead of out of `sys.modules` and is unaffected.
    verbatim copy of it, filling that gap rather than shadowing a module the host
    provides.
 
+### Correction (2026-09-22): facts 5 and 7 are wrong, and `cryptography` cannot be prefixed
+
+Shipped, and it broke Coseeing login on NVDA 2026:
+
+```
+login failed during token_exchange: TypeError at algorithms.py:688:verify
+  < api_jws.py:432:_verify_signature < ... < verification.py:81:verify
+TypeError: Expected instance of hashes.HashAlgorithm.
+```
+
+`algorithms.py:688` is PyJWT's `key.verify(sig, msg, padding.PKCS1v15(),
+self.hash_alg())`. Both errors below were then reproduced off-NVDA.
+
+**Fact 5 was measured for the wrong property.** PyO3 does tolerate two
+instances being *loaded*; it does not make their types interchangeable. Each
+instance has its own `hashes.HashAlgorithm`, and objects do not cross between
+them.
+
+**Fact 7 audited Python source only.** `_rust` resolves the Python classes it
+type-checks against by **absolute module name** — it asks the interpreter for
+`cryptography.hazmat.primitives.hashes` and reads `HashAlgorithm` off it. That
+is a C-level import; it never passes through the `__import__` that
+`_SandboxLoader` installs, so the prefix rewrite cannot reach it. Grepping the
+vendored Python for `import_module`/`__import__(` could not have found it.
+
+The consequence is that a prefixed `cryptography` is unusable either way:
+
+| host copy in `sys.modules` | result |
+| --- | --- |
+| present (NVDA) | `TypeError: Expected instance of hashes.HashAlgorithm` |
+| absent | `KeyError: 'cryptography.hazmat.primitives.asymmetric.utils'` |
+
+**Using the host's copy instead is still not available**, and facts 1–3 already
+said why: NVDA 2026 ships a trimmed cryptography 48.0.1 in `library.zip` whose
+`hazmat.primitives.kdf`, `.keywrap` and `.padding` are absent, so `joserfc` —
+and therefore `authlib.integrations.requests_client` — will not import. Both
+halves were re-measured on the affected machine; the probes and their output
+are in `docs/superpowers/spikes/2026-09-22-host-cryptography-probe*.py|.txt`.
+
+**Resolution.** A fourth category, `SHADOWED`, holding `cryptography` alone.
+`install_shadowed()` gives it its canonical name process-wide: a meta path
+finder answering for that one top-level name out of our roots, plus eviction of
+the host's already-loaded `cryptography.*` entries so the next import
+re-resolves. `sys.path` is untouched and no other name changes resolution.
+
+The cost is stated rather than hidden: for the life of the process, everything
+in it resolves `cryptography` to our copy. That is the same exposure the add-on
+had before this work, narrowed from eleven packages to one, and it is what the
+design's goal reduces to once the `_rust` constraint is admitted. Nothing is
+shadowed when our roots cannot supply the name — off Windows, or with the
+runtime bundle missing, the host keeps what it has and the add-on says so in
+NVDA's log at load.
+
+A follow-up that would remove even this one: the three missing pieces are six
+files totalling 171 lines, all thin re-exports of `_rust`. If NVDA's `_rust`
+still carries the symbols (`docs/superpowers/spikes/2026-09-22-host-rust-symbols-probe.py`
+measures exactly that), they can be gap-filled under their canonical names the
+way `secrets` is, and the bundled cryptography — 11 MB, 9.5 MB of it `_rust.pyd`
+— dropped entirely.
+
 ### Withdrawn finding
 
 `review-claude-2.md` T2 requirement 1 — "delete `package/secrets.py` (Python 3.6+
@@ -149,14 +209,17 @@ the categories physically, this resolves an ambiguity: `package/` is one of the
 sandbox roots, so a gap-fill left at that level would also be visible as
 `_wb_vendor.secrets`.
 
-**Category 2 — third-party packages that must come from us.** `cryptography`,
-`authlib`, `joserfc`, `jwt`, `coseeing_auth`, `pypinyin`, `zhon`,
-`hanzidentifier`, `chinese_converter`. These resolve **only** under the
-`_wb_vendor.` prefix and never appear as global top-level names.
+**Category 2 — third-party packages that must come from us.** `authlib`,
+`joserfc`, `jwt`, `coseeing_auth`, `pypinyin`, `zhon`, `hanzidentifier`,
+`chinese_converter`. These resolve **only** under the `_wb_vendor.` prefix and
+never appear as global top-level names.
 
-`cryptography` qualifies under fact 2, the rest because the host has no copy and
-leaving them global would claim a shared top-level name — `jwt` especially.
-`coseeing_auth` qualifies because it must see the sandboxed authlib.
+They qualify because the host has no copy and leaving them global would claim a
+shared top-level name — `jwt` especially. `coseeing_auth` qualifies because it
+must see the sandboxed authlib.
+
+`cryptography` was in this category and has been moved to category 4; see the
+2026-09-22 correction above.
 
 **Category 3 — packages that must come from the host.** `requests`, `urllib3`,
 `certifi`, `idna`, `charset_normalizer`, `cffi`, `_cffi_backend`, `pycparser`.
@@ -166,6 +229,11 @@ host's copies already win and ours have never been exercised. If a future NVDA
 drops `requests`, the correct response is a loud, specific failure naming the
 changed host environment — not a silent switch to an untested, possibly stale
 bundled copy.
+
+**Category 4 — packages that must come from us under their canonical name.**
+`cryptography`, alone. It qualifies under fact 2 like the rest of category 2,
+but cannot be prefixed: its `_rust` extension resolves Python types by absolute
+module name. Installed by `install_shadowed()`. See the 2026-09-22 correction.
 
 ### Architecture
 
