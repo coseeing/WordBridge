@@ -53,7 +53,7 @@ import requests
 
 from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .configManager import CorrectorTaskConfig, load_corrector_task_config
-from .lib.catalog import registry
+from .lib.catalog import LOCAL_CHANNEL, registry
 from .lib.catalog.fallback import load_catalog
 from .lib.catalog.sources import BundledCatalogSource
 from .lib.llm import SUPPORTED_PROVIDERS
@@ -437,11 +437,21 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		else:
 			customized_words = []
 		if self.catalog.degraded and not self._degraded_catalog_announced:
-			self._degraded_catalog_announced = True
+			# Notify before marking announced: _run_on_ui() silently drops the
+			# message when self._shutdown is already set, and the old order
+			# (flag first) could mark this session's one-shot announcement
+			# "delivered" even when it never reached the user.
 			self._notify(_("The model list could not be loaded. Coseeing will choose a model for you."))
-		if execution_channel == "local":
+			self._degraded_catalog_announced = True
+		if execution_channel == LOCAL_CHANNEL:
 			model_entry = catalog.get_model(corrector_config_id)
+			if model_entry is None:
+				self._notify(_("The selected model is no longer available. Please choose another one in WordBridge settings."))
+				return
 			provider_entry = catalog.get_provider(model_entry.provider)
+			if provider_entry is None:
+				self._notify(_("The selected provider is no longer available. Please choose another one in WordBridge settings."))
+				return
 			credential = {"api_key": self.settings.api_key(model_entry.provider)}
 
 			try:

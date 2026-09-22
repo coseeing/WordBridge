@@ -497,3 +497,188 @@ def test_feedback_timeout_notifies_on_ui(monkeypatch):
 	callback, args = queued.pop()
 	callback(*args)
 	assert "timed out" in messages[0]
+
+
+def test_degraded_catalog_flag_is_set_only_after_the_notification_is_dispatched(monkeypatch):
+	"""Pins the __init__.py reorder: self._notify() must run before
+	self._degraded_catalog_announced is set, not after. _run_on_ui() silently
+	drops a message when self._shutdown is already set -- with the old order
+	(flag set first), this session's one-shot announcement could be marked
+	"delivered" without ever reaching the user. A spy on _notify() that reads
+	the flag at the moment it fires is what makes the order itself
+	falsifiable, rather than just the eventual message count (which the
+	existing test_degraded_catalog_announcement_fires_once_per_session
+	already pins).
+	"""
+	from test_coseeing_auth_nvda import _load_nvda_plugin
+
+	queued = []
+	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
+		"corrector_config_id": "default",
+		"execution_channel": "Coseeing",
+		"api_key": {},
+		"language": "zh_traditional",
+		"typo_correction_mode": "standard",
+		"customized_words_enable": False,
+		"auto_display_report": False,
+	}, [], queued)
+	instance = object.__new__(plugin_module.GlobalPlugin)
+	instance.settings = plugin_module.settings
+	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
+	instance.latest_action = plugin_module.CorrectionAction()
+	instance.readDictionary = lambda: []
+	instance._shutdown = threading.Event()
+
+	class BrokenSource:
+		def load(self):
+			raise RuntimeError("setting tree unreadable")
+
+	instance.catalog = plugin_module.load_catalog(
+		BrokenSource(), runnable_providers=plugin_module.SUPPORTED_PROVIDERS
+	)
+	assert instance.catalog.degraded is True
+	instance._degraded_catalog_announced = False
+
+	notify_order = []
+	original_notify = plugin_module.GlobalPlugin._notify
+
+	def spy_notify(self, message):
+		notify_order.append(self._degraded_catalog_announced)
+		return original_notify(self, message)
+
+	monkeypatch.setattr(plugin_module.GlobalPlugin, "_notify", spy_notify)
+
+	future = Future()
+	future.set_result("access")
+	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
+	messages = []
+	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
+	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
+		warning=lambda *args, **kwargs: None,
+		info=lambda *args, **kwargs: None,
+		debug=lambda *args, **kwargs: None,
+		exception=lambda *args, **kwargs: None,
+	))
+	monkeypatch.setattr(plugin_module, "strings_diff", lambda request, response: [])
+	monkeypatch.setattr(plugin_module.api, "copyToClip", lambda text: None, raising=False)
+
+	def post(url, **kwargs):
+		return SimpleNamespace(status_code=200, json=lambda: {"response": "修正", "interaction_id": "i-1", "cost": 0})
+
+	monkeypatch.setattr(plugin_module.requests, "post", post, raising=False)
+
+	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
+
+	# correctTypo() calls _notify() more than once (cost, clipboard, ...);
+	# only the first call is the degraded-catalog announcement. The flag
+	# reads False from inside that first call (proving the notify happens
+	# first) and True afterwards (proving it is still set once the call
+	# returns).
+	assert notify_order[0] is False
+	assert instance._degraded_catalog_announced is True
+
+
+def test_local_channel_notifies_and_returns_when_the_selected_model_is_gone(monkeypatch):
+	"""Folded-in minor: catalog.get_model()/get_provider() were unguarded
+	against None in correctTypo()'s worker thread -- an earlier ledger note
+	said to fix this asymmetry when the pattern reached production, and it
+	had not been. Without the guard this is an AttributeError deep in a
+	worker thread instead of a diagnosable message.
+	"""
+	from test_coseeing_auth_nvda import _load_nvda_plugin
+
+	queued = []
+	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
+		"corrector_config_id": "gpt-x&OpenAI",
+		"execution_channel": "local",
+		"api_key": {},
+		"language": "zh_traditional",
+		"typo_correction_mode": "standard",
+		"customized_words_enable": False,
+		"auto_display_report": False,
+	}, [], queued)
+	instance = object.__new__(plugin_module.GlobalPlugin)
+	instance.settings = plugin_module.settings
+	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
+	instance.latest_action = plugin_module.CorrectionAction()
+	instance.readDictionary = lambda: []
+	instance._shutdown = threading.Event()
+	instance.catalog = plugin_module.catalog
+	# A stored selection this stale (the model was removed from the catalog
+	# after it was saved) is exactly the shape get_model() must stay total
+	# for -- normalize_selection() already keeps a *fresh* settings read from
+	# ever producing this, so the fake below stands in for the catalog having
+	# changed out from under an already-resolved selection.
+	monkeypatch.setattr(instance.settings, "corrector_selection", lambda: ("ghost-model&OpenAI", "local"))
+	messages = []
+	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
+	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
+		warning=lambda *args, **kwargs: None,
+		info=lambda *args, **kwargs: None,
+		debug=lambda *args, **kwargs: None,
+		exception=lambda *args, **kwargs: None,
+	))
+
+	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
+
+	assert len(queued) == 1
+	callback, args = queued.pop()
+	callback(*args)
+	assert messages == [
+		"The selected model is no longer available. Please choose another one in WordBridge settings."
+	]
+
+
+def test_local_channel_notifies_and_returns_when_the_selected_provider_is_gone(monkeypatch):
+	import dataclasses
+
+	from test_coseeing_auth_nvda import _load_nvda_plugin
+
+	queued = []
+	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
+		"corrector_config_id": "",
+		"execution_channel": "",
+		"api_key": {},
+		"language": "zh_traditional",
+		"typo_correction_mode": "standard",
+		"customized_words_enable": False,
+		"auto_display_report": False,
+	}, [], queued)
+	instance = object.__new__(plugin_module.GlobalPlugin)
+	instance.settings = plugin_module.settings
+	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
+	instance.latest_action = plugin_module.CorrectionAction()
+	instance.readDictionary = lambda: []
+	instance._shutdown = threading.Event()
+
+	# A model entry naming a provider the catalog has no ProviderEntry for.
+	# build_catalog() itself never produces this shape (it rejects a model
+	# whose provider is unknown at document-build time) -- this stands in for
+	# the catalog changing out from under an already-resolved selection,
+	# which is exactly the race the ledger note flagged.
+	orphan_model = dataclasses.replace(
+		plugin_module.catalog.models[0], provider="GhostProvider", model="ghost-model",
+	)
+	catalog = dataclasses.replace(
+		plugin_module.catalog, models=plugin_module.catalog.models + (orphan_model,),
+	)
+	instance.catalog = catalog
+	monkeypatch.setattr(plugin_module.registry, "current", lambda: catalog)
+	monkeypatch.setattr(instance.settings, "corrector_selection", lambda: ("ghost-model&GhostProvider", "local"))
+	messages = []
+	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
+	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
+		warning=lambda *args, **kwargs: None,
+		info=lambda *args, **kwargs: None,
+		debug=lambda *args, **kwargs: None,
+		exception=lambda *args, **kwargs: None,
+	))
+
+	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
+
+	assert len(queued) == 1
+	callback, args = queued.pop()
+	callback(*args)
+	assert messages == [
+		"The selected provider is no longer available. Please choose another one in WordBridge settings."
+	]
