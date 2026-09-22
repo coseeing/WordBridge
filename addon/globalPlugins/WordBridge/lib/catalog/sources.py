@@ -86,8 +86,19 @@ class BundledCatalogSource:
 			}
 			priced = price.get(key)
 			if priced:
-				entry["pricing"] = priced.get("pricing")
-				entry["usage_key"] = priced.get("usage_key")
+				if isinstance(priced, dict):
+					entry["pricing"] = priced.get("pricing")
+					entry["usage_key"] = priced.get("usage_key")
+				else:
+					# A single corrupt price entry must drop only its own
+					# pricing, not the whole entry (and never escape as an
+					# AttributeError from `.get()` on a non-mapping) -- the
+					# entry itself stays, priceless, same as a missing key.
+					issues.append(CatalogIssue(
+						"malformed_price_entry",
+						key,
+						f"expected a JSON object, got {type(priced).__name__}",
+					))
 			models.append(entry)
 			if data.get("coseeing"):
 				coseeings.append({

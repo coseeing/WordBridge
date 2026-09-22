@@ -30,6 +30,12 @@ def load_catalog(source, *, runnable_providers):
 	"""
 	try:
 		document, source_issues = source.load()
+		# Normalising the second element of the tuple stays inside the guard
+		# deliberately: a source that returns e.g. (document, None) -- or any
+		# other non-iterable second element -- must degrade to the sentinel
+		# rung like any other misbehaving source, not raise TypeError straight
+		# out of load_catalog (and so out of GlobalPlugin.__init__).
+		source_issues = tuple(source_issues or ())
 	except Exception as error:
 		document = None
 		source_issues = (CatalogIssue(
@@ -38,7 +44,7 @@ def load_catalog(source, *, runnable_providers):
 			f"{type(error).__name__}: {error}",
 		),)
 	catalog = build_catalog(document, runnable_providers=runnable_providers)
-	issues = tuple(source_issues) + catalog.issues
+	issues = source_issues + catalog.issues
 	if catalog.selectable_items:
 		return type(catalog)(
 			providers=catalog.providers,

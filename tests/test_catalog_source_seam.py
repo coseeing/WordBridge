@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from lib.catalog.fallback import load_catalog
-from lib.catalog.model import COSEEING_GROUP
+from lib.catalog.model import COSEEING_GROUP, CatalogIssue
 from lib.catalog.selection import SelectionState
 from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
@@ -22,6 +22,36 @@ class FakeRemoteCatalogSource:
 
 	def load(self):
 		return self.document, ()
+
+
+class FakeSourceWithNoIssues:
+	"""A source that reports its second tuple element as None instead of ().
+
+	This is exactly the shape a not-yet-written RemoteCatalogSource could
+	return -- a 200 response with nothing to report -- and load_catalog()
+	must degrade to the sentinel rung rather than let TypeError escape
+	tuple(None), which would otherwise propagate straight out of
+	GlobalPlugin.__init__.
+	"""
+
+	def __init__(self, document):
+		self.document = document
+
+	def load(self):
+		return self.document, None
+
+
+class FakeSourceReportingAnIssue:
+	"""A source that actually uses the issues half of the (document, issues)
+	contract -- proving that half is wired end to end, not just declared.
+	"""
+
+	def __init__(self, document, issue):
+		self.document = document
+		self.issue = issue
+
+	def load(self):
+		return self.document, (self.issue,)
 
 
 def test_a_document_from_a_remote_source_behaves_exactly_like_the_bundled_one():
@@ -87,3 +117,26 @@ def test_the_panel_facing_selection_is_identical_across_sources():
 
 	assert from_bundled.provider_group == from_remote.provider_group
 	assert from_bundled.current_item() == from_remote.current_item()
+
+
+def test_a_source_reporting_no_issues_as_none_degrades_instead_of_raising():
+	document, _ = BundledCatalogSource(SETTING_DIR).load()
+
+	catalog = load_catalog(FakeSourceWithNoIssues(document), runnable_providers=SUPPORTED_PROVIDERS)
+
+	# A source this well-behaved (a valid document, just a None instead of an
+	# empty tuple) should not degrade the whole catalog to the sentinel --
+	# the point is only that load_catalog() must not raise.
+	assert catalog.degraded is False
+	assert catalog.selectable_items != ()
+
+
+def test_issues_a_source_reports_reach_the_catalog():
+	document, _ = BundledCatalogSource(SETTING_DIR).load()
+	issue = CatalogIssue("unreadable_file", "remote-payload.json", "simulated 500")
+
+	catalog = load_catalog(
+		FakeSourceReportingAnIssue(document, issue), runnable_providers=SUPPORTED_PROVIDERS
+	)
+
+	assert issue in catalog.issues

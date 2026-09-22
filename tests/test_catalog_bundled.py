@@ -135,6 +135,23 @@ def test_a_wrong_typed_ai_file_is_reported_and_skipped(tmp_path):
 	assert [issue.location for issue in issues] == ["OpenAI-00001-gpt-x.json"]
 
 
+def test_a_nested_non_mapping_price_value_drops_only_its_own_pricing(tmp_path):
+	_write_minimal_setting_tree(tmp_path)
+	(tmp_path / "price.json").write_text(
+		json.dumps({"gpt-x&OpenAI": [1, 2]}), encoding="utf8"
+	)
+	(tmp_path / "ai" / "OpenAI-00001-gpt-x.json").write_text(
+		json.dumps({"active": True, "model": "gpt-x", "provider": "OpenAI", "coseeing": False}),
+		encoding="utf8",
+	)
+	document, issues = BundledCatalogSource(tmp_path).load()
+
+	assert [entry["model"] for entry in document["models"]] == ["gpt-x"]
+	assert "pricing" not in document["models"][0]
+	assert [issue.code for issue in issues] == ["malformed_price_entry"]
+	assert [issue.location for issue in issues] == ["gpt-x&OpenAI"]
+
+
 def _write_minimal_setting_tree(root: Path):
 	(root / "ai").mkdir(parents=True)
 	(root / "provider").mkdir(parents=True)
