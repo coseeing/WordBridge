@@ -35,9 +35,9 @@ class SettingsRepository:
 	default, and an empty language becomes the OS UI language.
 	"""
 
-	def __init__(self, settings, catalog):
+	def __init__(self, settings, current_catalog):
 		self._settings = settings
-		self._catalog = catalog
+		self._catalog = current_catalog
 
 	def corrector_selection(self) -> tuple:
 		return normalize_selection(

@@ -28,6 +28,9 @@ def test_every_price_entry_matches_price_json():
 	price = json.loads((SETTING_DIR / "price.json").read_text(encoding="utf8"))
 	catalog = shipped_catalog()
 
+	# Otherwise an empty catalog.models would make this loop -- and the test
+	# -- pass vacuously.
+	assert catalog.models, "the shipped catalog has no model entries"
 	for entry in catalog.models:
 		assert entry.price_entry() == price.get(entry.corrector_config_id, {}), entry.corrector_config_id
 
@@ -35,7 +38,11 @@ def test_every_price_entry_matches_price_json():
 def test_every_provider_entry_matches_its_json_file():
 	catalog = shipped_catalog()
 
-	for path in (SETTING_DIR / "provider").glob("*.json"):
+	provider_files = sorted((SETTING_DIR / "provider").glob("*.json"))
+	# Otherwise an empty listing would make this loop -- and the test --
+	# pass vacuously.
+	assert provider_files, "no provider/*.json files found"
+	for path in provider_files:
 		entry = catalog.get_provider(path.stem)
 		assert entry is not None, path.name
 		data = json.loads(path.read_text(encoding="utf8"))

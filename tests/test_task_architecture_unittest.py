@@ -108,6 +108,10 @@ class TaskArchitectureTests(unittest.TestCase):
 		)
 		provider_entry = captured.pop("provider_entry")
 		price_entry = captured.pop("price_entry")
+		# A None on both sides would otherwise make assertEqual pass vacuously
+		# -- pin that get_provider("OpenAI") actually found something before
+		# comparing it against what correctTypo() passed through.
+		self.assertIsNotNone(expected_provider_entry)
 		self.assertEqual(provider_entry, expected_provider_entry)
 		self.assertEqual(price_entry, expected_price_entry)
 		self.assertEqual(

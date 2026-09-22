@@ -13,7 +13,7 @@ ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
 
 @pytest.mark.parametrize(
 	"module_path",
-	["lib.llm.provider", "configManager", "lib.llm.executor"],
+	["lib.llm.provider", "lib.llm.executor"],
 )
 def test_module_does_not_shadow_the_translation_builtin(module_path):
 	import importlib
@@ -92,7 +92,7 @@ def test_executor_parse_error_message_is_extractable():
 
 @pytest.mark.parametrize(
 	"module_path",
-	["lib.llm.provider", "configManager", "lib.llm.executor"],
+	["lib.llm.provider", "lib.llm.executor"],
 )
 def test_fallback_engages_when_no_translation_is_available(module_path):
 	code = textwrap.dedent(

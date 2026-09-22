@@ -274,7 +274,12 @@ STDLIB_ONLY = {"dataclasses", "json", "pathlib", "typing", "collections", "funct
 def test_the_catalog_package_imports_only_the_standard_library():
 	# Walked from the AST rather than observed at runtime, so an import that
 	# merely happens not to execute cannot satisfy this.
-	for path in sorted(CATALOG_DIR.glob("*.py")):
+	catalog_files = sorted(CATALOG_DIR.rglob("*.py"))
+	# rglob (not glob) so a future subpackage isn't silently skipped, and an
+	# explicit non-empty check so this cannot go quietly vacuous if
+	# lib/catalog moves or CATALOG_DIR stops resolving.
+	assert catalog_files, f"no .py files found under {CATALOG_DIR}"
+	for path in catalog_files:
 		tree = ast.parse(path.read_text(encoding="utf8"))
 		for node in ast.walk(tree):
 			if isinstance(node, ast.Import):
