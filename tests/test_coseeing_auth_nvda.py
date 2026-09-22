@@ -933,6 +933,72 @@ def test_settings_panel_summary_line_appears_only_when_the_catalog_has_issues(mo
 	assert "1" in panel.catalogIssuesText.label
 
 
+def test_settings_panel_summary_line_is_silent_for_the_shipped_healthy_catalog(monkeypatch):
+	"""Regression guard: the shipped, fully healthy catalog always carries
+	exactly one "unreferenced_provider" issue (providers.OpenRouter -- pinned
+	by tests/test_catalog_bundled.py's
+	test_the_shipped_data_produces_only_the_known_lint_issue), because the
+	spec's own validation table classifies an unreferenced provider as
+	"Legal. Lint-level issue only." Nothing failed to load and all 15 shipped
+	entries are selectable, so on every clean install the panel must render
+	no line at all -- rendering one here would be a permanent false alarm a
+	blind user hears every time they open settings.
+	"""
+	auth_calls = []
+	queued = []
+	settings = _panel_settings()
+	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
+	dialogs = plugin.dialogs
+	helper_calls, static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
+
+	# The real, unmodified shipped catalog -- not a fabricated fixture -- is
+	# the regression surface. If it stopped carrying the lint issue this
+	# assertion (not the one below) would fail, and the test would no longer
+	# be exercising the exclusion at all.
+	assert plugin.catalog.issues, "fixture no longer carries the shipped lint issue -- test would be vacuous"
+	assert all(issue.code == "unreferenced_provider" for issue in plugin.catalog.issues)
+
+	panel = _make_panel(monkeypatch, dialogs, Sizer)
+	assert panel.catalogIssuesText is None
+
+
+def test_settings_panel_summary_line_ignores_lint_issues_and_uses_correct_grammar(monkeypatch):
+	"""Lint issues (unreferenced_provider) must not inflate the dropped-entry
+	count, and the line must use the singular message form for exactly one
+	dropped issue and the plural form for more than one -- NVDA reads this
+	aloud, so "1 catalog entries" is a grammar defect a blind user hears
+	every time.
+	"""
+	auth_calls = []
+	queued = []
+	settings = _panel_settings()
+	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
+	dialogs = plugin.dialogs
+	helper_calls, static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
+
+	from lib.catalog.model import CatalogIssue
+
+	lint_issue = CatalogIssue("unreferenced_provider", "providers.OpenRouter", "no models entry names this provider")
+	first_dropped = CatalogIssue("unreadable_file", "ai/Google-broken.json", "ValueError: boom")
+	second_dropped = CatalogIssue("duplicate_entry", "models[3]", "'gpt&OpenAI' already defined")
+
+	one_dropped_catalog = dataclasses.replace(plugin.catalog, issues=(lint_issue, first_dropped))
+	monkeypatch.setattr(dialogs.registry, "current", lambda: one_dropped_catalog)
+	panel = _make_panel(monkeypatch, dialogs, Sizer)
+	assert panel.catalogIssuesText is not None
+	assert panel.catalogIssuesText.label == "1 catalog entry could not be loaded; see the NVDA log for details."
+
+	two_dropped_catalog = dataclasses.replace(
+		plugin.catalog, issues=(lint_issue, first_dropped, second_dropped)
+	)
+	monkeypatch.setattr(dialogs.registry, "current", lambda: two_dropped_catalog)
+	panel = _make_panel(monkeypatch, dialogs, Sizer)
+	assert panel.catalogIssuesText is not None
+	assert panel.catalogIssuesText.label == "2 catalog entries could not be loaded; see the NVDA log for details."
+
+
 def test_settings_panel_renders_provider_group_captions_through_their_catalog_labels(monkeypatch):
 	"""Acceptance 6 ("no Python change, including no label change") is false
 	for providers unless the panel actually reads ProviderEntry.label: before
@@ -1013,6 +1079,50 @@ def test_the_sentinel_model_label_is_rendered_through_the_translation_map(monkey
 	}
 	assert untranslated_labels, "fixture needs at least one non-sentinel Coseeing entry"
 	assert untranslated_labels <= set(choices)
+
+
+def test_refreshing_the_model_choice_still_renders_the_sentinel_through_the_translation_map(monkeypatch):
+	"""Guards dialogs.py:256 (_refreshModelChoice, called from
+	onChangeProviderChoice whenever the user switches provider groups):
+	nothing in this suite referenced it before this test, so reverting that
+	one call site from _display_labels back to catalog.labels_for would go
+	undetected -- the sentinel would render translated when the panel first
+	opens (makeSettings uses _display_labels directly) and then revert to
+	the raw catalog label the moment the user changes provider group and
+	switches back to Coseeing.
+
+	Uses the same relabelled-sentinel fixture as
+	test_the_sentinel_model_label_is_rendered_through_the_translation_map, so
+	a rendered translated label can only have come from the translation map,
+	never from entry.label passing through untouched.
+	"""
+	auth_calls = []
+	queued = []
+	settings = _panel_settings()
+	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
+	dialogs = plugin.dialogs
+	helper_calls, static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
+
+	original = plugin.catalog
+	other_coseeings = tuple(
+		dataclasses.replace(entry, label="RAW SENTINEL LABEL FROM CATALOG")
+		if entry.corrector_config_id == dialogs.SENTINEL_ID else entry
+		for entry in original.coseeings
+	)
+	assert other_coseeings != original.coseeings, "fixture did not find the sentinel entry"
+	catalog = dataclasses.replace(original, coseeings=other_coseeings)
+	monkeypatch.setattr(dialogs.registry, "current", lambda: catalog)
+
+	panel = _make_panel(monkeypatch, dialogs, Sizer)
+
+	coseeing_index = catalog.provider_groups.index("Coseeing")
+	panel.selection.choose_provider_group(coseeing_index)
+
+	panel._refreshModelChoice()
+
+	assert dialogs.MODEL_LABEL_TRANSLATIONS[dialogs.SENTINEL_ID] in panel.modelList.items
+	assert "RAW SENTINEL LABEL FROM CATALOG" not in panel.modelList.items
 
 
 def test_nvda_module_setup_leaves_real_bundle_exports_importable(monkeypatch):

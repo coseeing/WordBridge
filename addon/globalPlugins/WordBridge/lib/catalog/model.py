@@ -24,6 +24,27 @@ class CatalogIssue:
 	detail: str
 
 
+# Issue codes that flag a lint-level quirk in the source data -- legal,
+# nothing dropped -- rather than an entry, provider or document that was
+# actually rejected. "unreferenced_provider" (a provider no models entry
+# names) is the only one document.py, sources.py or fallback.py emit that
+# means this: every other code they emit means something was dropped. Kept
+# here, next to CatalogIssue, so a caller like the settings panel can ask
+# "was anything actually dropped" without hard-coding the validation
+# vocabulary itself (lib/catalog owns it, and may not reach _()).
+LINT_ISSUE_CODES = frozenset({"unreferenced_provider"})
+
+
+def is_dropped_issue(issue: CatalogIssue) -> bool:
+	"""True unless `issue` is a known lint-level quirk (see LINT_ISSUE_CODES).
+
+	Used to report only entries/providers/documents that were actually
+	dropped, as opposed to every issue logged (issues are always logged in
+	full -- see __init__.py).
+	"""
+	return issue.code not in LINT_ISSUE_CODES
+
+
 @dataclass(frozen=True)
 class ProviderEntry:
 	name: str

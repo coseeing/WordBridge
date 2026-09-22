@@ -13,7 +13,7 @@ from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
 
 from .dictionary.dialog import DictionaryEntryDialog
-from .lib.catalog import registry
+from .lib.catalog import is_dropped_issue, registry
 from .lib.catalog.fallback import SENTINEL_ID
 from .lib.catalog.selection import SelectionState
 from .lib.coseeing_auth import (
@@ -100,14 +100,34 @@ class LLMSettingsPanel(SettingsPanel):
 		# missing entirely, and it is the only one that surfaces rung-2
 		# ("Degraded: some entries dropped; the rest work") to the user --
 		# self.catalog.degraded is only ever True on the Empty rung.
+		#
+		# Counting every issue here (rather than just checking
+		# self.catalog.issues) would be a permanent false alarm: the
+		# shipped, fully healthy catalog always carries one
+		# "unreferenced_provider" issue (providers.OpenRouter, named by no
+		# ai/*.json), which is lint -- legal, nothing failed to load, all
+		# entries selectable -- not a dropped entry. is_dropped_issue()
+		# filters those out so this line is only ever true of what it
+		# counts; the log (__init__.py) still logs every issue, lint
+		# included.
+		droppedIssueCount = sum(1 for issue in self.catalog.issues if is_dropped_issue(issue))
 		self.catalogIssuesText = None
-		if self.catalog.issues:
+		if droppedIssueCount == 1:
+			self.catalogIssuesText = settingsSizerHelper.addItem(
+				wx.StaticText(
+					self,
+					label=_(
+						"{count} catalog entry could not be loaded; see the NVDA log for details."
+					).format(count=droppedIssueCount),
+				)
+			)
+		elif droppedIssueCount > 1:
 			self.catalogIssuesText = settingsSizerHelper.addItem(
 				wx.StaticText(
 					self,
 					label=_(
 						"{count} catalog entries could not be loaded; see the NVDA log for details."
-					).format(count=len(self.catalog.issues)),
+					).format(count=droppedIssueCount),
 				)
 			)
 
