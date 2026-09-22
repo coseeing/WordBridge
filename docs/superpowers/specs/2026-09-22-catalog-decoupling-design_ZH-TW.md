@@ -161,7 +161,7 @@ NVDA 自己 new `LLMSettingsPanel`（`categoryClasses` 裡放的是類別），�
 | `model` | 是 | — | 不得含 `&` |
 | `label` | **是** | — | 顯示名稱。把它移出 `LABEL_DICT` 正是遠端 payload 能新增 model 的前提。必填的理由與別處相同：document 要嘛完整、要嘛無效。`BundledCatalogSource` 產出 `LABEL_DICT.get(model, model)`，與今天 `configManager.py:97` 一致 |
 | `active` | 否 | `true` | |
-| `pricing` | 否 | `None` | **刻意選配**：`qwen2&Ollama` 今天就沒有價格條目，且必須維持可用 |
+| `pricing` | 否 | `None` | **刻意選配**：`adapter.py:49` 一直以 `.get(..., {})` 容忍缺價（成本回報為 0），而出貨資料本來就有這樣一筆——`qwen2&Ollama`，且它是 `active: false`。若改為必填，遠端 payload 的新 model 會僅僅因為價格尚未發布就無法使用 |
 | `usage_key` | 否 | `None` | 與 `pricing` 成對 |
 
 ### 身分
@@ -385,8 +385,10 @@ add-on 的校正路徑在型別上被迫使用當下的 catalog。
 依此順序撰寫。第 2 層必須在**任何 production code 變更之前**就是綠的。
 
 1. **document 驗證**（`tests/test_catalog_document.py`）— 兩張驗證表每一列各一個
-   測試，包含 `qwen2&Ollama` 的缺價守衛、兩條 provider 規則，以及那個**不得**被當成
-   重複的情況：同一個 id 同時出現在 `models` 與 `coseeings`。
+   測試，包含「缺 `pricing` 的 `models` 條目以 `pricing=None` 保留」（出貨中的實例是
+   `qwen2&Ollama`，且它 `active: false`——所以這條規則保護的是未來的條目，而非目前
+   可選的條目）、兩條 provider 規則，以及那個**不得**被當成重複的情況：同一個 id
+   同時出現在 `models` 與 `coseeings`。
 2. **bundled 保真度**（`tests/test_catalog_bundled.py`）— characterization test：以
    真實 `setting/` 目錄建 catalog，斷言產出的可選項目、ids、labels 與價格**與今天
    `ConfigManager` + `LABEL_DICT` + `price.json` 的結果逐項相同**。這是「什麼都沒

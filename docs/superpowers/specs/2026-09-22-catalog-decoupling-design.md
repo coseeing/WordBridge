@@ -178,7 +178,7 @@ server recognises. Today exactly one model is in both
 | `model` | yes | — | Must not contain `&` |
 | `label` | **yes** | — | Display name. Moving this out of `LABEL_DICT` is what lets a remote payload add a model. Required for the same reason as everywhere else: a document is complete or invalid. `BundledCatalogSource` emits `LABEL_DICT.get(model, model)`, matching `configManager.py:97` today |
 | `active` | no | `true` | |
-| `pricing` | no | `None` | **Optional on purpose**: `qwen2&Ollama` ships with no price entry today and must stay usable |
+| `pricing` | no | `None` | **Optional on purpose**: `adapter.py:49` has always tolerated a missing price with `.get(..., {})`, reporting the cost as 0, and the shipped data already contains one such entry — `qwen2&Ollama`, which is `active: false`. Requiring it would make a remote payload's new model unusable merely because its price had not been published yet |
 | `usage_key` | no | `None` | Paired with `pricing` |
 
 ### Identity
@@ -436,9 +436,11 @@ Written in this order. Layer 2 must be green **before** any production code
 changes.
 
 1. **Document validation** (`tests/test_catalog_document.py`) — one test per row
-   of both validation tables, including the `qwen2&Ollama` missing-price guard,
-   both provider rules, and the case that must *not* be treated as a duplicate:
-   the same id in `models` and in `coseeings`.
+   of both validation tables, including a `models` entry with no `pricing` being
+   kept with `pricing=None` (the shipped instance is `qwen2&Ollama`, which is
+   `active: false` — so this rule protects future entries, not a currently
+   selectable one), both provider rules, and the case that must *not* be treated
+   as a duplicate: the same id in `models` and in `coseeings`.
 2. **Bundled fidelity** (`tests/test_catalog_bundled.py`) — a characterisation
    test: building from the real `setting/` directory yields exactly the same
    selectable items, ids, labels and prices as today's `ConfigManager` +
