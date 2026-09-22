@@ -43,7 +43,9 @@ class BundledCatalogSource:
 
 	def load(self) -> tuple:
 		issues = []
-		price = self._read_json(self.setting_dir / "price.json", issues) or {}
+		price = self._read_json(self.setting_dir / "price.json", issues)
+		if price is None:
+			price = {}
 		providers = {}
 		for path in sorted((self.setting_dir / "provider").glob("*.json")):
 			data = self._read_json(path, issues)
@@ -102,7 +104,7 @@ class BundledCatalogSource:
 	def _read_json(self, path, issues):
 		try:
 			with path.open("r", encoding="utf8") as handle:
-				return json.load(handle)
+				data = json.load(handle)
 		except (OSError, ValueError) as error:
 			issues.append(CatalogIssue(
 				"unreadable_file",
@@ -110,3 +112,11 @@ class BundledCatalogSource:
 				f"{type(error).__name__}: {error}",
 			))
 			return None
+		if not isinstance(data, dict):
+			issues.append(CatalogIssue(
+				"unreadable_file",
+				str(path.name),
+				f"expected a JSON object, got {type(data).__name__}",
+			))
+			return None
+		return data

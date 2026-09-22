@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 
 from lib.catalog.document import SCHEMA_VERSION, build_catalog
-from lib.catalog.model import COSEEING_GROUP
 from lib.catalog.sources import BUNDLED_LABELS, BundledCatalogSource
 
 
@@ -42,6 +41,15 @@ def test_every_group_offers_the_same_labels_as_the_legacy_manager():
 		assert catalog.labels_for(group) == tuple(manager.model_labels), group
 
 
+def test_every_provider_group_label_matches_the_legacy_manager():
+	catalog, manager = shipped_catalog(), legacy_manager()
+
+	assert tuple(
+		catalog.get_provider(group).label if catalog.get_provider(group) else group
+		for group in catalog.provider_groups
+	) == tuple(manager.endpoint_labels)
+
+
 def test_every_selectable_item_matches_the_legacy_manager():
 	catalog, manager = shipped_catalog(), legacy_manager()
 
@@ -74,8 +82,7 @@ def test_every_provider_entry_matches_its_json_file():
 
 	for path in (SETTING_DIR / "provider").glob("*.json"):
 		entry = catalog.get_provider(path.stem)
-		if entry is None:
-			continue
+		assert entry is not None, path.name
 		data = json.loads(path.read_text(encoding="utf8"))
 		assert (entry.url, entry.setting, entry.timeout0, entry.timeout_max) == (
 			data["url"], data["setting"], data["timeout0"], data["timeout_max"]
@@ -121,6 +128,41 @@ def test_a_corrupt_ai_file_is_reported_and_skipped(tmp_path):
 
 	assert [entry["model"] for entry in document["models"]] == ["gpt-x"]
 	assert [issue.code for issue in issues] == ["unreadable_file"]
+
+
+def test_a_wrong_typed_provider_file_is_reported_and_skipped(tmp_path):
+	_write_minimal_setting_tree(tmp_path)
+	(tmp_path / "provider" / "OpenAI.json").write_text("[1, 2]", encoding="utf8")
+	document, issues = BundledCatalogSource(tmp_path).load()
+
+	assert document["providers"] == {}
+	assert [issue.code for issue in issues] == ["unreadable_file"]
+	assert [issue.location for issue in issues] == ["OpenAI.json"]
+
+
+def test_a_wrong_typed_price_file_is_reported_and_skipped(tmp_path):
+	_write_minimal_setting_tree(tmp_path)
+	(tmp_path / "price.json").write_text(json.dumps(["not", "a", "mapping"]), encoding="utf8")
+	(tmp_path / "ai" / "OpenAI-00001-gpt-x.json").write_text(
+		json.dumps({"active": True, "model": "gpt-x", "provider": "OpenAI", "coseeing": False}),
+		encoding="utf8",
+	)
+	document, issues = BundledCatalogSource(tmp_path).load()
+
+	assert [entry["model"] for entry in document["models"]] == ["gpt-x"]
+	assert [issue.code for issue in issues] == ["unreadable_file"]
+	assert [issue.location for issue in issues] == ["price.json"]
+
+
+def test_a_wrong_typed_ai_file_is_reported_and_skipped(tmp_path):
+	_write_minimal_setting_tree(tmp_path)
+	(tmp_path / "ai" / "OpenAI-00001-gpt-x.json").write_text("42", encoding="utf8")
+	document, issues = BundledCatalogSource(tmp_path).load()
+
+	assert document["models"] == []
+	assert document["coseeings"] == []
+	assert [issue.code for issue in issues] == ["unreadable_file"]
+	assert [issue.location for issue in issues] == ["OpenAI-00001-gpt-x.json"]
 
 
 def _write_minimal_setting_tree(root: Path):
