@@ -29,8 +29,19 @@ def _internal_python_files():
 
 
 def test_no_addon_module_imports_an_internal_package_absolutely():
+	internal_files = _internal_python_files()
+	# Otherwise a mis-pointed ADDON_PATH (or the tree going missing) would
+	# make this scan -- and the test -- pass vacuously, offenders == []
+	# regardless. The floor is a small margin under the tree's current size,
+	# not the exact count, so this doesn't need updating on every new module.
+	assert internal_files, f"no .py files found under {ADDON_PATH}"
+	assert len(internal_files) >= 20, (
+		f"expected at least 20 add-on-internal .py files, found {len(internal_files)} -- "
+		"ADDON_PATH may be wrong"
+	)
+
 	offenders = []
-	for path in _internal_python_files():
+	for path in internal_files:
 		tree = ast.parse(path.read_text(encoding="utf8"), filename=str(path))
 		for node in ast.walk(tree):
 			if isinstance(node, ast.Import):
