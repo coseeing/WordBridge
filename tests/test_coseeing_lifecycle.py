@@ -25,6 +25,10 @@ def _plugin(monkeypatch, queued):
 def _instance(plugin_module):
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance._shutdown = threading.Event()
+	# GlobalPlugin.__init__ always sets this, and terminate() reads it. Without
+	# it here the AttributeError would be swallowed by terminate()'s own
+	# never-raise guard, hiding any real failure in the same step.
+	instance._progress_cue = None
 	return instance
 
 

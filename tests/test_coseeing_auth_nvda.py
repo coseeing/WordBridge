@@ -121,9 +121,35 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 		def GetSelection(self):
 			return self.selection
 
+	class Timer:
+		"""Stand-in for what wx.CallLater returns: a handle with Stop()."""
+
+		def __init__(self, delay_ms, callback, args):
+			self.delay_ms = delay_ms
+			self.callback = callback
+			self.args = args
+			self.stopped = False
+
+		def Stop(self):
+			self.stopped = True
+
+		def fire(self):
+			"""Deliver the timer the way wx's event loop would."""
+			self.callback(*self.args)
+
 	wx_choice = Choice
+	wx_timer = Timer
+	wx_timers = []
+
+	def call_later(delay_ms, callback, *args):
+		timer = wx_timer(delay_ms, callback, args)
+		wx_timers.append(timer)
+		return timer
+
 	class Wx:
 		CallAfter = staticmethod(lambda function, *args: queued.append((function, args)))
+		CallLater = staticmethod(call_later)
+		timers = wx_timers
 		Choice = wx_choice
 		TE_PASSWORD = 1
 		TE_PROCESS_ENTER = 2
@@ -180,10 +206,18 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 			exception=lambda *args, **kwargs: None,
 		)),
 	)
-	monkeypatch.setitem(sys.modules, "nvwave", SimpleNamespace())
+	played = []
+	monkeypatch.setitem(sys.modules, "nvwave", SimpleNamespace(
+		playWaveFile=lambda *args, **kwargs: played.append((args, kwargs)),
+		played=played,
+	))
 	monkeypatch.setitem(sys.modules, "scriptHandler", SimpleNamespace(script=lambda **kwargs: lambda function: function))
 	monkeypatch.setitem(sys.modules, "textInfos", SimpleNamespace(POSITION_SELECTION=object()))
-	monkeypatch.setitem(sys.modules, "tones", SimpleNamespace(beep=lambda *args: None))
+	beeps = []
+	monkeypatch.setitem(sys.modules, "tones", SimpleNamespace(
+		beep=lambda *args: beeps.append(args),
+		beeps=beeps,
+	))
 	monkeypatch.setitem(sys.modules, "ui", SimpleNamespace(message=lambda *args: None))
 	monkeypatch.setitem(sys.modules, "_wb_vendor.hanzidentifier", SimpleNamespace(has_chinese=lambda text: True))
 	monkeypatch.setitem(sys.modules, "configobj.validate", SimpleNamespace(

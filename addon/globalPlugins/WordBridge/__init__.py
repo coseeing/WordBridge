@@ -62,6 +62,7 @@ from .lib import coseeing_auth
 from .lib.coseeing_auth import shutdown_coseeing_auth, start_coseeing_auth
 from .lib.decimalUtils import decimal_to_str_0
 from .lib.report import generate_report
+from .lib.progress_cue import ProgressCue
 from .lib.tasks.typo.utils import strings_diff
 from _wb_vendor.hanzidentifier import has_chinese
 
@@ -132,6 +133,19 @@ COSEEING_TIMEOUT = (COSEEING_CONNECT_TIMEOUT, COSEEING_READ_TIMEOUT)
 # whatever is still running when this budget expires is abandoned.
 TERMINATE_WAIT_SECONDS = 3
 
+# Progress cue cadence, preserved from the sleep-polling loop this replaced:
+# the wave started immediately and repeated, the beep started after a beat.
+CORRECTION_SOUND_PATH = os.path.join(
+	os.path.dirname(__file__),
+	"sounds",
+	"zapsplat_nature_water_underwater_whoosh_movement_pass_med_designed_001_59240.wav",
+)
+SOUND_CUE_INTERVAL_MS = 5000
+BEEP_CUE_INITIAL_DELAY_MS = 1000
+BEEP_CUE_INTERVAL_MS = 2000
+BEEP_CUE_HZ = 261.6
+BEEP_CUE_MS = 300
+
 
 def get_coseeing_access_token(*, reconsider_guest=False):
 	return coseeing_auth.get_coseeing_access_token(reconsider_guest=reconsider_guest)
@@ -160,6 +174,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self.latest_action = CorrectionAction()
 		self.correct_typo_thread = None
 		self._feedback_thread = None
+		self._progress_cue = None
 
 	def _start_coseeing_auth(self, channel):
 		if not self._shutdown.is_set():
@@ -176,6 +191,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# wait loop raises something except Exception does not catch, such
 		# as a KeyboardInterrupt.
 		self._shutdown.set()
+		try:
+			self._stop_progress_cue()
+		except Exception:
+			log.exception("WordBridge: stopping the progress cue failed during terminate()")
 		deadline = time.monotonic() + TERMINATE_WAIT_SECONDS
 		try:
 			workers = [
@@ -485,28 +504,62 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if config.conf["WordBridge"]["settings"]["auto_display_report"]:
 			self._run_on_ui(self.showReport, diff)
 
-	def correctionAction(self, text):
-		if self.correct_typo_thread and self.correct_typo_thread.is_alive():
+	def startCorrection(self, text):
+		# UI THREAD ONLY. NVDA runs scripts on the main thread, so admission,
+		# the worker handle and the progress cue all live here -- which is what
+		# makes them safe without a lock, and what keeps the cue cancellable
+		# from terminate(). The previous shape wrapped this in a second thread
+		# purely to run a sleep-polling cue loop; that outer thread was in no
+		# one's join list, so it outlived terminate().
+		if self._shutdown.is_set():
+			return
+		if self.correct_typo_thread is not None and self.correct_typo_thread.is_alive():
 			self._notify(_("Only one proofreading task can run at a time. Please wait until the current task has finished before starting another."))
 			return
 
-		self.correct_typo_thread = threading.Thread(target=self.correctTypo, args=(text,), daemon=True)
+		self.correct_typo_thread = threading.Thread(target=self._run_correction, args=(text,), daemon=True)
 		self.correct_typo_thread.start()
+		self._progress_cue = self._make_progress_cue()
+		self._progress_cue.start()
 
-		while self.correct_typo_thread.is_alive():
-			if config.conf["WordBridge"]["settings"]["sound_effects_enable"]:
-				nvwave.playWaveFile(
-					os.path.join(os.path.dirname(__file__), "sounds", "zapsplat_nature_water_underwater_whoosh_movement_pass_med_designed_001_59240.wav"),
-					asynchronous=False,
-				)
-				time.sleep(5)
-			else:
-				time.sleep(1)
-				beep(261.6, 300)
-				time.sleep(1)
+	def _run_correction(self, text):
+		# Worker thread. The finally is what guarantees the cue stops even when
+		# correctTypo() raises: without it a failed correction would leave the
+		# cue sounding for the rest of the NVDA session.
+		try:
+			self.correctTypo(text)
+		finally:
+			self._run_on_ui(self._finish_correction)
 
-
+	def _finish_correction(self):
+		self._stop_progress_cue()
 		self.correct_typo_thread = None
+
+	def _stop_progress_cue(self):
+		cue, self._progress_cue = self._progress_cue, None
+		if cue is not None:
+			cue.stop()
+
+	def _make_progress_cue(self):
+		if config.conf["WordBridge"]["settings"]["sound_effects_enable"]:
+			return ProgressCue(
+				schedule=wx.CallLater,
+				tick=self._play_correction_sound,
+				interval_ms=SOUND_CUE_INTERVAL_MS,
+				initial_delay_ms=0,
+			)
+		return ProgressCue(
+			schedule=wx.CallLater,
+			tick=lambda: beep(BEEP_CUE_HZ, BEEP_CUE_MS),
+			interval_ms=BEEP_CUE_INTERVAL_MS,
+			initial_delay_ms=BEEP_CUE_INITIAL_DELAY_MS,
+		)
+
+	def _play_correction_sound(self):
+		# asynchronous=True is load-bearing now that this runs on the UI
+		# thread: a blocking playback would freeze NVDA for the length of the
+		# wave. In the old background-thread loop it only blocked that thread.
+		nvwave.playWaveFile(CORRECTION_SOUND_PATH, asynchronous=True)
 
 	@script(
 		gesture="kb:NVDA+alt+d",
@@ -534,8 +587,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		text = self.getSelectedText()
 		if not self.isTextValid(text):
 			return
-		action_thread = threading.Thread(target=self.correctionAction, args=(text,), daemon=True)
-		action_thread.start()
+		self.startCorrection(text)
 
 	@script(
 		gesture="kb:NVDA+alt+w",
