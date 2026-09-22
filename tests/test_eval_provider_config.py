@@ -23,9 +23,9 @@ spec.loader.exec_module(provider_module)
 
 
 def _catalog():
-	document, issues = BundledCatalogSource(SETTING_DIR).load()
-	assert issues == ()
-	return build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
+    document, issues = BundledCatalogSource(SETTING_DIR).load()
+    assert issues == ()
+    return build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
 
 
 def test_get_config_reads_explicit_wordbridge_settings():
