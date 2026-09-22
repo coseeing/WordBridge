@@ -1,8 +1,10 @@
-import pytest
+import ctypes
+import types
 
+import settings_repository
 from lib.catalog.document import SCHEMA_VERSION, build_catalog
 from lib.catalog.model import COSEEING_GROUP
-from settings_repository import SettingsRepository, os_default_language
+from settings_repository import LANGUAGE_FALLBACK, SettingsRepository, os_default_language
 
 
 RUNNABLE = frozenset({"OpenAI"})
@@ -63,10 +65,15 @@ def test_saving_a_selection_writes_both_keys():
 	assert settings["execution_channel"] == "local"
 
 
-def test_an_empty_language_resolves_to_the_os_default():
+def test_an_empty_language_resolves_to_the_os_default(monkeypatch):
+	# Asserting against the real os_default_language() would pass even if
+	# language() never consulted the probe at all, since both sides would
+	# independently land on the same fallback constant on this host. Patching
+	# the probe to a sentinel the constant can't equal makes this falsifiable.
+	monkeypatch.setattr(settings_repository, "os_default_language", lambda: "sentinel")
 	repo, _ = repository()
 
-	assert repo.language() == os_default_language()
+	assert repo.language() == "sentinel"
 
 
 def test_a_stored_language_is_honoured():
@@ -75,16 +82,55 @@ def test_a_stored_language_is_honoured():
 	assert repo.language() == "zh_simplified"
 
 
-def test_an_unknown_language_resolves_to_the_os_default():
+def test_an_unknown_language_resolves_to_the_os_default(monkeypatch):
+	monkeypatch.setattr(settings_repository, "os_default_language", lambda: "sentinel")
 	repo, _ = repository(language="klingon")
 
-	assert repo.language() == os_default_language()
+	assert repo.language() == "sentinel"
 
 
-def test_the_os_language_probe_degrades_when_ctypes_is_unavailable():
-	# There is no windll on this host, so the guarded probe must already be
-	# taking its failure path rather than raising.
-	assert os_default_language() in ("zh_traditional", "zh_simplified")
+def test_the_os_language_probe_degrades_to_the_fallback_when_windll_is_absent(monkeypatch):
+	# This host's ctypes module genuinely has no windll attribute (that is
+	# Windows-only), so the guarded probe's except branch must fire and
+	# degrade to the exact fallback constant rather than raising -- or
+	# silently returning the other language.
+	monkeypatch.delattr(ctypes, "windll", raising=False)
+	os_default_language.cache_clear()
+	try:
+		assert os_default_language() == LANGUAGE_FALLBACK
+	finally:
+		os_default_language.cache_clear()
+
+
+def test_the_os_language_probe_resolves_a_real_windows_locale(monkeypatch):
+	# Exercises the ternary at settings_repository.py that the failure-path
+	# test above cannot reach: a genuine LCID lookup through
+	# locale.windows_locale, for both branches of the zh_TW/zh_MO/zh_HK
+	# condition. cache_clear() runs before *and* after each value so neither
+	# the fake windll's result nor a prior test's cached fallback can leak.
+	monkeypatch.setattr(
+		ctypes,
+		"windll",
+		types.SimpleNamespace(kernel32=types.SimpleNamespace(GetUserDefaultUILanguage=lambda: 1028)),
+		raising=False,
+	)
+	os_default_language.cache_clear()
+	try:
+		assert os_default_language() == "zh_traditional"  # 1028 -> zh_TW
+	finally:
+		os_default_language.cache_clear()
+
+	monkeypatch.setattr(
+		ctypes,
+		"windll",
+		types.SimpleNamespace(kernel32=types.SimpleNamespace(GetUserDefaultUILanguage=lambda: 2052)),
+		raising=False,
+	)
+	os_default_language.cache_clear()
+	try:
+		assert os_default_language() == "zh_simplified"  # 2052 -> zh_CN
+	finally:
+		os_default_language.cache_clear()
 
 
 def test_an_unknown_correction_mode_resolves_to_the_default():
