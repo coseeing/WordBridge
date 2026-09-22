@@ -75,6 +75,17 @@ def test_the_sentinel_matches_the_fallback_entry():
 	)
 
 
+def test_the_shipped_coseeing_labels_are_pinned():
+	# Acceptance 4's Coseeing half otherwise rests on nothing but a manual
+	# check. This pins the underlying catalog labels -- not the settings
+	# panel's rendering, which (after the sentinel translation fix in
+	# dialogs.py) substitutes a translated string for the sentinel's entry
+	# only; lib/catalog itself must never reach _() (spec decision 9).
+	assert shipped_catalog().labels_for("Coseeing") == (
+		"Coseeing default", "deepseek-v4-flash", "gpt-5.6-luna",
+	)
+
+
 def test_an_ai_file_without_a_provider_becomes_a_coseeing_only_entry(tmp_path):
 	_write_minimal_setting_tree(tmp_path)
 	(tmp_path / "ai" / "Coseeing-00000-default.json").write_text(

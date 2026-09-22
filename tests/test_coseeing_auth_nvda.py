@@ -1,4 +1,5 @@
 from concurrent.futures import Future
+import dataclasses
 import importlib
 import importlib.util
 import ctypes
@@ -789,6 +790,229 @@ def test_settings_panel_uses_clean_button_without_legacy_credential_controls(mon
 	panel._refreshAccountInfo = lambda: None
 	panel.makeSettings(Sizer())
 	assert "Coseeing" not in settings["api_key"]
+
+
+def _panel_settings(**overrides):
+	settings = {
+		"corrector_config_id": "",
+		"execution_channel": "",
+		"api_key": {},
+		"language": "zh_traditional",
+		"typo_correction_mode": "standard",
+		"max_char_count": 512,
+		"auto_display_report": False,
+		"customized_words_enable": True,
+		"sound_effects_enable": True,
+	}
+	settings.update(overrides)
+	return settings
+
+
+def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
+	"""Wires the same wx/gui.guiHelper stand-ins
+	test_settings_panel_uses_clean_button_without_legacy_credential_controls
+	uses, so makeSettings() can run headless, and captures what it renders.
+
+	Returns (helper_calls, static_box_captions, Sizer): helper_calls is every
+	settingsSizerHelper.addLabeledControl() call as (label, control_type,
+	kwargs) -- kwargs["choices"] is what a wx.Choice was built with -- and
+	static_box_captions is the label given to each wx.StaticBoxSizer(...), in
+	provider_groups order.
+	"""
+	class Widget:
+		def __init__(self, *args, value="", label="", **kwargs):
+			self.value = value
+			self.label = label
+			self.enabled = True
+			self.bindings = {}
+			self.items = kwargs.get("choices", [])
+
+		def Enable(self, enabled=True):
+			self.enabled = enabled
+
+		def Disable(self):
+			self.enabled = False
+
+		def IsEnabled(self):
+			return self.enabled
+
+		def SetSelection(self, value):
+			self.value = value
+
+		def GetSelection(self):
+			return self.value
+
+		def SetValue(self, value):
+			self.value = value
+
+		def GetValue(self):
+			return self.value
+
+		def SetToolTip(self, value):
+			pass
+
+		def Bind(self, event, callback):
+			self.bindings[event] = callback
+
+		def SetItems(self, items):
+			self.items = items
+
+	class Sizer:
+		def Show(self, item, recursive=True):
+			pass
+
+		def Hide(self, item, recursive=True):
+			pass
+
+	helper_calls = []
+
+	class Helper:
+		def __init__(self, owner, sizer=None, **kwargs):
+			self.sizer = sizer or Sizer()
+
+		def addLabeledControl(self, label, control_type, **kwargs):
+			helper_calls.append((label, control_type, kwargs))
+			return control_type(None, **kwargs)
+
+		def addItem(self, item):
+			return item
+
+	static_box_captions = []
+
+	def static_box_sizer(orientation, parent, label=""):
+		static_box_captions.append(label)
+		return Sizer()
+
+	monkeypatch.setattr(gui.guiHelper, "BoxSizerHelper", Helper)
+	monkeypatch.setattr(plugin.wx, "Choice", Widget)
+	monkeypatch.setattr(plugin.wx, "TextCtrl", Widget)
+	monkeypatch.setattr(plugin.wx, "CheckBox", Widget)
+	monkeypatch.setattr(plugin.wx, "Button", Widget)
+	monkeypatch.setattr(plugin.wx, "StaticText", Widget)
+	monkeypatch.setattr(plugin.wx, "StaticBoxSizer", static_box_sizer)
+	monkeypatch.setattr(gui.nvdaControls, "SelectOnFocusSpinCtrl", Widget)
+	config.conf.getConfigValidation = lambda path: SimpleNamespace(kwargs={"min": 256, "max": 4096})
+	return helper_calls, static_box_captions, Sizer
+
+
+def _make_panel(monkeypatch, dialogs, Sizer):
+	panel = object.__new__(dialogs.LLMSettingsPanel)
+	panel.scaleSize = lambda value: value
+	panel._refreshAccountInfo = lambda: None
+	panel.makeSettings(Sizer())
+	return panel
+
+
+def test_settings_panel_summary_line_appears_only_when_the_catalog_has_issues(monkeypatch):
+	"""Spec: "the settings panel shows a summary line" (Validation and
+	degradation -> Visibility) -- the one of the spec's three issue-visibility
+	channels dialogs.py never implemented. catalog.degraded is only True on
+	the Empty rung, so without this there was no user-visible surfacing at
+	all on rung 2 ("Degraded: some entries dropped; the rest work").
+	"""
+	auth_calls = []
+	queued = []
+	settings = _panel_settings()
+	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
+	dialogs = plugin.dialogs
+	helper_calls, static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
+
+	clean_catalog = dataclasses.replace(plugin.catalog, issues=())
+	monkeypatch.setattr(dialogs.registry, "current", lambda: clean_catalog)
+	panel = _make_panel(monkeypatch, dialogs, Sizer)
+	assert panel.catalogIssuesText is None
+
+	from lib.catalog.model import CatalogIssue
+
+	issue = CatalogIssue("unreadable_file", "ai/Google-broken.json", "ValueError: boom")
+	catalog_with_issue = dataclasses.replace(plugin.catalog, issues=(issue,))
+	monkeypatch.setattr(dialogs.registry, "current", lambda: catalog_with_issue)
+	panel = _make_panel(monkeypatch, dialogs, Sizer)
+	assert panel.catalogIssuesText is not None
+	assert "1" in panel.catalogIssuesText.label
+
+
+def test_settings_panel_renders_provider_group_captions_through_their_catalog_labels(monkeypatch):
+	"""Acceptance 6 ("no Python change, including no label change") is false
+	for providers unless the panel actually reads ProviderEntry.label: before
+	this fix dialogs.py rendered the raw provider *key* everywhere -- the
+	wx.Choice items and every account box's caption -- so a remote payload
+	changing a provider's display name would never show up.
+	"""
+	auth_calls = []
+	queued = []
+	settings = _panel_settings()
+	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
+	dialogs = plugin.dialogs
+	helper_calls, static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
+
+	original = plugin.catalog
+	openai_entry = original.get_provider("OpenAI")
+	assert openai_entry is not None
+	relabeled_providers = dict(original.providers)
+	relabeled_providers["OpenAI"] = dataclasses.replace(openai_entry, label="OpenAI Displayed")
+	relabeled_catalog = dataclasses.replace(original, providers=relabeled_providers)
+	monkeypatch.setattr(dialogs.registry, "current", lambda: relabeled_catalog)
+
+	_make_panel(monkeypatch, dialogs, Sizer)
+
+	provider_call = next(call for call in helper_calls if call[0] == "Service Provider:")
+	choices = provider_call[2]["choices"]
+	assert "OpenAI Displayed" in choices
+	assert "OpenAI" not in choices
+	assert any(caption.startswith("OpenAI Displayed ") for caption in static_box_captions)
+	# Coseeing has no ProviderEntry (by design) -- its caption must still fall
+	# back to the raw group name rather than breaking.
+	assert any(caption.startswith("Coseeing ") for caption in static_box_captions)
+
+
+def test_the_sentinel_model_label_is_rendered_through_the_translation_map(monkeypatch):
+	"""I3: SENTINEL_LABEL ("Coseeing default") ships untranslated from
+	lib/catalog (spec decision 9 forbids lib/catalog from reaching _()), and
+	it is the everyday default selection on every fresh install (spec
+	decision 5) -- the most user-visible string in the batch for a zh-only,
+	blind-user product. The panel must render it through
+	dialogs.MODEL_LABEL_TRANSLATIONS instead of the raw catalog label.
+
+	The fake catalog below gives the sentinel coseeing entry a deliberately
+	different raw label, so a rendered "Coseeing default" can only have come
+	from the translation map -- never from entry.label passing through
+	untouched, which is what every *other* model/coseeing label must still do.
+	"""
+	auth_calls = []
+	queued = []
+	settings = _panel_settings()
+	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
+	dialogs = plugin.dialogs
+	helper_calls, static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
+
+	original = plugin.catalog
+	other_coseeings = tuple(
+		dataclasses.replace(entry, label="RAW SENTINEL LABEL FROM CATALOG")
+		if entry.corrector_config_id == dialogs.SENTINEL_ID else entry
+		for entry in original.coseeings
+	)
+	assert other_coseeings != original.coseeings, "fixture did not find the sentinel entry"
+	catalog = dataclasses.replace(original, coseeings=other_coseeings)
+	monkeypatch.setattr(dialogs.registry, "current", lambda: catalog)
+
+	_make_panel(monkeypatch, dialogs, Sizer)
+
+	model_call = next(call for call in helper_calls if call[0] == "Large Language Model:")
+	choices = model_call[2]["choices"]
+	assert dialogs.MODEL_LABEL_TRANSLATIONS[dialogs.SENTINEL_ID] in choices
+	assert "RAW SENTINEL LABEL FROM CATALOG" not in choices
+	# Every other Coseeing-offered model's label must still pass through
+	# untouched -- only the sentinel is mapped.
+	untranslated_labels = {
+		entry.label for entry in original.coseeings
+		if entry.corrector_config_id != dialogs.SENTINEL_ID
+	}
+	assert untranslated_labels, "fixture needs at least one non-sentinel Coseeing entry"
+	assert untranslated_labels <= set(choices)
 
 
 def test_nvda_module_setup_leaves_real_bundle_exports_importable(monkeypatch):

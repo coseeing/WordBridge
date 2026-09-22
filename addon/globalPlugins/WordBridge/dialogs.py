@@ -14,6 +14,7 @@ from gui.settingsDialogs import SettingsPanel
 
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.catalog import registry
+from .lib.catalog.fallback import SENTINEL_ID
 from .lib.catalog.selection import SelectionState
 from .lib.coseeing_auth import (
 	clean_coseeing_auth,
@@ -44,6 +45,42 @@ TYPO_CORRECTION_MODE_LABELS = [LABEL_DICT[value] for value in TYPO_CORRECTION_MO
 
 SOUND_EFFECTS_URL = "https://www.zapsplat.com/music/medium-underwater-movement-whoosh-pass-by-1/"
 
+# lib/catalog must never reach _() (spec decision 9), so the sentinel's label
+# ships plain -- SENTINEL_LABEL = "Coseeing default" in lib/catalog/fallback.py
+# -- and is the *only* catalog label that is not simply an identity mapping of
+# a model or brand name; it is also, per spec decision 5, the default
+# selection on every fresh install. Translating it here, keyed by the
+# sentinel's corrector_config_id rather than by its text, is what keeps this
+# from opening the door a remote payload rewriting the interface's own
+# wording would be: the mapping is entirely client-side and keyed by an id
+# the client itself defines, not by whatever string a catalog document
+# happens to carry.
+MODEL_LABEL_TRANSLATIONS = {
+	SENTINEL_ID: _("Coseeing default"),
+}
+
+
+def _display_labels(catalog, provider_group):
+	"""labels_for(), with the sentinel's label passed through translation.
+
+	Every other model/coseeing label passes through untouched -- see
+	MODEL_LABEL_TRANSLATIONS's docstring for why only the sentinel is mapped.
+	"""
+	return tuple(
+		MODEL_LABEL_TRANSLATIONS.get(item.corrector_config_id, item.label)
+		for item in catalog.items_for(provider_group)
+	)
+
+
+def _provider_group_label(catalog, group):
+	"""The caption for a provider group: its ProviderEntry.label when one
+	exists (Task 2's oracle test proved every shipped provider label equals
+	its key, so this changes nothing rendered today), falling back to the
+	raw group name for groups with no provider entry -- Coseeing, by design.
+	"""
+	provider_entry = catalog.get_provider(group)
+	return provider_entry.label if provider_entry is not None else group
+
 
 class LLMSettingsPanel(SettingsPanel):
 	title = _("WordBridge")
@@ -56,12 +93,30 @@ class LLMSettingsPanel(SettingsPanel):
 		self.settings = SettingsRepository(config.conf["WordBridge"]["settings"], registry.current)
 		self.selection = SelectionState.restore(self.catalog, *self.settings.corrector_selection())
 
+		# Spec: "the settings panel shows a summary line" when catalog
+		# issues exist (Validation and degradation -> Visibility). The log
+		# line (see __init__.py) and the degraded-catalog announcement
+		# already cover the other two channels; this is the one that was
+		# missing entirely, and it is the only one that surfaces rung-2
+		# ("Degraded: some entries dropped; the rest work") to the user --
+		# self.catalog.degraded is only ever True on the Empty rung.
+		self.catalogIssuesText = None
+		if self.catalog.issues:
+			self.catalogIssuesText = settingsSizerHelper.addItem(
+				wx.StaticText(
+					self,
+					label=_(
+						"{count} catalog entries could not be loaded; see the NVDA log for details."
+					).format(count=len(self.catalog.issues)),
+				)
+			)
+
 		# For selecting provider
 		providerLabelText = _("Service Provider:")
 		self.providerList = settingsSizerHelper.addLabeledControl(
 			providerLabelText,
 			wx.Choice,
-			choices=list(self.catalog.provider_groups),
+			choices=[_provider_group_label(self.catalog, group) for group in self.catalog.provider_groups],
 		)
 		self.providerList.SetToolTip(wx.ToolTip(_("Choose the service provider for the WordBridge")))
 		self.providerList.Bind(wx.EVT_CHOICE, self.onChangeProviderChoice)
@@ -72,7 +127,7 @@ class LLMSettingsPanel(SettingsPanel):
 		self.modelList = settingsSizerHelper.addLabeledControl(
 			modelLabelText,
 			wx.Choice,
-			choices=list(self.catalog.labels_for(self.selection.provider_group)),
+			choices=list(_display_labels(self.catalog, self.selection.provider_group)),
 		)
 		self.modelList.SetToolTip(wx.ToolTip(_("Choose the large language model for the Word Bridge")))
 		self.modelList.SetSelection(self.selection.model_index)
@@ -84,7 +139,7 @@ class LLMSettingsPanel(SettingsPanel):
 			accountBoxSizer = wx.StaticBoxSizer(
 				wx.VERTICAL,
 				self,
-				label=group + " " + _("Authentication")
+				label=_provider_group_label(self.catalog, group) + " " + _("Authentication")
 			)
 			self.accountGroupSizerMap[group] = accountBoxSizer
 			self.accountGroupSizerHelper = guiHelper.BoxSizerHelper(self, sizer=accountBoxSizer)
@@ -198,7 +253,7 @@ class LLMSettingsPanel(SettingsPanel):
 		self.settingsSizer = settingsSizer
 
 	def _refreshModelChoice(self):
-		self.modelList.SetItems(list(self.catalog.labels_for(self.selection.provider_group)))
+		self.modelList.SetItems(list(_display_labels(self.catalog, self.selection.provider_group)))
 		self.modelList.SetSelection(0)
 
 	def _refreshAccountInfo(self):
