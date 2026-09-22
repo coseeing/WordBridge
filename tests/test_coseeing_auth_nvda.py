@@ -355,6 +355,11 @@ def test_global_plugin_starts_normalized_coseeing_auth_and_guards_queued_callbac
 	assert isinstance(instance.settings, plugin.SettingsRepository)
 	assert instance.correctorTaskConfig is not None
 	assert instance.catalog is not None
+	# __init__.py:195 sets this so correctTypo()'s degraded-catalog announcement
+	# has a flag to guard -- `and` short-circuits, so dropping or reordering
+	# that line stays green everywhere except here, and everywhere except a
+	# degraded user's first correction (see fix-round-1 in task-7-report.md).
+	assert instance._degraded_catalog_announced is False
 	assert len(queued) == 1
 	callback, args = queued.pop(0)
 	callback(*args)

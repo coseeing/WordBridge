@@ -90,6 +90,73 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 	}
 
 
+def test_degraded_catalog_announcement_fires_once_per_session(monkeypatch):
+	from test_coseeing_auth_nvda import _load_nvda_plugin
+
+	queued = []
+	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
+		"corrector_config_id": "default",
+		"execution_channel": "Coseeing",
+		"api_key": {},
+		"language": "zh_traditional",
+		"typo_correction_mode": "standard",
+		"customized_words_enable": False,
+		"auto_display_report": False,
+	}, [], queued)
+	instance = object.__new__(plugin_module.GlobalPlugin)
+	# correctTypo() now reads self.settings / self.correctorTaskConfig; see
+	# the plugin.settings comment in _load_nvda_plugin.
+	instance.settings = plugin_module.settings
+	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
+	instance.latest_action = plugin_module.CorrectionAction()
+	instance.readDictionary = lambda: []
+	instance._shutdown = threading.Event()
+
+	class BrokenSource:
+		def load(self):
+			raise RuntimeError("setting tree unreadable")
+
+	# A source whose load() raises always degrades to the sentinel rung (see
+	# lib/catalog/fallback.py's load_catalog) -- the exact shape correctTypo()
+	# would see in production the day the shipped setting/ tree can't be read.
+	instance.catalog = plugin_module.load_catalog(
+		BrokenSource(), runnable_providers=plugin_module.SUPPORTED_PROVIDERS
+	)
+	assert instance.catalog.degraded is True
+	instance._degraded_catalog_announced = False
+
+	future = Future()
+	future.set_result("access")
+	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
+	messages = []
+	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
+	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
+		warning=lambda *args, **kwargs: None,
+		info=lambda *args, **kwargs: None,
+		debug=lambda *args, **kwargs: None,
+		exception=lambda *args, **kwargs: None,
+	))
+	monkeypatch.setattr(plugin_module, "strings_diff", lambda request, response: [])
+	monkeypatch.setattr(plugin_module.api, "copyToClip", lambda text: None, raising=False)
+
+	def post(url, **kwargs):
+		return SimpleNamespace(status_code=200, json=lambda: {"response": "修正", "interaction_id": "i-1", "cost": 0})
+
+	monkeypatch.setattr(plugin_module.requests, "post", post, raising=False)
+
+	plugin_module.GlobalPlugin.correctTypo(instance, "原文一")
+	plugin_module.GlobalPlugin.correctTypo(instance, "原文二")
+
+	# Drain every deferred UI callback both calls queued, then count how many
+	# times the degraded-catalog announcement actually reached the user.
+	while queued:
+		callback, args = queued.pop(0)
+		callback(*args)
+
+	announcement = "The model list could not be loaded. Coseeing will choose a model for you."
+	assert messages.count(announcement) == 1
+
+
 def test_proofreader_auth_failure_skips_post_and_queues_ui_notification(monkeypatch):
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
