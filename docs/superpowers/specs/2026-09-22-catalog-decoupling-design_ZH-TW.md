@@ -23,7 +23,7 @@ catalog——model、顯示名稱、價格與 provider 參數。**
 | 1 | 本階段只做接縫。不做 HTTP、快取、簽章、合併覆蓋。 |
 | 2 | catalog 涵蓋今天四組資料：model、顯示名稱、價格、provider 參數。 |
 | 3 | 逐筆驗證。壞的一筆跳過並記錄，永不拋例外。 |
-| 4 | 全數無效時使用內建 fallback catalog，內含**一筆** Coseeing 條目，其 `corrector_config_id` 為 sentinel `"default"`。Coseeing 伺服器接受 `"default"` 並自行挑選 model，因此 Python 裡不寫死任何 model / provider / 價格字串。 |
+| 4 | 全數無效時使用內建 fallback catalog，內含**一筆** Coseeing 條目，其 id 為 sentinel `"default"`。Coseeing 伺服器接受 `"default"` 並自行挑選 model，因此 Python 裡不寫死任何 model / provider / 價格字串。 |
 | 5 | 該 sentinel 條目**同時存在於正常 catalog 中且永遠可選**，並且是新安裝的預設選擇。 |
 | 6 | `SettingsRepository` 收納 `config.conf["WordBridge"]["settings"]` 的**全部**鍵，不只 catalog 相關的兩項。 |
 | 7 | document 有四個頂層 key：`schema_version`、`providers`、`models`、`coseeings`。Coseeing 是一個**通道**而非 provider，其條目只需要 id 與 label，永遠不需要 provider 參數、價格或 `usage_key`。出現在 `models` **即代表**有本地通道，出現在 `coseeings` **即代表**有 Coseeing 通道。不再有 `local` / `coseeing` 布林旗標。 |
@@ -59,6 +59,11 @@ catalog——model、顯示名稱、價格與 provider 參數。**
   併發政策（T16）、`coseeing_auth` 狀態機（T18）
 - `configManager.py` 改名——留待 T13 重整 `__init__.py` 時一併處理
 - provider / adapter 子類的 `format_request` / `parse_response` 任何改動
+- 改變 Coseeing 請求所帶的值。request body 仍送推導出的 `corrector_config_id`
+  （`deepseek-v4-flash&DeepSeek`），而非裸 model 名稱。改送裸名稱會改掉**所有**既有
+  Coseeing 請求的格式，而本 repo 無法確立伺服器對不含 `&` 的 id 如何處理——`server/`
+  是空目錄。確認之後它會是一個自足的後續改動：只動 `correctTypo()` 裡的一個值，
+  catalog 資料完全不變。
 
 ## 架構
 
@@ -129,7 +134,6 @@ NVDA 自己 new `LLMSettingsPanel`（`categoryClasses` 裡放的是類別），�
   "coseeings": [
     {
       "model": "default",
-      "corrector_config_id": "default",
       "label": "Coseeing 預設（由伺服器決定）",
       "active": true
     },
@@ -154,14 +158,26 @@ NVDA 自己 new `LLMSettingsPanel`（`categoryClasses` 裡放的是類別），�
 | --- | --- | --- | --- |
 | `provider` | 是 | — | 不得含 `&` |
 | `model` | 是 | — | 不得含 `&` |
-| `corrector_config_id` | 否 | `make_corrector_config_id(model, provider)` | 顯式形式在此是為了與 `coseeings` 對稱而接受；出貨的每一筆 `models` 條目都採推導 |
 | `label` | 否 | `model` 字串本身 | 顯示名稱。把它移出 `LABEL_DICT` 正是遠端 payload 能新增 model 的前提 |
 | `active` | 否 | `true` | |
 | `pricing` | 否 | `None` | **刻意選配**：`qwen2&Ollama` 今天就沒有價格條目，且必須維持可用 |
 | `usage_key` | 否 | `None` | 與 `pricing` 成對 |
 
-`corrector_config_id` 絕不重複儲存：顯式欄位不存在時即由推導產生，因此一組
-(model, provider) 只有一個身分。
+### 身分
+
+`corrector_config_id` **不是欄位**，它永遠由一條規則推導：
+
+```python
+def make_corrector_config_id(model: str, provider: str | None = None) -> str:
+	return model if provider is None else f"{model}&{provider}"
+```
+
+`models` 條目必然有 provider，所以它的 id 必然含 `&`。伺服器自行提供的 `coseeings`
+條目——例如 sentinel，其 id 因此為 `"default"`——沒有 provider，得到一個裸 id。兩種
+形式不可能相撞，因為一種必然含 `&`，另一種必然不含。
+
+用推導而非宣告，代表一組 (model, provider) 只有一個身分，不存在第二個可以寫成別樣的
+地方。
 
 價格屬於 (provider, model) **這一對**，不屬於其中任一方——`setting/price.json` 正是
 以這一對為 key——所以它巢狀在 model 條目裡，而不是放在 `providers`。
@@ -172,8 +188,7 @@ NVDA 自己 new `LLMSettingsPanel`（`categoryClasses` 裡放的是類別），�
 | --- | --- | --- | --- |
 | `model` | 是 | — | 不得含 `&` |
 | `label` | **是** | — | 永不從 `models` 中同 id 的條目繼承。見決策 8 |
-| `corrector_config_id` | 否 | `make_corrector_config_id(model, provider)` | 伺服器端專屬條目（如 sentinel，id 為 `"default"`）使用顯式形式 |
-| `provider` | 否 | — | 僅用於推導「同時也有本地 offer 的 model」之 id。不得含 `&`。**絕不**用來到 `providers` 裡查任何東西 |
+| `provider` | 否 | — | **它是身分的一部分，不是查表的 key**：有 provider 時 id 為 `model&provider`，與同一個 model 的本地 offer 對齊；沒有時 id 為裸 `model`，代表伺服器自行提供的東西。不得含 `&`。**絕不**用來到 `providers` 裡查任何東西 |
 | `active` | 否 | `true` | |
 
 coseeing 條目不帶 `pricing`、`usage_key` 與 provider 參數，因為請求只帶 id 送往

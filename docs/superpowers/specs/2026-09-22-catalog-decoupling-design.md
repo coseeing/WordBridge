@@ -26,7 +26,7 @@ recorded because several of them are not recoverable from the code.
 | 1 | This phase implements the seam only. No HTTP, no cache, no signature, no merge/overlay. |
 | 2 | The catalog covers all four of today's data sets: models, display labels, prices, provider parameters. |
 | 3 | Validation is per entry. A bad entry is skipped and recorded; it never raises. |
-| 4 | When nothing valid remains, a built-in fallback catalog is used, holding exactly one Coseeing entry whose `corrector_config_id` is the sentinel `"default"`. The Coseeing server accepts `"default"` and picks the model itself, so no model, provider or price string is hard-coded in Python. |
+| 4 | When nothing valid remains, a built-in fallback catalog is used, holding exactly one Coseeing entry whose id is the sentinel `"default"`. The Coseeing server accepts `"default"` and picks the model itself, so no model, provider or price string is hard-coded in Python. |
 | 5 | That sentinel entry is **also present in the normal catalog and always selectable**, and it is the default selection for new installations. |
 | 6 | `SettingsRepository` owns every `config.conf["WordBridge"]["settings"]` key, not only the catalog-related ones. |
 | 7 | The document has four top-level keys: `schema_version`, `providers`, `models`, `coseeings`. Coseeing is a channel, not a provider — its entries need only an id and a label, never provider parameters, pricing or a `usage_key`. Presence in `models` *is* the local channel; presence in `coseeings` *is* the Coseeing channel. No `local` / `coseeing` booleans. |
@@ -68,6 +68,12 @@ Out of scope, explicitly:
   `__init__.py`
 - Any change to `format_request` / `parse_response` in provider or adapter
   subclasses
+- Changing what the Coseeing request carries. The body keeps sending the derived
+  `corrector_config_id` (`deepseek-v4-flash&DeepSeek`), not a bare model name.
+  Sending the bare name would change the format of *every* existing Coseeing
+  request, and this repo cannot establish how the server treats an id without
+  `&` — `server/` is empty. It is a self-contained follow-up once that is
+  confirmed: one value in `correctTypo()`, no catalog data change.
 
 ## Architecture
 
@@ -143,7 +149,6 @@ file whose `coseeing` field is true. No data migration.
   "coseeings": [
     {
       "model": "default",
-      "corrector_config_id": "default",
       "label": "Coseeing default (server chooses)",
       "active": true
     },
@@ -170,14 +175,27 @@ server recognises. Today exactly one model is in both
 | --- | --- | --- | --- |
 | `provider` | yes | — | Must not contain `&` |
 | `model` | yes | — | Must not contain `&` |
-| `corrector_config_id` | no | `make_corrector_config_id(model, provider)` | The explicit form is accepted here for symmetry with `coseeings`; every shipped `models` entry derives it |
 | `label` | no | the `model` string | Display name. Moving this out of `LABEL_DICT` is what lets a remote payload add a model |
 | `active` | no | `true` | |
 | `pricing` | no | `None` | **Optional on purpose**: `qwen2&Ollama` ships with no price entry today and must stay usable |
 | `usage_key` | no | `None` | Paired with `pricing` |
 
-`corrector_config_id` is never stored redundantly: when the explicit field is
-absent it is derived, so a model/provider pair has exactly one identity.
+### Identity
+
+`corrector_config_id` is **never a field**. It is always derived, by one rule:
+
+```python
+def make_corrector_config_id(model: str, provider: str | None = None) -> str:
+	return model if provider is None else f"{model}&{provider}"
+```
+
+A `models` entry always has a provider, so its id always contains `&`. A
+`coseeings` entry for a model the server serves on its own — the sentinel, whose
+id is therefore `"default"` — has no provider and gets a bare id. The two forms
+cannot collide, because one always contains `&` and the other never does.
+
+Deriving rather than declaring means a model/provider pair has exactly one
+identity, with no second place for it to be written differently.
 
 Price data belongs to the (provider, model) **pair**, not to either alone —
 `setting/price.json` is keyed by exactly that pair — so it is nested in the
@@ -189,8 +207,7 @@ model entry rather than carried in `providers`.
 | --- | --- | --- | --- |
 | `model` | yes | — | Must not contain `&` |
 | `label` | **yes** | — | Never inherited from a same-id `models` entry. See decision 8 |
-| `corrector_config_id` | no | `make_corrector_config_id(model, provider)` | Explicit for server-side-only entries such as the sentinel, whose id is `"default"` |
-| `provider` | no | — | Present only to derive the id for a model that also has a local offer. Must not contain `&`. Never used to look anything up in `providers` |
+| `provider` | no | — | **Part of the identity, not a lookup key**: present, the id is `model&provider`, matching the local offer of the same model; absent, the id is the bare `model`, for something the server serves on its own. Must not contain `&`. Never used to look anything up in `providers` |
 | `active` | no | `true` | |
 
 A Coseeing entry carries no `pricing`, no `usage_key` and no provider
