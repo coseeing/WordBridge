@@ -1219,3 +1219,63 @@ def test_concurrent_shutdown_callers_share_blocked_client_cleanup(monkeypatch):
 	assert not results[0].done()
 	close_release.set()
 	assert results[0].result(timeout=1) is None
+
+
+def test_failure_log_names_the_mapped_cause(monkeypatch):
+	"""The library maps many distinct failures onto one (stage, code) pair.
+
+	`code=token_exchange_failed` is reached by an `OAuthError` (the token
+	endpoint rejected the exchange) and by a `RuntimeError` (the OIDC protocol
+	was already closed) alike, so the log line must carry the sanitized cause
+	the library attached, or the two are indistinguishable in NVDA's log.
+	"""
+	logs = []
+	class Dialog:
+		pass
+	class Wx:
+		class DefaultButtonSet:
+			YES_NO = 4
+	_install_nvda(
+		monkeypatch, dialog=Dialog, wx=Wx,
+		log=SimpleNamespace(warning=lambda *args: logs.append(args)),
+	)
+	class _SanitizedCause(Exception):
+		pass
+	error = RuntimeError("mapped")
+	error.operation = "login"
+	error.stage = "token_exchange"
+	error.code = "token_exchange_failed"
+	error.__cause__ = _SanitizedCause("OAuthError: token_exchange_failed")
+	failed = Future()
+	failed.set_exception(error)
+	module._NvdaAuthAdapter().notify_completion(failed)
+	logged = " ".join(str(value) for args in logs for value in args)
+	assert "OAuthError: token_exchange_failed" in logged
+
+
+def test_failure_log_never_renders_an_unsanitized_cause(monkeypatch):
+	"""Only `_SanitizedCause` is library-built from a type name and a fixed
+	code. Any other cause contributes its type name and nothing else, so no
+	token, URL or user text can reach the log through it.
+	"""
+	logs = []
+	class Dialog:
+		pass
+	class Wx:
+		class DefaultButtonSet:
+			YES_NO = 4
+	_install_nvda(
+		monkeypatch, dialog=Dialog, wx=Wx,
+		log=SimpleNamespace(warning=lambda *args: logs.append(args)),
+	)
+	error = RuntimeError("mapped")
+	error.operation = "login"
+	error.stage = "token_exchange"
+	error.code = "token_exchange_failed"
+	error.__cause__ = ValueError("refresh-token-secret")
+	failed = Future()
+	failed.set_exception(error)
+	module._NvdaAuthAdapter().notify_completion(failed)
+	logged = " ".join(str(value) for args in logs for value in args)
+	assert "ValueError" in logged
+	assert "refresh-token-secret" not in logged

@@ -1,3 +1,37 @@
+import os
+import traceback
+
+# Enough frames to cross a package boundary and still name the call that went
+# wrong, without turning one log line into a screenful.
+_FAILURE_SITE_FRAMES = 6
+
+
+def failure_site(error: BaseException) -> str:
+    """Locate a failure the mapping layer could not name, leaking no values.
+
+    `CoseeingAuthClient._map_login_error()` folds every exception it does not
+    recognise into a single `token_exchange_failed`, and `_safe_cause()` then
+    replaces the exception with its bare type name -- so a `TypeError` raised
+    anywhere inside the token exchange reaches the log with nothing at all to
+    locate it by.
+
+    Only the type name and the innermost frames are rendered, innermost first,
+    each as `basename:lineno:function`. `str(error)`, the exception's args and
+    the frames' source lines are all excluded, so a token, URL or user string
+    carried by the exception cannot reach the log through this. The basename
+    alone (never the full path) keeps the Windows user directory out of it,
+    matching the rule the rest of this package's logging already follows.
+    """
+    frames = traceback.extract_tb(error.__traceback__)[-_FAILURE_SITE_FRAMES:]
+    site = " < ".join(
+        f"{os.path.basename(frame.filename)}:{frame.lineno}:{frame.name}"
+        for frame in reversed(frames)
+    )
+    if not site:
+        return type(error).__name__
+    return f"{type(error).__name__} at {site}"
+
+
 class AuthError(Exception):
     default_operation: str | None = None
     default_stage: str | None = None

@@ -517,6 +517,31 @@ class CoseeingAuthSession:
 			pass
 
 
+def _cause_summary(error: BaseException) -> str:
+	"""Name the failure the library mapped away, for the log line above.
+
+	`CoseeingAuthClient` collapses every internal failure onto a small set of
+	(operation, stage, code) triples and raises the mapped error `from` a
+	`_SanitizedCause` whose message is `"<original type>: <code>"`. That cause
+	is the only surviving record of what actually went wrong, and several
+	unrelated failures share one code: `code=token_exchange_failed` is what
+	both an `OAuthError` (the token endpoint rejected the exchange) and a
+	`RuntimeError` (the OIDC protocol was already closed) arrive as. Without
+	this, NVDA's log cannot tell them apart.
+
+	Only `_SanitizedCause`'s message is rendered: the library builds it from a
+	type name and a fixed code, so it can carry no token, URL or user text.
+	Any other cause contributes its type name alone -- never `str()` -- which
+	is the same rule the `type=%s` field above already follows.
+	"""
+	cause = error.__cause__
+	if cause is None:
+		return "none"
+	if type(cause).__name__ == "_SanitizedCause":
+		return str(cause)
+	return type(cause).__name__
+
+
 class _NvdaAuthAdapter:
 	def __init__(self) -> None:
 		# NVDA modules are deliberately imported only when the adapter is built.
@@ -610,8 +635,8 @@ class _NvdaAuthAdapter:
 			stage = getattr(error, "stage", "unknown")
 			code = getattr(error, "code", "unknown")
 			self._log.warning(
-				"Coseeing auth failure type=%s operation=%s stage=%s code=%s",
-				type(error).__name__, operation, stage, code,
+				"Coseeing auth failure type=%s operation=%s stage=%s code=%s cause=%s",
+				type(error).__name__, operation, stage, code, _cause_summary(error),
 			)
 			try:
 				self.post_ui(self._deliver_notification, notify_during_shutdown)

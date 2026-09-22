@@ -17,6 +17,7 @@ from .errors import (
     LogoutError,
     TokenPersistenceError,
     TokenValidationError,
+    failure_site,
 )
 from .models import AuthConfig, AuthResult, Identity, LogoutMode, LogoutResult
 from .oidc import OidcProtocol
@@ -128,7 +129,7 @@ class CoseeingAuthClient:
                 pending = (mapped, _safe_cause(error, "callback wait was cancelled"))
             except Exception as error:
                 mapped = self._map_login_error(error, self._login_stage)
-                self._log("error", f"login failed during {mapped.stage}")
+                self._log("error", f"login failed during {mapped.stage}: {failure_site(error)}")
                 pending = (mapped, _safe_cause(error, mapped.code))
         finally:
             cleanup_error = None
