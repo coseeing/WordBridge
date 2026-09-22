@@ -1,4 +1,5 @@
 from .document import SCHEMA_VERSION, build_catalog
+from .model import CatalogIssue
 
 
 SENTINEL_ID = "default"
@@ -18,8 +19,24 @@ FALLBACK_DOCUMENT = {
 
 
 def load_catalog(source, *, runnable_providers):
-	"""Build a catalog from a source, degrading to the sentinel when empty."""
-	document, source_issues = source.load()
+	"""Build a catalog from a source, degrading to the sentinel when empty.
+
+	source.load() is someone else's code -- today BundledCatalogSource, later
+	a RemoteCatalogSource -- and build_catalog() was deliberately made total
+	("problems become issues, never exceptions"). load() gets the same
+	treatment here: whatever it raises is caught and turned into an issue, so
+	a damaged or misbehaving source degrades to the sentinel rung instead of
+	stopping NVDA from starting.
+	"""
+	try:
+		document, source_issues = source.load()
+	except Exception as error:
+		document = None
+		source_issues = (CatalogIssue(
+			"unreadable_source",
+			type(source).__name__,
+			f"{type(error).__name__}: {error}",
+		),)
 	catalog = build_catalog(document, runnable_providers=runnable_providers)
 	issues = tuple(source_issues) + catalog.issues
 	if catalog.selectable_items:

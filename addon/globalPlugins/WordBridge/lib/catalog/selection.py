@@ -4,18 +4,21 @@ from .model import COSEEING_GROUP, LOCAL_CHANNEL
 def normalize_selection(catalog, corrector_config_id: str, execution_channel: str) -> tuple:
 	"""Resolve a stored selection against a catalog.
 
-	Membership decides the channel: an id in coseeings can run on Coseeing, an
-	id in models can run locally. Anything unresolvable becomes the catalog's
-	default, which is why an empty stored value -- what a fresh install has,
-	now that the config spec defaults are static -- lands on the default too.
+	Selectable membership decides the channel: an id counts as being on
+	Coseeing or local only when find_selection() for that channel actually
+	finds it, which -- unlike get_model()/get_coseeing(), which stay total on
+	purpose so lookups elsewhere keep working -- excludes retired
+	(``active: false``) entries. That mirrors configManager's old
+	`not config.active` check, so retiring an entry still retires it.
+	Anything unresolvable becomes the catalog's default, which is why an
+	empty stored value -- what a fresh install has, now that the config spec
+	defaults are static -- lands on the default too.
 	"""
-	on_coseeing = catalog.get_coseeing(corrector_config_id) is not None
-	on_local = catalog.get_model(corrector_config_id) is not None
+	on_coseeing = catalog.find_selection(corrector_config_id, COSEEING_GROUP) != (-1, -1)
+	on_local = catalog.find_selection(corrector_config_id, LOCAL_CHANNEL) != (-1, -1)
 
 	if execution_channel == COSEEING_GROUP and on_coseeing:
 		return (corrector_config_id, COSEEING_GROUP)
-	if execution_channel == LOCAL_CHANNEL and on_local:
-		return (corrector_config_id, LOCAL_CHANNEL)
 	if on_local:
 		return (corrector_config_id, LOCAL_CHANNEL)
 	if on_coseeing:

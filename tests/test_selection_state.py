@@ -58,6 +58,31 @@ def test_an_unrecognised_channel_name_is_normalised():
 	assert normalize_selection(catalog(), "gpt-x&OpenAI", "nonsense") == ("gpt-x&OpenAI", "local")
 
 
+def test_a_dual_membership_id_stored_on_coseeing_stays_on_coseeing():
+	# ds-x&DeepSeek is in both models and coseeings in the fixture above: a
+	# shipped entry with "coseeing": true. A user who picked it through
+	# Coseeing must not be silently moved onto their own API key.
+	assert normalize_selection(catalog(), "ds-x&DeepSeek", COSEEING_GROUP) == ("ds-x&DeepSeek", COSEEING_GROUP)
+
+
+def test_a_dual_membership_id_stored_locally_stays_local():
+	assert normalize_selection(catalog(), "ds-x&DeepSeek", "local") == ("ds-x&DeepSeek", "local")
+
+
+def test_a_retired_entry_is_not_honoured_as_a_stored_selection():
+	retired = build_catalog(
+		{
+			"schema_version": SCHEMA_VERSION,
+			"providers": {"OpenAI": dict(PROVIDER)},
+			"models": [{"provider": "OpenAI", "model": "gone", "label": "Gone", "active": False}],
+			"coseeings": [{"model": "default", "label": "Coseeing default"}],
+		},
+		runnable_providers=RUNNABLE,
+	)
+
+	assert normalize_selection(retired, "gone&OpenAI", "local") == ("default", COSEEING_GROUP)
+
+
 def test_restore_finds_the_stored_selection():
 	state = SelectionState.restore(catalog(), "gpt-x&OpenAI", "local")
 
