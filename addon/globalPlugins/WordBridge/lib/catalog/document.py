@@ -109,12 +109,20 @@ def _build_models(raw, providers, runnable_providers, issues) -> tuple:
 		if provider not in runnable_providers:
 			issues.append(CatalogIssue("unsupported_provider", location, f"this build has no implementation for {provider!r}"))
 			continue
+		pricing = data.get("pricing")
+		if pricing is not None and not isinstance(pricing, dict):
+			issues.append(CatalogIssue(
+				"malformed_pricing",
+				location,
+				f"pricing must be a mapping, got {type(pricing).__name__}",
+			))
+			pricing = None
 		entry = ModelEntry(
 			provider=provider,
 			model=model,
 			label=label,
 			active=active,
-			pricing=data.get("pricing"),
+			pricing=pricing,
 			usage_key=data.get("usage_key"),
 		)
 		if entry.corrector_config_id in seen:

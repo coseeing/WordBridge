@@ -78,6 +78,22 @@ def test_pricing_is_carried_into_the_price_entry_shape():
 	}
 
 
+def test_a_model_with_malformed_pricing_remains_selectable_but_is_unpriced():
+	doc = document(models=[{
+		"provider": "OpenAI",
+		"model": "gpt-x",
+		"label": "GPT X",
+		"pricing": ["not", "a", "mapping"],
+		"usage_key": "usage",
+	}])
+	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
+
+	entry = catalog.get_model("gpt-x&OpenAI")
+	assert entry is not None
+	assert entry.price_entry() == {}
+	assert [issue.code for issue in catalog.issues] == ["malformed_pricing"]
+
+
 def test_a_model_naming_an_absent_provider_is_dropped():
 	doc = document(models=[{"provider": "Mistral", "model": "m-large", "label": "M"}])
 	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
