@@ -553,6 +553,54 @@ def test_task_config_fallback_matches_the_shipped_corrector_json(monkeypatch, tm
 	assert fallback.optional_guidance_enable == shipped["optional_guidance_enable"]
 
 
+def test_real_init_falls_back_to_shipped_defaults_and_notifies_on_a_corrupt_task_config(monkeypatch, tmp_path):
+	"""Pins the self._shutdown reorder in GlobalPlugin.__init__.
+
+	Every other fallback test above constructs its instance via
+	object.__new__(plugin.GlobalPlugin) and sets instance._shutdown by hand,
+	so none of them exercise the fallback through the real __init__ -- which
+	is exactly what moving self._shutdown = threading.Event() to the top of
+	__init__ exists to make safe (self._notify()/self._run_on_ui() both read
+	self._shutdown, and _load_corrector_task_config() -- which can call
+	self._notify() -- now runs before anything else in __init__ that used to
+	set self._shutdown). This test goes through plugin.GlobalPlugin() itself,
+	not object.__new__, so it would fail with AttributeError if that ordering
+	regressed.
+	"""
+	settings = {
+		"corrector_config_id": "gemini-3.1-pro-preview&Google",
+		"execution_channel": "local",
+		"api_key": {},
+	}
+	queued = []
+	plugin, _config, _gui = _load_nvda_plugin(monkeypatch, settings, [], queued)
+	messages = []
+	monkeypatch.setattr(plugin, "ui", SimpleNamespace(message=messages.append))
+	corrupt = tmp_path / "corrector.json"
+	corrupt.write_text("null", encoding="utf8")
+	monkeypatch.setattr(plugin, "CORRECTOR_TASK_CONFIG_PATH", str(corrupt))
+
+	instance = plugin.GlobalPlugin()
+
+	assert instance.correctorTaskConfig.template_name == {
+		"standard": "Standard_v1.json", "lite": "Lite_v1.json",
+	}
+	assert instance.correctorTaskConfig.optional_guidance_enable == {
+		"keep_non_chinese_char": True, "no_explanation": True,
+	}
+	# _load_corrector_task_config() -- and the wx.CallAfter() its deferred
+	# notification schedules -- runs before wx.CallAfter(self._start_coseeing_auth,
+	# ...) later in __init__, so the notification is the first of the two
+	# callbacks queued during construction.
+	assert len(queued) == 2
+	callback, args = queued.pop(0)
+	callback(*args)
+	assert messages == [
+		"The bundled correction settings file is damaged; WordBridge is using its built-in defaults."
+	]
+	instance.terminate()
+
+
 def test_settings_save_preserves_coseeing_refresh_token_and_starts_selected_channel(monkeypatch):
 	auth_calls = []
 	queued = []
