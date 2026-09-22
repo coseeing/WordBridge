@@ -105,7 +105,7 @@ class LLMSettingsPanel(SettingsPanel):
 		# self.catalog.issues) would be a permanent false alarm: the
 		# shipped, fully healthy catalog always carries one
 		# "unreferenced_provider" issue (providers.OpenRouter, named by no
-		# ai/*.json), which is lint -- legal, nothing failed to load, all
+			# catalog model entry), which is lint -- legal, nothing failed to load, all
 		# entries selectable -- not a dropped entry. is_dropped_issue()
 		# filters those out so this line is only ever true of what it
 		# counts; the log (__init__.py) still logs every issue, lint

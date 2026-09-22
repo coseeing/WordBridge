@@ -71,8 +71,7 @@ class ModelEntry:
 	def price_entry(self) -> dict:
 		"""The shape CostCalculator consumes.
 
-		{} when there is no price, which is byte-for-byte what the old
-		price.json lookup returned via .get(key, {}).
+		{} when the catalog document has no pricing for this model/provider pair.
 		"""
 		if self.pricing is None:
 			return {}

@@ -30,13 +30,13 @@ sys.modules.setdefault("_wb_vendor.hanzidentifier", hanzidentifier_module)
 
 
 class TaskArchitectureTests(unittest.TestCase):
-	def test_shipped_catalog_matches_the_ai_directory_without_a_legacy_corrector_directory(self):
-		"""Catches the shipped catalog drifting from the on-disk ai/ directory.
+	def test_shipped_catalog_document_has_the_expected_local_models(self):
+		"""Catches the shipped catalog document losing a local model.
 
 		dialogs.py no longer bootstraps a ConfigManager (or anything else) at
 		import time -- that was the point of this task -- so this now builds
 		the real catalog the same way GlobalPlugin.__init__ does and checks it
-		against the on-disk ai/ directory count directly.
+		against the canonical document directly.
 		"""
 		from lib.catalog.document import build_catalog
 		from lib.catalog.sources import BundledCatalogSource

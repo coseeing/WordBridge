@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 import pytest
@@ -11,15 +10,16 @@ from lib.llm.provider import PROVIDER_CLASSES, get_provider
 
 
 SETTING_DIR = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge" / "setting"
-PROVIDER_CONFIG_DIR = SETTING_DIR / "provider"
-AI_CONFIG_DIR = SETTING_DIR / "ai"
-PRICE_PATH = SETTING_DIR / "price.json"
-
-
 def catalog():
 	document, issues = BundledCatalogSource(SETTING_DIR).load()
 	assert issues == ()
 	return build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
+
+
+def catalog_document():
+	document, issues = BundledCatalogSource(SETTING_DIR).load()
+	assert issues == ()
+	return document
 
 
 def test_the_provider_and_adapter_family_tables_agree():
@@ -29,45 +29,36 @@ def test_the_provider_and_adapter_family_tables_agree():
 	assert SUPPORTED_PROVIDERS == frozenset(PROVIDER_CLASSES)
 
 
-def test_every_provider_config_filename_is_the_canonical_provider_name():
-	for path in PROVIDER_CONFIG_DIR.glob("*.json"):
-		assert path.stem == path.stem.strip(), path.name
-		if path.stem not in SUPPORTED_PROVIDERS:
+def test_every_catalog_provider_name_is_canonical_and_constructible():
+	for provider_name in catalog_document()["providers"]:
+		assert provider_name == provider_name.strip(), provider_name
+		if provider_name not in SUPPORTED_PROVIDERS:
 			continue
-		entry = catalog().get_provider(path.stem)
-		provider = get_provider(path.stem, {"api_key": "test"}, provider_entry=entry)
-		assert provider.name == path.stem
+		entry = catalog().get_provider(provider_name)
+		provider = get_provider(provider_name, {"api_key": "test"}, provider_entry=entry)
+		assert provider.name == provider_name
 
 
-def test_every_ai_config_names_an_existing_provider_config():
-	for path in AI_CONFIG_DIR.glob("*.json"):
-		provider = json.loads(path.read_text(encoding="utf8")).get("provider")
-		if provider is None:
-			continue
-		assert (PROVIDER_CONFIG_DIR / f"{provider}.json").exists(), (
-			f"{path.name} names provider {provider!r} with no setting/provider/{provider}.json"
-		)
+def test_every_catalog_model_names_an_existing_provider():
+	document = catalog_document()
+	for model in document["models"]:
+		assert model["provider"] in document["providers"], model
 
 
-def test_every_active_ai_config_has_a_price_entry():
-	price = json.loads(PRICE_PATH.read_text(encoding="utf8"))
-
-	for path in AI_CONFIG_DIR.glob("*.json"):
-		data = json.loads(path.read_text(encoding="utf8"))
-		if not data.get("active") or data.get("provider") is None:
-			continue
-		key = f"{data['model']}&{data['provider']}"
-		assert key in price, f"{path.name} has no price.json entry for {key!r}"
+def test_every_active_local_catalog_model_has_pricing():
+	for model in catalog_document()["models"]:
+		if model["active"]:
+			assert model["pricing"], model
 
 
 def test_provider_lookup_does_not_fall_back_to_a_case_insensitive_glob():
-	source = (PROVIDER_CONFIG_DIR.parents[1] / "lib" / "llm" / "provider.py").read_text(encoding="utf8")
+	source = (SETTING_DIR.parent / "lib" / "llm" / "provider.py").read_text(encoding="utf8")
 
 	assert "casefold()" not in source
 
 
 def test_the_provider_no_longer_reads_its_settings_from_disk():
-	source = (PROVIDER_CONFIG_DIR.parents[1] / "lib" / "llm" / "provider.py").read_text(encoding="utf8")
+	source = (SETTING_DIR.parent / "lib" / "llm" / "provider.py").read_text(encoding="utf8")
 
 	assert "setting_name" not in source
 	assert "setting_dir" not in source

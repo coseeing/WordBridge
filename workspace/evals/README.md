@@ -185,7 +185,7 @@ npx promptfoo@0.120.19 eval \
 - `case_f2`：以 recall 為較高權重的單筆修正分數。
 - `case_ned`：模型輸出與預期答案的標準化編輯距離，越低越好。
 - `overall_precision`、`overall_recall`、`overall_f2`：整批資料彙總指標。
-- `cost`：WordBridge 依 `addon/globalPlugins/WordBridge/setting/price.json` 與模型回傳的 token usage 計算。
+- `cost`：WordBridge 依 `addon/globalPlugins/WordBridge/setting/catalog.json` 的模型定價與模型回傳的 token usage 計算。
 - `latency`：整個 WordBridge workflow 的耗時。
 
 每筆案例的通過門檻定義在對應 config 的 `defaultTest.assert`。詳細計分邏輯位於 `assertions.py`，Provider 與 WordBridge 的橋接邏輯位於 `provider.py`。

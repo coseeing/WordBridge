@@ -9,8 +9,7 @@ class ProviderModelAdapter(ABC):
 	def __init__(self, provider_name: str, model_name: str, *, price_entry: dict):
 		self.provider_name = provider_name
 		self.model_name = model_name
-		# {} when the catalog has no price for this pair, which is exactly what
-		# the old price.json lookup returned via .get(key, {}).
+		# {} when the catalog has no pricing for this model/provider pair.
 		self._model_entry = price_entry or {}
 		self._cost_calculator = CostCalculator(self._model_entry)
 

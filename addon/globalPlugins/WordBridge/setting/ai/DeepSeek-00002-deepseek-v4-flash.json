@@ -1,6 +1,0 @@
-{
-    "active": true,
-    "model": "deepseek-v4-flash",
-    "provider": "DeepSeek",
-    "coseeing": true
-}

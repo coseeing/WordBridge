@@ -1,6 +1,0 @@
-{
-    "active": false,
-    "model": "qwen2",
-    "provider": "Ollama",
-    "coseeing": false
-}

@@ -117,6 +117,13 @@ def test_bundle_keeps_the_vendored_auth_package(bundle_names):
 	assert any("/package/" in name or name.startswith("package/") for name in bundle_names)
 
 
+def test_bundle_keeps_the_single_catalog_and_omits_retired_catalog_inputs(bundle_names):
+	assert any(name.endswith("setting/catalog.json") for name in bundle_names)
+	assert not any("setting/ai/" in name for name in bundle_names)
+	assert not any("setting/provider/" in name for name in bundle_names)
+	assert not any(name.endswith("setting/price.json") for name in bundle_names)
+
+
 def test_bundle_excludes_a_developer_machines_leftover_correction_reports(tmp_path):
 	# web/workspace/ does not exist in git. showReport() used to rmtree() and
 	# recreate it inside the add-on install directory on every report,

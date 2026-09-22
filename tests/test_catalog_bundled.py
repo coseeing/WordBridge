@@ -3,12 +3,17 @@ from pathlib import Path
 
 from lib.catalog.document import SCHEMA_VERSION, build_catalog
 from lib.catalog.model import COSEEING_GROUP
-from lib.catalog.sources import BUNDLED_LABELS, BundledCatalogSource
+from lib.catalog.sources import BundledCatalogSource
 
 
 ADDON_PATH = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge"
 SETTING_DIR = ADDON_PATH / "setting"
+CATALOG_PATH = SETTING_DIR / "catalog.json"
 RUNNABLE = frozenset({"OpenAI", "Anthropic", "Google", "OpenRouter", "DeepSeek", "Ollama"})
+
+
+def shipped_document():
+	return json.loads(CATALOG_PATH.read_text(encoding="utf8"))
 
 
 def shipped_catalog():
@@ -17,39 +22,77 @@ def shipped_catalog():
 	return build_catalog(document, runnable_providers=RUNNABLE)
 
 
+def _write_catalog(root: Path, document: dict) -> Path:
+	path = root / "catalog.json"
+	path.write_text(json.dumps(document), encoding="utf8")
+	return path
+
+
+def test_bundled_source_returns_the_canonical_catalog_document_unchanged(tmp_path):
+	expected = {
+		"schema_version": SCHEMA_VERSION,
+		"providers": {},
+		"models": [],
+		"coseeings": [{"model": "default", "label": "Coseeing default", "active": True}],
+	}
+	_write_catalog(tmp_path, expected)
+
+	document, issues = BundledCatalogSource(tmp_path).load()
+
+	assert document == expected
+	assert issues == ()
+
+
+def test_invalid_catalog_json_is_reported_at_the_canonical_file(tmp_path):
+	(tmp_path / "catalog.json").write_text("{not json", encoding="utf8")
+
+	document, issues = BundledCatalogSource(tmp_path).load()
+
+	assert document is None
+	assert [(issue.code, issue.location) for issue in issues] == [
+		("unreadable_file", "catalog.json"),
+	]
+
+
+def test_non_mapping_catalog_json_is_reported_at_the_canonical_file(tmp_path):
+	(tmp_path / "catalog.json").write_text("[]", encoding="utf8")
+
+	document, issues = BundledCatalogSource(tmp_path).load()
+
+	assert document is None
+	assert [(issue.code, issue.location) for issue in issues] == [
+		("unreadable_file", "catalog.json"),
+	]
+
+
 def test_the_bundled_document_declares_the_current_schema_version():
-	document, _ = BundledCatalogSource(SETTING_DIR).load()
+	document = shipped_document()
 
 	assert document["schema_version"] == SCHEMA_VERSION
 	assert set(document) == {"schema_version", "providers", "models", "coseeings"}
 
 
-def test_every_price_entry_matches_price_json():
-	price = json.loads((SETTING_DIR / "price.json").read_text(encoding="utf8"))
+def test_every_active_local_model_has_explicit_pricing_and_usage_metadata():
 	catalog = shipped_catalog()
 
-	# Otherwise an empty catalog.models would make this loop -- and the test
-	# -- pass vacuously.
 	assert catalog.models, "the shipped catalog has no model entries"
 	for entry in catalog.models:
-		assert entry.price_entry() == price.get(entry.corrector_config_id, {}), entry.corrector_config_id
+		if entry.active:
+			assert entry.price_entry(), entry.corrector_config_id
+			assert entry.usage_key, entry.corrector_config_id
 
 
-def test_every_provider_entry_matches_its_json_file():
+def test_every_provider_entry_matches_its_canonical_document_value():
+	document = shipped_document()
 	catalog = shipped_catalog()
 
-	provider_files = sorted((SETTING_DIR / "provider").glob("*.json"))
-	# Otherwise an empty listing would make this loop -- and the test --
-	# pass vacuously.
-	assert provider_files, "no provider/*.json files found"
-	for path in provider_files:
-		entry = catalog.get_provider(path.stem)
-		assert entry is not None, path.name
-		data = json.loads(path.read_text(encoding="utf8"))
-		assert (entry.url, entry.setting, entry.timeout0, entry.timeout_max) == (
-			data["url"], data["setting"], data["timeout0"], data["timeout_max"]
-		), path.name
-		assert entry.label == BUNDLED_LABELS.get(path.stem, path.stem)
+	assert document["providers"], "the shipped catalog has no providers"
+	for name, data in document["providers"].items():
+		entry = catalog.get_provider(name)
+		assert entry is not None, name
+		assert (entry.label, entry.url, entry.setting, entry.timeout0, entry.timeout_max) == (
+			data["label"], data["url"], data["setting"], data["timeout0"], data["timeout_max"],
+		), name
 
 
 def test_the_shipped_data_produces_only_the_known_lint_issue():
@@ -91,96 +134,3 @@ def test_the_shipped_coseeing_labels_are_pinned():
 	assert shipped_catalog().labels_for("Coseeing") == (
 		"Coseeing default", "deepseek-v4-flash", "gpt-5.6-luna",
 	)
-
-
-def test_an_ai_file_without_a_provider_becomes_a_coseeing_only_entry(tmp_path):
-	_write_minimal_setting_tree(tmp_path)
-	(tmp_path / "ai" / "Coseeing-00000-default.json").write_text(
-		json.dumps({"active": True, "model": "default", "coseeing": True}), encoding="utf8"
-	)
-	document, issues = BundledCatalogSource(tmp_path).load()
-
-	assert issues == ()
-	assert [entry["model"] for entry in document["coseeings"]] == ["default"]
-	assert document["models"] == []
-
-
-def test_a_corrupt_ai_file_is_reported_and_skipped(tmp_path):
-	_write_minimal_setting_tree(tmp_path)
-	(tmp_path / "ai" / "OpenAI-00001-gpt-x.json").write_text(
-		json.dumps({"active": True, "model": "gpt-x", "provider": "OpenAI", "coseeing": False}),
-		encoding="utf8",
-	)
-	(tmp_path / "ai" / "Broken-00001.json").write_text("{not json", encoding="utf8")
-	document, issues = BundledCatalogSource(tmp_path).load()
-
-	assert [entry["model"] for entry in document["models"]] == ["gpt-x"]
-	assert [issue.code for issue in issues] == ["unreadable_file"]
-
-
-def test_a_wrong_typed_provider_file_is_reported_and_skipped(tmp_path):
-	_write_minimal_setting_tree(tmp_path)
-	(tmp_path / "provider" / "OpenAI.json").write_text("[1, 2]", encoding="utf8")
-	document, issues = BundledCatalogSource(tmp_path).load()
-
-	assert document["providers"] == {}
-	assert [issue.code for issue in issues] == ["unreadable_file"]
-	assert [issue.location for issue in issues] == ["OpenAI.json"]
-
-
-def test_a_wrong_typed_price_file_is_reported_and_skipped(tmp_path):
-	_write_minimal_setting_tree(tmp_path)
-	(tmp_path / "price.json").write_text(json.dumps(["not", "a", "mapping"]), encoding="utf8")
-	(tmp_path / "ai" / "OpenAI-00001-gpt-x.json").write_text(
-		json.dumps({"active": True, "model": "gpt-x", "provider": "OpenAI", "coseeing": False}),
-		encoding="utf8",
-	)
-	document, issues = BundledCatalogSource(tmp_path).load()
-
-	assert [entry["model"] for entry in document["models"]] == ["gpt-x"]
-	assert [issue.code for issue in issues] == ["unreadable_file"]
-	assert [issue.location for issue in issues] == ["price.json"]
-
-
-def test_a_wrong_typed_ai_file_is_reported_and_skipped(tmp_path):
-	_write_minimal_setting_tree(tmp_path)
-	(tmp_path / "ai" / "OpenAI-00001-gpt-x.json").write_text("42", encoding="utf8")
-	document, issues = BundledCatalogSource(tmp_path).load()
-
-	assert document["models"] == []
-	assert document["coseeings"] == []
-	assert [issue.code for issue in issues] == ["unreadable_file"]
-	assert [issue.location for issue in issues] == ["OpenAI-00001-gpt-x.json"]
-
-
-def test_a_nested_non_mapping_price_value_drops_only_its_own_pricing(tmp_path):
-	_write_minimal_setting_tree(tmp_path)
-	(tmp_path / "price.json").write_text(
-		json.dumps({"gpt-x&OpenAI": [1, 2]}), encoding="utf8"
-	)
-	(tmp_path / "ai" / "OpenAI-00001-gpt-x.json").write_text(
-		json.dumps({"active": True, "model": "gpt-x", "provider": "OpenAI", "coseeing": False}),
-		encoding="utf8",
-	)
-	document, issues = BundledCatalogSource(tmp_path).load()
-
-	assert [entry["model"] for entry in document["models"]] == ["gpt-x"]
-	assert "pricing" not in document["models"][0]
-	assert [issue.code for issue in issues] == ["malformed_price_entry"]
-	assert [issue.location for issue in issues] == ["gpt-x&OpenAI"]
-
-
-def _write_minimal_setting_tree(root: Path):
-	(root / "ai").mkdir(parents=True)
-	(root / "provider").mkdir(parents=True)
-	(root / "provider" / "OpenAI.json").write_text(
-		json.dumps({
-			"name": "OpenAI",
-			"url": "https://example.invalid",
-			"setting": {},
-			"timeout0": 10,
-			"timeout_max": 20,
-		}),
-		encoding="utf8",
-	)
-	(root / "price.json").write_text("{}", encoding="utf8")
