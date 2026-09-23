@@ -708,7 +708,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		try:
 			access_token = get_coseeing_access_token().result(timeout=COSEEING_TOKEN_WAIT_SECONDS)
 			headers = build_coseeing_headers(access_token)
-		except Exception as error:
+		except Exception:
 			message = _("The Coseeing authentication failed. Please try again later.")
 			self._notify(message)
 			return
