@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,7 +12,7 @@ from app.baseModel import Base
 from app.dependencies import get_db
 from app.dependenciesA import get_session
 from app.models.models import Interaction
-from app.user.auth import get_optional_user
+from app.user.auth import get_optional_user, get_token_verifier
 from app.user.models import User
 
 
@@ -209,3 +210,82 @@ def test_feedback_unknown_interaction_is_404(db):
 		json={"interaction_id": 999999, "review_content": "x"},
 	)
 	assert response.status_code == 404
+
+
+# --- inactive user: 403 through the REAL dependency chain -------------------
+#
+# Unlike the tests above (which override get_optional_user directly, bypassing
+# resolve_local_user()/is_active entirely), these wire a fake TokenVerifier
+# through the real chain: get_bearer_token -> get_verified_sub ->
+# get_optional_user -> resolve_local_user -> the is_active check. This is the
+# only way to actually exercise the guard the reviewer found missing.
+
+
+class _FakeVerifier:
+	def __init__(self, sub):
+		self.sub = sub
+
+	def verify_access_token(self, token, required_scopes=()):
+		return SimpleNamespace(subject=self.sub)
+
+
+def _client_with_real_auth_chain(db, *, verifier):
+	# Deliberately do NOT override get_optional_user here -- that is the
+	# point of this fixture: the real chain (including the is_active check)
+	# must run.
+	main_module.app.dependency_overrides[get_db] = _override_get_db(db)
+	main_module.app.dependency_overrides[get_token_verifier] = lambda: verifier
+	main_module.app.dependency_overrides[get_session] = _override_get_session
+	return TestClient(main_module.app)
+
+
+def _inactive_user(db, *, is_superuser=False):
+	user = User(
+		account="inactive@example.org", name="Inactive", sso_sub="sub-inactive",
+		email_verified=True, is_active=False, is_superuser=is_superuser, quota=0.1,
+	)
+	db.add(user)
+	db.commit()
+	return user
+
+
+def test_inactive_user_is_403_on_proofreader_real_chain(db):
+	_inactive_user(db)
+	verifier = _FakeVerifier(sub="sub-inactive")
+	client = _client_with_real_auth_chain(db, verifier=verifier)
+
+	response = client.post(
+		"/proofreader",
+		json={
+			"request": "測試",
+			"corrector_config_id": "default",
+			"language": "zh_traditional",
+			"typo_correction_mode": "standard",
+			"customized_words": [],
+		},
+		headers={"Authorization": "Bearer tok"},
+	)
+
+	assert response.status_code == 403
+	assert db.query(Interaction).count() == 0
+
+
+def test_inactive_superuser_is_403_on_admin_route_real_chain(db):
+	_inactive_user(db, is_superuser=True)
+	verifier = _FakeVerifier(sub="sub-inactive")
+	client = _client_with_real_auth_chain(db, verifier=verifier)
+
+	response = client.get("/users/get_paginated", headers={"Authorization": "Bearer tok"})
+
+	assert response.status_code == 403
+
+
+def test_no_token_still_reaches_guest_path_real_chain(db):
+	# Regression guard: the is_active check must never intercept a request
+	# that carries no token at all -- that must stay a guest.
+	verifier = _FakeVerifier(sub="sub-inactive")
+	client = _client_with_real_auth_chain(db, verifier=verifier)
+
+	response = client.get("/users/get_paginated")
+
+	assert response.status_code == 401

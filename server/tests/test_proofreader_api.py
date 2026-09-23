@@ -327,6 +327,63 @@ def test_guest_text_at_128_chars_is_accepted(db, fake_run_typo_correction, monke
 	assert response.status_code == 200
 
 
+def test_request_length_under_cap_is_accepted(db, fake_run_typo_correction, monkeypatch):
+	# Must be an authenticated user with enough quota -- a guest this long
+	# would already be blocked by the separate, tighter 128-char guest limit.
+	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+	user = User(
+		account="atcap@example.org", name="AtCap", sso_sub="sub-atcap", email_verified=True,
+		is_active=True, is_superuser=False, quota=1000,
+	)
+	db.add(user)
+	db.commit()
+	client = _client(db, user=user)
+	payload = dict(PAYLOAD, request="a" * main_module.REQUEST_TEXT_MAX_LENGTH)
+
+	response = client.post("/proofreader", json=payload)
+
+	assert response.status_code == 200
+
+
+def test_guest_over_length_cap_is_422_not_429_and_writes_no_interaction(
+	db, fake_run_typo_correction, monkeypatch
+):
+	# Above the (tighter) guest limit but this asserts the universal cap
+	# fires with 422, distinct from the guest-only 429 quota path.
+	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+	client = _client(db)
+	payload = dict(PAYLOAD, request="a" * (main_module.REQUEST_TEXT_MAX_LENGTH + 1))
+
+	response = client.post("/proofreader", json=payload)
+
+	assert response.status_code == 422
+	assert db.query(Interaction).count() == 0
+	assert fake_run_typo_correction == []
+
+
+def test_authenticated_user_over_length_cap_is_422_not_502_and_writes_no_interaction(
+	db, fake_run_typo_correction, monkeypatch
+):
+	# Above the guest limit (which does not apply to authenticated users) but
+	# also above the universal cap -- must still be rejected before ever
+	# reaching the provider.
+	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+	user = User(
+		account="longtext@example.org", name="LongText", sso_sub="sub-long", email_verified=True,
+		is_active=True, is_superuser=False, quota=1000,
+	)
+	db.add(user)
+	db.commit()
+	client = _client(db, user=user)
+	payload = dict(PAYLOAD, request="a" * (main_module.REQUEST_TEXT_MAX_LENGTH + 1))
+
+	response = client.post("/proofreader", json=payload)
+
+	assert response.status_code == 422
+	assert db.query(Interaction).count() == 0
+	assert fake_run_typo_correction == []
+
+
 def test_guest_ip_quota_exact_boundary_is_429(db, fake_run_typo_correction, monkeypatch):
 	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	# TestClient's default client IP is "testclient" -- seed exactly the

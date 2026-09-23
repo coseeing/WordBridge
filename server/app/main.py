@@ -39,6 +39,16 @@ app = FastAPI()
 CORRECTION_SETTINGS = load_correction_settings()
 
 GUEST_TEXT_LIMIT = 128
+# Applies to every caller (guest, authenticated, superuser). Chosen comfortably
+# below both limits a request that exceeds it can otherwise blow past only
+# *after* the paid provider call already ran: create_single_char_mapping's
+# diffing raises ValueError around ~20000 tokens (~10k CJK characters), and
+# request_content/response_content are MySQL TEXT columns (65,535 bytes,
+# ~21.8k CJK characters). This is a payload validation failure (422), not a
+# quota failure, and is checked before the quota check and before the
+# provider call. The much tighter GUEST_TEXT_LIMIT above remains a separate,
+# guest-only check.
+REQUEST_TEXT_MAX_LENGTH = 8000
 GUEST_IP_QUOTA = Decimal("0.06")
 GUEST_GLOBAL_QUOTA = Decimal("0.3")
 QUOTA_WINDOW = timedelta(hours=24)
@@ -61,7 +71,7 @@ _QUOTA_EXCEEDED_DETAIL = (
 
 
 class ProofreaderRequest(BaseModel):
-	request: str = Field(min_length=1)
+	request: str = Field(min_length=1, max_length=REQUEST_TEXT_MAX_LENGTH)
 	corrector_config_id: str = Field(min_length=1)
 	language: Literal["zh_traditional", "zh_simplified"]
 	typo_correction_mode: str

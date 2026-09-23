@@ -42,6 +42,7 @@ _TOKEN_INVALID_DETAIL = "access token could not be verified"
 _DISCOVERY_UNAVAILABLE_DETAIL = "SSO issuer is unavailable"
 _AUTH_REQUIRED_DETAIL = "authentication is required"
 _SUPERUSER_REQUIRED_DETAIL = "superuser privileges are required"
+_INACTIVE_USER_DETAIL = "this account has been deactivated"
 
 
 def get_bearer_token(authorization: Optional[str] = Header(default=None)) -> Optional[str]:
@@ -108,10 +109,21 @@ def get_optional_user(
 	token: Optional[str] = Depends(get_bearer_token),
 	db: Session = Depends(get_db),
 ) -> Optional[User]:
-	"""Resolve the local `User` for a verified subject, or `None` for a guest."""
+	"""Resolve the local `User` for a verified subject, or `None` for a guest.
+
+	A request with no token at all is unaffected -- it stays a guest. Only
+	an authenticated user whose local row is `is_active=False` is rejected
+	here, with 403, so this applies uniformly to every route built on this
+	dependency (`/proofreader`, `/feedback`, and, via `require_user` /
+	`require_superuser`, the CRUD routers) -- a deactivated account must
+	never keep working just because it happens to still hold a valid token.
+	"""
 	if sub is None:
 		return None
-	return resolve_local_user(db, sub, token)
+	user = resolve_local_user(db, sub, token)
+	if not user.is_active:
+		raise HTTPException(status_code=403, detail=_INACTIVE_USER_DETAIL)
+	return user
 
 
 def require_user(user: Optional[User] = Depends(get_optional_user)) -> User:
