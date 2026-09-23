@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 'WordBridge' '2026.9.3'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2026-09-19 21:27+0800\n"
-"PO-Revision-Date: 2026-09-19 21:30+0800\n"
+"POT-Creation-Date: 2026-09-23 18:10+0800\n"
+"PO-Revision-Date: 2026-09-23 19:14+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: zh_HK\n"
@@ -17,376 +17,340 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 3.9\n"
 
-#: addon\globalPlugins\WordBridge\configManager.py:18
-msgid "Anthropic"
-msgstr "Anthropic"
-
-#: addon\globalPlugins\WordBridge\configManager.py:19
-#| msgid "Coseeing Account"
-msgid "Coseeing"
-msgstr "Coseeing"
-
-#: addon\globalPlugins\WordBridge\configManager.py:20
-msgid "DeepSeek"
-msgstr "DeepSeek"
-
-#: addon\globalPlugins\WordBridge\configManager.py:21
-msgid "Google"
-msgstr "Google"
-
-#: addon\globalPlugins\WordBridge\configManager.py:22
-msgid "OpenAI"
-msgstr "OpenAI"
-
-#: addon\globalPlugins\WordBridge\configManager.py:23
-msgid "claude-opus-5"
-msgstr "claude-opus-5"
-
-#: addon\globalPlugins\WordBridge\configManager.py:24
-msgid "claude-sonnet-5"
-msgstr "claude-sonnet-5"
-
-#: addon\globalPlugins\WordBridge\configManager.py:25
-msgid "deepseek-v4-flash"
-msgstr "deepseek-v4-flash"
-
-#: addon\globalPlugins\WordBridge\configManager.py:26
-msgid "deepseek-v4-pro"
-msgstr "deepseek-v4-pro"
-
-#: addon\globalPlugins\WordBridge\configManager.py:27
-msgid "gemini-3.1-pro"
-msgstr "gemini-3.1-pro"
-
-#: addon\globalPlugins\WordBridge\configManager.py:28
-msgid "gemini-3.1-flash-lite"
-msgstr "gemini-3.1-flash-lite"
-
-#: addon\globalPlugins\WordBridge\configManager.py:29
-msgid "gemini-3.5-flash-lite"
-msgstr "gemini-3.5-flash-lite"
-
-#: addon\globalPlugins\WordBridge\configManager.py:30
-msgid "gemini-3.7-flash"
-msgstr "gemini-3.7-flash"
-
-#: addon\globalPlugins\WordBridge\configManager.py:31
-msgid "gemini-3.8-flash"
-msgstr "gemini-3.8-flash"
-
-#: addon\globalPlugins\WordBridge\configManager.py:32
-msgid "gpt-5.6-sol"
-msgstr "gpt-5.6-sol"
-
-#: addon\globalPlugins\WordBridge\configManager.py:33
-#| msgid "gpt-3.5-turbo"
-msgid "gpt-5.6-terra"
-msgstr "gpt-5.6-terra"
-
-#: addon\globalPlugins\WordBridge\configManager.py:34
-msgid "gpt-5.6-luna"
-msgstr "gpt-5.6-luna"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:28
+#: addon\globalPlugins\WordBridge\dialogs.py:36
 msgid "Traditional Chinese"
 msgstr "繁體中文"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:29
+#: addon\globalPlugins\WordBridge\dialogs.py:37
 msgid "Simplified Chinese"
 msgstr "簡體中文"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:30
-#| msgid "Standard Mode"
+#: addon\globalPlugins\WordBridge\dialogs.py:38
 msgid "Standard"
 msgstr "標準"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:31
-#| msgid "Lite Mode"
+#: addon\globalPlugins\WordBridge\dialogs.py:39
 msgid "Lite"
 msgstr "輕量"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:32
+#: addon\globalPlugins\WordBridge\dialogs.py:40
 msgid "Personal API Key"
 msgstr "個人 API 金鑰"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:33
+#: addon\globalPlugins\WordBridge\dialogs.py:41
 msgid "Coseeing Account"
 msgstr "Coseeing 帳戶"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:59
+msgid "default"
+msgstr "預設"
 
 #. Add-on summary/title, usually the user visible name of the add-on
 #. Translators: Summary/title for this add-on
 #. to be shown on installation and add-on information found in add-on store
-#: addon\globalPlugins\WordBridge\dialogs.py:57 buildVars.py:21
+#: addon\globalPlugins\WordBridge\dialogs.py:86 buildVars.py:21
 msgid "WordBridge"
 msgstr "WordBridge"
 
+#: addon\globalPlugins\WordBridge\dialogs.py:120
+#, python-brace-format
+msgid ""
+"{count} catalog entry could not be loaded; see the NVDA log for details."
+msgstr "無法載入 {count} 個目錄項目；詳情請參閱 NVDA 記錄。"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:129
+#, python-brace-format
+msgid ""
+"{count} catalog entries could not be loaded; see the NVDA log for details."
+msgstr "無法載入 {count} 個目錄項目；詳情請參閱 NVDA 記錄。"
+
 #. For selecting provider
-#: addon\globalPlugins\WordBridge\dialogs.py:78
+#: addon\globalPlugins\WordBridge\dialogs.py:135
 msgid "Service Provider:"
 msgstr "服務供應商："
 
-#: addon\globalPlugins\WordBridge\dialogs.py:84
-#| msgid "Choose the large language model for the Word Bridge"
+#: addon\globalPlugins\WordBridge\dialogs.py:141
 msgid "Choose the service provider for the WordBridge"
 msgstr "選擇 WordBridge 使用的服務供應商"
 
 #. For selecting LLM
-#: addon\globalPlugins\WordBridge\dialogs.py:93
+#: addon\globalPlugins\WordBridge\dialogs.py:146
 msgid "Large Language Model:"
 msgstr "大型語言模型："
 
-#: addon\globalPlugins\WordBridge\dialogs.py:99
+#: addon\globalPlugins\WordBridge\dialogs.py:152
 msgid "Choose the large language model for the Word Bridge"
 msgstr "選擇 WordBridge 使用的大型語言模型"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:110
+#: addon\globalPlugins\WordBridge\dialogs.py:162
 msgid "Authentication"
 msgstr "驗證"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:116
+#: addon\globalPlugins\WordBridge\dialogs.py:168
 msgid "clean"
 msgstr "清除"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:125
+#: addon\globalPlugins\WordBridge\dialogs.py:175
 msgid "API Key:"
 msgstr "API 金鑰："
 
 #. For selecting language
-#: addon\globalPlugins\WordBridge\dialogs.py:134
+#: addon\globalPlugins\WordBridge\dialogs.py:184
 msgid "Language:"
 msgstr "語言："
 
-#: addon\globalPlugins\WordBridge\dialogs.py:140
+#: addon\globalPlugins\WordBridge\dialogs.py:190
 msgid "Choose the language for the Word Bridge"
 msgstr "選擇 WordBridge 使用的語言"
 
 #. For selecting typo correction mode
-#: addon\globalPlugins\WordBridge\dialogs.py:149
+#: addon\globalPlugins\WordBridge\dialogs.py:194
 msgid "Correction Mode:"
 msgstr "校正模式："
 
-#: addon\globalPlugins\WordBridge\dialogs.py:155
-#| msgid "Choose the large language model for the Word Bridge"
+#: addon\globalPlugins\WordBridge\dialogs.py:200
 msgid "Choose the typo correction mode for the Word Bridge"
 msgstr "選擇 WordBridge 使用的錯別字校正模式"
 
 #. For setting upper bound of correction character count
-#: addon\globalPlugins\WordBridge\dialogs.py:163
+#: addon\globalPlugins\WordBridge\dialogs.py:206
 msgid "Max character count"
 msgstr "最大字元數"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:191
+#: addon\globalPlugins\WordBridge\dialogs.py:241
 msgid "Auto display typo report"
 msgstr "自動顯示錯別字校正報告"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:197
-#| msgid "Apply customized dictionary"
+#: addon\globalPlugins\WordBridge\dialogs.py:247
 msgid "Apply personal dictionary"
 msgstr "使用個人詞典"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:204
+#: addon\globalPlugins\WordBridge\dialogs.py:254
 msgid "Edit dictionary"
 msgstr "編輯辭典"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:211
+#: addon\globalPlugins\WordBridge\dialogs.py:261
 msgid "Enable sound effect cues"
 msgstr "啟用音效提示"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:218
+#: addon\globalPlugins\WordBridge\dialogs.py:268
 msgid "Sound effect credits"
 msgstr "音效鳴謝"
 
 #. This is the label for the feedback dialog for Coseeing.
-#: addon\globalPlugins\WordBridge\dialogs.py:306
+#: addon\globalPlugins\WordBridge\dialogs.py:357
 msgid "Feedback Coseeing"
 msgstr "Coseeing 意見回饋"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:312
+#: addon\globalPlugins\WordBridge\dialogs.py:363
 msgid "Request:"
 msgstr "請求："
 
-#: addon\globalPlugins\WordBridge\dialogs.py:319
+#: addon\globalPlugins\WordBridge\dialogs.py:370
 msgid "Response:"
 msgstr "回應："
 
-#: addon\globalPlugins\WordBridge\dialogs.py:326
+#: addon\globalPlugins\WordBridge\dialogs.py:377
 msgid "Feedback:"
 msgstr "意見回饋："
 
-#: addon\globalPlugins\WordBridge\__init__.py:193
-#: addon\globalPlugins\WordBridge\__init__.py:199
+#: addon\globalPlugins\WordBridge\__init__.py:219
+msgid ""
+"The bundled correction settings file is damaged; WordBridge is using its "
+"built-in defaults."
+msgstr "隨附的校正設定檔已損毀；WordBridge 正在使用內置預設值。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:315
+msgid "This task's cost is unavailable."
+msgstr "無法取得此任務的費用。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:317
+#: addon\globalPlugins\WordBridge\__init__.py:318
+#, python-brace-format
+msgid "This task costs {cost} USD."
+msgstr "此任務費用為 {cost} 美元。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:365
+msgid "The correction report could not be generated."
+msgstr "無法產生錯別字校正報告。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:387
+#: addon\globalPlugins\WordBridge\__init__.py:393
 #, python-brace-format
 msgid ""
 "The number of characters is {len_text}, which exceeds the maximum, "
 "{max_char_count}."
 msgstr "文字字元數為 {len_text}，超過上限 {max_char_count}。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:206
-#: addon\globalPlugins\WordBridge\__init__.py:207
+#: addon\globalPlugins\WordBridge\__init__.py:400
+#: addon\globalPlugins\WordBridge\__init__.py:401
 msgid "No text is selected, unable to analyze."
 msgstr "未選取任何文字，無法分析。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:210
-#: addon\globalPlugins\WordBridge\__init__.py:211
+#: addon\globalPlugins\WordBridge\__init__.py:404
+#: addon\globalPlugins\WordBridge\__init__.py:405
 msgid ""
 "The selected text does not contain Chinese characters, unable to analyze."
 msgstr "所選文字不含中文字元，無法分析。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:277
-#: addon\globalPlugins\WordBridge\__init__.py:278
+#. Notify before marking announced: _run_on_ui() silently drops the
+#. message when self._shutdown is already set, and the old order
+#. (flag first) could mark this session's one-shot announcement
+#. "delivered" even when it never reached the user.
+#: addon\globalPlugins\WordBridge\__init__.py:444
+msgid ""
+"The model list could not be loaded. Coseeing will choose a model for you."
+msgstr "無法載入模型清單。Coseeing 會為你選擇模型。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:449
+msgid ""
+"The selected model is no longer available. Please choose another one in "
+"WordBridge settings."
+msgstr "所選模型已無法使用。請在 WordBridge 設定中選擇其他模型。"
+
+#: addon\globalPlugins\WordBridge\__init__.py:453
+msgid ""
+"The selected provider is no longer available. Please choose another one in "
+"WordBridge settings."
+msgstr "所選服務供應商已無法使用。請在 WordBridge 設定中選擇其他服務供應商。"
+
+#. The user has already been notified. Re-raising here only
+#. leaves an unhandled exception in a worker thread, which
+#. lands in the NVDA log with nothing to act on.
+#: addon\globalPlugins\WordBridge\__init__.py:479
+#: addon\globalPlugins\WordBridge\__init__.py:480
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred during the program execution, the details are: {e}"
 msgstr "抱歉，程式執行時發生錯誤，詳情如下：{e}"
 
-#: addon\globalPlugins\WordBridge\__init__.py:291
-#| msgid ""
-#| "Sorry, an error occurred while logging into Coseeing, the details are: {e}"
+#: addon\globalPlugins\WordBridge\__init__.py:492
 msgid "Sorry, an error occurred while authenticating with Coseeing."
 msgstr "抱歉，驗證 Coseeing 時發生錯誤。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:306
-#| msgid "The server is currently overloaded, please try again later."
+#: addon\globalPlugins\WordBridge\__init__.py:507
 msgid "The Coseeing request timed out. Please try again later."
 msgstr "Coseeing 請求逾時，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:308
-#: addon\globalPlugins\WordBridge\__init__.py:325
-#| msgid "The server is currently overloaded, please try again later."
+#: addon\globalPlugins\WordBridge\__init__.py:509
+#: addon\globalPlugins\WordBridge\__init__.py:525
 msgid "The Coseeing request failed. Please try again later."
 msgstr "Coseeing 請求失敗，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:315
-#: addon\globalPlugins\WordBridge\__init__.py:503
+#: addon\globalPlugins\WordBridge\__init__.py:516
+#: addon\globalPlugins\WordBridge\__init__.py:737
 msgid ""
 "Authentication error. Please sign in to Coseeing or check your account "
 "permissions."
 msgstr "驗證錯誤。請登入 Coseeing，或檢查帳戶權限。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:320
+#: addon\globalPlugins\WordBridge\__init__.py:520
 msgid "Rate limit reached for requests or you exceeded your current quota. "
 msgstr "請求已達到速率限制，或已超出目前配額。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:321
+#: addon\globalPlugins\WordBridge\__init__.py:521
 msgid ""
 "Please reduce the frequency of sending requests or check your account "
 "balance."
 msgstr "請降低發送請求的頻率，或檢查帳戶餘額。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:333
-#| msgid "The server is currently overloaded, please try again later."
+#: addon\globalPlugins\WordBridge\__init__.py:533
 msgid "The Coseeing response was invalid. Please try again later."
 msgstr "Coseeing 回應無效，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:347
-#: addon\globalPlugins\WordBridge\__init__.py:349
-#: addon\globalPlugins\WordBridge\__init__.py:350
+#: addon\globalPlugins\WordBridge\__init__.py:546
+#: addon\globalPlugins\WordBridge\__init__.py:547
 msgid "No errors in the selected text."
 msgstr "所選文字未偵測到錯誤。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:355
-#: addon\globalPlugins\WordBridge\__init__.py:357
-#: addon\globalPlugins\WordBridge\__init__.py:358
+#: addon\globalPlugins\WordBridge\__init__.py:551
+#: addon\globalPlugins\WordBridge\__init__.py:552
 msgid "The corrected text has been copied to the clipboard."
 msgstr "已將校正後的文字複製到剪貼簿。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:365
-#: addon\globalPlugins\WordBridge\__init__.py:367
-#: addon\globalPlugins\WordBridge\__init__.py:368
-#, python-brace-format
-msgid "This task costs {cost} USD."
-msgstr "此任務費用為 {cost} 美元。"
-
-#: addon\globalPlugins\WordBridge\__init__.py:375
+#: addon\globalPlugins\WordBridge\__init__.py:569
 msgid ""
 "Only one proofreading task can run at a time. Please wait until the current "
 "task has finished before starting another."
 msgstr "一次只能執行一項校對任務。請等待目前任務完成後，再開始另一項任務。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:398
+#: addon\globalPlugins\WordBridge\__init__.py:618
 msgid "Open personal dictionary editor"
 msgstr "開啟個人詞典編輯器"
 
-#: addon\globalPlugins\WordBridge\__init__.py:406
-#| msgid "Execute GPT typo correction for Chinese character"
+#: addon\globalPlugins\WordBridge\__init__.py:626
 msgid "Execute typo correction"
 msgstr "執行錯別字校正"
 
-#: addon\globalPlugins\WordBridge\__init__.py:412
-#: addon\globalPlugins\WordBridge\__init__.py:415
+#: addon\globalPlugins\WordBridge\__init__.py:632
+#: addon\globalPlugins\WordBridge\__init__.py:635
 msgid ""
 "The function cannot be executed. Please finish the configuration and close "
 "the setting window."
 msgstr "無法執行此功能，請完成設定並關閉設定視窗。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:427
-#| msgid "WordBridge Dictionary"
+#: addon\globalPlugins\WordBridge\__init__.py:646
 msgid "Open WordBridge settings"
 msgstr "開啟 WordBridge 設定"
 
-#: addon\globalPlugins\WordBridge\__init__.py:439
+#: addon\globalPlugins\WordBridge\__init__.py:657
 msgid "Show correction report"
 msgstr "顯示校正報告"
 
-#: addon\globalPlugins\WordBridge\__init__.py:444
-#: addon\globalPlugins\WordBridge\__init__.py:445
+#: addon\globalPlugins\WordBridge\__init__.py:663
+#: addon\globalPlugins\WordBridge\__init__.py:664
 msgid "No report has been generated yet."
 msgstr "尚未產生報告。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:452
+#: addon\globalPlugins\WordBridge\__init__.py:671
 msgid "Submit correction feedback"
 msgstr "提交校正意見回饋"
 
-#: addon\globalPlugins\WordBridge\__init__.py:457
-#: addon\globalPlugins\WordBridge\__init__.py:459
+#: addon\globalPlugins\WordBridge\__init__.py:684
+#: addon\globalPlugins\WordBridge\__init__.py:686
 msgid ""
 "You have not run a typos correction task with the Coseeing service provider "
 "yet."
 msgstr "您尚未使用 Coseeing 服務供應商執行錯別字校正任務。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:491
-#| msgid "The server is currently overloaded, please try again later."
+#: addon\globalPlugins\WordBridge\__init__.py:725
 msgid "The Coseeing authentication failed. Please try again later."
 msgstr "Coseeing 驗證失敗，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:505
-#: addon\globalPlugins\WordBridge\__init__.py:515
-#| msgid "The server is currently overloaded, please try again later."
+#: addon\globalPlugins\WordBridge\__init__.py:739
+#: addon\globalPlugins\WordBridge\__init__.py:749
 msgid "Sorry, the Coseeing feedback request failed. Please try again later."
 msgstr "抱歉，Coseeing 意見回饋請求失敗，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:511
-#| msgid "The server is currently overloaded, please try again later."
+#: addon\globalPlugins\WordBridge\__init__.py:745
 msgid "The Coseeing feedback request timed out. Please try again later."
 msgstr "Coseeing 意見回饋請求逾時，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:513
-#| msgid "The server is currently overloaded, please try again later."
+#: addon\globalPlugins\WordBridge\__init__.py:747
 msgid "The Coseeing feedback response was invalid. Please try again later."
 msgstr "Coseeing 意見回饋回應無效，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:481
+#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:578
 msgid "Sign in to Coseeing to use this service, or continue as a guest."
 msgstr "登入 Coseeing 以使用此服務，或以訪客身分繼續。"
 
-#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:482
-#| msgid "Coseeing Account"
+#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:579
 msgid "Coseeing authentication"
 msgstr "Coseeing 驗證"
 
-#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:485
+#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:582
 msgid "Sign in"
 msgstr "登入"
 
-#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:485
+#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:582
 msgid "Continue as guest"
 msgstr "以訪客身分繼續"
 
-#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:553
+#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:650
 msgid "Coseeing authentication failed."
 msgstr "Coseeing 驗證失敗。"
 
-#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:684
+#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:709
 msgid "Coseeing authentication is unavailable on this installation."
 msgstr "此安裝無法使用 Coseeing 驗證。"
 
