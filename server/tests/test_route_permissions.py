@@ -106,44 +106,46 @@ def _superuser(db):
 # --- /users, /interactions CRUD: superuser only -----------------------------
 
 
-def test_users_get_paginated_guest_is_401(db):
+def test_users_list_guest_is_401(db):
 	client = _client(db)
-	response = client.get("/users/get_paginated")
+	response = client.get("/users?page=1&itemsPerPage=20")
 	assert response.status_code == 401
 
 
-def test_users_get_paginated_ordinary_user_is_403(db):
+def test_users_list_ordinary_user_is_403(db):
 	user = _ordinary_user(db)
 	client = _client(db, user=user)
-	response = client.get("/users/get_paginated")
+	response = client.get("/users?page=1&itemsPerPage=20")
 	assert response.status_code == 403
 
 
-def test_users_get_paginated_superuser_is_200(db):
+def test_users_list_superuser_is_200(db):
 	user = _superuser(db)
 	client = _client(db, user=user)
-	response = client.get("/users/get_paginated")
+	response = client.get("/users?page=1&itemsPerPage=5")
 	assert response.status_code == 200
+	assert response.json()["items_per_page"] == 5
 
 
-def test_interactions_get_paginated_guest_is_401(db):
+def test_interactions_list_guest_is_401(db):
 	client = _client(db)
-	response = client.get("/interactions/get_paginated")
+	response = client.get("/interactions?page=1&itemsPerPage=20")
 	assert response.status_code == 401
 
 
-def test_interactions_get_paginated_ordinary_user_is_403(db):
+def test_interactions_list_ordinary_user_is_403(db):
 	user = _ordinary_user(db)
 	client = _client(db, user=user)
-	response = client.get("/interactions/get_paginated")
+	response = client.get("/interactions?page=1&itemsPerPage=20")
 	assert response.status_code == 403
 
 
-def test_interactions_get_paginated_superuser_is_200(db):
+def test_interactions_list_superuser_is_200(db):
 	user = _superuser(db)
 	client = _client(db, user=user)
-	response = client.get("/interactions/get_paginated")
+	response = client.get("/interactions?page=1&itemsPerPage=5")
 	assert response.status_code == 200
+	assert response.json()["items_per_page"] == 5
 
 
 # --- /login, /register: no longer provided ----------------------------------
@@ -275,7 +277,7 @@ def test_inactive_superuser_is_403_on_admin_route_real_chain(db):
 	verifier = _FakeVerifier(sub="sub-inactive")
 	client = _client_with_real_auth_chain(db, verifier=verifier)
 
-	response = client.get("/users/get_paginated", headers={"Authorization": "Bearer tok"})
+	response = client.get("/users?page=1&itemsPerPage=20", headers={"Authorization": "Bearer tok"})
 
 	assert response.status_code == 403
 
@@ -286,6 +288,6 @@ def test_no_token_still_reaches_guest_path_real_chain(db):
 	verifier = _FakeVerifier(sub="sub-inactive")
 	client = _client_with_real_auth_chain(db, verifier=verifier)
 
-	response = client.get("/users/get_paginated")
+	response = client.get("/users?page=1&itemsPerPage=20")
 
 	assert response.status_code == 401

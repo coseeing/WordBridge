@@ -10,12 +10,12 @@ def _headers(token):
 
 
 def list_interactions(token):
-	response = requests.get(f"{base_url}/interactions/get_paginated", headers=_headers(token))
+	response = requests.get(f"{base_url}/interactions", headers=_headers(token))
 	return response
 
 
 def read_user(pk, token):
-	response = requests.get(f"{base_url}/users/get/{pk}", headers=_headers(token))
+	response = requests.get(f"{base_url}/users/{pk}", headers=_headers(token))
 	return response
 
 
