@@ -1,5 +1,3 @@
-import random
-
 from difflib import SequenceMatcher
 from _wb_vendor.chinese_converter import to_simplified, to_traditional
 from _wb_vendor.pypinyin import pinyin
@@ -9,7 +7,7 @@ from ...text.chinese import (
 	get_descs,
 	is_chinese_character,
 )
-from .chinese_dictionary import get_pinyin_to_string, get_string_to_pinyin
+from .chinese_dictionary import get_string_to_pinyin
 
 # create_single_char_mapping() maps each distinct token to one character from
 # the CJK block starting at U+4E00, so it cannot encode more tokens than the
@@ -31,28 +29,6 @@ def get_char_pinyin(char: str) -> list:
 	if not is_chinese_character(char):
 		raise ValueError(f"get_char_pinyin expects a single Chinese character, got {char!r}")
 	return lookup_char_pinyin(char)
-
-
-def typo_augmentation(text: str, is_traditional: bool, error_rate: float = 0.125) -> str:
-	if not is_traditional:
-		text = to_traditional(text)
-
-	string_to_pinyin = get_string_to_pinyin()
-	pinyin_to_string = get_pinyin_to_string()
-	text_aug = ""
-	for char in text:
-		if char not in string_to_pinyin or random.random() > error_rate:
-			text_aug += char
-			continue
-
-		pronounce = random.choice(string_to_pinyin[char])
-		char_aug = random.choice(pinyin_to_string[pronounce])
-		text_aug += char_aug
-
-	if not is_traditional:
-		text_aug = to_simplified(text_aug)
-
-	return text_aug
 
 
 def tokenizer(text):

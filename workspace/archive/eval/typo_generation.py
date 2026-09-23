@@ -3,11 +3,35 @@ import random
 import string
 import sys
 
+from chinese_converter import to_simplified, to_traditional
+
 path = os.path.dirname(__file__)
-api_path = os.path.join(path, "..", "..", "addon", "globalPlugins", "WordBridge")
+api_path = os.path.join(path, "..", "..", "..", "addon", "globalPlugins", "WordBridge")
 sys.path.insert(0, api_path)
 
-from lib.utils import typo_augmentation
+from lib.tasks.typo.chinese_dictionary import get_pinyin_to_string, get_string_to_pinyin
+
+
+def typo_augmentation(text: str, is_traditional: bool, error_rate: float = 0.125) -> str:
+	if not is_traditional:
+		text = to_traditional(text)
+
+	string_to_pinyin = get_string_to_pinyin()
+	pinyin_to_string = get_pinyin_to_string()
+	text_aug = ""
+	for char in text:
+		if char not in string_to_pinyin or random.random() > error_rate:
+			text_aug += char
+			continue
+
+		pronounce = random.choice(string_to_pinyin[char])
+		char_aug = random.choice(pinyin_to_string[pronounce])
+		text_aug += char_aug
+
+	if not is_traditional:
+		text_aug = to_simplified(text_aug)
+
+	return text_aug
 
 
 if __name__ == "__main__":
