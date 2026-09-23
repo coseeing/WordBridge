@@ -351,7 +351,8 @@ def test_runtime_key_matches_the_bundle_directory_actually_on_disk(monkeypatch):
 
 
 def test_every_bundled_top_level_name_is_classified():
-	"""Adding a package to the bundle without classifying it must fail here."""
+	"""Adding a package to the bundle without classifying it -- or shipping a
+	HOST_ONLY copy -- must fail here."""
 	deps_root = PACKAGE_ROOT / "_coseeing_auth_deps"
 	roots = [PACKAGE_ROOT] + sorted(entry for entry in deps_root.glob("*") if entry.is_dir())
 	skip = {"__pycache__", "_stdlib_gapfill", "_coseeing_auth_deps"}
@@ -368,7 +369,9 @@ def test_every_bundled_top_level_name_is_classified():
 			elif entry.name.endswith(".pyd"):
 				names.append(entry.name.split(".")[0])
 
-	assert set(names) == vendor.ISOLATED | vendor.HOST_ONLY | vendor.SHADOWED
+	assert set(names) == vendor.ISOLATED | vendor.SHADOWED
+	# HOST_ONLY copies are never loaded, so shipping them is dead weight.
+	assert not set(names) & vendor.HOST_ONLY
 	# The same top-level name present in more than one root is the precondition
 	# for a namespace __path__ that spans both -- vendor.install() would then
 	# resolve it to whichever root's copy PathFinder happens to walk first, a

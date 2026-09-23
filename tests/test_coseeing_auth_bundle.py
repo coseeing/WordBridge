@@ -16,24 +16,14 @@ PACKAGE_ROOT = (
 )
 RUNTIME_BUNDLES = {
 	"py313-win_amd64": {
-		"_cffi_backend.cp313-win_amd64.pyd",
-		"charset_normalizer/cd.cp313-win_amd64.pyd",
-		"charset_normalizer/md.cp313-win_amd64.pyd",
 		"cryptography/hazmat/bindings/_rust.pyd",
 	},
 }
 EXPECTED_PACKAGE_VERSIONS = {
 	"Authlib": "1.8.0",
-	"requests": "2.34.2",
 	"PyJWT": "2.14.0",
 	"joserfc": "1.7.5",
 	"cryptography": "50.0.1",
-	"cffi": "2.1.1",
-	"pycparser": "3.0",
-	"charset-normalizer": "3.5.1",
-	"idna": "3.19",
-	"urllib3": "2.7.0",
-	"certifi": "2026.7.22",
 }
 
 

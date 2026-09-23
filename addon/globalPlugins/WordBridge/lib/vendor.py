@@ -34,11 +34,11 @@ ISOLATED = frozenset({
 	"chinese_converter",
 })
 
-# Must come from the host.  We ship copies, but they are never loaded: NVDA
-# preloads all of these and sys.path insertion cannot displace a loaded module,
-# so our copies have never run in production.  There is deliberately no
-# fallback to them -- if NVDA ever stops shipping one, that must fail loudly
-# rather than silently switch to an untested copy.
+# Must come from the host, and deliberately not shipped: NVDA preloads all of
+# these.  The bundle used to carry copies that were never loaded; they were
+# removed as dead weight, and tests/test_vendor_sandbox.py now fails if one is
+# added back.  There is deliberately no fallback -- if NVDA ever stops shipping
+# one, that must fail loudly rather than silently switch to an untested copy.
 HOST_ONLY = frozenset({
 	"requests",
 	"urllib3",
@@ -187,10 +187,9 @@ class _SandboxFinder(importlib.abc.MetaPathFinder):
 			# cryptography/hazmat/bindings/_rust, a .pyi-only stub dir -- is
 			# shadowed by the sibling _rust.pyd, which FileFinder resolves
 			# first, so it never gets here either.  Failing outright (rather
-			# than returning the inert namespace spec) is what keeps a
-			# HOST_ONLY copy such as requests from ever loading through
-			# _wb_vendor._coseeing_auth_deps.requests, even though the bytes
-			# are right there on disk.  ``importlib.util.find_spec()`` surfaces
+			# than returning the inert namespace spec) is what keeps a stray
+			# directory such as _coseeing_auth_deps or a *.dist-info tree
+			# from ever loading as _wb_vendor.<name>.  ``importlib.util.find_spec()`` surfaces
 			# this as a raised ``ModuleNotFoundError`` rather than returning
 			# ``None``, which Task 8's self-check should expect if it ever
 			# enumerates prefix submodules this way.
