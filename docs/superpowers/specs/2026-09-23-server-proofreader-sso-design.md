@@ -30,8 +30,8 @@
 - `server/app/user/`：SSO 依賴、user 查找與建立、模型及對應 schema；移除舊登入與註冊路由。
 - `server/app/package/coseeing_auth/`：沿用目前程式碼；不另行安裝 `coseeing_auth`，也不改 token 驗證策略。
 - `server/app/lib/`、`server/requirements.txt`：讓 server 專用的校正依賴使用一般 pip 套件，不依賴 NVDA `_wb_vendor` 或 `addonHandler`。
-- Alembic migration：既有 user 資料的 SSO 欄位及欄位長度調整。
-- `server/test/proofreader.py` 等仍以 `/login` 或舊 payload 呼叫的範例：更新成 SSO Bearer 與目前的 API 格式。
+- Alembic migration：新增 SSO 欄位、調整帳號欄位長度，並刪除 user 密碼欄位。
+- `server/app/imp.py` 與 `server/test/` 中仍引用 `User.password`、`/login` 或舊 payload 的資料匯入及呼叫範例：配合 SSO 流程更新或移除失效範例。
 
 不變更 add-on 的請求格式，不修改 SSO 系統，也不移植 add-on 的遠端呼叫分支。
 
@@ -66,7 +66,7 @@ UserInfo 使用**同一枚 access token**，HTTP Bearer 呼叫 `SSO_USERINFO_URL
 - `User.sso_sub`：可空、唯一、長度足以存 SSO subject；舊帳號先保持 `NULL`。唯一索引允許多筆 `NULL`。
 - `User.email_verified`：不可空布林，既有列資料回填 `false`；首次 UserInfo 驗證成功才改為 `true`。之後這個本地值是「曾經驗證且已建立關聯」的持久記錄；SSO 日後撤銷 email 驗證，不會被每次請求即時發現。
 - `User.account`：仍是唯一 email/帳號鍵，但 `String(30)` 不足以容納一般 email；擴至 254 字元。以 email 查舊 user 時應按資料庫的大小寫不敏感比對語意處理，並靠唯一限制防止重複。
-- `User.password`：SSO 專用後改為 nullable；新 user 不設本地密碼。既有密碼資料可隨 migration 保留，但任何 API 都不再驗證或回傳密碼。
+- `User.password`：直接從 ORM 模型、資料庫欄位及 user CRUD schema 移除；migration 刪除既有密碼資料。server 不再驗證、儲存或回傳本地密碼，舊帳號仍可透過已驗證 email 與 SSO `sub` 建立關聯。
 
 首次確認 UserInfo 後，若 `sso_sub` 已有 user，更新該列的 email 驗證狀態；若無，依已驗證 email 查 `User.account`。匹配到無 `sso_sub` 的舊 user 時，填入 `sso_sub`、`email_verified=True`。若 email 已屬於**不同** `sso_sub`，回 409，不能接管該 user。若 email 沒有匹配，建立 `account=<已驗證 email>`、`sso_sub=<verified subject>`、`email_verified=True`、`is_active=True`、`is_superuser=False`、24 小時額度 `quota=0.1` 的 user；名稱可取 UserInfo `name`，缺少時用 email 並符合欄位長度。綁定與建立需以 transaction 和資料庫唯一限制處理同時請求：遇唯一衝突先 rollback、重讀 `sso_sub`/email，再只接受與同一 subject 一致的結果。既有 `is_active=False` 的 user 綁定後仍保持停用，授權時回 403。
 
