@@ -7,7 +7,10 @@
 			"setting": {
 				"max_tokens": 4096,
 				"thinking": {
-					"type": "disabled"
+					"type": "adaptive"
+				},
+				"output_config": {
+					"effort": "low"
 				}
 			},
 			"timeout0": 10,
@@ -19,21 +22,19 @@
 			"setting": {
 				"max_tokens": 4096,
 				"temperature": 0.0,
-				"top_p": 1.0,
-				"thinking": {
-					"type": "disabled"
-				}
+				"reasoning_effort": "none"
 			},
-			"timeout0": 30,
-			"timeout_max": 60
+			"timeout0": 10,
+			"timeout_max": 20
 		},
 		"Google": {
 			"label": "Google",
 			"url": "https://generativelanguage.googleapis.com/v1beta",
 			"setting": {
 				"maxOutputTokens": 4096,
-				"temperature": 0.0,
-				"topP": 0.0
+				"thinkingConfig": {
+					"thinkingLevel": "low"
+				}
 			},
 			"timeout0": 10,
 			"timeout_max": 20
@@ -42,8 +43,7 @@
 			"label": "Ollama",
 			"url": "http://localhost:11434/v1/chat/completions",
 			"setting": {
-				"temperature": 0.0,
-				"top_p": 1.0
+				"temperature": 0.0
 			},
 			"timeout0": 30,
 			"timeout_max": 60
@@ -53,11 +53,9 @@
 			"url": "https://api.openai.com/v1/responses",
 			"setting": {
 				"max_output_tokens": 4096,
-				"temperature": 0.0,
-				"top_p": 0.0,
 				"store": false,
 				"reasoning": {
-					"effort": "none"
+					"effort": "low"
 				},
 				"text": {
 					"verbosity": "low"
@@ -71,14 +69,27 @@
 			"url": "https://openrouter.ai/api/v1/chat/completions",
 			"setting": {
 				"max_tokens": 4096,
-				"temperature": 0.0,
-				"top_p": 0.0
+				"temperature": 0.0
 			},
 			"timeout0": 10,
 			"timeout_max": 20
 		}
 	},
 	"models": [
+		{
+			"provider": "Anthropic",
+			"model": "claude-opus-5-5",
+			"label": "claude-opus-5.5",
+			"active": true,
+			"pricing": {
+				"input_tokens": 4,
+				"cache_creation_input_tokens": 5,
+				"cache_read_input_tokens": 0.2,
+				"output_tokens": 20,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
+		},
 		{
 			"provider": "Anthropic",
 			"model": "claude-opus-5",
@@ -113,22 +124,22 @@
 			"label": "deepseek-v4-pro",
 			"active": true,
 			"pricing": {
-				"prompt_cache_hit_tokens": 0.003625,
-				"prompt_cache_miss_tokens": 0.435,
-				"completion_tokens": 0.87,
+				"prompt_cache_hit_tokens": 0.022,
+				"prompt_cache_miss_tokens": 0.66,
+				"completion_tokens": 1.98,
 				"base_unit": 1000000
 			},
 			"usage_key": "usage"
 		},
 		{
 			"provider": "DeepSeek",
-			"model": "deepseek-v4-flash",
-			"label": "deepseek-v4-flash",
+			"model": "deepseek-flash",
+			"label": "deepseek-flash",
 			"active": true,
 			"pricing": {
-				"prompt_cache_hit_tokens": 0.0028,
-				"prompt_cache_miss_tokens": 0.14,
-				"completion_tokens": 0.28,
+				"prompt_cache_hit_tokens": 0.003,
+				"prompt_cache_miss_tokens": 0.15,
+				"completion_tokens": 0.6,
 				"base_unit": 1000000
 			},
 			"usage_key": "usage"
@@ -198,6 +209,30 @@
 			"model": "qwen2",
 			"label": "qwen2",
 			"active": false
+		},
+		{
+			"provider": "OpenAI",
+			"model": "gpt-6-sol",
+			"label": "gpt-6-sol",
+			"active": true,
+			"pricing": {
+				"input_tokens": 2,
+				"output_tokens": 10,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
+		},
+		{
+			"provider": "OpenAI",
+			"model": "gpt-6-luna",
+			"label": "gpt-6-luna",
+			"active": true,
+			"pricing": {
+				"input_tokens": 0.1,
+				"output_tokens": 0.5,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
 		},
 		{
 			"provider": "OpenAI",
