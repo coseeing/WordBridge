@@ -274,7 +274,7 @@
 	"coseeings": [
 		{
 			"model": "default",
-			"label": "Coseeing default",
+			"label": "default",
 			"active": true
 		},
 		{
@@ -282,6 +282,12 @@
 			"label": "deepseek-v4-flash",
 			"active": true,
 			"provider": "DeepSeek"
+		},
+		{
+			"model": "gpt-6-luna",
+			"label": "gpt-6-luna",
+			"active": true,
+			"provider": "OpenAI"
 		},
 		{
 			"model": "gpt-5.6-luna",

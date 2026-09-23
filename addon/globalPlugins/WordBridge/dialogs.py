@@ -56,7 +56,7 @@ SOUND_EFFECTS_URL = "https://www.zapsplat.com/music/medium-underwater-movement-w
 # the client itself defines, not by whatever string a catalog document
 # happens to carry.
 MODEL_LABEL_TRANSLATIONS = {
-	SENTINEL_ID: _("Coseeing default"),
+	SENTINEL_ID: _("default"),
 }
 
 
