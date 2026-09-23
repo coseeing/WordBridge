@@ -121,6 +121,27 @@ def test_explicit_model_success(db, fake_run_typo_correction, monkeypatch):
 	assert stored.model == "gpt-5.6-luna&OpenAI"
 
 
+def test_run_typo_correction_receives_all_expected_arguments(db, fake_run_typo_correction, monkeypatch):
+	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+	client = _client(db)
+	payload = dict(PAYLOAD, customized_words=["專有名詞", "WordBridge"])
+
+	response = client.post("/proofreader", json=payload)
+
+	assert response.status_code == 200
+	assert len(fake_run_typo_correction) == 1
+	call = fake_run_typo_correction[0]
+	assert call["provider_name"] == "DeepSeek"
+	assert call["model_name"] == "deepseek-v4-flash"
+	assert call["language"] == "zh_traditional"
+	assert call["corrector_mode"] == "standard"
+	assert call["template_name"] == "Standard_v1.json"
+	assert call["customized_words"] == ["專有名詞", "WordBridge"]
+	assert call["batch_mode"] is True
+	assert call["retries"] == 2
+	assert call["backoff"] == 1
+
+
 # --- validation ---------------------------------------------------------------
 
 
@@ -215,6 +236,71 @@ def test_provider_failure_is_5xx_and_writes_no_interaction(db, monkeypatch):
 	assert response.status_code >= 500
 	assert "super-secret-key" not in response.text
 	assert db.query(Interaction).count() == 0
+
+
+def test_db_commit_failure_is_5xx_and_writes_no_interaction(db, fake_run_typo_correction, monkeypatch):
+	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+	client = _client(db)
+
+	before_count = db.query(Interaction).count()
+
+	def _boom():
+		raise RuntimeError("db exploded")
+
+	monkeypatch.setattr(db, "commit", _boom)
+
+	response = client.post("/proofreader", json=PAYLOAD)
+
+	assert response.status_code >= 500
+	assert "interaction_id" not in response.json()
+	assert db.query(Interaction).count() == before_count
+
+
+# --- IP length guard (Interaction.ip_address is String(45)) -------------------
+
+
+def test_oversized_forwarded_ip_is_normalized_before_storage(db, fake_run_typo_correction, monkeypatch):
+	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+	client = _client(db)
+	oversized_ip = "1" * 200
+
+	response = client.post(
+		"/proofreader",
+		json=PAYLOAD,
+		headers={"X-Forwarded-For": oversized_ip},
+	)
+
+	assert response.status_code == 200
+	stored = db.query(Interaction).filter(Interaction.id == response.json()["interaction_id"]).one()
+	assert len(stored.ip_address) <= 45
+	assert stored.ip_address != oversized_ip
+
+
+def test_oversized_forwarded_ip_still_counts_toward_guest_quota(db, fake_run_typo_correction, monkeypatch):
+	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+	oversized_ip = "2" * 200
+	client = _client(db)
+
+	first = client.post(
+		"/proofreader",
+		json=PAYLOAD,
+		headers={"X-Forwarded-For": oversized_ip},
+	)
+	assert first.status_code == 200
+
+	# Seed the rest of the per-IP quota under whatever normalized value the
+	# first request was stored as, so a second oversized-IP request from a
+	# guest is still capped rather than silently bypassing the 0.06 limit.
+	stored = db.query(Interaction).filter(Interaction.id == first.json()["interaction_id"]).one()
+	_seed_interaction(db, cost=Decimal("0.06"), ip_address=stored.ip_address)
+
+	second = client.post(
+		"/proofreader",
+		json=PAYLOAD,
+		headers={"X-Forwarded-For": oversized_ip},
+	)
+
+	assert second.status_code == 429
 
 
 # --- guest quotas ----------------------------------------------------------------

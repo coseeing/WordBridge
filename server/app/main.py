@@ -45,6 +45,17 @@ GUEST_IP_QUOTA = Decimal("0.06")
 GUEST_GLOBAL_QUOTA = Decimal("0.3")
 QUOTA_WINDOW = timedelta(hours=24)
 
+# Interaction.ip_address is String(45). This does not change get_client_ip()'s
+# X-Forwarded-For trust model (keeping that as-is for this phase is
+# plan-mandated) -- it only guards against a client-controlled value too long
+# to store. Without this, an oversized value reaches the INSERT only *after*
+# the paid provider call has already run; the INSERT fails under MySQL strict
+# mode, the transaction rolls back, and the cost of a call that already
+# happened is never recorded against any guest quota. Normalizing before the
+# quota check and before the provider call closes that hole.
+IP_ADDRESS_MAX_LENGTH = 45
+_INVALID_IP_PLACEHOLDER = "invalid"
+
 _QUOTA_EXCEEDED_DETAIL = (
 	"Rate limit reached for requests or you exceeded your current quota. "
 	"Please reduce the frequency of sending requests or check your account balance."
@@ -72,6 +83,18 @@ def get_client_ip(request: Request) -> str:
 		ip = x_forwarded_for.split(",")[0].strip()
 	else:
 		ip = request.client.host
+	return ip
+
+
+def _storable_ip(ip: Optional[str]) -> str:
+	"""Normalize a client IP value so it always fits ip_address (String(45)).
+
+	Applied to whatever get_client_ip() returned, before it is used for a
+	quota lookup or stored on an Interaction row -- see the comment on
+	IP_ADDRESS_MAX_LENGTH above.
+	"""
+	if not ip or len(ip) > IP_ADDRESS_MAX_LENGTH:
+		return _INVALID_IP_PLACEHOLDER
 	return ip
 
 
@@ -114,7 +137,7 @@ def proofreader(
 	user: Optional[UserModel] = Depends(get_optional_user),
 	db: Session = Depends(get_db),
 ):
-	client_ip = get_client_ip(http_request)
+	client_ip = _storable_ip(get_client_ip(http_request))
 	text = data.request
 
 	_enforce_quota(db, user=user, client_ip=client_ip, text=text)
