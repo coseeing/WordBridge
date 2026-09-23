@@ -17,9 +17,8 @@ from .dependenciesA import get_session
 from .models.models import Interaction as InteractionModel
 from .models.schemas import Interaction as InteractionSchema
 from .user.models import User as UserModel
-from .user.routers import router as userRouter, get_auth_user
 from .user.schemas import User as UserSchema
-from .user.auth import get_optional_user
+from .user.auth import get_optional_user, require_superuser
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -32,7 +31,6 @@ from .lib.tasks.typo.utils import strings_diff
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
-app.include_router(userRouter)
 
 # Process-wide deployment settings for the /proofreader correction workflow
 # (bundled catalog + task config). Validates the deployment default model at
@@ -235,34 +233,24 @@ def proofreader(
 	}
 
 
+class FeedbackRequest(BaseModel):
+	interaction_id: int
+	review_content: str
+
+
 @app.post("/feedback")
 def feedback(
-	data: dict,
-	user = Depends(get_auth_user),
+	data: FeedbackRequest,
+	user: Optional[UserModel] = Depends(get_optional_user),
 	db: Session = Depends(get_db),
 ):
-	review_content = data["review_content"]
-	interaction_id = data["interaction_id"]
 	try:
-		instance = db.query(InteractionModel).filter(InteractionModel.id==interaction_id).one()
+		instance = db.query(InteractionModel).filter(InteractionModel.id == data.interaction_id).one()
 	except NoResultFound:
 		raise HTTPException(status_code=404, detail="interaction not found")
 
-		request_time = response_time = datetime.now(timezone.utc)
-		interaction = InteractionModel(
-			request_time=request_time,
-			response_time=response_time,
-			request_content=request,
-			response_content=response,
-			ip_address="0.0.0.0",
-			usage=usages,
-			model="",
-			version="20240617",
-			user=user,
-		)
-
-	instance.review_content = review_content
-	instance.review_user_id = user.id
+	instance.review_content = data.review_content
+	instance.review_user_id = user.id if user else None
 
 	db.commit()
 	return {}
@@ -281,7 +269,7 @@ user_router = crud_router(
 
 app.include_router(
 	user_router,
-	dependencies=[Depends(get_auth_user)],
+	dependencies=[Depends(require_superuser)],
 )
 
 interaction_crud = FastCRUD(InteractionModel)
@@ -297,5 +285,5 @@ interaction_router = crud_router(
 
 app.include_router(
 	interaction_router,
-	dependencies=[Depends(get_auth_user)],
+	dependencies=[Depends(require_superuser)],
 )
