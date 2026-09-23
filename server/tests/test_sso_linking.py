@@ -3,7 +3,7 @@ import threading
 import pytest
 import requests
 from fastapi import HTTPException
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 from sqlalchemy.orm import Session
 
 from app.baseModel import Base
@@ -88,6 +88,44 @@ def test_linking_preserves_inactive_status(db, monkeypatch):
 
 	assert result.id == user.id
 	assert result.is_active is False
+
+
+def test_verified_sub_with_stale_account_resyncs_to_new_email(db, monkeypatch):
+	"""A row already linked to `sub` but whose stored account no longer
+	matches the freshly UserInfo-verified email must not simply be flagged
+	verified in place (that would vouch for an email never actually
+	checked against this row) — it re-syncs the account to match."""
+	user = User(account="old@example.org", name="Old", sso_sub="s1", email_verified=False,
+	            is_active=True, quota=0.1)
+	db.add(user)
+	db.commit()
+	_patch_userinfo(monkeypatch, {"sub": "s1", "email": "new@example.org", "email_verified": True})
+
+	result = resolve_local_user(db, "s1", "access-token")
+
+	assert result.id == user.id
+	assert result.account == "new@example.org"
+	assert result.email_verified is True
+
+
+def test_verified_sub_cannot_steal_email_owned_by_another_user(db, monkeypatch):
+	stale = User(account="old@example.org", name="Old", sso_sub="s1", email_verified=False,
+	             is_active=True, quota=0.1)
+	other = User(account="new@example.org", name="Other", sso_sub="s3", email_verified=True,
+	             is_active=True, quota=0.1)
+	db.add_all([stale, other])
+	db.commit()
+	_patch_userinfo(monkeypatch, {"sub": "s1", "email": "new@example.org", "email_verified": True})
+
+	with pytest.raises(HTTPException) as excinfo:
+		resolve_local_user(db, "s1", "access-token")
+
+	assert excinfo.value.status_code == 409
+	db.refresh(stale)
+	db.refresh(other)
+	assert stale.account == "old@example.org"
+	assert stale.email_verified is False
+	assert other.sso_sub == "s3"
 
 
 def test_email_linked_to_other_sub_is_not_reassigned(db, monkeypatch):
@@ -321,6 +359,76 @@ def test_concurrent_creation_of_same_subject_leaves_one_user(monkeypatch, tmp_pa
 	with Session(engine) as check:
 		users = check.query(User).filter(User.sso_sub == "conc-sub").all()
 		assert len(users) == 1
+
+	Base.metadata.drop_all(engine)
+	engine.dispose()
+
+
+def test_concurrent_link_by_email_with_different_subjects_does_not_reassign(monkeypatch, tmp_path):
+	"""Two different, brand-new subjects both carry the same verified email
+	for one existing, not-yet-linked row. Only one may win the link; the
+	other must be rejected (409), never silently overwrite the winner's
+	`sso_sub` (last-writer-wins would break the "never reassign" guarantee).
+	"""
+	db_path = tmp_path / "email_race.db"
+	engine = create_engine(f"sqlite+pysqlite:///{db_path}", connect_args={"timeout": 30})
+	Base.metadata.create_all(engine)
+
+	with Session(engine) as setup:
+		user = User(account="shared@example.org", name="Shared", sso_sub=None, email_verified=False,
+		            is_active=True, quota=0.1)
+		setup.add(user)
+		setup.commit()
+		user_id = user.id
+
+	def _userinfo(token):
+		# `token` doubles as the subject here so each thread gets a distinct,
+		# self-consistent UserInfo payload without shared state.
+		return {"sub": token, "email": "shared@example.org", "email_verified": True}
+
+	monkeypatch.setattr("app.user.linking.fetch_userinfo", _userinfo)
+
+	barrier = threading.Barrier(2)
+
+	def _sync():
+		barrier.wait(timeout=5)
+
+	monkeypatch.setattr("app.user.linking._sync_before_write", _sync)
+
+	results = {}
+	errors = {}
+
+	def worker(sub):
+		session = Session(engine)
+		try:
+			results[sub] = resolve_local_user(session, sub, sub).sso_sub
+		except Exception as error:  # noqa: BLE001 - recorded for assertion below
+			errors[sub] = error
+		finally:
+			session.close()
+
+	subs = ("race-s1", "race-s2")
+	threads = [threading.Thread(target=worker, args=(sub,)) for sub in subs]
+	for thread in threads:
+		thread.start()
+	for thread in threads:
+		thread.join(timeout=10)
+
+	assert len(errors) == 1, errors
+	assert len(results) == 1, results
+	losing_error = next(iter(errors.values()))
+	assert isinstance(losing_error, HTTPException)
+	assert losing_error.status_code == 409
+
+	winning_sub = next(iter(results))
+	assert results[winning_sub] == winning_sub
+
+	with Session(engine) as check:
+		refreshed = check.get(User, user_id)
+		assert refreshed.sso_sub == winning_sub
+		assert refreshed.email_verified is True
+		# Exactly one user still owns the email; no duplicate was created.
+		assert check.query(User).filter(func.lower(User.account) == "shared@example.org").count() == 1
 
 	Base.metadata.drop_all(engine)
 	engine.dispose()

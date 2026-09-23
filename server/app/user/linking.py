@@ -113,21 +113,23 @@ def _lookup_by_email(db: Session, email: str) -> User | None:
 
 def _link_or_create(db: Session, *, sub: str, email: str, name: object, existing_by_sub: User | None) -> User:
 	if existing_by_sub is not None:
-		existing_by_sub.email_verified = True
-		db.commit()
-		db.refresh(existing_by_sub)
-		return existing_by_sub
+		if existing_by_sub.account.lower() == email.lower():
+			existing_by_sub.email_verified = True
+			db.commit()
+			db.refresh(existing_by_sub)
+			return existing_by_sub
+		# The subject is already ours, but the freshly UserInfo-verified email
+		# no longer matches this row's account (e.g. the SSO profile's email
+		# changed). Re-sync the account to the verified email rather than
+		# flipping email_verified=True for an email that was never actually
+		# checked against this row.
+		return _relink_verified_sub_to_new_email(db, existing_by_sub, sub=sub, email=email)
 
 	existing_by_email = _lookup_by_email(db, email)
 	if existing_by_email is not None:
 		if existing_by_email.sso_sub is not None and existing_by_email.sso_sub != sub:
 			raise HTTPException(status_code=409, detail=_CONFLICT_DETAIL)
-		_sync_before_write()
-		existing_by_email.sso_sub = sub
-		existing_by_email.email_verified = True
-		db.commit()
-		db.refresh(existing_by_email)
-		return existing_by_email
+		return _claim_email_for_subject(db, existing_by_email, sub=sub)
 
 	_sync_before_write()
 	new_user = User(
@@ -143,6 +145,57 @@ def _link_or_create(db: Session, *, sub: str, email: str, name: object, existing
 	db.commit()
 	db.refresh(new_user)
 	return new_user
+
+
+def _claim_email_for_subject(db: Session, user: User, *, sub: str) -> User:
+	"""Link an existing, not-yet-linked user (`sso_sub IS NULL`) to `sub`.
+
+	Uses a conditional UPDATE guarded on `sso_sub IS NULL` and checks its
+	row count, rather than an ORM attribute set-and-commit, so that two
+	concurrent requests for two *different* subjects racing on the same
+	unlinked email cannot both "succeed": the loser's UPDATE matches zero
+	rows (its WHERE clause is re-evaluated against the database at write
+	time, after the winner's commit), and it must reread and either return
+	the winner's row (if it happens to match its own subject) or raise 409.
+	Last-writer-wins overwrite of `sso_sub` is exactly what this guards
+	against.
+	"""
+	_sync_before_write()
+	updated = (
+		db.query(User)
+		.filter(User.id == user.id, User.sso_sub.is_(None))
+		.update({"sso_sub": sub, "email_verified": True})
+	)
+	if updated == 0:
+		db.rollback()
+		return _reread_after_conflict(db, sub=sub, email=user.account)
+	db.commit()
+	db.refresh(user)
+	return user
+
+
+def _relink_verified_sub_to_new_email(db: Session, user: User, *, sub: str, email: str) -> User:
+	"""Re-sync an already-linked subject's account to a freshly verified email.
+
+	Refuses to steal an email another user already owns (409). Uses the
+	same conditional-UPDATE-plus-rowcount pattern as `_claim_email_for_subject`
+	so a concurrent change to this same row cannot be silently overwritten.
+	"""
+	conflicting = _lookup_by_email(db, email)
+	if conflicting is not None and conflicting.id != user.id:
+		raise HTTPException(status_code=409, detail=_CONFLICT_DETAIL)
+	_sync_before_write()
+	updated = (
+		db.query(User)
+		.filter(User.id == user.id, User.sso_sub == sub)
+		.update({"account": email, "email_verified": True})
+	)
+	if updated == 0:
+		db.rollback()
+		return _reread_after_conflict(db, sub=sub, email=email)
+	db.commit()
+	db.refresh(user)
+	return user
 
 
 def _reread_after_conflict(db: Session, *, sub: str, email: str) -> User:
