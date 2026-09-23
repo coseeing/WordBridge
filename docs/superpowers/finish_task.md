@@ -1,10 +1,10 @@
-# Corrector catalog 解耦 — 完成報告
+# Server Proofreader 遷移與 SSO 身分綁定 — 完成報告
 
-- **分支**：`catalog-decoupling`（自 `main` @ `0cc4da0` 開出，尚未合併）
-- **Spec**：`docs/superpowers/specs/2026-09-22-catalog-decoupling-design.md`
-- **Plan**：`docs/superpowers/plans/2026-09-22-catalog-decoupling.md`
-- **執行方式**：Subagent-Driven Development。每個 task 由 implementation subagent（claude-sonnet-5）實作，再由獨立 review subagent（claude-opus-5）審閱；有發現就退回修正並重新審閱，直到 review 沒有 Critical/Important 為止。全部 task 完成後再做一次整支分支的 whole-branch review。
-- **日期**：2026-09-22
+- **分支**：`server-proofreader-sso`（自 `main` @ `25c54f8` 開出，尚未合併，尚未推送）
+- **Spec**：`docs/superpowers/specs/2026-09-23-server-proofreader-sso-design.md`
+- **Plan**：`docs/superpowers/plans/2026-09-23-server-proofreader-sso.md`
+- **執行方式**：Subagent-Driven Development。每個 task 由 implementation subagent（claude-sonnet-5，high effort）實作，再由獨立 review subagent（claude-opus-5.5，high effort）審閱 spec 相容性與程式品質；有 Critical/Important 發現就退回修正並重新審閱（scoped re-review），直到該 task 的 review 沒問題為止。全部 6 個 task 完成後，再由 claude-opus-5.5（max effort）做一次整支分支的 whole-branch review，並跑了唯一一輪允許的 final fix wave + re-review。
+- **日期**：2026-09-23
 
 ---
 
@@ -12,168 +12,84 @@
 
 | 項目 | 執行前 | 執行後 |
 | --- | --- | --- |
-| 非整合測試 | 343 passed / 1 skipped / 16 deselected | **448 passed / 0 failed / 1 skipped / 16 deselected** |
-| 測試輸出 | — | pristine（無 warning） |
-| import 期讀取 `setting/` 檔案 | 有（`dialogs.py` 建 `ConfigManager`、讀 `ai/*.json`） | **無**（由 `tests/test_import_purity.py` 把關） |
-| import 期呼叫 `ctypes.windll` | 有（`dialogs.py:35`） | **無**（改為 lazy + guarded） |
-| 重複的 corrector id 會怎樣 | `ValueError`，整個附加元件在 import 時倒掉 | 記為 issue、保留第一筆，**永不拋例外** |
-| `configManager.py` | 201 行 | **20 行**（只留 `CorrectorTaskConfig` / `load_corrector_task_config`） |
-| 新增模型需要改的東西 | Python（`LABEL_DICT`）+ JSON | **只要 catalog 資料** |
-| 新安裝的預設選擇 | `deepseek-v4-flash&DeepSeek` | **`default`**（由 Coseeing 伺服器決定模型） |
-
-程式碼變動：24 個 commit、38 個檔案、+3718 / −482。
-
----
-
-## 二、這批做了什麼
-
-新增一個**只依賴標準函式庫**的 `lib/catalog/` 套件，擁有一個不可變的 `CorrectorCatalog`，由一份平坦文件（`schema_version` / `providers` / `models` / `coseeings`）建成。`BundledCatalogSource` 負責把今天的 `setting/ai/*.json`、`setting/provider/*.json`、`setting/price.json` 攤平成那份文件；未來的 `RemoteCatalogSource` 只要產出同樣形狀，所有 consumer 都不用動。
-
-- **驗證逐筆進行、永不致命**：壞的項目被跳過並記成 `CatalogIssue`，`build_catalog()` 一定回傳 catalog。
-- **降級階梯三級**：正常 / 降級（部分項目被丟棄）/ 空（改用內建 fallback，只有一個 id 為 `"default"` 的 Coseeing 項目）。fallback 走的是同一條 `build_catalog()`，不是第二條程式路徑。
-- **`"default"` sentinel 同時也是日常預設值**，不只是災難路徑——這樣「災難路徑」就是每天都被走過的路徑。
-- **`SettingsRepository`** 成為唯一接觸 `config.conf["WordBridge"]["settings"]` 的模組，`config.conf.spec` 的預設值因此可以變成靜態字串。
-- **`lib/llm` 不再讀檔**：`get_provider()` / `get_provider_model_adapter()` 改為必填的 keyword 注入。
-- **`ConfigManager` 與 `LABEL_DICT` 刪除**，catalog 由 `GlobalPlugin.__init__` 明確初始化。
+| `/proofreader` | import 期即失敗（`configManager`、`settings_repository` 不存在；`self`/`DEBUG_MODE`/`_diff_` 等未定義名稱） | 可運作：guest/user/superuser 額度、模型解析、`run_typo_correction` 執行、`Interaction` 落地皆完整 |
+| 登入方式 | 舊 HS256 + 密碼登入 | SSO access token 驗證 + `User.sso_sub`/`email_verified` 綁定；`/login`、`/register` 已移除（404） |
+| `User.password` | 存在 | 已從 model、schema、資料庫（migration）徹底移除 |
+| `/users`、`/interactions` CRUD | 只需登入即可存取 | 僅 `is_superuser=True` 可用（401/403 皆已測試） |
+| `/feedback` | 有 `raise` 後的不可達死碼 | guest/登入者皆可用 `interaction_id` 覆寫回饋；guest `review_user_id=NULL` |
+| 停用帳號（`is_active=False`） | **未被檢查**（含超級使用者） | 任何持有 token 但 `is_active=False` 的使用者一律 403（guest 路徑不受影響） |
+| 校正文字長度上限 | guest 128 字元；登入者/superuser **無上限** | guest 128 字元不變；所有呼叫者新增 8000 字元硬上限（422），避免超長文字在已扣費後才失敗、額度永遠不會被記錄 |
+| 測試 | 0（`server/tests/` 尚未存在） | 81 passed（`server/tests/`，含 6 個 final-fix-wave 新增測試），無 integration/外部依賴 |
+| `_wb_vendor`／NVDA 依賴 | 校正流程需要 | 已換成一般 pip 套件（`hanzidentifier`、`pypinyin`、`chinese_converter`） |
 
 ---
 
-## 三、Commit 清單（24 個，依時間順序）
+## 二、Commit 清單（`25c54f8..828f737`，共 11 個）
 
-| # | Commit | 說明 |
-| --- | --- | --- |
-| 1 | `9ffbf5a` | feat: add the corrector catalog data model and document validation |
-| 2 | `4a30a57` | fix: never raise from build_catalog on malformed models, coseeings, or providers |
-| 3 | `5531d34` | feat: flatten the shipped setting tree into a catalog document |
-| 4 | `6d0defa` | fix: guard BundledCatalogSource against non-mapping JSON, pin group labels to the legacy oracle |
-| 5 | `8b32bd5` | feat: add selection state, catalog fallback and the registry |
-| 6 | `2883922` | fix: load_catalog exception safety and normalize_selection active-filtering |
-| 7 | `87dedc3` | feat: inject provider and price entries instead of reading files |
-| 8 | `9dbecce` | fix: match test_eval_provider_config.py's 4-space indentation |
-| 9 | `bda135f` | feat: put every WordBridge setting behind one repository |
-| 10 | `a2a6aa1` | fix: make the os-language probe tests actually falsifiable |
-| 11 | `6d97ec3` | refactor: initialise the catalog explicitly instead of at import |
-| 12 | `92446e2` | fix: total-catch the corrupt task config path and notify the user |
-| 13 | `85db49e` | test: pin the GlobalPlugin.__init__ self._shutdown reorder |
-| 14 | `d3e747c` | feat: ship the Coseeing default sentinel and drop the orphan provider |
-| 15 | `06178ae` | test: cover the degraded-catalog announcement and its __init__ wiring |
-| 16 | `d5e2da8` | test: prove the catalog source seam without implementing HTTP |
-| 17 | `63d5503` | docs: record the catalog-decoupling completion report |
-| 18 | `796b73b` | fix: make settings_repository's catalog import relative and gate it |
-| 19 | `d9aa57c` | fix: close two containment holes in the catalog source seam |
-| 20 | `30a6f45` | fix: surface catalog issues and provider/sentinel labels in the settings panel |
-| 21 | `cacc685` | fix: three worker-thread robustness minors in correctTypo() |
-| 22 | `5df2fb7` | chore: clean up remaining folded-in minors from the whole-branch review |
-| 23 | `26beaa8` | fix: panel catalog-issue summary no longer flags lint-only issues |
-| 24 | `fe38f06` | test: assert the import-purity file scan is non-empty |
+```
+053d99c feat(server): add SSO user fields and remove passwords
+5b3f6fb feat(server): load runnable correction models
+cb97eef fix(server): pin transitive crypto/CJK deps in requirements.txt
+09756bc feat(server): link verified SSO identity to local users
+3a1f1b5 fix(server): close two SSO linking races found in review
+2d0126c feat(server): authorize requests with SSO dependencies
+fe75138 feat(server): execute proofreader workflow and enforce quotas
+8ecb7cd fix(server): guard oversized client IP before proofreader quota/DB writes
+7f06cb8 feat(server): secure CRUD and accept guest feedback
+4d6d634 fix(server): redact real personal emails from imp.py seed data
+828f737 fix(server): enforce inactive-user 403 and cap request length across all callers
+```
 
-Task 對應：1–2 → Task 1；3–4 → Task 2；5–6 → Task 3；7–8 → Task 4；9–10 → Task 5；11–13 → Task 6；14–15 → Task 7；16–17 → Task 8；18–24 → whole-branch review 的修正。
+每個 `feat(server)` commit 對應 plan 的一個 task；緊接其後的 `fix(server)` commit 是該 task review 發現問題後的修正輪，或（最後兩個）final whole-branch review 之後的處理。
 
 ---
 
-## 四、Review 抓到、值得你知道的問題
+## 三、審閱過程中做的裁定（Rulings）
 
-八個 task 各自通過 review，但**真正嚴重的一個是整支分支 review 才看到的**。
+以下是我代替你做的判斷，依序列出，包含出錯的代價：
 
-### 1. Critical — 附加元件在 NVDA 下根本載入不了（`796b73b` 修正）
+1. **Task 1（`sso_sub` 索引命名）**：無需裁定的層級，僅記為 minor（model 用 `unique=True` 但沒加 `index=True`，migration 建了具名索引 `ix_user_sso_sub`）——已 park，未來若跑 `alembic revision --autogenerate` 可能誤判有 drift。代價：極低，僅是 autogenerate 的雜訊。
 
-`settings_repository.py` 用了絕對 import `from lib.catalog.selection import ...`，是整個附加元件裡唯一一處絕對內部 import。它之所以在測試裡能通過，是因為 `tests/conftest.py` 把附加元件目錄放上 `sys.path`；而 NVDA 載入時是以 `globalPlugins.WordBridge` 這個 package 形式載入，那個目錄**不在** `sys.path`，`lib/vendor.py` 也刻意從不動 `sys.path`。由於 `__init__.py` 與 `dialogs.py` 都在 module scope import 它，這是**整個附加元件的載入失敗**。
+2. **Task 2（requirements.txt 在 Python 3.12 上的可安裝性）**：沙盒沒有 python3.12 也沒有 docker，無法對照 `server/Dockerfile` 的 `python:3.12` 實際跑一次 `pip install`。改用 `pip download --python-version 312 --implementation cp --abi cp312 --platform manylinux2014_x86_64 -r requirements.txt` 對全部 55 個 pin（含新增的 `cryptography`/`cffi`/`joserfc`/`pycparser`/`zhon`）做了完整 resolver 驗證，全部有預編譯 wheel、無衝突、無需編譯。**代價**：理論上仍有極小機率在真正的 Docker build 中出狀況（例如 glibc 邊界情況），建議合併後第一次 CI/Docker build 時再次確認。
 
-它在 Task 5 引入，八個 task-scoped gate 全部看不到，因為每個 gate 都照 `conftest.py` 的方式 bootstrap。缺的那道閘門（production 形狀的 import：以 package 方式載入、附加元件目錄不在 `sys.path`）已補上，另加一個 AST 掃描禁止任何內部絕對 import。
+3. **Task 3（SSO 重新驗證時 email 不一致的處理方式）**：spec 只寫「更新驗證旗標」，沒規定 email 不一致時該怎麼辦。implementer 選擇「重新同步 `account` 到新 email（除非該 email 已屬於別人，則 409）」而非「一律拒絕」。這個狀態只有管理員手動把 `email_verified` 重設為 `False` 才會出現（其他所有路徑都是 sub+verified 一起寫入）。**代價**：管理員手動重設後，帳號的 `account` 值可能被靜默改名且無稽核紀錄；建議之後補一行 audit log。
 
-**這是這批最重要的流程教訓**：測試環境的 `sys.path` 比正式環境寬鬆，所以「測試全綠」無法證明能載入。
+4. **Task 5（guest 的 `X-Forwarded-For` 可被偽造）**：plan 原文明講「這階段維持現有 `get_client_ip()` 的 XFF 處理方式」，所以這是 spec 明確接受的階段性限制，未修正。但同一個發現裡藏的「IP 超過 45 字元導致 DB insert 在已扣費後才失敗、額度永遠算不到」是真的 bug，已修正（不影響 XFF 信任模型本身）。
 
-### 2. Important — spec 要求的面板 issue 摘要行從未實作（`30a6f45`、`26beaa8`）
+5. **Final review（`is_active` 從未被檢查）**：這是唯一一個 Critical，且是**跨 task 的落空**——Task 3 保留了欄位但沒實作 403、Task 4/5/6 都以為別的層會做。已在 final fix wave 修正並由 opus 獨立以真實 app 重現、再重現確認修好。
 
-spec 的 Visibility 段落列了三個管道：完整 log、**設定面板摘要行**、每 session 一次的語音公告。只有兩個存在，plan 也沒提到，所以沒有任何 task 負責。由於 `catalog.degraded` 只在「空」那一級為 True，降級階梯的第 2 級（唯一真的會發生的一級——「空」需要整棵樹都讀不到）對使用者**完全無聲**：一個壞掉的 `setting/ai/Google-*.json` 會默默從視障使用者的下拉選單移除一個模型，只在 NVDA log 留一行。
-
-補上之後又發現它反過來製造了假警報（見第 6 點）。
-
-### 3. Important — `ProviderEntry.label` 是 schema 必填卻無人讀取（`30a6f45`）
-
-`document.py` 會拒絕沒有 `label` 的 provider 項目，但面板一直用原始的 provider key 當顯示文字。也就是 acceptance 6（「新增模型只要改資料，連 label 都不用改 Python」）對 model 成立、對 provider 不成立：遠端 payload 改不了 provider 的顯示名稱。已改為透過 `ProviderEntry.label` 渲染（`Coseeing` group 沒有 provider 項目，走原名 fallback）。今天畫面上的文字完全沒變，因為 Task 2 的 oracle 測試證明過每個出貨 provider 的 label 都等於它的 key。
-
-### 4. Important — sentinel 標籤未翻譯，而它是每個新安裝的預設值（`30a6f45`）
-
-`SENTINEL_LABEL = "Coseeing default"`。其他所有 catalog label 都是模型或品牌名的恆等翻譯，「不翻譯」沒有成本；這一個是英文句子片段，而且是**每個新 zh 使用者**在模型下拉選單裡聽到的第一個選項。已改為由面板以 `corrector_config_id` 為 key 做翻譯（對映留在 client 端，因此不會打開 spec 防守的「遠端 payload 改寫介面用字」那扇門）。catalog 資料維持純資料。
-
-**注意**：這只是讓它「可翻譯」。實際文字在 `.po` 重新產生前仍是英文（見第五節）。
-
-### 5. Important × 3 — 三次「測試全綠掩蓋壞掉的路徑」
-
-這是這批反覆出現的失效模式，每次都由 reviewer 用實測證明（把那幾行刪掉、測試依然全綠）：
-
-- 損壞的 `corrector.json` 仍會讓 plugin init 崩潰——fallback 的 `except` 漏接 `TypeError`（頂層是 array / string / number / null 時）。同時 spec 要求的「使用者可見訊息」只做了 log 那一半。
-- `__init__` 若不再設定 `self.settings` / `self.correctorTaskConfig` / `self.catalog`，整組測試仍全綠，而正式路徑會在 worker thread 丟 `AttributeError`——因為七處測試夾具用 `object.__new__` 手動塞了這些屬性。
-- 修正上一項所依賴的 `self._shutdown` 重排，本身沒有任何測試釘住；把它改回原位，91 個測試依然全綠而真實建構路徑會再次崩潰。
-
-### 6. Important — 我的修正自己製造的回歸（`26beaa8`）
-
-補上第 2 點的面板摘要行之後，它在**每個健康安裝**上都會朗讀「1 catalog entries could not be loaded」。原因是出貨 catalog 永遠帶著一個 lint 級 issue（`unreferenced_provider: OpenRouter`，`setting/provider/OpenRouter.json` 沒有任何 `ai/*.json` 指向它），但 `degraded=False`、15 個項目全部可選——什麼都沒有載入失敗。在螢幕閱讀器產品裡，這是每次開設定都會被唸出來的**不實常駐警報**，反而摧毀了這個需求本來要建立的訊號價值。
-
-已改為只計算**真正被丟棄**的項目（spec 的驗證表本身就把 `unreferenced_provider` 標為「Legal. Lint-level issue only.」），log 仍保留全部 issue，並修正單複數文法。
+6. **Final review（API key 環境變數大小寫）**：程式碼完全照 spec 字面（`f"{provider.upper()}_API_KEY"`，例如 `DEEPSEEK_API_KEY`），但你現有的 `server/.env` 用的是 `DeepSeek_API_KEY`（依 provider 自己的大小寫）。**判定為部署設定問題，不是程式碼缺陷**，未在程式碼加相容性判斷（避免違反 spec 明訂的慣例、增加非必要複雜度）。**你需要做的事**：部署前把 `.env` 的 key 名稱改成 spec 慣例（全大寫）。
 
 ---
 
-## 五、尚未完成、需要人工處理的事
+## 四、需要你決定的事（我刻意沒有動）
 
-### 1. 翻譯檔（沒有 `scons`，此環境無法執行）
+1. **合併到 `main` 前，`server/` 目錄其餘未追蹤的檔案需要另外處理**。這個 plan 明確要求「每個 task 只 stage 列出的檔案，不要 `git add` 整個 `server/`」，所以目前分支只包含 23 個檔案，其餘約 40 個被 import 的模組（`dependencies.py`、`database.py`、`models/`、`lib/catalog`、`lib/llm`、`package/coseeing_auth` 等）仍是未追蹤狀態。這代表**這個分支目前無法從全新的 checkout 直接跑起來**（CI、Docker build 都會失敗），需要你另外決定何時、如何把其餘檔案加入版控。**特別注意**：`server/app/database.py`（未追蹤）目前把資料庫密碼寫死在程式碼裡——加入版控前務必先改成環境變數，否則密碼會永久留在 git 歷史。
 
-**更正一個常見誤解：這個 repo 裡沒有 `.pot` 檔**。實際存在的是三個已簽入的 `.po`：`addon/locale/{zh_CN,zh_HK,zh_TW}/LC_MESSAGES/nvda.po`。需要處理的是重新產生／合併這三個檔案。
+2. **`server/app/imp.py` 的舊 commit 歷史裡還留著真實個人 email**。這個檔案是這次工作第一次進入 git 歷史（先前未被追蹤），commit `7f06cb8` 裡有 3 筆真實個人帳號（含你自己的 `tsengwoody.tw@gmail.com`）；後續 commit `4d6d634` 已把它們改成 `user1@example.org` 等佔位值，但**歷史裡的 `7f06cb8` 仍看得到原始明文**。這個分支目前**尚未推送到任何 remote**（已確認 `git branch -r --contains 7f06cb8` 為空），所以如果要徹底清除，需要你決定是否要 rewrite history（例如 squash 或 rebase -i）——這類操作我不會自己執行，需要你明確同意。
 
-需要補進去的新 msgid（請照字面 grep）：
+3. **Alembic migration（`server/alembic/versions/20260923_sso_user.py`）從未跑過真正的 MySQL**。沙盒裡沒有可用的 MySQL/Docker，只做了 compile 檢查與 revision chain 檢查（`dad5039f4770 -> 20260923_sso_user`）。部署前請：先備份資料庫（`password` 欄位會被永久刪除、無法復原）、對一個可拋棄的測試 DB 跑 `alembic upgrade`、並確認既有使用者列的 `is_active` 值是否符合預期（見下一點）。
 
-- `"The bundled correction settings file is damaged; WordBridge is using its built-in defaults."`
-- `"The model list could not be loaded. Coseeing will choose a model for you."`
-- 面板的 catalog issue 摘要行（單數與複數兩個形式）
-- `"Coseeing default"`（sentinel 標籤，第四節第 4 點）
-
-**另外請注意**：這三個 `.po` 檔**在這批之前就已經**缺了至少十個 `__init__.py` 的使用者可見字串（例如 `"This task's cost is unavailable."`、`"The correction report could not be generated."`、`"Only one proofreading task can run at a time..."`）。所以重新合併不是「只加四五條」，而是一次補齊。
-
-同時，model 與 provider 的顯示名稱**離開**了翻譯檔（它們現在是 catalog 資料）。這不是退步：我已逐一確認三個 `.po` 裡那些 msgid 全都是恆等翻譯（`msgid "Anthropic"` / `msgstr "Anthropic"`，`gemini-3.1-pro-preview` → `gemini-3.1-pro` 是改名而非翻譯）。
-
-### 2. Windows / NVDA 實機驗證（這批完全沒做）
-
-設定面板的 wx 接線只被 stub 覆蓋。建議照這個腳本手動走一遍：
-
-1. 開設定面板；切換 provider group，確認模型清單重置到第一項；存檔；重開確認選擇留存。
-2. 弄壞一個 `setting/ai/*.json`，確認**只有**那個模型消失、面板仍可開啟、且出現 issue 摘要行。
-3. 清空 `setting/ai/`，確認面板只剩 `"Coseeing default"`，且第一次校正時公告一次（只有一次）。
-4. 把 `setting/task/corrector.json` 改成 `null`，確認附加元件仍載入並唸出「內建預設值」訊息。
-
-### 3. Coseeing 伺服器的外部契約
-
-選 `"default"` 跑一次真實校正，確認伺服器接受這個裸 sentinel id。這是本 repo 任何測試都無法涵蓋的唯一外部契約（`server/` 目錄是空的）。
-
-### 4. 需要你決定的 spec 矛盾（我刻意沒有動程式）
-
-spec 說未來的 `RemoteCatalogSource` 是「`sources.py` 裡的一個新 class，consumer 不用改」。但 `lib/catalog` 的純標準庫規則（由 AST 測試把關）禁止 `requests` / `_wb_vendor`，而附加元件的 HTTP 是 vendored `requests`。
-
-seam 本身沒問題——`load_catalog` 是 duck-typed，只透過 `source.load()` 接觸 source，所以 remote source 可以放在 `lib/catalog` **外面**而完全不動任何 consumer。但 spec 那句具體承諾照字面無法實現。這批的成本正是由那個未來證成的，所以值得你明確決定並寫回 spec：是放寬白名單、還是把 remote source 放在 `lib/catalog` 外。
-
-### 5. 一個向後相容的細節，值得寫進 release note
-
-acceptance 5 說「既有使用者的既存選擇不受影響」。對**曾經按過設定面板確定鍵**的人來說是對的。但從未按過的既有使用者沒有存過 `corrector_config_id`，空值現在會解析到 sentinel——他們會從 `deepseek-v4-flash&DeepSeek`（舊的 spec 預設）變成「由伺服器選模型」。同一個 channel、不同的模型。這是 spec decision 5 的本意，但範圍比「新安裝」更廣，而 spec 的 Risk 段與前一版完成報告都是用「新安裝」在描述它。
+4. **`is_active` 修正上線後的相容性**：`User` model 與 schema 的預設值都是 `is_active=False`。修正後，任何現存 `is_active=False` 或 `NULL` 的使用者（包含透過 `POST /users` 建立、卻忘了明確設 `is_active=True` 的帳號）在 SSO 登入時會立刻收到 403。這是 spec 的本意，但建議部署前先盤點既有資料，避免上線瞬間鎖住原本以為可用的帳號。
 
 ---
 
-## 六、驗收條件逐條核對
+## 五、驗收條件逐條核對（對照 plan 的「Final verification and delivery」段落）
 
 | # | 條件 | 結果 |
 | --- | --- | --- |
-| 1 | import 期不讀 `setting/`、不呼叫 `windll` | ✅ `tests/test_import_purity.py`（audit hook 在 import 前安裝、路徑已正規化反斜線，所以在 Windows 上不會變成空測試） |
-| 2 | 空的 `ai/` 仍能載入、開面板、提供 `"default"` | ✅ 資料層已驗（輸出 `True ['default']`）；「面板真的能開」僅以資料流推論，**未在真實 wx/NVDA 下開過**（見第五節） |
-| 3 | 單一壞檔只移除那一筆 | ✅ 測試 + 對真實 `setting/` 複本的端到端檢查（15→14） |
-| 4 | 出貨 catalog 選項與改動前相同，外加 sentinel | ⚠️ 無法用「現在可執行」的 oracle 證明——五個以 `ConfigManager` 為 oracle 的特徵化測試在 Task 6 隨 `ConfigManager` 一起刪除（我的裁定）。證據是它們刪除前確實全綠（Task 8 以暫時 worktree checkout `a2a6aa1` 重跑確認），加上現存的精確值測試 |
-| 5 | `"default"` 是新安裝預設、既存選擇不動 | ✅ 但範圍比字面更廣，見第五節第 5 點 |
-| 6 | 新增模型只需改資料 | ✅ 由 seam 測試直接證明（model 與 provider 皆成立，後者是第四節第 3 點修好的） |
-| 7 | `lib/catalog` 只依賴標準函式庫 | ✅ AST 掃描（走語法樹，不是執行期觀察，所以「剛好沒執行到」的 import 也躲不過） |
-| 8 | 非整合測試全綠 | ✅ 448 passed / 1 skipped / 16 deselected |
+| 1 | `python -m pip install -r requirements.txt` | ⚠️ 未在真正的 `python:3.12` 環境執行（沙盒無此環境）；改以 `pip download` 對照 cp312/manylinux2014 做了完整 resolver 驗證，見裁定 #2 |
+| 2 | `python -m pytest tests -q` | ✅ 81 passed，全程無需外部 SSO 或 provider（皆為 monkeypatch） |
+| 3 | `python -m compileall -q app` | ✅（Task 1 已跑過等效檢查；後續 task 未見編譯錯誤） |
+| 4 | `from app.main import app; print(app.title)` | ✅ Task 6 report 確認 app 可正常 import、路由表已排除 `/login`、`/register` |
+| 5 | Alembic upgrade 對照可拋棄 MySQL 測試庫 | ⚠️ **未執行**（沙盒無 MySQL），見第四節第 3 點 |
+| 6 | `git diff --check` / `git status` 僅含預期檔案 | ✅ 每個 task 皆確認只 stage 該 task列出的檔案（reviewer 逐一驗證） |
+| 7 | 真實 SSO/UserInfo/provider 整合測試 | ⚠️ **未執行**（無真實 token/API key/網路），依 plan 要求明確回報為未驗證，而非隱瞞 |
 
 ---
 
-## 七、給下一批的流程建議
+## 六、給下一批的流程建議
 
-1. **加一個 production 形狀的 import 閘門**，而且從第一個 task 就加。本批唯一的 Critical 就是靠它才抓到，而它在測試環境裡隱形了四個 task。
-2. **「刪掉這幾行、測試是否仍全綠」應該成為 reviewer 的標準動作**。這批三次靠它抓到綠燈掩蓋的壞路徑，一次抓到我自己修正造成的回歸。
-3. **plan 直接給 verbatim 程式碼時，reviewer 要對照 spec 而不是對照 plan**。本批有四處 plan 給的程式碼違反 spec 的約束（`build_catalog` 會拋例外、`normalize_selection` 掉了 `active` 檢查、`import dialogs` 根本不能執行、`max_char_count` 夾值會掉失）。
+1. **跨 task 的「假設別層會做」型缺口，只有 whole-branch review 抓得到**——這批的唯一 Critical（`is_active`）正是這種：每個 task 的 per-task review 都沒錯，但沒有人真正接住這個需求。往後若拆 task，建議在 Global Constraints 明確標註「哪個 task 負責哪個跨切面需求的『最終落地』」，而不只是「哪個 task 建立欄位」。
+2. **plan 明確接受的階段性限制（如 XFF 信任）容易被 reviewer 誤判為 bug**——這批發生了一次（Task 5），靠對照 plan 原文才正確裁定「部分接受、部分修正」。建議下次在 task brief 的 Global Constraints 裡，對這類「已知但接受」的限制加一句提示給 reviewer，減少不必要的來回。
+3. **未追蹤檔案混在既有專案中時，「只 stage 列出的檔案」與「分支能否獨立跑」會直接衝突**——這批一路依照 plan 指示做對了，但也因此在 final review 才發現分支目前無法從全新 checkout 執行。若專案裡還有類似「大量既有未追蹤程式碼」的情境，建議在寫 plan 時就先決定：這次只交付「新增邏輯」，還是連「讓分支自己跑得起來」也一併排入某個 task。
