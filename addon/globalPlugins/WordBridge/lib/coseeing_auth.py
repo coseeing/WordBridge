@@ -14,6 +14,8 @@ from . import vendor
 addonHandler.initTranslation()
 
 COSEEING_REFRESH_TOKEN_TARGET = "org.coseeing.wordbridge/refresh"
+# How long the browser login may take before the callback server gives up.
+COSEEING_LOGIN_CALLBACK_TIMEOUT = 180
 
 
 class CoseeingAuthUnavailableError(Exception):
@@ -141,7 +143,7 @@ def build_auth_config() -> "AuthConfig":
 		scopes=("openid", "profile", "email", "offline_access"),
 		login_redirect_uri="http://127.0.0.1:8000/auth-callback",
 		logout_redirect_uri="http://127.0.0.1:8000/logout-callback",
-		callback_timeout=180,
+		callback_timeout=COSEEING_LOGIN_CALLBACK_TIMEOUT,
 	)
 
 

@@ -266,6 +266,7 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	reset_future.set_result(None)
 	auth_module.reset_coseeing_auth = lambda: auth_calls.append("reset") or reset_future
 	auth_module.shutdown_coseeing_auth = lambda: auth_calls.append("shutdown")
+	auth_module.COSEEING_LOGIN_CALLBACK_TIMEOUT = 180
 	lib_package = type(sys)(f"{package_name}.lib")
 	lib_package.__path__ = [str(ADDON_PATH / "lib")]
 	monkeypatch.setitem(sys.modules, f"{package_name}.lib", lib_package)
@@ -278,6 +279,7 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	dictionary_package = type(sys)(f"{package_name}.dictionary")
 	dictionary_package.__path__ = [str(ADDON_PATH / "dictionary")]
 	dictionary_package.WBW_DICTIONARY_PATH = "/tmp/wordbridge-test-dictionary"
+	dictionary_package.default_dictionary_repository = lambda: SimpleNamespace(load=lambda: [])
 	monkeypatch.setitem(sys.modules, dictionary_package.__name__, dictionary_package)
 	monkeypatch.setitem(sys.modules, f"{package_name}.dictionary.dialog", SimpleNamespace(DictionaryEntryDialog=object))
 
@@ -1035,7 +1037,7 @@ def test_settings_panel_renders_provider_group_captions_through_their_catalog_la
 
 
 def test_the_sentinel_model_label_is_rendered_through_the_translation_map(monkeypatch):
-	"""I3: SENTINEL_LABEL ("Coseeing default") ships untranslated from
+	"""I3: SENTINEL_LABEL ("default") ships untranslated from
 	lib/catalog (spec decision 9 forbids lib/catalog from reaching _()), and
 	it is the everyday default selection on every fresh install (spec
 	decision 5) -- the most user-visible string in the batch for a zh-only,
@@ -1043,7 +1045,7 @@ def test_the_sentinel_model_label_is_rendered_through_the_translation_map(monkey
 	dialogs.MODEL_LABEL_TRANSLATIONS instead of the raw catalog label.
 
 	The fake catalog below gives the sentinel coseeing entry a deliberately
-	different raw label, so a rendered "Coseeing default" can only have come
+	different raw label, so a rendered sentinel label can only have come
 	from the translation map -- never from entry.label passing through
 	untouched, which is what every *other* model/coseeing label must still do.
 	"""

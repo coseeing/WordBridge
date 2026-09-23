@@ -33,7 +33,7 @@ def test_bundled_source_returns_the_canonical_catalog_document_unchanged(tmp_pat
 		"schema_version": SCHEMA_VERSION,
 		"providers": {},
 		"models": [],
-		"coseeings": [{"model": "default", "label": "Coseeing default", "active": True}],
+		"coseeings": [{"model": "default", "label": "default", "active": True}],
 	}
 	_write_catalog(tmp_path, expected)
 
@@ -132,5 +132,5 @@ def test_the_shipped_coseeing_labels_are_pinned():
 	# dialogs.py) substitutes a translated string for the sentinel's entry
 	# only; lib/catalog itself must never reach _() (spec decision 9).
 	assert shipped_catalog().labels_for("Coseeing") == (
-		"Coseeing default", "deepseek-v4-flash", "gpt-5.6-luna",
+		"default", "deepseek-v4-flash", "gpt-6-luna", "gpt-5.6-luna",
 	)

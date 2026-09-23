@@ -1,4 +1,3 @@
-from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
 from concurrent.futures import Future
 
 import config
@@ -13,7 +12,7 @@ from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
 
 from .dictionary.dialog import DictionaryEntryDialog
-from .lib.catalog import is_dropped_issue, registry
+from .lib.catalog import COSEEING_GROUP, is_dropped_issue, registry
 from .lib.catalog.fallback import SENTINEL_ID
 from .lib.catalog.selection import SelectionState
 from .lib.coseeing_auth import (
@@ -46,7 +45,7 @@ TYPO_CORRECTION_MODE_LABELS = [LABEL_DICT[value] for value in TYPO_CORRECTION_MO
 SOUND_EFFECTS_URL = "https://www.zapsplat.com/music/medium-underwater-movement-whoosh-pass-by-1/"
 
 # lib/catalog must never reach _() (spec decision 9), so the sentinel's label
-# ships plain -- SENTINEL_LABEL = "Coseeing default" in lib/catalog/fallback.py
+# ships plain -- SENTINEL_LABEL = "default" in lib/catalog/fallback.py
 # -- and is the *only* catalog label that is not simply an identity mapping of
 # a model or brand name; it is also, per spec decision 5, the default
 # selection on every fresh install. Translating it here, keyed by the
@@ -164,7 +163,7 @@ class LLMSettingsPanel(SettingsPanel):
 			self.accountGroupSizerMap[group] = accountBoxSizer
 			self.accountGroupSizerHelper = guiHelper.BoxSizerHelper(self, sizer=accountBoxSizer)
 			settingsSizerHelper.addItem(self.accountGroupSizerHelper)
-			if group == "Coseeing":
+			if group == COSEEING_GROUP:
 				self.coseeingCleanButton = wx.Button(self, label=_("clean"))
 				self.coseeingCleanButton.Enable(has_saved_coseeing_refresh_token())
 				self.coseeingCleanButton.Bind(wx.EVT_BUTTON, self.onCleanCoseeingAuth)
@@ -204,30 +203,8 @@ class LLMSettingsPanel(SettingsPanel):
 
 		# For setting upper bound of correction character count
 		maxTokensLabelText = _("Max character count")
-		# max_char_count() is a bare subscript (SettingsRepository is the sole
-		# reader of the settings mapping), but the clamp bounds themselves
-		# come from config.conf.getConfigValidation(), not from the settings
-		# mapping -- so catching the validator's exceptions here, around the
-		# repository call, keeps that read the settings mapping's only reader
-		# without silently losing the clamp-to-bounds behaviour for an
-		# out-of-range stored value.
-		try:
-			maxCharCount = self.settings.max_char_count()
-		except VdtValueTooBigError:
-			maxCharCount = int(config.conf.getConfigValidation(
-				("WordBridge", "settings", "max_char_count")
-			).kwargs["max"])
-		except VdtValueTooSmallError:
-			maxCharCount = int(config.conf.getConfigValidation(
-				("WordBridge", "settings", "max_char_count")
-			).kwargs["min"])
-
-		maxCharCountlowerBound = int(config.conf.getConfigValidation(
-			("WordBridge", "settings", "max_char_count")
-		).kwargs["min"])
-		maxCharCountUpperBound = int(config.conf.getConfigValidation(
-			("WordBridge", "settings", "max_char_count")
-		).kwargs["max"])
+		maxCharCountlowerBound, maxCharCountUpperBound = self.settings.max_char_count_bounds()
+		maxCharCount = self.settings.max_char_count()
 		self.maxCharCountSpinCtrl = settingsSizerHelper.addLabeledControl(
 			maxTokensLabelText,
 			nvdaControls.SelectOnFocusSpinCtrl,
@@ -337,13 +314,6 @@ class LLMSettingsPanel(SettingsPanel):
 		self.onPanelActivated()
 		self._sendLayoutUpdatedEvent()
 		self.Thaw()
-
-	def updateCurrentKey(self, key):
-		self.apikeyTextCtrl.SetValue(key)
-
-	def updateAccountInformation(self, username, password):
-		self.usernameTextCtrl.SetValue(username)
-		self.passwordTextCtrl.SetValue(password)
 
 
 class FeedbackDialog(

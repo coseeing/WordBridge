@@ -45,8 +45,8 @@ class TaskArchitectureTests(unittest.TestCase):
 		document, issues = BundledCatalogSource(ADDON_PATH / "setting").load()
 		catalog = build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
 
-		self.assertEqual(len(catalog.models), 13)
-		self.assertEqual(len({entry.corrector_config_id for entry in catalog.models}), 13)
+		self.assertEqual(len(catalog.models), 16)
+		self.assertEqual(len({entry.corrector_config_id for entry in catalog.models}), 16)
 
 	def test_plugin_local_correction_uses_endpoint_and_task_configs_with_unchanged_runner_interface(self):
 		"""Catches task-config reads, a local-routing regression, and provider/price
@@ -516,6 +516,7 @@ class _nvda_module_stubs:
 		dictionary_package = types.ModuleType("WordBridge.dictionary")
 		dictionary_package.__path__ = []
 		dictionary_package.WBW_DICTIONARY_PATH = "/tmp/wordbridge-test-dictionary"
+		dictionary_package.default_dictionary_repository = lambda: types.SimpleNamespace(load=lambda: [])
 		sys.modules["WordBridge.dictionary"] = dictionary_package
 		sys.modules["WordBridge.dictionary.dialog"] = types.SimpleNamespace(DictionaryEntryDialog=object)
 		sys.modules["WordBridge.lib.coseeing"] = types.SimpleNamespace(build_coseeing_headers=lambda token: {} if token is None else {"Authorization": f"Bearer {token}"})
@@ -549,7 +550,7 @@ class _nvda_module_stubs:
 					"retries": retries,
 					"backoff": backoff,
 				})
-				return types.SimpleNamespace(corrected_text=request, cost=Decimal("0"))
+				return types.SimpleNamespace(corrected_text=request, diff=[], cost=Decimal("0"))
 			sys.modules["WordBridge.lib.application.task_runner"] = types.SimpleNamespace(
 				run_typo_correction=run_typo_correction,
 			)

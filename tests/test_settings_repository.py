@@ -83,7 +83,7 @@ def catalog():
 				"timeout_max": 20,
 			}},
 			"models": [{"provider": "OpenAI", "model": "gpt-x", "label": "GPT X"}],
-			"coseeings": [{"model": "default", "label": "Coseeing default"}],
+			"coseeings": [{"model": "default", "label": "default"}],
 		},
 		runnable_providers=RUNNABLE,
 	)
@@ -237,3 +237,64 @@ def test_max_char_count_round_trips():
 
 	assert settings["max_char_count"] == 1024
 	assert repo.max_char_count() == 1024
+
+
+class _TooBig(Exception):
+	pass
+
+
+class _TooSmall(Exception):
+	pass
+
+
+class _RaisingSettings(dict):
+	"""NVDA validates on read: an out-of-range stored value raises."""
+
+	def __init__(self, error):
+		super().__init__()
+		self._error = error
+
+	def __getitem__(self, key):
+		raise self._error
+
+
+def _stub_configobj_validate(monkeypatch):
+	validate = types.ModuleType("configobj.validate")
+	validate.VdtValueTooBigError = _TooBig
+	validate.VdtValueTooSmallError = _TooSmall
+	package = types.ModuleType("configobj")
+	package.validate = validate
+	monkeypatch.setitem(sys.modules, "configobj", package)
+	monkeypatch.setitem(sys.modules, "configobj.validate", validate)
+
+
+def test_max_char_count_bounds_come_from_the_injected_source():
+	repo = SettingsRepository({}, catalog, max_char_count_bounds=lambda: (256, 4096))
+
+	assert repo.max_char_count_bounds() == (256, 4096)
+
+
+def test_a_too_big_max_char_count_clamps_to_the_upper_bound(monkeypatch):
+	_stub_configobj_validate(monkeypatch)
+	repo = SettingsRepository(_RaisingSettings(_TooBig()), catalog, max_char_count_bounds=lambda: (256, 4096))
+
+	assert repo.max_char_count() == 4096
+
+
+def test_a_too_small_max_char_count_clamps_to_the_lower_bound(monkeypatch):
+	_stub_configobj_validate(monkeypatch)
+	repo = SettingsRepository(_RaisingSettings(_TooSmall()), catalog, max_char_count_bounds=lambda: (256, 4096))
+
+	assert repo.max_char_count() == 256
+
+
+def test_an_unrelated_max_char_count_error_still_propagates(monkeypatch):
+	_stub_configobj_validate(monkeypatch)
+	repo = SettingsRepository(_RaisingSettings(KeyError("max_char_count")), catalog, max_char_count_bounds=lambda: (256, 4096))
+
+	try:
+		repo.max_char_count()
+	except KeyError:
+		pass
+	else:
+		assert False, "only range errors may be clamped"

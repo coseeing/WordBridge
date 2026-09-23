@@ -3,10 +3,8 @@ from gui import guiHelper, nvdaControls
 from gui.settingsDialogs import SettingsDialog
 import wx
 import addonHandler
-import csv
-import os
 
-from . import WBW_DICTIONARY_PATH
+from . import default_dictionary_repository
 
 addonHandler.initTranslation()
 
@@ -84,15 +82,8 @@ class DictionaryEntryDialog(SettingsDialog):
 	helpId = "WordBridgeDictionary"
 
 	def __init__(self, parent):
-		self.path = os.path.join(WBW_DICTIONARY_PATH, 'data.csv')
-		data = []
-		if not os.path.exists(self.path):
-			open(self.path, 'w', encoding='utf-8').close()
-		with open(self.path, 'r', encoding='utf-8') as file:
-			reader = csv.DictReader(file)
-			for row in reader:
-				data.append(row)
-		self.data = data
+		self.repository = default_dictionary_repository()
+		self.data = self.repository.load()
 
 		self.title = _("WordBridge Dictionary")
 		super(DictionaryEntryDialog, self).__init__(
@@ -355,18 +346,10 @@ class DictionaryEntryDialog(SettingsDialog):
 		self.onWordEdited()
 		self.editingItem = None
 
-		data = []
-		for word in self.words:
-			data.append({
-				"text": word.text,
-				"pronunciation": word.pronunciation,
-			})
-
-		with open(self.path, 'w', encoding='utf-8', newline='') as file:
-			writer = csv.DictWriter(file, fieldnames=["text", "pronunciation"])
-			writer.writeheader()
-			for row in data:
-				writer.writerow(row)
+		self.repository.save(
+			{"text": word.text, "pronunciation": word.pronunciation}
+			for word in self.words
+		)
 
 		super(DictionaryEntryDialog, self).onOk(evt)
 

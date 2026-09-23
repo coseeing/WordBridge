@@ -241,7 +241,7 @@ def test_coseeing_group_sorts_last_and_local_groups_sort_alphabetically():
 			{"provider": "OpenAI", "model": "gpt-x", "label": "GPT X"},
 			{"provider": "DeepSeek", "model": "ds-x", "label": "DS X"},
 		],
-		coseeings=[{"model": "default", "label": "Coseeing default"}],
+		coseeings=[{"model": "default", "label": "default"}],
 	)
 	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
 
@@ -249,7 +249,7 @@ def test_coseeing_group_sorts_last_and_local_groups_sort_alphabetically():
 
 
 def test_default_selection_prefers_the_first_coseeing_entry():
-	doc = document(coseeings=[{"model": "default", "label": "Coseeing default"}])
+	doc = document(coseeings=[{"model": "default", "label": "default"}])
 	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
 
 	assert catalog.default_selection() == ("default", COSEEING_GROUP)
@@ -269,7 +269,7 @@ def test_default_selection_raises_when_nothing_is_selectable():
 
 
 def test_find_selection_and_get_item_round_trip():
-	doc = document(coseeings=[{"model": "default", "label": "Coseeing default"}])
+	doc = document(coseeings=[{"model": "default", "label": "default"}])
 	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
 
 	indices = catalog.find_selection("default", COSEEING_GROUP)

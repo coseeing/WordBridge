@@ -26,7 +26,7 @@ def catalog():
 				{"provider": "OpenAI", "model": "gpt-x", "label": "GPT X"},
 			],
 			"coseeings": [
-				{"model": "default", "label": "Coseeing default"},
+				{"model": "default", "label": "default"},
 				{"model": "ds-x", "provider": "DeepSeek", "label": "DS X"},
 			],
 		},
@@ -75,7 +75,7 @@ def test_a_retired_entry_is_not_honoured_as_a_stored_selection():
 			"schema_version": SCHEMA_VERSION,
 			"providers": {"OpenAI": dict(PROVIDER)},
 			"models": [{"provider": "OpenAI", "model": "gone", "label": "Gone", "active": False}],
-			"coseeings": [{"model": "default", "label": "Coseeing default"}],
+			"coseeings": [{"model": "default", "label": "default"}],
 		},
 		runnable_providers=RUNNABLE,
 	)

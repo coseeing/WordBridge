@@ -30,10 +30,13 @@ class CorrectorCatalogTests(unittest.TestCase):
 
 	def test_openai_and_anthropic_model_labels_match_replacement_catalog(self):
 		catalog = shipped_catalog()
-		self.assertEqual(catalog.labels_for("Anthropic"), ("claude-opus-5", "claude-sonnet-5"))
+		self.assertEqual(
+			catalog.labels_for("Anthropic"),
+			("claude-opus-5.5", "claude-opus-5", "claude-sonnet-5"),
+		)
 		self.assertEqual(
 			catalog.labels_for("OpenAI"),
-			("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"),
+			("gpt-6-sol", "gpt-6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"),
 		)
 
 	def test_default_selection_uses_first_coseeing_endpoint(self):

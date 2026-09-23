@@ -15,7 +15,7 @@ def _catalog_document():
 def test_catalog_models_and_coseeings_use_the_expected_entry_shapes():
 	document = _catalog_document()
 
-	assert len(document["models"]) == 13
+	assert len(document["models"]) == 16
 	for entry in document["models"]:
 		assert isinstance(entry["model"], str) and entry["model"]
 		assert isinstance(entry["provider"], str) and entry["provider"]
@@ -26,7 +26,7 @@ def test_catalog_models_and_coseeings_use_the_expected_entry_shapes():
 			assert isinstance(entry["usage_key"], str) and entry["usage_key"]
 
 	providerless = [entry for entry in document["coseeings"] if "provider" not in entry]
-	assert providerless == [{"model": "default", "label": "Coseeing default", "active": True}]
+	assert providerless == [{"model": "default", "label": "default", "active": True}]
 
 
 def test_ai_catalog_uses_unique_model_provider_pairs():
@@ -40,7 +40,7 @@ def test_ai_catalog_uses_unique_model_provider_pairs():
 
 def test_catalog_has_exactly_one_providerless_coseeing_default():
 	providerless = [entry for entry in _catalog_document()["coseeings"] if "provider" not in entry]
-	assert providerless == [{"model": "default", "label": "Coseeing default", "active": True}]
+	assert providerless == [{"model": "default", "label": "default", "active": True}]
 
 
 def test_corrector_task_config_is_the_only_prompt_setting_file():
@@ -56,9 +56,9 @@ def test_corrector_task_config_is_the_only_prompt_setting_file():
 
 def test_provider_catalogs_preserve_approved_and_unaffected_models():
 	expected = {
-		"OpenAI": {"gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"},
-		"Anthropic": {"claude-opus-5", "claude-sonnet-5"},
-		"DeepSeek": {"deepseek-v4-flash", "deepseek-v4-pro"},
+		"OpenAI": {"gpt-6-sol", "gpt-6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"},
+		"Anthropic": {"claude-opus-5-5", "claude-opus-5", "claude-sonnet-5"},
+		"DeepSeek": {"deepseek-flash", "deepseek-v4-pro"},
 		"Google": {
 			"gemini-3.1-pro-preview",
 			"gemini-3.1-flash-lite",

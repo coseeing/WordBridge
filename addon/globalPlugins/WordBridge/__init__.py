@@ -1,4 +1,3 @@
-import csv
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 import os
@@ -38,7 +37,6 @@ except Exception as _stdlib_gapfill_install_error:
 import addonHandler
 import api
 import config
-from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
 import globalPluginHandler
 import gui
 from logHandler import log
@@ -57,7 +55,7 @@ from .lib.catalog import LOCAL_CHANNEL, registry
 from .lib.catalog.fallback import load_catalog
 from .lib.catalog.sources import BundledCatalogSource
 from .lib.llm import SUPPORTED_PROVIDERS
-from .dictionary import WBW_DICTIONARY_PATH
+from .dictionary import default_dictionary_repository
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.application.task_runner import run_typo_correction
 from .lib.coseeing import build_coseeing_headers
@@ -135,6 +133,10 @@ COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
 COSEEING_CONNECT_TIMEOUT = 10
 COSEEING_READ_TIMEOUT = 120
 COSEEING_TIMEOUT = (COSEEING_CONNECT_TIMEOUT, COSEEING_READ_TIMEOUT)
+# Upper bound on a worker waiting for an access token. A browser login can
+# legitimately take the whole callback window, so this only has to outlast it;
+# it exists so a token future that is never settled cannot pin the worker.
+COSEEING_TOKEN_WAIT_SECONDS = coseeing_auth.COSEEING_LOGIN_CALLBACK_TIMEOUT + 20
 # terminate() must not wait for an in-flight request. Workers are daemons, so
 # whatever is still running when this budget expires is abandoned.
 TERMINATE_WAIT_SECONDS = 3
@@ -372,16 +374,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return text
 
 	def isTextValid(self, text):
-		try:
-			max_char_count = self.settings.max_char_count()
-		except VdtValueTooBigError:
-			max_char_count = int(config.conf.getConfigValidation(
-				("WordBridge", "settings", "max_char_count")
-			).kwargs["max"])
-		except VdtValueTooSmallError:
-			max_char_count = int(config.conf.getConfigValidation(
-				("WordBridge", "settings", "max_char_count")
-			).kwargs["min"])
+		max_char_count = self.settings.max_char_count()
 		if len(text) > max_char_count:
 			ui.message(
 				_("The number of characters is {len_text}, which exceeds the maximum, {max_char_count}.").format(
@@ -408,13 +401,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return True
 
 	def readDictionary(self):
-		dictionary_path = os.path.join(WBW_DICTIONARY_PATH, "data.csv")
-		if not os.path.exists(dictionary_path):
-			open(dictionary_path, 'w', encoding='utf-8').close()
-		with open(dictionary_path, encoding='utf8', newline='') as csvfile:
-			reader = csv.DictReader(csvfile)
-			word_list = list(reader)
-		return word_list
+		return default_dictionary_repository().load()
 
 	def isNVDASettingsDialogCreate(self):
 		create_state = gui.settingsDialogs.NVDASettingsDialog.DialogState.CREATED
@@ -480,13 +467,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
 				return
 			response = result.corrected_text
+			diff = result.diff
 			interaction_id = None
 			cost = result.cost
 		else:
 			if self._shutdown.is_set():
 				return
 			try:
-				access_token = get_coseeing_access_token().result()
+				access_token = get_coseeing_access_token().result(timeout=COSEEING_TOKEN_WAIT_SECONDS)
 				headers = build_coseeing_headers(access_token)
 			except Exception:
 				self._notify(_("Sorry, an error occurred while authenticating with Coseeing."))
@@ -532,8 +520,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			except (ValueError, KeyError, TypeError):
 				self._notify(_("The Coseeing response was invalid. Please try again later."))
 				return
-
-		diff = strings_diff(request, response)
+			diff = strings_diff(request, response)
 
 		self._run_on_ui(self._publish_latest_action, CorrectionAction(
 			request=request,
@@ -719,7 +706,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def _send_coseeing_feedback(self, interaction_id, feedback_value):
 		try:
-			access_token = get_coseeing_access_token().result()
+			access_token = get_coseeing_access_token().result(timeout=COSEEING_TOKEN_WAIT_SECONDS)
 			headers = build_coseeing_headers(access_token)
 		except Exception as error:
 			message = _("The Coseeing authentication failed. Please try again later.")

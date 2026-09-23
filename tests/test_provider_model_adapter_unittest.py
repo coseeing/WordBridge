@@ -107,12 +107,12 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertIsInstance(provider, OpenAIProvider)
 		self.assertEqual(provider.get_api_url(), "https://api.openai.com/v1/responses")
 
-	def test_openai_provider_disables_reasoning_in_provider_settings(self):
+	def test_openai_provider_uses_low_reasoning_effort_in_provider_settings(self):
 		from lib.llm.provider import get_provider
 
 		provider = get_provider("OpenAI", {"api_key": "test"}, provider_entry=_provider_entry("OpenAI"))
 
-		self.assertEqual(provider.setting["reasoning"], {"effort": "none"})
+		self.assertEqual(provider.setting["reasoning"], {"effort": "low"})
 
 	def test_anthropic_adapter_builds_request_without_model_specific_temperature_logic(self):
 		from lib.llm.adapter import AnthropicAdapter, get_provider_model_adapter
@@ -147,12 +147,13 @@ class ProviderModelAdapterTests(unittest.TestCase):
 
 		self.assertEqual(adapter.parse_response(response), "我說我喜歡用螢幕閱讀器讀書")
 
-	def test_anthropic_provider_disables_thinking(self):
+	def test_anthropic_provider_uses_adaptive_thinking_with_low_effort(self):
 		from lib.llm.provider import get_provider
 
 		provider = get_provider("Anthropic", {"api_key": "test"}, provider_entry=_provider_entry("Anthropic"))
 
-		self.assertEqual(provider.setting["thinking"], {"type": "disabled"})
+		self.assertEqual(provider.setting["thinking"], {"type": "adaptive"})
+		self.assertEqual(provider.setting["output_config"], {"effort": "low"})
 
 	def test_openai_response_adapter_builds_responses_payload_and_extracts_text_output(self):
 		from lib.llm.adapter import OpenAIAdapter, get_provider_model_adapter
@@ -397,12 +398,12 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		self.assertEqual(payload["stop"], [" =>"])
 		self.assertNotIn("options", payload)
 
-	def test_deepseek_provider_disables_thinking_in_provider_settings(self):
+	def test_deepseek_provider_disables_reasoning_in_provider_settings(self):
 		from lib.llm.provider import get_provider
 
 		provider = get_provider("DeepSeek", {"api_key": "test"}, provider_entry=_provider_entry("DeepSeek"))
 
-		self.assertEqual(provider.setting["thinking"], {"type": "disabled"})
+		self.assertEqual(provider.setting["reasoning_effort"], "none")
 
 	def test_openai_response_adapter_calculates_terra_usage_and_cost_from_usage_history(self):
 		from lib.llm.adapter import get_provider_model_adapter

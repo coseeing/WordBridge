@@ -682,3 +682,126 @@ def test_local_channel_notifies_and_returns_when_the_selected_provider_is_gone(m
 	assert messages == [
 		"The selected provider is no longer available. Please choose another one in WordBridge settings."
 	]
+
+
+def _local_plugin_instance(monkeypatch, queued):
+	from test_coseeing_auth_nvda import _load_nvda_plugin
+
+	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
+		"corrector_config_id": "gpt-5.6-sol&OpenAI",
+		"execution_channel": "local",
+		"api_key": {"OpenAI": "key"},
+		"language": "zh_traditional",
+		"typo_correction_mode": "standard",
+		"customized_words_enable": False,
+		"auto_display_report": False,
+	}, [], queued)
+	instance = object.__new__(plugin_module.GlobalPlugin)
+	instance.settings = plugin_module.settings
+	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
+	instance.latest_action = plugin_module.CorrectionAction()
+	instance.readDictionary = lambda: []
+	instance._shutdown = threading.Event()
+	instance.catalog = plugin_module.catalog
+	instance._degraded_catalog_announced = False
+	monkeypatch.setattr(plugin_module.api, "copyToClip", lambda text: None, raising=False)
+	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=lambda message: None))
+	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
+		warning=lambda *args, **kwargs: None,
+		info=lambda *args, **kwargs: None,
+		debug=lambda *args, **kwargs: None,
+		exception=lambda *args, **kwargs: None,
+	))
+	return plugin_module, instance
+
+
+def test_local_channel_publishes_the_workflow_diff_without_recomputing_it(monkeypatch):
+	from decimal import Decimal
+
+	queued = []
+	plugin_module, instance = _local_plugin_instance(monkeypatch, queued)
+	runner_diff = [{"operation": "replace", "before_text": "原", "after_text": "修"}]
+	monkeypatch.setattr(plugin_module, "run_typo_correction", lambda **kwargs: SimpleNamespace(
+		corrected_text="修文", diff=runner_diff, cost=Decimal("0"),
+	))
+
+	def strings_diff(request, response):
+		raise AssertionError("the local channel must reuse TypoCorrectionResult.diff")
+
+	monkeypatch.setattr(plugin_module, "strings_diff", strings_diff)
+
+	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
+	while queued:
+		callback, args = queued.pop(0)
+		callback(*args)
+
+	assert instance.latest_action.diff is runner_diff
+
+
+class _RecordingFuture:
+	def __init__(self):
+		self.timeouts = []
+
+	def result(self, timeout=None):
+		self.timeouts.append(timeout)
+		raise TimeoutError
+
+
+def _coseeing_plugin_instance(monkeypatch, queued, messages):
+	from test_coseeing_auth_nvda import _load_nvda_plugin
+
+	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
+		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"execution_channel": "Coseeing",
+		"api_key": {},
+		"language": "zh_traditional",
+		"typo_correction_mode": "standard",
+		"customized_words_enable": False,
+		"auto_display_report": False,
+	}, [], queued)
+	instance = object.__new__(plugin_module.GlobalPlugin)
+	instance.settings = plugin_module.settings
+	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
+	instance.latest_action = plugin_module.CorrectionAction()
+	instance.readDictionary = lambda: []
+	instance._shutdown = threading.Event()
+	instance.catalog = plugin_module.catalog
+	instance._degraded_catalog_announced = False
+	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
+
+	def post(*args, **kwargs):
+		raise AssertionError("no request may be sent without an access token")
+
+	monkeypatch.setattr(plugin_module.requests, "post", post, raising=False)
+	return plugin_module, instance
+
+
+def test_proofreader_bounds_the_wait_for_an_access_token(monkeypatch):
+	queued, messages = [], []
+	plugin_module, instance = _coseeing_plugin_instance(monkeypatch, queued, messages)
+	future = _RecordingFuture()
+	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
+
+	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
+	while queued:
+		callback, args = queued.pop(0)
+		callback(*args)
+
+	assert future.timeouts == [plugin_module.COSEEING_TOKEN_WAIT_SECONDS]
+	assert plugin_module.COSEEING_TOKEN_WAIT_SECONDS > 180
+	assert messages == ["Sorry, an error occurred while authenticating with Coseeing."]
+
+
+def test_feedback_bounds_the_wait_for_an_access_token(monkeypatch):
+	queued, messages = [], []
+	plugin_module, instance = _coseeing_plugin_instance(monkeypatch, queued, messages)
+	future = _RecordingFuture()
+	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
+
+	plugin_module.GlobalPlugin._send_coseeing_feedback(instance, "i-1", "回饋")
+	while queued:
+		callback, args = queued.pop(0)
+		callback(*args)
+
+	assert future.timeouts == [plugin_module.COSEEING_TOKEN_WAIT_SECONDS]
+	assert messages == ["The Coseeing authentication failed. Please try again later."]

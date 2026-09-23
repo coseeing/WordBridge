@@ -27,6 +27,23 @@ def os_default_language() -> str:
 	return LANGUAGE_FALLBACK if code in ("zh_TW", "zh_MO", "zh_HK") else "zh_simplified"
 
 
+def nvda_max_char_count_bounds() -> tuple:
+	"""(min, max) for max_char_count, read from NVDA's config spec.
+
+	Imported lazily so this module stays importable outside NVDA.
+	"""
+	import config
+
+	validation = config.conf.getConfigValidation(("WordBridge", "settings", "max_char_count"))
+	return int(validation.kwargs["min"]), int(validation.kwargs["max"])
+
+
+def _range_errors() -> tuple:
+	from configobj.validate import VdtValueTooBigError, VdtValueTooSmallError
+
+	return VdtValueTooBigError, VdtValueTooSmallError
+
+
 class SettingsRepository:
 	"""The only place that touches config.conf["WordBridge"]["settings"].
 
@@ -35,9 +52,10 @@ class SettingsRepository:
 	default, and an empty language becomes the OS UI language.
 	"""
 
-	def __init__(self, settings, current_catalog):
+	def __init__(self, settings, current_catalog, *, max_char_count_bounds=nvda_max_char_count_bounds):
 		self._settings = settings
 		self._catalog = current_catalog
+		self._max_char_count_bounds = max_char_count_bounds
 
 	def corrector_selection(self) -> tuple:
 		return normalize_selection(
@@ -73,8 +91,21 @@ class SettingsRepository:
 	def save_api_key(self, provider: str, value: str) -> None:
 		self._settings["api_key"][provider] = value
 
+	def max_char_count_bounds(self) -> tuple:
+		return self._max_char_count_bounds()
+
 	def max_char_count(self) -> int:
-		return self._settings["max_char_count"]
+		# NVDA validates on read, so a stored value outside the spec's range
+		# raises instead of returning. Clamp it to the nearest bound.
+		try:
+			return self._settings["max_char_count"]
+		except Exception as error:
+			too_big, too_small = _range_errors()
+			if isinstance(error, too_big):
+				return self.max_char_count_bounds()[1]
+			if isinstance(error, too_small):
+				return self.max_char_count_bounds()[0]
+			raise
 
 	def save_max_char_count(self, value: int) -> None:
 		self._settings["max_char_count"] = value

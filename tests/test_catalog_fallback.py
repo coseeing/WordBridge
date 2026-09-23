@@ -130,7 +130,7 @@ def test_a_stored_sentinel_still_resolves_against_a_healthy_catalog():
 		"providers": {},
 		"models": [],
 		"coseeings": [
-			{"model": SENTINEL_ID, "label": "Coseeing default"},
+			{"model": SENTINEL_ID, "label": "default"},
 			{"model": "ds-x", "provider": "DeepSeek", "label": "DS X"},
 		],
 	}

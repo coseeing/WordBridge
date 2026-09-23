@@ -81,10 +81,11 @@ def test_provider_factory_rejects_non_canonical_provider_names(provider_name):
 		get_provider(provider_name, {"api_key": "test"}, provider_entry=entry)
 
 
-def test_deepseek_provider_top_p_is_within_valid_range():
+def test_deepseek_provider_samples_greedily_without_top_p():
 	entry = catalog().get_provider("DeepSeek")
 
-	assert 0.0 < entry.setting["top_p"] <= 1.0
+	assert entry.setting["temperature"] == 0.0
+	assert "top_p" not in entry.setting
 
 
 def test_the_workflow_factory_requires_both_entries():
