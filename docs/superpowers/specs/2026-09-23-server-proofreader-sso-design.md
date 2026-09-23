@@ -1,92 +1,92 @@
-# Server 校正流程移植與 SSO 身分關聯
+# Server Proofreader Migration and SSO Identity Linking
 
-## 目的與成功條件
+## Purpose and success criteria
 
-讓 `server/app/main.py` 的 `/proofreader` 真正執行 WordBridge add-on 的本地校正工作流程，並讓 server 使用統一 SSO 身分。訪客仍可校正且受到既有額度限制；登入者由已驗證的 SSO token 對應到 server 自己的 `User`。部署者可設定 `"default"` 實際使用的模型。完成後，server 能啟動、處理校正及回饋、寫入互動紀錄，並以依賴項控制各路由權限。
+Make `/proofreader` in `server/app/main.py` run the WordBridge add-on's local proofreading workflow, and give the server a unified SSO identity flow. Guests can still request corrections under the existing limits. Authenticated callers map from a verified SSO token to the server's own `User`. Deployers can choose the model used by `"default"`. When complete, the server starts, handles corrections and feedback, records interactions, and enforces route permissions through dependencies.
 
-本設計延續已確認的討論。只移植 `addon/globalPlugins/WordBridge/__init__.py::correctTypo()` 中 `execution_channel == LOCAL_CHANNEL` 的執行邏輯；該函式的 `else` 是 add-on 呼叫 server 的客戶端程式碼，不是 server 要再執行一次的路徑。add-on 的 NVDA 操作、通知和 UI 狀態也不屬於 server。
+This design reflects the decisions already confirmed in discussion. Only the execution logic in the `execution_channel == LOCAL_CHANNEL` branch of `addon/globalPlugins/WordBridge/__init__.py::correctTypo()` is migrated. Its `else` branch is add-on client code that calls the server; it is not another server execution path. NVDA actions, notifications, and UI state are also outside the server scope.
 
-## 已確認的產品與安全決策
+## Confirmed product and security decisions
 
-| 項目 | 決策 |
+| Area | Decision |
 | --- | --- |
-| 預設模型 | `corrector_config_id="default"` 由 server 解析成部署時可更換的模型 ID。 |
-| 訪客 | 無 token 可呼叫 `/proofreader`；維持長度、每 IP 與全站訪客額度限制。 |
-| 登入 | 只接受 SSO access token；停用舊 `/login`，不再使用 server 自簽 HS256 token。 |
-| 首次關聯 | 先驗 access token，再用同一枚 token 查 SSO UserInfo，要求相同 `sub`、非空 email、`email_verified` **嚴格為 `true`**。 |
-| 建立 user | 用已驗證 email 查既有 `User.account`；命中則綁定 `sub`，否則以該 email 建立新的 server user 並綁定。 |
-| 後續請求 | 每次都驗 access token；若 `sub` 已對應到 `email_verified=True` 的本地 user，直接使用本地欄位，不再為此呼叫 UserInfo。 |
-| 管理路由 | `/users` 與 `/interactions` CRUD 只開放已登入且 `is_superuser=True` 的 server user。 |
-| 回饋 | 訪客可提交該次校正的回饋；此階段只依 `interaction_id` 找互動，不加入回饋憑證或 IP 綁定。 |
-| 相依套件 | `coseeing_auth` 已放在 `server/app/package/coseeing_auth`，從專案原始碼匯入；第三方套件由 pip 安裝。 |
+| Default model | The server resolves `corrector_config_id="default"` to a model ID that can be changed at deployment. |
+| Guests | Requests without a token may call `/proofreader`; retain the text length, per-IP, and global guest limits. |
+| Login | Accept SSO access tokens only. Disable the old `/login` and stop using server-signed HS256 tokens. |
+| Initial linking | Verify the access token, then call SSO UserInfo with that same token. Require matching `sub`, a nonempty email, and `email_verified` **strictly equal to `true`**. |
+| User creation | Find an existing `User.account` by the verified email and link its `sub`; otherwise create a server user with that email and link its `sub`. |
+| Later requests | Verify the access token on every request. When its `sub` already maps to a local user with `email_verified=True`, use that local field without calling UserInfo again for this purpose. |
+| Admin routes | `/users` and `/interactions` CRUD require an authenticated server user with `is_superuser=True`. |
+| Feedback | Guests may submit feedback for a correction. For now, look up the interaction by `interaction_id` alone; do not add a feedback credential or IP binding. |
+| Dependencies | `coseeing_auth` is already in `server/app/package/coseeing_auth` and is imported from the project source. Install third-party packages with pip. |
 
-## 現況與改動範圍
+## Current state and scope
 
-目前 `/proofreader` 混入尚未移除的 add-on 專用欄位與函式，例如 `self`、`DEBUG_MODE`、`provider`、`model`、`_diff_`，並 import server 不存在的 `configManager`、`settings_repository`。catalog registry 沒有初始化。`get_auth_user_or_none` 因 `OAuth2PasswordBearer(auto_error=True)` 在無 token 時已先拒絕請求；`/feedback` 與 CRUD 仍依賴舊 HS256 登入。這些是本次要解決的執行與權限缺口。
+`/proofreader` still contains add-on-specific names and functions such as `self`, `DEBUG_MODE`, `provider`, `model`, and `_diff_`. It also imports server modules that do not exist: `configManager` and `settings_repository`. The catalog registry is never initialized. `get_auth_user_or_none` already rejects a missing token because it depends on `OAuth2PasswordBearer(auto_error=True)`. `/feedback` and the CRUD routes still rely on the old HS256 login. These execution and authorization gaps are in scope.
 
-主要修改面：
+Main areas to change:
 
-- `server/app/main.py`：校正、回饋、路由依賴與初始化。
-- `server/app/user/`：SSO 依賴、user 查找與建立、模型及對應 schema；移除舊登入與註冊路由。
-- `server/app/package/coseeing_auth/`：沿用目前程式碼；不另行安裝 `coseeing_auth`，也不改 token 驗證策略。
-- `server/app/lib/`、`server/requirements.txt`：讓 server 專用的校正依賴使用一般 pip 套件，不依賴 NVDA `_wb_vendor` 或 `addonHandler`。
-- Alembic migration：新增 SSO 欄位、調整帳號欄位長度，並刪除 user 密碼欄位。
-- `server/app/imp.py` 與 `server/test/` 中仍引用 `User.password`、`/login` 或舊 payload 的資料匯入及呼叫範例：配合 SSO 流程更新或移除失效範例。
+- `server/app/main.py`: correction, feedback, route dependencies, and initialization.
+- `server/app/user/`: SSO dependencies, user lookup and creation, models and schemas; remove the old login and registration routes.
+- `server/app/package/coseeing_auth/`: reuse the current code. Do not separately install `coseeing_auth` or change its token verification strategy.
+- `server/app/lib/` and `server/requirements.txt`: make the server's correction dependencies use ordinary pip packages, without relying on NVDA `_wb_vendor` or `addonHandler`.
+- Alembic migration: add SSO fields, widen the account column, and remove the user password column.
+- `server/app/imp.py` and examples under `server/test/` that still reference `User.password`, `/login`, or the old payload: update them for SSO or remove obsolete examples.
 
-不變更 add-on 的請求格式，不修改 SSO 系統，也不移植 add-on 的遠端呼叫分支。
+The add-on request format, the SSO system, and the add-on's remote request branch stay outside this change.
 
-## 部署設定與初始化
+## Deployment settings and initialization
 
-| 設定 | 值與用途 |
+| Setting | Value and purpose |
 | --- | --- |
-| `SSO_ISSUER` | 預設 `https://sso.coseeing.org`；供現有 `AuthConfig` 和 `TokenVerifier` 使用。 |
-| `SSO_CLIENT_ID` | 預設 `wordbridge`；與 add-on 使用的 SSO client 一致。 |
-| `SSO_USERINFO_URL` | 預設 `https://sso.coseeing.org/userinfo`；部署在不同 SSO 環境時一併指定。 |
-| `DEFAULT_CORRECTOR_CONFIG_ID` | 預設 `deepseek-v4-flash&DeepSeek`；部署者可指定另一個 catalog 中啟用且可執行的本地模型 ID。 |
-| `<PROVIDER>_API_KEY` | 依實際所選模型的 provider 名稱取得，例如 `DEEPSEEK_API_KEY`。 |
+| `SSO_ISSUER` | Defaults to `https://sso.coseeing.org`; used by the existing `AuthConfig` and `TokenVerifier`. |
+| `SSO_CLIENT_ID` | Defaults to `wordbridge`, matching the add-on's SSO client. |
+| `SSO_USERINFO_URL` | Defaults to `https://sso.coseeing.org/userinfo`; set it as well when deploying against another SSO environment. |
+| `DEFAULT_CORRECTOR_CONFIG_ID` | Defaults to `deepseek-v4-flash&DeepSeek`; deployers may select another enabled, runnable local model ID in the catalog. |
+| `<PROVIDER>_API_KEY` | Read according to the selected model's provider, for example `DEEPSEEK_API_KEY`. |
 
-server 啟動時讀取 `server/app/setting/catalog.json`，以 `BundledCatalogSource` 與 `load_catalog(..., runnable_providers=SUPPORTED_PROVIDERS)` 建立 catalog；讀取 `server/app/setting/task/corrector.json` 取得校正模式的模板與 optional guidance。這些物件由 server 模組或 FastAPI app state 持有，請求處理時明確取得，不使用 add-on 的 `self` 或未初始化的 registry。啟動時檢查預設模型 ID 是否指向 catalog 中啟用、provider 可執行的本地模型；無效設定要清楚報錯，不能悄悄改選別的模型。catalog 的 fallback `"default"` 僅含 Coseeing 項目，不能當成 server 本地執行模型。
+At startup, the server reads `server/app/setting/catalog.json` and builds a catalog with `BundledCatalogSource` and `load_catalog(..., runnable_providers=SUPPORTED_PROVIDERS)`. It reads `server/app/setting/task/corrector.json` for correction-mode templates and optional guidance. The server module or FastAPI app state holds these objects, and request handlers obtain them explicitly, without using add-on `self` or an uninitialized registry. At startup, validate that the configured default model ID points to an enabled local model whose provider can run. Report invalid configuration clearly rather than silently selecting another model. The catalog fallback `"default"` contains only a Coseeing offer; it cannot serve as a server-side local execution model.
 
-`coseeing_auth` 從 `app.package.coseeing_auth` 匯入。它的 `AuthConfig` 需要 loopback `login_redirect_uri`，server 可給符合型別約束的固定本地 URI；server 不執行 OAuth 登入跳轉。`TokenVerifier` 使用 `OidcProtocol.discovery`。現有驗證器首次使用會取得 discovery/JWKS，之後使用快取；新 `kid` 可能重新抓公鑰，JWT 校驗失敗可能呼叫線上 introspection。**每次請求仍驗 token；本地 `email_verified` 快取只省去後續 UserInfo 查詢。** 不承諾所有 token 驗證都完全離線，也不修改驗證器以強制離線。
+Import `coseeing_auth` from `app.package.coseeing_auth`. Its `AuthConfig` requires a loopback `login_redirect_uri`; the server may provide a fixed local URI that meets that type constraint. The server does not perform an OAuth login redirect. `TokenVerifier` uses `OidcProtocol.discovery`. On first use, the current verifier fetches discovery metadata and JWKS, then uses a cache. A new `kid` may trigger another public-key fetch, and JWT verification failure may trigger online introspection. **The token is still verified on every request; the local `email_verified` cache only skips later UserInfo requests.** The design neither promises fully offline verification on every request nor changes the verifier to force it.
 
-## SSO 依賴與本地 user
+## SSO dependencies and local users
 
-依照 `/workspace/SSO/SSO/server/fastapi/dependencies.py` 的分層方式建立 FastAPI dependencies，但用資料庫 `User` 取代該範例的暫存 dict：
+Build layered FastAPI dependencies following `/workspace/SSO/SSO/server/fastapi/dependencies.py`, replacing that example's temporary dictionary with database-backed `User` records:
 
-1. 可選 Bearer 擷取：無 `Authorization` 視為訪客；提供了格式錯誤或非 Bearer 的 header 視為無效憑證。
-2. 驗證 access token：呼叫既有 `TokenVerifier.verify_access_token()`，取得已驗證的 `subject`。失敗時拒絕，不能降級成訪客。
-3. 解析或建立本地 user：先依唯一 `sso_sub` 查找；若該列 `email_verified=True`，直接回傳。若查無 `sub`，或查到但本地 `email_verified=False`，走 UserInfo 確認流程。
-4. 可選 user dependency：無 token 回傳 `None`，供 `/proofreader`、`/feedback` 使用。
-5. 必要 user dependency：無 token 回 401；管理員 dependency 再要求 `is_superuser=True`，否則 403。
+1. Optional Bearer extraction: no `Authorization` header means guest access. A malformed or non-Bearer header is an invalid credential.
+2. Access-token verification: call the existing `TokenVerifier.verify_access_token()` and obtain the verified `subject`. Reject failures; never downgrade them to guest access.
+3. Local-user resolution or creation: first look up the unique `sso_sub`. Return a matched row directly when `email_verified=True`. If there is no `sub` match, or the matched row has `email_verified=False`, use UserInfo to confirm the identity.
+4. Optional-user dependency: return `None` when there is no token; `/proofreader` and `/feedback` use it.
+5. Required-user dependency: return 401 when there is no token. The admin dependency additionally requires `is_superuser=True`, returning 403 otherwise.
 
-UserInfo 使用**同一枚 access token**，HTTP Bearer 呼叫 `SSO_USERINFO_URL`，設定明確 timeout。要求回應為物件，`sub` 是字串且等於已驗證 token 的 `subject`，`email` 是非空字串，`email_verified is True`；任何一項不符都不建立或綁定 user。UserInfo 的 `sub` 必須與 token subject 一致，也符合 [OpenID Connect Core 的 UserInfo 驗證要求](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse)。這個 email 來自 UserInfo；access token 的 email 欄位即使存在，也不代替首次 UserInfo 的驗證結果。
+Call `SSO_USERINFO_URL` with **the same access token** as an HTTP Bearer credential, with an explicit timeout. Require an object response whose `sub` is a string equal to the verified token's `subject`, whose `email` is a nonempty string, and whose `email_verified is True`. If any condition fails, do not create or link a user. Matching the UserInfo `sub` with the token subject also follows the [OpenID Connect Core UserInfo validation requirement](https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse). The email comes from UserInfo; an email claim in the access token, if present, cannot replace UserInfo verification on first linking.
 
-資料模型與 migration：
+Data model and migration:
 
-- `User.sso_sub`：可空、唯一、長度足以存 SSO subject；舊帳號先保持 `NULL`。唯一索引允許多筆 `NULL`。
-- `User.email_verified`：不可空布林，既有列資料回填 `false`；首次 UserInfo 驗證成功才改為 `true`。之後這個本地值是「曾經驗證且已建立關聯」的持久記錄；SSO 日後撤銷 email 驗證，不會被每次請求即時發現。
-- `User.account`：仍是唯一 email/帳號鍵，但 `String(30)` 不足以容納一般 email；擴至 254 字元。以 email 查舊 user 時應按資料庫的大小寫不敏感比對語意處理，並靠唯一限制防止重複。
-- `User.password`：直接從 ORM 模型、資料庫欄位及 user CRUD schema 移除；migration 刪除既有密碼資料。server 不再驗證、儲存或回傳本地密碼，舊帳號仍可透過已驗證 email 與 SSO `sub` 建立關聯。
+- `User.sso_sub`: nullable, unique, and long enough for an SSO subject. Existing accounts initially retain `NULL`. The unique index permits multiple `NULL` values.
+- `User.email_verified`: non-nullable Boolean, backfilled to `false` for existing rows. Set it to `true` only after the first successful UserInfo check. The local value persistently records that verification and linking happened. Revocation of email verification by SSO later will not be detected on every request.
+- `User.account`: remains the unique email/account key, but `String(30)` is too short for ordinary email addresses; widen it to 254 characters. When finding an existing user by email, follow the database's case-insensitive comparison semantics and rely on uniqueness constraints to prevent duplicates.
+- `User.password`: remove it directly from the ORM model, database column, and user CRUD schema. The migration deletes existing password data. The server no longer verifies, stores, or returns local passwords. Existing accounts can still be linked to an SSO `sub` through a verified email.
 
-首次確認 UserInfo 後，若 `sso_sub` 已有 user，更新該列的 email 驗證狀態；若無，依已驗證 email 查 `User.account`。匹配到無 `sso_sub` 的舊 user 時，填入 `sso_sub`、`email_verified=True`。若 email 已屬於**不同** `sso_sub`，回 409，不能接管該 user。若 email 沒有匹配，建立 `account=<已驗證 email>`、`sso_sub=<verified subject>`、`email_verified=True`、`is_active=True`、`is_superuser=False`、24 小時額度 `quota=0.1` 的 user；名稱可取 UserInfo `name`，缺少時用 email 並符合欄位長度。綁定與建立需以 transaction 和資料庫唯一限制處理同時請求：遇唯一衝突先 rollback、重讀 `sso_sub`/email，再只接受與同一 subject 一致的結果。既有 `is_active=False` 的 user 綁定後仍保持停用，授權時回 403。
+After the initial UserInfo confirmation, update the email verification flag if a user already has that `sso_sub`. Otherwise, look up `User.account` by the verified email. If the matching existing user has no `sso_sub`, set `sso_sub` and `email_verified=True`. If the email belongs to a **different** `sso_sub`, return 409; do not take over that user. If no email matches, create a user with `account=<verified email>`, `sso_sub=<verified subject>`, `email_verified=True`, `is_active=True`, `is_superuser=False`, and a 24-hour `quota=0.1`. Use the UserInfo `name` when available; otherwise use the email, respecting the column length. Handle concurrent linking and creation with a transaction and database uniqueness constraints: on a uniqueness conflict, roll back, reread `sso_sub` and email, and accept the result only if it matches the same subject. An existing inactive user remains inactive after linking and receives 403 on authorization.
 
-本地 `email_verified=True` 後不再要求 UserInfo；每次仍依 SSO token 驗證結果的 `sub` 查 server user。這個快取行為是已確認需求，而非把 access token 的 email claim 當作已驗證。SSO UserInfo 連線或回應失敗時，只影響首次綁定或本地尚未驗證的 user，回 503，不把請求當訪客。
+Once local `email_verified=True`, UserInfo is no longer required for that user. Every request still verifies the SSO token and looks up the server user by its verified `sub`. This cache behavior is a confirmed requirement; it does not treat an access-token email claim as verified. If the UserInfo connection or response fails, return 503 for first-time linking or a locally unverified user. Do not treat that request as a guest.
 
-## 路由權限
+## Route permissions
 
-| 路由 | 無 token | 有效 SSO token | 無效 token |
+| Route | No token | Valid SSO token | Invalid token |
 | --- | --- | --- | --- |
-| `POST /proofreader` | 訪客限制 | 本地 user 額度；superuser 免額度 | 401 |
-| `POST /feedback` | 可依 `interaction_id` 提交 | 可依 `interaction_id` 提交，記錄回饋 user | 401 |
-| `/users` CRUD | 401 | 僅 superuser；一般 user 403 | 401 |
-| `/interactions` CRUD | 401 | 僅 superuser；一般 user 403 | 401 |
-| `/login`、`/register` | 不再提供 | 不再提供 | 不再提供 |
+| `POST /proofreader` | Guest limits | Local-user quota; superusers exempt | 401 |
+| `POST /feedback` | May submit by `interaction_id` | May submit by `interaction_id`; record the feedback user | 401 |
+| `/users` CRUD | 401 | Superusers only; ordinary users get 403 | 401 |
+| `/interactions` CRUD | 401 | Superusers only; ordinary users get 403 | 401 |
+| `/login`, `/register` | No longer provided | No longer provided | No longer provided |
 
-`/feedback` 沿用 `interaction_id`、`review_content` 請求欄位。查不到互動時 404。訪客回饋將 `review_user_id` 保持 `NULL`；登入者記錄其 user ID。採用「只看 interaction_id」的已確認規則，因此**知道有效 interaction ID 的人可以寫入或覆寫該筆回饋**；這是此階段的明確限制，不宣稱已確認回饋者就是原校正者。移除現有 `feedback` 函式中 `raise` 後不可到達的錯誤程式碼。
+`/feedback` keeps the `interaction_id` and `review_content` request fields. Return 404 when the interaction does not exist. Keep `review_user_id` as `NULL` for guest feedback; record the user ID for authenticated feedback. Under the confirmed interaction-ID-only rule, **anyone who knows a valid interaction ID can write or overwrite its feedback**. That is an explicit limitation of this phase; it does not establish that the feedback author submitted the original correction. Remove the unreachable code after `raise` in the current `feedback` function.
 
-## `/proofreader` 校正流程
+## `/proofreader` correction flow
 
-請求沿用 add-on 目前傳送的 JSON：
+Keep the JSON request currently sent by the add-on:
 
 ```json
 {
@@ -98,14 +98,14 @@ UserInfo 使用**同一枚 access token**，HTTP Bearer 呼叫 `SSO_USERINFO_URL
 }
 ```
 
-`request` 為非空字串；`corrector_config_id`、`language`、`typo_correction_mode` 為所需字串，`customized_words` 為字串陣列（未提供時可用空陣列）。`language` 只接受 add-on 會送出的 `zh_traditional`、`zh_simplified`。依任務設定檔驗證 mode 並取得 `template_name`、`optional_guidance_enable`；其餘無效 payload 回 422，避免目前的 `KeyError` 或未定義變數。server 直接使用 payload 的 `customized_words`，不讀 add-on 本機字典或 UI 設定。
+`request` is a nonempty string; `corrector_config_id`, `language`, and `typo_correction_mode` are required strings. `customized_words` is an array of strings and may default to an empty array when omitted. `language` accepts only the add-on values `zh_traditional` and `zh_simplified`. Validate the mode against the task configuration file and obtain `template_name` and `optional_guidance_enable`. Return 422 for other invalid payloads instead of raising the current `KeyError` or using undefined names. Use `customized_words` directly from the payload; do not read the add-on's local dictionary or UI settings.
 
-1. 取得可選 user 與 client IP。先套用既有 24 小時額度：訪客文字長度大於 128 字拒絕；同 IP 訪客花費達 0.06 拒絕；所有訪客合計達 0.3 拒絕；登入 user 花費達其 `quota` 拒絕，superuser 免此限制。查詢使用 `Interaction.cost` 的 Decimal 金額與 UTC 時間；達上限回 429。現階段沿用既有 `get_client_ip()` 的 `X-Forwarded-For` 取值方式。
-2. `corrector_config_id="default"` 時解析成 `DEFAULT_CORRECTOR_CONFIG_ID`，否則使用請求的 ID。明確指定的 ID 需要是 catalog 啟用的 `coseeings` offer，而且能對應啟用的 `models` 本地條目；解析後確認 provider 條目存在且 server 支援。`CorrectorCatalog.get_model()` 本身不檢查 `active`，此處需自行檢查。找不到或無法執行時回 404；部署的預設模型若不符合條件，啟動設定檢查應先失敗。
-3. 依 model provider 取對應環境變數 API key。呼叫 `run_typo_correction(request=text, batch_mode=True, provider_name=..., model_name=..., credential=..., provider_entry=..., price_entry=..., language=..., template_name=..., corrector_mode=..., optional_guidance_enable=..., customized_words=..., retries=2, backoff=1)`。這對應 add-on `LOCAL_CHANNEL` 分支的執行參數；server 的 `batch_mode=True` 對應正式環境 `DEBUG_MODE=False`。缺少憑證或 provider 執行失敗應回清楚的 5xx 並記錄安全的錯誤資訊，不把 API key 或原始 token 放進回應/日誌，也不寫成功互動。
-4. 取得 `result.corrected_text`、`result.cost`，以 `strings_diff(text, corrected_text)` 產生 diff。成功後寫一筆 `Interaction`，含 UTC request/response time、原文與結果、IP、Decimal cost、**實際執行的模型 ID**、既有 category/version 值及可空 user 關聯；提交成功才回應。
+1. Obtain the optional user and client IP. Apply the existing 24-hour limits first: reject guest text longer than 128 characters; reject a guest IP whose cost has reached 0.06; reject all guests when their global cost has reached 0.3; reject an authenticated user when their cost has reached `quota`. Superusers are exempt from their quota. Query `Interaction.cost` as Decimal amounts over UTC time and return 429 at the limit. Keep the current `get_client_ip()` handling of `X-Forwarded-For` for this phase.
+2. Resolve `corrector_config_id="default"` to `DEFAULT_CORRECTOR_CONFIG_ID`; otherwise use the requested ID. An explicit ID must be an enabled catalog `coseeings` offer with a matching enabled local `models` entry. Confirm that the provider entry exists and is supported by the server. `CorrectorCatalog.get_model()` does not itself check `active`, so check it here. Return 404 for an unknown or unrunnable requested model. Startup configuration validation should already have failed if the deployment default is invalid.
+3. Obtain the API key from the environment variable for the model's provider. Call `run_typo_correction(request=text, batch_mode=True, provider_name=..., model_name=..., credential=..., provider_entry=..., price_entry=..., language=..., template_name=..., corrector_mode=..., optional_guidance_enable=..., customized_words=..., retries=2, backoff=1)`. These are the execution parameters of the add-on's `LOCAL_CHANNEL` branch. Server `batch_mode=True` corresponds to production `DEBUG_MODE=False`. A missing credential or provider failure should produce a clear 5xx and safely logged diagnostic information, without exposing the API key or raw token in responses or logs, and without writing a successful interaction.
+4. Read `result.corrected_text` and `result.cost`, then create a diff with `strings_diff(text, corrected_text)`. On success, write one `Interaction` with UTC request and response times, original and corrected text, IP, Decimal cost, the **actual model ID used**, existing category/version values, and an optional user relationship. Respond only after the transaction commits.
 
-回應維持既有 add-on 期待的欄位：
+Keep the fields expected by the add-on in the response:
 
 ```json
 {
@@ -117,34 +117,34 @@ UserInfo 使用**同一枚 access token**，HTTP Bearer 呼叫 `SSO_USERINFO_URL
 }
 ```
 
-`diff` 的實際結構由 `strings_diff()` 回傳；`cost` 沿用 `decimal_to_str_0()` 的十進位字串表示。資料庫寫入失敗要 rollback 並回 5xx，不能回報一個沒有儲存的 `interaction_id`。
+The actual `diff` structure is returned by `strings_diff()`. Continue representing `cost` as a decimal string through `decimal_to_str_0()`. Roll back on a database write failure and return 5xx; do not return an `interaction_id` that was never saved.
 
-## 錯誤邊界
+## Error boundaries
 
-| 狀況 | 對外結果 |
+| Condition | External result |
 | --- | --- |
-| 無 token 且路由允許訪客 | 訪客流程 |
-| token 格式錯誤、過期或驗證不通過 | 401，附 Bearer authentication header |
-| UserInfo `sub` 不同、email 空白、`email_verified` 非布林 `true` | 403，不綁定或建立 user |
-| UserInfo 暫時無法取得、逾時或無法解析 | 503，只在需要 UserInfo 時發生 |
-| email 已綁定不同 `sub`，或唯一性衝突不能安全恢復 | 409 |
-| 已停用 user；一般 user 訪問管理 CRUD | 403 |
-| 額度達上限 | 429 |
-| payload 或 mode 無效 | 422 |
-| 明確指定模型不存在、停用或無可執行本地條目 | 404 |
-| provider/資料庫執行失敗 | 5xx；服務端記錄可排查資訊，回應不含秘密 |
+| No token on a guest-enabled route | Guest flow |
+| Malformed, expired, or unverifiable token | 401 with a Bearer authentication header |
+| UserInfo `sub` mismatch, empty email, or `email_verified` other than Boolean `true` | 403; no user is linked or created |
+| UserInfo temporarily unavailable, timed out, or unparseable | 503, only when UserInfo is needed |
+| Email already linked to a different `sub`, or a uniqueness conflict that cannot be safely recovered | 409 |
+| Inactive user; ordinary user accessing admin CRUD | 403 |
+| Quota limit reached | 429 |
+| Invalid payload or mode | 422 |
+| Explicit model unknown, disabled, or without a runnable local entry | 404 |
+| Provider or database execution failure | 5xx; server logs provide safe diagnostics and responses contain no secrets |
 
-## 驗收與可執行證據
+## Acceptance and evidence that it runs
 
-實作階段需在 server 支援的 Python 環境安裝第三方依賴，確認 `app.main` 可 import、FastAPI 可啟動，且沒有 `_wb_vendor`、`self`、缺失模組或未定義名稱阻止請求。更新 `requirements.txt`（含本地 `coseeing_auth` 所需的 `Authlib`、`PyJWT[crypto]`、`requests` 與校正流程需要的文字套件），並確認 Alembic migration 能對既有資料套用。
+During implementation, install the third-party dependencies in a supported Python environment and confirm that `app.main` imports, FastAPI starts, and `_wb_vendor`, `self`, missing modules, or undefined names do not prevent requests. Update `requirements.txt` with `Authlib`, `PyJWT[crypto]`, `requests`, and the text packages needed by the correction workflow, while using the local `coseeing_auth` source. Confirm that the Alembic migration applies to existing data.
 
-以模擬的 SSO 回應與 provider 執行進行路由驗收，避免自動檢查花費真實模型額度：
+Exercise the routes with simulated SSO responses and provider execution so automated checks do not spend real model credits:
 
-- 無 token 可校正並寫入互動；訪客文字、同 IP 及全站額度邊界均回 429。
-- 有效 token 首次呼叫 UserInfo；匹配舊 `User.account` 即綁定；無匹配即建立 email 帳號。後續相同 `sub` 且本地驗證旗標為 true 時不呼叫 UserInfo，但仍每次驗 token。
-- 本地旗標為 false 時再次查 UserInfo；錯誤 `sub`、空 email、非嚴格 true、無效 token、SSO 逾時及跨 `sub` 衝突均依上表處理；並行首次請求不產生重複 user。
-- 一般 user 受 24 小時額度限制，superuser 可通過；一般 user 與訪客無法操作兩組 CRUD，superuser 可以。
-- 訪客與登入者可提交 `interaction_id` 回饋；訪客 `review_user_id` 為空；無效 ID 回 404。
-- `default` 與啟用的明確模型都能解析成 catalog 本地條目，回應含可用 diff、正確成本與互動 ID，資料庫記錄實際模型。停用或未知模型被拒絕。
+- A caller without a token can request a correction and write an interaction. The guest text length, per-IP, and global limits return 429 at their boundaries.
+- A valid token triggers UserInfo on first use. A matching `User.account` is linked; otherwise an email account is created. Later requests with the same `sub` and a true local verification flag skip UserInfo but still verify the token each time.
+- A false local flag triggers UserInfo again. A mismatched `sub`, empty email, value other than strict true, invalid token, SSO timeout, and cross-`sub` conflict follow the table above. Concurrent first requests do not create duplicate users.
+- An ordinary user is subject to the 24-hour quota; a superuser may proceed. Guests and ordinary users cannot use either CRUD group; superusers can.
+- Guests and authenticated users can submit feedback by `interaction_id`. Guest `review_user_id` is null, and an unknown ID returns 404.
+- Both `default` and an enabled explicit model resolve to a local catalog entry. The response contains a usable diff, correct cost, and interaction ID; the database stores the actual model. Disabled and unknown models are rejected.
 
-實際 SSO UserInfo 與真實模型呼叫需在具備相應 token、API key 和網路的部署環境做整合檢查；本地模擬通過不等同已驗證外部服務可用。
+Real SSO UserInfo and model calls require an integration check in a deployment environment with a suitable token, API key, and network. Passing local simulations does not establish that those external services are available.

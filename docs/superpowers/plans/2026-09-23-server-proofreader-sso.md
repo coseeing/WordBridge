@@ -1,54 +1,54 @@
-# Server Proofreader 與 SSO 實作計畫
+# Server Proofreader and SSO Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 讓 server 以可設定模型執行 add-on 本地校正流程，並用 SSO access token 關聯本地 user，同時維持訪客額度、回饋與管理權限。
+**Goal:** Make the server run the add-on's local proofreading workflow with a configurable model and link SSO access tokens to local users, while retaining guest limits, feedback, and admin permissions.
 
-**Architecture:** 校正設定及模型解析獨立於 FastAPI 路由；SSO token 驗證、UserInfo 查詢及本地 user 關聯分層為 dependencies。路由只處理 payload、額度、工作流程、互動資料與 HTTP 回應。資料庫 migration 直接刪除 `User.password`。
+**Architecture:** Correction configuration and model resolution are separate from the FastAPI routes. SSO token verification, UserInfo requests, and local-user linking are layered as dependencies. The routes handle only payloads, quotas, workflow execution, interaction records, and HTTP responses. The database migration removes `User.password` outright.
 
-**Tech Stack:** Python 3.12、FastAPI、SQLAlchemy 2、Alembic、MySQL、Pydantic 2、pytest、既有 `app.package.coseeing_auth`、現有 catalog/typo workflow。
+**Tech Stack:** Python 3.12, FastAPI, SQLAlchemy 2, Alembic, MySQL, Pydantic 2, pytest, the existing `app.package.coseeing_auth`, and the current catalog/typo workflow.
 
 **Spec:** `docs/superpowers/specs/2026-09-23-server-proofreader-sso-design.md`
 
 ## Global Constraints
 
-- 只移植 add-on `execution_channel == LOCAL_CHANNEL` 的邏輯；`/proofreader` 請求與回應欄位維持 spec 格式。
-- `SSO_ISSUER` 預設 `https://sso.coseeing.org`；`SSO_CLIENT_ID` 預設 `wordbridge`；`SSO_USERINFO_URL` 預設 `https://sso.coseeing.org/userinfo`。
-- `DEFAULT_CORRECTOR_CONFIG_ID` 預設 `deepseek-v4-flash&DeepSeek`，部署時可覆蓋；只允許 catalog 中啟用、可執行的本地模型。
-- 每次有 token 都呼叫現有 `TokenVerifier.verify_access_token()`；本地 `email_verified=True` 只略過 UserInfo。
-- 首次關聯要求 UserInfo `sub` 等於驗證後 token subject、email 非空、`email_verified is True`；`User.password` 從模型、schema、資料庫移除。
-- 訪客限制：文字長度 128、每 IP 24 小時成本 0.06、全站訪客 24 小時成本 0.3；一般 user 以本地 quota 比較，superuser 免額度。
-- `/users` 與 `/interactions` CRUD 只允許 `is_superuser=True`；訪客回饋只依 `interaction_id`，`review_user_id=NULL`。
-- `coseeing_auth` 使用 `server/app/package/coseeing_auth` 的原始碼；第三方套件用 pip。實作任務不得變更 add-on、SSO 系統或 token 驗證器內部策略。
-- `server/` 目前在 git 中是未追蹤的既有工作。執行時保留其全部內容；每次提交只 stage 該任務明列的檔案，先確認 `git status`，不得把整個 `server/` 加入暫存區。
+- Migrate only the add-on's `execution_channel == LOCAL_CHANNEL` logic; retain the `/proofreader` request and response fields defined in the spec.
+- `SSO_ISSUER` defaults to `https://sso.coseeing.org`; `SSO_CLIENT_ID` defaults to `wordbridge`; `SSO_USERINFO_URL` defaults to `https://sso.coseeing.org/userinfo`.
+- `DEFAULT_CORRECTOR_CONFIG_ID` defaults to `deepseek-v4-flash&DeepSeek` and can be overridden at deployment; allow only enabled, runnable local catalog models.
+- Call the existing `TokenVerifier.verify_access_token()` for every request with a token. Local `email_verified=True` skips only UserInfo.
+- Initial linking requires the UserInfo `sub` to equal the verified token subject, a nonempty email, and `email_verified is True`. Remove `User.password` from the model, schema, and database.
+- Guest limits: 128 text characters, 0.06 cost per IP over 24 hours, and 0.3 cost across all guests over 24 hours. Compare ordinary users against their local quotas; superusers are exempt.
+- `/users` and `/interactions` CRUD require `is_superuser=True`. Guest feedback is linked only by `interaction_id`, with `review_user_id=NULL`.
+- Use the `server/app/package/coseeing_auth` source; install third-party packages with pip. Implementation tasks must not change the add-on, the SSO system, or the verifier's internal strategy.
+- `server/` is currently existing, untracked work in git. Preserve all its contents while executing. Stage only files listed for each task, check `git status` first, and do not stage the entire `server/` directory.
 
 ## Review Focus
 
-下列五項在對應任務各有測試，review 時特別確認：
+Each of these five cases has a test in the corresponding task; review them closely:
 
-1. 有 `Authorization` 但 Bearer 格式錯誤／驗證失敗，應為 401，不能落入訪客額度。（Task 4）
-2. 同一 email 已連到另一個 `sso_sub`，應為 409，且原關聯不可改寫。（Task 3）
-3. catalog 的 `get_model()` 會回傳停用模型；停用的 Coseeing offer 或本地 model 均不得執行。（Task 2、5）
-4. guest 成本比較使用 Decimal；訪客額度達 0.06 或全站 0.3 時拒絕，即使沒有 token。（Task 5）
-5. 訪客回饋不得寫入不存在的 user ID；同一個 `interaction_id` 的回饋可被後續提交覆寫。（Task 6）
+1. A present `Authorization` header with malformed Bearer syntax or a failed verification must yield 401, never guest access. (Task 4)
+2. An email already linked to another `sso_sub` must yield 409 without changing the original link. (Task 3)
+3. Catalog `get_model()` returns disabled models; neither a disabled Coseeing offer nor a disabled local model may execute. (Tasks 2 and 5)
+4. Guest cost comparisons use Decimal. At 0.06 per IP or 0.3 globally, reject the request even without a token. (Task 5)
+5. Guest feedback must not write a nonexistent user ID. A later submission for the same `interaction_id` may overwrite its feedback. (Task 6)
 
-## 檔案與責任
+## Files and responsibilities
 
-| 檔案 | 責任 |
+| File | Responsibility |
 | --- | --- |
-| `server/app/user/models.py`、`server/app/user/schemas.py` | 本地 user 欄位及 CRUD payload，移除 password。 |
-| `server/alembic/versions/20260923_sso_user.py` | SSO 欄位、帳號長度、刪除 password 的 migration。 |
-| `server/app/correction_config.py` | 讀 catalog／task 設定、驗證部署預設模型、解析 request model。 |
-| `server/app/user/linking.py` | 用 UserInfo 驗證 email，原子查找／綁定／建立本地 user。 |
-| `server/app/user/auth.py` | Bearer 擷取、TokenVerifier、optional/required/superuser dependencies。 |
-| `server/app/main.py` | 校正、回饋、CRUD router 及初始化。 |
-| `server/app/lib/text/chinese.py`、`server/app/lib/tasks/typo/{utils,prompt,text_policy}.py`、`server/requirements.txt` | server workflow 可直接以 pip 依賴匯入。 |
-| `server/app/imp.py`、`server/test/*.py` | 移除密碼登入與失效的手動呼叫。 |
-| `server/tests/*.py` | 無外部 SSO／模型花費的自動驗證。 |
+| `server/app/user/models.py`, `server/app/user/schemas.py` | Local-user fields and CRUD payload; remove password. |
+| `server/alembic/versions/20260923_sso_user.py` | Migration for SSO fields, account length, and password removal. |
+| `server/app/correction_config.py` | Read catalog/task settings, validate the deployment default, resolve requested models. |
+| `server/app/user/linking.py` | Validate email through UserInfo; find, link, or create local users atomically. |
+| `server/app/user/auth.py` | Bearer extraction, TokenVerifier, and optional/required/superuser dependencies. |
+| `server/app/main.py` | Correction, feedback, CRUD routers, and initialization. |
+| `server/app/lib/text/chinese.py`, `server/app/lib/tasks/typo/{utils,prompt,text_policy}.py`, `server/requirements.txt` | Let the server workflow import dependencies installed with pip. |
+| `server/app/imp.py`, `server/test/*.py` | Remove password login and obsolete manual calls. |
+| `server/tests/*.py` | Automated checks without external SSO or model charges. |
 
 ---
 
-### Task 1: User 模型與資料庫 migration
+### Task 1: User model and database migration
 
 **Files:**
 - Modify: `server/app/user/models.py`
@@ -58,10 +58,10 @@
 - Create: `server/tests/conftest.py`
 
 **Interfaces:**
-- Consumes: 既有 `app.baseModel.Base`、`User.account` 唯一鍵、Alembic revision `dad5039f4770`。
-- Produces: `User.sso_sub: str | None`、`User.email_verified: bool`、無 `User.password`；`User.account` 最長 254 字元。
+- Consumes: the existing `app.baseModel.Base`, the unique `User.account` key, and Alembic revision `dad5039f4770`.
+- Produces: `User.sso_sub: str | None`, `User.email_verified: bool`, no `User.password`, and a 254-character maximum for `User.account`.
 
-- [ ] **Step 1: 建立共用 SQLite session fixture，寫失敗的 schema 測試。** `server/tests/conftest.py` 使用每項測試獨立的記憶體資料庫，供後續任務重用：
+- [ ] **Step 1: Create a shared SQLite session fixture and write a failing schema test.** `server/tests/conftest.py` creates a separate in-memory database per test for reuse by later tasks:
 
 ```python
 import pytest
@@ -82,7 +82,7 @@ def db():
     engine.dispose()
 ```
 
-`server/tests/test_user_storage.py` 檢查欄位：
+Check columns in `server/tests/test_user_storage.py`:
 
 ```python
 from sqlalchemy import create_engine, inspect
@@ -100,13 +100,13 @@ def test_user_has_sso_fields_and_no_password():
     assert User.__table__.c.account.type.length == 254
 ```
 
-- [ ] **Step 2: 執行 `cd server && python -m pytest tests/test_user_storage.py -q`，確認新欄位斷言失敗。**
-- [ ] **Step 3: 修改 ORM 與 schema。** `User` 加 `sso_sub = mapped_column(String(255), unique=True, nullable=True, default=None)`、`email_verified = mapped_column(Boolean, default=False, nullable=False)`；將 `account` 設為 `String(254)`，完全刪除 password；調整 dataclass 有預設值欄位順序。CRUD schema 只含允許管理員維護的欄位，例如 `account`、`name`、`is_active`、`is_superuser`、`quota`，且不接受或回傳 password。
-- [ ] **Step 4: 寫 Alembic revision。** `upgrade()` 對 `user` 新增可空 `sso_sub`、不可空且既有列回填 false 的 `email_verified`、擴大 `account`、建立 `sso_sub` 唯一索引，最後 `drop_column("user", "password")`；`downgrade()` 撤銷 SSO 欄位及長度並以 nullable password 欄位表明原密碼不可恢復。MySQL 的 `alter_column` 明列原型別和 nullable 狀態；不得在 production 自動執行 migration。
-- [ ] **Step 5: 再跑測試與 migration 靜態檢查。** 執行 `cd server && python -m pytest tests/test_user_storage.py -q`、`python -m compileall -q app/user alembic/versions/20260923_sso_user.py`。有可用測試資料庫時另跑 Alembic upgrade；正式資料庫只在部署流程執行。
-- [ ] **Step 6: 只 stage 本任務的五個檔案並提交** `feat(server): add SSO user fields and remove passwords`。
+- [ ] **Step 2: Run `cd server && python -m pytest tests/test_user_storage.py -q` and confirm the new-field assertion fails.**
+- [ ] **Step 3: Modify the ORM model and schema.** Add `sso_sub = mapped_column(String(255), unique=True, nullable=True, default=None)` and `email_verified = mapped_column(Boolean, default=False, nullable=False)` to `User`. Set `account` to `String(254)`, remove password completely, and order dataclass fields with defaults correctly. Let the CRUD schema contain only fields admins may maintain, such as `account`, `name`, `is_active`, `is_superuser`, and `quota`; it must neither accept nor return password.
+- [ ] **Step 4: Write the Alembic revision.** In `upgrade()`, add nullable `sso_sub` and non-nullable `email_verified` backfilled to false, widen `account`, add a unique index on `sso_sub`, and finally call `drop_column("user", "password")`. In `downgrade()`, remove the SSO fields, restore the old length, and add a nullable password column to show that original passwords cannot be recovered. Specify existing types and nullability in MySQL `alter_column` calls. Do not run this migration automatically against production.
+- [ ] **Step 5: Rerun the test and check migration syntax.** Run `cd server && python -m pytest tests/test_user_storage.py -q` and `python -m compileall -q app/user alembic/versions/20260923_sso_user.py`. Also run an Alembic upgrade when a test database is available; run the production migration only through deployment.
+- [ ] **Step 6: Stage only these five files and commit** `feat(server): add SSO user fields and remove passwords`.
 
-### Task 2: Server 校正設定與 pip 匯入
+### Task 2: Server correction settings and pip imports
 
 **Files:**
 - Create: `server/app/correction_config.py`
@@ -118,10 +118,10 @@ def test_user_has_sso_fields_and_no_password():
 - Test: `server/tests/test_correction_config.py`
 
 **Interfaces:**
-- Consumes: `BundledCatalogSource`、`load_catalog`、`SUPPORTED_PROVIDERS`、`setting/task/corrector.json`。
-- Produces: `load_correction_settings() -> CorrectionSettings`；`resolve_model(settings, requested_id: str) -> ModelEntry`。
+- Consumes: `BundledCatalogSource`, `load_catalog`, `SUPPORTED_PROVIDERS`, and `setting/task/corrector.json`.
+- Produces: `load_correction_settings() -> CorrectionSettings` and `resolve_model(settings, requested_id: str) -> ModelEntry`.
 
-- [ ] **Step 1: 寫失敗的設定測試。** 以真正 bundled catalog 驗證 default、明確模型和停用條目：
+- [ ] **Step 1: Write failing configuration tests.** Use the actual bundled catalog to test the default, an explicit model, and disabled entries:
 
 ```python
 import pytest
@@ -159,8 +159,8 @@ def test_invalid_deployment_default_fails_startup(monkeypatch):
         load_correction_settings()
 ```
 
-- [ ] **Step 2: 執行 `cd server && python -m pytest tests/test_correction_config.py -q`，確認模組或函式缺少而失敗。**
-- [ ] **Step 3: 建立設定載入與模型解析。** `CorrectionSettings` 使用 frozen dataclass 保存 catalog、`template_name` dict、`optional_guidance_enable` dict 與 `default_id`；`load_correction_settings()` 讀取相對於 `__file__` 的設定路徑及環境變數，解析 JSON，驗證預設 ID。`resolve_model()` 對非 `default` 的 ID 先要求 `catalog.get_coseeing(id)` 存在且 active，再要求同 ID 的本地 `catalog.get_model(id)` 存在且 active，並檢查 provider；對 default 則要求設定的本地條目 active。找不到拋 `LookupError`，部署預設無效拋 `ValueError`。
+- [ ] **Step 2: Run `cd server && python -m pytest tests/test_correction_config.py -q` and confirm the missing module or functions cause a failure.**
+- [ ] **Step 3: Implement configuration loading and model resolution.** Use a frozen `CorrectionSettings` dataclass to hold the catalog, `template_name` and `optional_guidance_enable` dictionaries, and `default_id`. `load_correction_settings()` reads settings relative to `__file__` and from the environment, parses JSON, and validates the configured default. For an ID other than `default`, `resolve_model()` first requires an active `catalog.get_coseeing(id)` offer, then an active matching local `catalog.get_model(id)` entry and a provider. For `default`, require the configured local entry to be active. Raise `LookupError` if a requested model is unavailable and `ValueError` if the deployment default is invalid.
 
 ```python
 def resolve_model(settings, requested_id: str):
@@ -175,21 +175,21 @@ def resolve_model(settings, requested_id: str):
     return model
 ```
 
-- [ ] **Step 4: 把校正 import graph 中的 `_wb_vendor` 引用改為 pip 套件名。** `hanzidentifier`、`pypinyin`、`chinese_converter` 使用一般 import；`requirements.txt` 增加 `Authlib`、`PyJWT[crypto]`、`hanzidentifier`、`pypinyin`、`chinese-converter`，保留 `requests`，依安裝解析結果固定相容版本。`coseeing_auth` 不寫進 requirements；Dockerfile 原有 `pip install -r requirements.txt` 即安裝新增依賴。
-- [ ] **Step 5: 重跑設定測試及匯入檢查。** `cd server && python -m pytest tests/test_correction_config.py -q`，接著執行 `python -c 'from app.lib.application.task_runner import run_typo_correction; from app.correction_config import load_correction_settings; print(load_correction_settings().default_id)'`。此時不得需要 NVDA 或 `_wb_vendor`。
-- [ ] **Step 6: 只 stage 本任務檔案並提交** `feat(server): load runnable correction models`。
+- [ ] **Step 4: Replace `_wb_vendor` imports in the correction import graph with pip package imports.** Import `hanzidentifier`, `pypinyin`, and `chinese_converter` normally. Add `Authlib`, `PyJWT[crypto]`, `hanzidentifier`, `pypinyin`, and `chinese-converter` to `requirements.txt`, retaining `requests`; pin compatible versions after resolving installation. Do not list `coseeing_auth` in requirements. The Dockerfile already installs the added dependencies through `pip install -r requirements.txt`.
+- [ ] **Step 5: Rerun configuration tests and check imports.** Run `cd server && python -m pytest tests/test_correction_config.py -q`, then `python -c 'from app.lib.application.task_runner import run_typo_correction; from app.correction_config import load_correction_settings; print(load_correction_settings().default_id)'`. NVDA and `_wb_vendor` must not be needed.
+- [ ] **Step 6: Stage only this task's files and commit** `feat(server): load runnable correction models`.
 
-### Task 3: UserInfo 驗證與本地 user 關聯
+### Task 3: UserInfo verification and local-user linking
 
 **Files:**
 - Create: `server/app/user/linking.py`
 - Test: `server/tests/test_sso_linking.py`
 
 **Interfaces:**
-- Consumes: Task 1 的 `User.sso_sub`、`User.email_verified`；已驗證的 `sub`、原 access token、SQLAlchemy `Session`。
-- Produces: `resolve_local_user(db: Session, sub: str, token: str) -> User`；回應 403、409、503 的 `HTTPException`。
+- Consumes: `User.sso_sub` and `User.email_verified` from Task 1; a verified `sub`, the original access token, and a SQLAlchemy `Session`.
+- Produces: `resolve_local_user(db: Session, sub: str, token: str) -> User`; raises `HTTPException` with 403, 409, or 503.
 
-- [ ] **Step 1: 寫失敗測試。** 使用 Task 1 的 `db` fixture，以 monkeypatch 取代 UserInfo HTTP 呼叫；覆蓋舊 email 綁定、新 user 建立、本地 verified 快路徑、`sub` 不同、`email_verified=1`、相同 email 不同 `sub` 衝突。核心例子：
+- [ ] **Step 1: Write failing tests.** Reuse the `db` fixture from Task 1 and monkeypatch the UserInfo HTTP call. Cover linking an existing email, creating a new user, the locally verified fast path, a mismatched `sub`, `email_verified=1`, and the same email linked to another `sub`. Core examples:
 
 ```python
 from app.user.models import User
@@ -223,11 +223,11 @@ def test_email_linked_to_other_sub_is_not_reassigned(db, monkeypatch):
     assert user.sso_sub == "s1"
 ```
 
-- [ ] **Step 2: 執行 `cd server && python -m pytest tests/test_sso_linking.py -q`，確認缺少 linking 模組。**
-- [ ] **Step 3: 實作 `fetch_userinfo(token: str) -> dict`。** 以 `requests.get(SSO_USERINFO_URL, headers={"Authorization": f"Bearer {token}"}, timeout=6)` 呼叫 SSO；HTTP 錯誤、逾時、非物件 JSON 映射為 503，日誌不輸出 token 或原始回應。`sub` 不同、空白 email、`email_verified is not True` 映射 403。
-- [ ] **Step 4: 實作 `resolve_local_user`。** 先查 `User.sso_sub == sub` 且 `email_verified=True` 的快路徑；其餘情況查 UserInfo，對既有 sub 更新驗證旗標，否則用已驗證 email 對 `User.account` 做資料庫大小寫不敏感查找。若 email 屬其他 sub 回 409；否則綁定或建立 `account=email`、`name` 截成 30 字元、`quota=0.1`、`is_active=True`、`is_superuser=False`。提交時捕捉 `IntegrityError`、rollback、重讀同一 sub/email；只在關聯與本次 sub 一致時回傳，否則 409。已停用 user 保持停用且回 403。
-- [ ] **Step 5: 再跑全部 linking 測試。** `cd server && python -m pytest tests/test_sso_linking.py -q`；加入兩個 session 同時建同一 sub 的測試，確定資料庫唯一鍵只留一筆。
-- [ ] **Step 6: 只 stage linking 模組與測試並提交** `feat(server): link verified SSO identity to local users`。
+- [ ] **Step 2: Run `cd server && python -m pytest tests/test_sso_linking.py -q` and confirm the linking module is missing.**
+- [ ] **Step 3: Implement `fetch_userinfo(token: str) -> dict`.** Call SSO through `requests.get(SSO_USERINFO_URL, headers={"Authorization": f"Bearer {token}"}, timeout=6)`. Map HTTP errors, timeouts, and non-object JSON to 503. Do not log the token or raw response. Map a mismatched `sub`, blank email, or `email_verified is not True` to 403.
+- [ ] **Step 4: Implement `resolve_local_user`.** First look for `User.sso_sub == sub`; use the fast path when `email_verified=True`. Otherwise query UserInfo, update the verification flag for an existing subject, or perform a database case-insensitive lookup of `User.account` by the verified email. Return 409 if the email belongs to another subject; otherwise link or create a user with `account=email`, `name` truncated to 30 characters, `quota=0.1`, `is_active=True`, and `is_superuser=False`. On commit, catch `IntegrityError`, roll back, and reread by subject/email. Return the user only when the resulting link matches this subject; otherwise return 409. Preserve an inactive user's inactive status and return 403.
+- [ ] **Step 5: Rerun all linking tests.** Run `cd server && python -m pytest tests/test_sso_linking.py -q`. Add a test with two sessions creating the same subject concurrently; verify that the database unique key leaves one user.
+- [ ] **Step 6: Stage only the linking module and tests, then commit** `feat(server): link verified SSO identity to local users`.
 
 ### Task 4: SSO FastAPI dependencies
 
@@ -236,10 +236,10 @@ def test_email_linked_to_other_sub_is_not_reassigned(db, monkeypatch):
 - Test: `server/tests/test_sso_auth.py`
 
 **Interfaces:**
-- Consumes: `app.package.coseeing_auth.AuthConfig`、`OidcProtocol`、`TokenVerifier`、Task 3 `resolve_local_user`、`get_db`。
-- Produces: `get_bearer_token`、`get_verified_sub`、`get_optional_user`、`require_user`、`require_superuser`。
+- Consumes: `app.package.coseeing_auth.AuthConfig`, `OidcProtocol`, `TokenVerifier`, Task 3 `resolve_local_user`, and `get_db`.
+- Produces: `get_bearer_token`, `get_verified_sub`, `get_optional_user`, `require_user`, and `require_superuser`.
 
-- [ ] **Step 1: 寫小型 FastAPI app 測試 dependencies。** 讓 `get_token_verifier` dependency 可覆寫為 fake verifier；加 `/optional` 與 `/admin` 測試路由。測試無 header 為 guest、格式錯誤及 token 失敗為 401、有效 token 每次呼叫 verifier、一般 user 訪問 admin 為 403。
+- [ ] **Step 1: Test the dependencies with a small FastAPI app.** Make the `get_token_verifier` dependency overridable with a fake verifier. Add `/optional` and `/admin` test routes. Test that no header is a guest, malformed syntax and verification failures produce 401, a valid token invokes the verifier on every request, and an ordinary user gets 403 from the admin route.
 
 ```python
 from fastapi import Depends, FastAPI
@@ -265,22 +265,22 @@ def test_malformed_bearer_is_not_guest():
     assert response.status_code == 401
 ```
 
-- [ ] **Step 2: 執行 `cd server && python -m pytest tests/test_sso_auth.py -q`，確認缺少 auth 模組。**
-- [ ] **Step 3: 實作依賴。** `get_bearer_token` 使用可選 `Authorization` header，header 存在但格式錯誤回 401；`get_token_verifier` 懶建立 process 內單例，設定 `AuthConfig(issuer=os.getenv("SSO_ISSUER", "https://sso.coseeing.org"), client_id=os.getenv("SSO_CLIENT_ID", "wordbridge"), scopes=("openid",), login_redirect_uri="http://127.0.0.1:8000/auth/callback", logout_redirect_uri=None)`，傳入 `TokenVerifier(config, OidcProtocol(config).discovery)`；`get_verified_sub` 對每個有 token 的請求呼叫 `verify_access_token(token).subject`。`ScopeError`／`TokenValidationError` 回 401；discovery 本身連線失敗回 503，驗證器 introspection fallback 保持原樣。`get_optional_user` 在缺 token 時回 `None`，其餘呼叫 `resolve_local_user(db, sub, token)`；`require_user` 與 `require_superuser` 實作 401／403。
-- [ ] **Step 4: 再跑依賴測試。** `cd server && python -m pytest tests/test_sso_auth.py -q`；加入 UserInfo 只在首次／未驗證時被呼叫、有效 token 仍每次被驗證的測試。
-- [ ] **Step 5: 只 stage auth 模組與測試並提交** `feat(server): authorize requests with SSO dependencies`。
+- [ ] **Step 2: Run `cd server && python -m pytest tests/test_sso_auth.py -q` and confirm the auth module is missing.**
+- [ ] **Step 3: Implement the dependencies.** `get_bearer_token` accepts an optional `Authorization` header and returns 401 when a present header is malformed. `get_token_verifier` lazily creates a process-wide singleton using `AuthConfig(issuer=os.getenv("SSO_ISSUER", "https://sso.coseeing.org"), client_id=os.getenv("SSO_CLIENT_ID", "wordbridge"), scopes=("openid",), login_redirect_uri="http://127.0.0.1:8000/auth/callback", logout_redirect_uri=None)` and `TokenVerifier(config, OidcProtocol(config).discovery)`. For each request with a token, `get_verified_sub` calls `verify_access_token(token).subject`. Map `ScopeError` and `TokenValidationError` to 401; map discovery connection failure to 503, retaining the verifier's existing introspection fallback. `get_optional_user` returns `None` for a missing token and otherwise calls `resolve_local_user(db, sub, token)`. Implement 401/403 behavior in `require_user` and `require_superuser`.
+- [ ] **Step 4: Rerun dependency tests.** Run `cd server && python -m pytest tests/test_sso_auth.py -q`. Add tests showing that UserInfo is called only on first use or while locally unverified, while valid tokens are still verified on every request.
+- [ ] **Step 5: Stage only the auth module and tests, then commit** `feat(server): authorize requests with SSO dependencies`.
 
-### Task 5: `/proofreader` 本地執行與訪客額度
+### Task 5: Local `/proofreader` execution and guest quotas
 
 **Files:**
 - Modify: `server/app/main.py`
 - Test: `server/tests/test_proofreader_api.py`
 
 **Interfaces:**
-- Consumes: Task 2 `load_correction_settings`、`resolve_model`；Task 4 `get_optional_user`；`run_typo_correction`、`strings_diff`、`Interaction`、`get_db`。
-- Produces: `POST /proofreader`，回傳 `request`、`response`、`diff`、`interaction_id`、`cost`。
+- Consumes: Task 2 `load_correction_settings` and `resolve_model`; Task 4 `get_optional_user`; `run_typo_correction`, `strings_diff`, `Interaction`, and `get_db`.
+- Produces: `POST /proofreader` returning `request`, `response`, `diff`, `interaction_id`, and `cost`.
 
-- [ ] **Step 1: 寫失敗 API 測試。** 測試 app import、訪客請求回 200 並寫 interaction、default 與明確模型、無效 mode 422、停用模型 404、缺 API key 5xx、provider 失敗不寫 interaction。用 `app.dependency_overrides[get_db]` 指向 SQLite `StaticPool` session，`get_optional_user` 覆寫為 `None`；monkeypatch `run_typo_correction` 回傳 `SimpleNamespace(corrected_text="已校正", cost=Decimal("0.000001"))`。測試不連 SSO 或模型服務。
+- [ ] **Step 1: Write failing API tests.** Test that the app imports, a guest gets 200 and an interaction is stored, default and explicit models work, an invalid mode returns 422, a disabled model returns 404, a missing API key produces 5xx, and provider failure writes no interaction. Point `app.dependency_overrides[get_db]` to a SQLite `StaticPool` session and override `get_optional_user` with `None`. Monkeypatch `run_typo_correction` to return a `SimpleNamespace` whose `corrected_text` matches the test assertion below and whose `cost` is `Decimal("0.000001")`. Tests must call neither SSO nor the model provider.
 
 ```python
 payload = {
@@ -296,14 +296,14 @@ assert response.json()["response"] == "已校正"
 assert isinstance(response.json()["diff"], list)
 ```
 
-- [ ] **Step 2: 執行 `cd server && python -m pytest tests/test_proofreader_api.py -q`，確認 `app.main` 目前的 import 失敗。**
-- [ ] **Step 3: 清理 `main.py` 的失效 import 與 add-on 殘留。** 移除 `configManager`、`settings_repository`、`self`、`DEBUG_MODE`、`_diff_`、`y` 等；server 初始化 Task 2 settings。建立 Pydantic request schema，`request` 非空、`language` 限兩種、mode 依 task JSON、`customized_words` 限字串陣列。`corrector_config_id` 必填。
-- [ ] **Step 4: 實作額度與模型執行。** 使用 `Decimal("0.06")`、`Decimal("0.3")`、UTC 24 小時成本查詢；訪客長度大於 128 及達上限回 429，user 達 quota 回 429，superuser 跳過 quota。解析模型後讀 `<PROVIDER>_API_KEY`，取得 catalog provider/price 與 task template，呼叫 `run_typo_correction` 時 `batch_mode=True`、`retries=2`、`backoff=1`，傳入 payload `customized_words`。捕捉 provider 例外並回不洩漏憑證的 5xx。
-- [ ] **Step 5: 寫入 `Interaction` 並回應。** `request_time` 在 provider 前、`response_time` 在 provider 後；`cost` 用 Decimal，`model` 寫實際 `model_entry.corrector_config_id`，`user` 可空，category/version 沿既有值。先 `strings_diff(text, result.corrected_text)`，再 `db.add/commit/refresh`；資料庫錯誤 rollback。`cost` 經 `decimal_to_str_0()` 輸出。
-- [ ] **Step 6: 加入額度邊界測試並執行。** 在 DB 預植 24 小時內訪客成本 `0.06`（同 IP）及 `0.3`（不同 IP 全站），確認兩條路各回 429；測試 129 字拒絕、128 字可通過，user quota 與 superuser 豁免。跑 `cd server && python -m pytest tests/test_proofreader_api.py -q`。
-- [ ] **Step 7: 只 stage `main.py` 與此測試並提交** `feat(server): execute proofreader workflow and enforce quotas`。
+- [ ] **Step 2: Run `cd server && python -m pytest tests/test_proofreader_api.py -q` and confirm that `app.main` currently fails to import.**
+- [ ] **Step 3: Remove broken imports and add-on remnants from `main.py`.** Remove `configManager`, `settings_repository`, `self`, `DEBUG_MODE`, `_diff_`, `y`, and similar references. Initialize the settings from Task 2 in the server. Create a Pydantic request schema requiring nonempty `request` and `corrector_config_id`, limiting `language` to the two supported values, validating mode against the task JSON, and accepting only an array of strings for `customized_words`.
+- [ ] **Step 4: Implement quotas and model execution.** Use `Decimal("0.06")` and `Decimal("0.3")` and query costs over the past 24 hours in UTC. Return 429 when guest text exceeds 128 characters or a guest/user reaches the applicable quota; skip the user quota for superusers. Resolve the model and read `<PROVIDER>_API_KEY`. Obtain the catalog provider, pricing, and task template. Call `run_typo_correction` with `batch_mode=True`, `retries=2`, `backoff=1`, and the payload's `customized_words`. Catch provider failures and return a 5xx that reveals no credentials.
+- [ ] **Step 5: Save `Interaction` and respond.** Record `request_time` before the provider call and `response_time` after it. Use Decimal for `cost`, store the actual `model_entry.corrector_config_id` in `model`, allow a null user, and keep the existing category/version values. Call `strings_diff(text, result.corrected_text)` before `db.add/commit/refresh`. Roll back on database errors. Format the returned cost with `decimal_to_str_0()`.
+- [ ] **Step 6: Add and run quota-boundary tests.** Seed the database with guest costs of `0.06` within 24 hours for the same IP and `0.3` across different IPs. Check that each limit independently returns 429. Test that 129 characters are rejected, 128 are accepted, ordinary users have a quota, and superusers are exempt. Run `cd server && python -m pytest tests/test_proofreader_api.py -q`.
+- [ ] **Step 7: Stage only `main.py` and this test, then commit** `feat(server): execute proofreader workflow and enforce quotas`.
 
-### Task 6: 回饋、管理路由與舊入口清理
+### Task 6: Feedback, admin routes, and removal of old entry points
 
 **Files:**
 - Modify: `server/app/main.py`
@@ -315,10 +315,10 @@ assert isinstance(response.json()["diff"], list)
 - Test: `server/tests/test_route_permissions.py`
 
 **Interfaces:**
-- Consumes: Task 4 `get_optional_user`、`require_superuser`；Task 5 的 FastAPI app 與 Interaction model。
-- Produces: 訪客/登入者 `POST /feedback`、僅 superuser 的兩組 CRUD、無 `/login`/`/register`。
+- Consumes: Task 4 `get_optional_user` and `require_superuser`; the FastAPI app and Interaction model from Task 5.
+- Produces: guest/authenticated `POST /feedback`, two superuser-only CRUD groups, and no `/login` or `/register`.
 
-- [ ] **Step 1: 寫失敗的路由權限測試。** `GET /users/get_paginated`、`GET /interactions/get_paginated` 在訪客為 401、一般 user 403、superuser 可通過；`POST /login`、`POST /register` 為 404；訪客 feedback 用既有 interaction ID 可寫入／覆寫且 `review_user_id is None`，未知 ID 404，有效登入者回饋記錄 user ID。
+- [ ] **Step 1: Write failing route-permission tests.** `GET /users/get_paginated` and `GET /interactions/get_paginated` return 401 for guests and 403 for ordinary users, but allow superusers. `POST /login` and `POST /register` return 404. A guest can write and overwrite feedback for an existing interaction ID with `review_user_id is None`; an unknown ID returns 404. Authenticated feedback records the user ID.
 
 ```python
 response = client.post("/feedback", json={"interaction_id": interaction.id, "review_content": "已確認"})
@@ -332,14 +332,14 @@ db.refresh(interaction)
 assert interaction.review_content == "修正回饋"
 ```
 
-- [ ] **Step 2: 執行 `cd server && python -m pytest tests/test_route_permissions.py -q`，確認舊權限與 feedback 行為失敗。**
-- [ ] **Step 3: 改路由依賴。** `/feedback` 改用 `get_optional_user`，以 `interaction_id` 唯一查找、404 處理、設定 `review_content` 與 `review_user_id=(user.id if user else None)`，刪除死碼。`/users` 與 `/interactions` router 都掛 `Depends(require_superuser)`。`server/app/user/routers.py` 刪除 `/login`、`/register`、HS256 secret、密碼檢查與舊 auth dependencies；`main.py` 移除舊 user router 的 `include_router`。不要保留任何舊 token 可通過的入口。
-- [ ] **Step 4: 清理資料與手動腳本。** `server/app/imp.py` 不再傳 password；`server/test/proofreader.py` 改成從環境變數讀 SSO access token、送 `corrector_config_id`／`typo_correction_mode`／`customized_words`，允許不給 token 的訪客呼叫。`server/test/crud.py` 改成以環境變數 SSO token 操作 admin CRUD，移除密碼／舊 login 邏輯；刪掉只呼叫 `/register` 的腳本。腳本不得內建 token 或帳密。
-- [ ] **Step 5: 跑路由與全部 server 自動測試。** `cd server && python -m pytest tests -q`；`python -c 'from app.main import app; print([route.path for route in app.routes])'`，確認可 import 且 `/login`、`/register` 不在路由表。
-- [ ] **Step 6: 只 stage 本任務檔案並提交** `feat(server): secure CRUD and accept guest feedback`。
+- [ ] **Step 2: Run `cd server && python -m pytest tests/test_route_permissions.py -q` and confirm the old permissions and feedback behavior fail.**
+- [ ] **Step 3: Change route dependencies.** Make `/feedback` use `get_optional_user`, look up by `interaction_id`, return 404 when missing, set `review_content` and `review_user_id=(user.id if user else None)`, and remove dead code. Attach `Depends(require_superuser)` to both `/users` and `/interactions` routers. Remove `/login`, `/register`, the HS256 secret, password checks, and old auth dependencies from `server/app/user/routers.py`. Remove the old user router's `include_router` from `main.py`. Do not retain any entry point that accepts the old token.
+- [ ] **Step 4: Clean up seed data and manual scripts.** Stop passing password in `server/app/imp.py`. Read an SSO access token from an environment variable in `server/test/proofreader.py`, send `corrector_config_id`, `typo_correction_mode`, and `customized_words`, and allow guest calls without a token. Use an environment-provided SSO token for admin CRUD in `server/test/crud.py` and remove its password and old-login logic. Delete the script that only calls `/register`. No script should embed credentials or tokens.
+- [ ] **Step 5: Run route and full server tests.** Run `cd server && python -m pytest tests -q`, then `python -c 'from app.main import app; print([route.path for route in app.routes])'`. Confirm the app imports and the route table excludes `/login` and `/register`.
+- [ ] **Step 6: Stage only this task's files and commit** `feat(server): secure CRUD and accept guest feedback`.
 
-## 完工驗證與交付
+## Final verification and delivery
 
-按順序執行 `cd server && python -m pip install -r requirements.txt`、`python -m pytest tests -q`、`python -m compileall -q app`、`python -c 'from app.main import app; print(app.title)'`。在一次性 MySQL 測試庫執行 Alembic upgrade，檢查原有 user 保留、`password` 欄位消失、`sso_sub` 唯一限制及 `email_verified=false` 回填；不要對正式資料庫直接試跑。檢查 `git diff --check` 和 `git status`，確認只納入預期檔案。
+Run, in order, `cd server && python -m pip install -r requirements.txt`, `python -m pytest tests -q`, `python -m compileall -q app`, and `python -c 'from app.main import app; print(app.title)'`. Run the Alembic upgrade against a disposable MySQL test database. Check that existing users remain, the `password` column is gone, `sso_sub` is unique, and `email_verified=false` was backfilled. Do not trial the migration against the production database. Check `git diff --check` and `git status` to ensure only intended files are included.
 
-若部署環境能提供真實 SSO token、UserInfo 服務與 provider API key，再執行一次真實整合校正；若無，明確回報此部分尚未驗證。本計畫的自動測試均使用假的 SSO 與 provider 回應，不需額外外部費用。
+If the deployment environment provides a real SSO token, UserInfo service, and provider API key, also run one real integration correction. Otherwise, explicitly report that this part remains unverified. Automated tests in this plan use simulated SSO and provider responses, so they incur no external model charges.
