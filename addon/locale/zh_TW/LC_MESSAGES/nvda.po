@@ -67,11 +67,11 @@ msgstr "無法載入 {count} 個目錄項目；詳情請參閱 NVDA 記錄。"
 #. For selecting provider
 #: addon\globalPlugins\WordBridge\dialogs.py:135
 msgid "Service Provider:"
-msgstr "服務提供者："
+msgstr "服務供應商："
 
 #: addon\globalPlugins\WordBridge\dialogs.py:141
 msgid "Choose the service provider for the WordBridge"
-msgstr "選擇 WordBridge 所使用的服務提供者"
+msgstr "選擇 WordBridge 所使用的服務供應商"
 
 #. For selecting LLM
 #: addon\globalPlugins\WordBridge\dialogs.py:146
@@ -212,7 +212,7 @@ msgstr "所選模型已無法使用。請在 WordBridge 設定中選擇其他模
 msgid ""
 "The selected provider is no longer available. Please choose another one in "
 "WordBridge settings."
-msgstr "所選服務提供者已無法使用。請在 WordBridge 設定中選擇其他服務提供者。"
+msgstr "所選服務供應商已無法使用。請在 WordBridge 設定中選擇其他服務供應商。"
 
 #. The user has already been notified. Re-raising here only
 #. leaves an unhandled exception in a worker thread, which
@@ -311,7 +311,7 @@ msgstr "回報修正結果"
 msgid ""
 "You have not run a typos correction task with the Coseeing service provider "
 "yet."
-msgstr "您尚未使用 Coseeing 服務提供者執行任何錯字校對任務。"
+msgstr "您尚未使用 Coseeing 服務供應商執行任何錯字校對任務。"
 
 #: addon\globalPlugins\WordBridge\__init__.py:725
 msgid "The Coseeing authentication failed. Please try again later."
