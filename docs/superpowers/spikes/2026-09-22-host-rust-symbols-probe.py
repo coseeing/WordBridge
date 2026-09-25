@@ -98,9 +98,10 @@ def functional():
 	derived = rust_openssl.kdf.HKDF(hashes.SHA256(), 32, b"salt", b"info").derive(b"key material")
 	report(f"PASS HKDF derived {len(derived)} bytes")
 
-	wrapped = rust_openssl.keywrap.aes_key_wrap(b"\x00" * 32, b"\x11" * 32)
+	expected = b"\x11" * 32
+	wrapped = rust_openssl.keywrap.aes_key_wrap(b"\x00" * 32, expected)
 	unwrapped = rust_openssl.keywrap.aes_key_unwrap(b"\x00" * 32, wrapped)
-	report(f"PASS AES key wrap/unwrap round trip ({unwrapped == b'\x11' * 32})")
+	report(f"PASS AES key wrap/unwrap round trip ({unwrapped == expected})")
 
 	padder = PKCS7PaddingContext(128)
 	padded = padder.update(b"12345678") + padder.finalize()
