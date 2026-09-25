@@ -288,12 +288,6 @@
 			"label": "gpt-6-luna",
 			"active": true,
 			"provider": "OpenAI"
-		},
-		{
-			"model": "gpt-5.6-luna",
-			"label": "gpt-5.6-luna",
-			"active": true,
-			"provider": "OpenAI"
 		}
 	]
 }
