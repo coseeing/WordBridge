@@ -192,6 +192,11 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 		EVT_CHOICE = object()
 		EVT_BUTTON = object()
 		EVT_WINDOW_DESTROY = object()
+		EVT_TEXT = object()
+		EVT_CHAR_HOOK = object()
+		WXK_RETURN = 13
+		ID_OK = 5100
+		ID_CANCEL = 5101
 		OK = 6
 		CANCEL = 7
 		StaticText = type("StaticText", (), {})
@@ -282,7 +287,50 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 		def GetChildren(self):
 			return list(self.__dict__.get("children", []))
 
-	monkeypatch.setitem(sys.modules, "gui.settingsDialogs", SimpleNamespace(SettingsPanel=SettingsPanel))
+	class SettingsDialog:
+		"""NVDA's public SettingsDialog (gui/settingsDialogs.py:117-319),
+		headless: __init__ runs makeSettings and postInit as the real one
+		does, with a sizer from make_sizer (the widget stubs install one);
+		onOk/onCancel record DestroyLater and the return code. Tests set
+		`alive` for the C++ object."""
+
+		title = ""
+		make_sizer = staticmethod(lambda: None)
+
+		def __init__(self, parent, *args, **kwargs):
+			self.Parent = parent
+			self.makeSettings(self.make_sizer())
+			self.postInit()
+
+		def __bool__(self):
+			return self.__dict__.get("alive", True)
+
+		def scaleSize(self, value):
+			return value
+
+		def Bind(self, event, handler, *args, **kwargs):
+			self.__dict__.setdefault("bindings", {})[event] = handler
+
+		def postInit(self):
+			pass
+
+		def DestroyLater(self):
+			self.__dict__.setdefault("closed", []).append("DestroyLater")
+
+		def SetReturnCode(self, code):
+			self.__dict__.setdefault("return_codes", []).append(code)
+
+		def onOk(self, evt):
+			self.DestroyLater()
+			self.SetReturnCode(Wx.ID_OK)
+
+		def onCancel(self, evt):
+			self.DestroyLater()
+			self.SetReturnCode(Wx.ID_CANCEL)
+
+	monkeypatch.setitem(sys.modules, "gui.settingsDialogs", SimpleNamespace(
+		SettingsPanel=SettingsPanel, SettingsDialog=SettingsDialog,
+	))
 	monkeypatch.setitem(sys.modules, "gui.contextHelp", SimpleNamespace(ContextHelpMixin=type("ContextHelpMixin", (), {})))
 	monkeypatch.setitem(sys.modules, "globalPluginHandler", SimpleNamespace(GlobalPlugin=ParentPlugin))
 	monkeypatch.setitem(sys.modules, "addonHandler", SimpleNamespace(initTranslation=lambda: None))
@@ -1020,6 +1068,9 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 		def SetFocus(self):
 			self.focused = True
 
+		def GetContainingSizer(self):
+			return self.containing_sizer
+
 	class Sizer:
 		"""Children in order and their visibility, like a wx.BoxSizer."""
 
@@ -1078,6 +1129,7 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 		def addLabeledControl(self, label, control_type, **kwargs):
 			helper_calls.append((label, control_type, kwargs))
 			control = control_type(None, **kwargs)
+			control.containing_sizer = self.sizer
 			added_controls.append(control)
 			self.sizer.children.append(control)
 			return control
@@ -1104,6 +1156,7 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 	monkeypatch.setattr(plugin.wx, "StaticText", Widget)
 	monkeypatch.setattr(plugin.wx, "StaticBoxSizer", static_box_sizer)
 	monkeypatch.setattr(gui.nvdaControls, "SelectOnFocusSpinCtrl", Widget)
+	monkeypatch.setattr(sys.modules["gui.settingsDialogs"].SettingsDialog, "make_sizer", staticmethod(Sizer))
 	config.conf.getConfigValidation = lambda path: SimpleNamespace(kwargs={"min": 256, "max": 4096})
 	return helper_calls, static_box_captions, Sizer
 

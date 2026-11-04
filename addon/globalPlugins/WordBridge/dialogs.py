@@ -12,6 +12,7 @@ from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
 
 from . import catalog_updater
+from .catalog_url_dialog import invalid_url_message, url_identity
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.catalog import COSEEING_GROUP, is_dropped_issue, registry
 from .lib.catalog.fallback import SENTINEL_ID
@@ -153,13 +154,6 @@ def _dropped_entries_message(catalog):
 		# {count} is their number.
 		return _("{count} catalog entries could not be loaded; see the NVDA log for details.").format(count=count)
 	return None
-
-
-def _url_identity(text):
-	"""What "the URL changed" compares: the normalised key, or for an invalid
-	value the text itself (an invalid and an empty URL both have no key)."""
-	check = validate_catalog_url(text)
-	return check.key if check.error is None else ("invalid", check.url)
 
 
 def _display_labels(catalog, provider_group):
@@ -635,16 +629,8 @@ class LLMSettingsPanel(SettingsPanel):
 	def isValid(self):
 		check = validate_catalog_url(self.catalogUrlCtrl.GetValue())
 		if check.error is not None:
-			if check.error == "insecure_scheme":
-				# Translators: Shown in NVDA's "Invalid configuration" message when the model list URL uses plain
-				# http for a host other than this computer.
-				message = _("The model list URL must start with https://. http:// is allowed only for localhost.")
-			else:
-				# Translators: Shown in NVDA's "Invalid configuration" message when the model list URL is not a
-				# complete web address.
-				message = _("Enter a complete web address, such as https://wordbridge.coseeing.org, or leave the field empty.")
 			self._validationErrorMessageBox(
-				message=message,
+				message=invalid_url_message(check.error),
 				# Translators: The option name in NVDA's "Invalid configuration" message; the model list URL label
 				# without the colon.
 				option=_("Model list URL"),
@@ -687,7 +673,7 @@ class LLMSettingsPanel(SettingsPanel):
 		# untouched default never lands in nvda.ini. The refresh is deferred
 		# past the dialog's save sequence, for OK and Apply alike.
 		catalogUrl = self.catalogUrlCtrl.GetValue().strip()
-		if _url_identity(catalogUrl) != _url_identity(self.settings.catalog_url()):
+		if url_identity(catalogUrl) != url_identity(self.settings.catalog_url()):
 			self.settings.save_catalog_url(catalogUrl)
 			wx.CallAfter(catalog_updater.request_refresh, catalogUrl)
 

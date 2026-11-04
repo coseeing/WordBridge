@@ -494,6 +494,7 @@ class _nvda_module_stubs:
 		sys.modules["gui.contextHelp"] = gui_context_help
 		gui_settings_dialogs = types.ModuleType("gui.settingsDialogs")
 		gui_settings_dialogs.SettingsPanel = object
+		gui_settings_dialogs.SettingsDialog = object
 		sys.modules["gui.settingsDialogs"] = gui_settings_dialogs
 
 		global_plugin_handler = types.ModuleType("globalPluginHandler")
