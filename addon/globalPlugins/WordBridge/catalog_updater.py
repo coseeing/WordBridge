@@ -383,10 +383,17 @@ class CatalogUpdater:
 				self._retries_stopped = True
 				self._log.info("WordBridge: catalog fetch retries stopped attempts=%d", self._retry_count)
 			return
-		self._retry_count += 1
 		with self._lock:
 			generation = self._generation
-		self._retry_timer = self._schedule(wait * 60_000, functools.partial(self._on_retry_timer, generation))
+		# wx.CallLater raises once the wx app is gone. The caller still
+		# notifies the failure, and a retry never armed does not count.
+		try:
+			timer = self._schedule(wait * 60_000, functools.partial(self._on_retry_timer, generation))
+		except Exception as error:
+			self._log.warning("WordBridge: catalog fetch retry could not be scheduled type=%s", type(error).__name__)
+			return
+		self._retry_count += 1
+		self._retry_timer = timer
 		self._log.info("WordBridge: catalog fetch retry scheduled attempt=%d delay=%dmin", self._retry_count, wait)
 
 	def _on_retry_timer(self, armed_generation) -> None:

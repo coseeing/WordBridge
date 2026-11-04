@@ -806,6 +806,38 @@ def test_close_never_raises_when_stop_raises(tmp_path):
 	assert recorder.events == []
 
 
+SCHEDULE_FAILED = "WordBridge: catalog fetch retry could not be scheduled type=%s"
+
+
+def test_a_raising_scheduler_keeps_the_count_and_still_notifies(tmp_path):
+	# Final review m2: wx.CallLater raises once the wx app is gone. The
+	# failure must still reach the listeners, and the count must not grow
+	# for a retry that was never armed.
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	working = h.updater._schedule
+
+	def broken(delay_ms, callback):
+		raise RuntimeError("no wx app for https://a.test/catalog?token=secret-a")
+
+	h.updater._schedule = broken
+	h.updater.initial_catalog(URL_A)
+	recorder = _listen(h)
+	h.updater.refresh(URL_A)
+	finish(h)
+
+	assert recorder.events == [C(False, None), C(False, "failed", False)]
+	assert records(h, SCHEDULE_FAILED) == [("warning", SCHEDULE_FAILED, "RuntimeError")]
+	assert records(h, SCHEDULED) == []
+	assert "secret" not in h.log.text()
+	assert h.updater._retry_timer is None
+
+	h.updater._schedule = working
+	h.updater.refresh(URL_A)
+	finish(h)
+	assert [timer.delay_ms for timer in h.scheduler.live()] == [MINUTE_MS]
+	assert records(h, SCHEDULED) == [("info", SCHEDULED, 1, 1)]
+
+
 def test_module_listener_functions_without_an_updater_are_no_ops():
 	updater_module.uninstall()
 
