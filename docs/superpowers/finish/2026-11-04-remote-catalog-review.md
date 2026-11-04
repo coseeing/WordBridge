@@ -370,3 +370,39 @@ Linux 上只驗了注入的邊界。以下項目需要在 Windows 用這支分�
 | M36 | `CatalogCache.load()` 無界 `read()` | **SURVIVED**（18 passed）→ m5 |
 
 沒有執行 `tests/test_integration_*`。沒有啟動任何本機伺服器。拋棄式 worktree 在審閱結束時以 `git worktree remove` 移除。
+
+---
+
+## 修正記錄
+
+修正代理（DEVELOPMENT_WORKFLOW.md §3.4），在 `d271851` 之後於同一分支修正。每一項都先寫會失敗的測試（red），再修（green）；每個 commit 前都跑過附加元件測試、伺服器測試、`prek run --all-files`、`git diff --check`、`msgfmt --check`。新的 Ruling 記在帳本 `## Final review fix round`。
+
+| 發現 | Commit | 說明 |
+| --- | --- | --- |
+| I1 全新安裝按「確定」 | `8ea2ab6` | stored 為 `("", "")` 時視為已解析（審閱建議的那一行）。新測試 `test_a_fresh_install_untouched_save_stores_the_default_and_signs_in`（shipped / bundled-only 兩列）修正前得到 `('','')`、`auth_calls=[]`，修正後得到 `('default','Coseeing')`、`['Coseeing']`，與 `main` 相同。M10、M11 的測試照舊通過。 |
+| m1 遠端字串寫進記錄 | `1c0e7ac` | 新增 `remote.loggable()`：不可列印字元依 `repr()` 方式跳脫、上限 200 字元（跳脫後的字元也計入）再加 `...`。`_log_catalog_issues`、`_log_cache_problems`、fetch 失敗記錄三處都經過它，記錄格式字串不變。M38 的偽造 provider 名稱測試修正前失敗。 |
+| m2 provider URL 的空白／控制字元 | `9ff10dd` | `_url_problem` 加上與 `validate_catalog_url` 相同的檢查；規則表多 16 列（tab、CR、LF、前導 tab／C0／空白、結尾空白、U+3000、ESC，以及 B1-4 的 trailing dot、`localhost.evil.com`、Ollama `[::1]`、`//host`、`\@`、`%2e`），其中 10 列修正前失敗。 |
+| m3 `redact_url(bytes)` | `2f3afc8` | 非 `str` 一律回 `<invalid url>`；測試加 bytes、`None`、int。 |
+| m4 快取 key（M35） | `d1d7d71` | 用 `DEFAULT_CATALOG_URL` 與大寫 host 做「儲存 → 重新啟動讀回」；M35（`store(check.url, …)`）現在 2 failed。 |
+| m5 有界讀取（M36） | `d361092` | spy 斷言 `read(MAX_CACHE_BYTES + 1)`；M36（`handle.read()`）現在 1 failed。 |
+| m6 `schema_version` 1.0／true | `163e62b` | `check_remote_document` 改為 `type(version) is not int or version != 1`；表格加 1.0、true、"1" 三列。`build_catalog()` 不改（Ruling：它只看 bundled 檔與 overlay 文件，且伺服器副本要保持一致）。 |
+| m7 對話框開著時清單到達 | `4f4493f` | 按 Yes 時重查 `_needs_catalog_choice()`：清單已到就用使用者自己存的模型校正、不改設定。No／Escape 仍然什麼都不送（Ruling：審閱的草稿在 Yes/No 之前重查，會在使用者按 No 之後送出文字，違背 No 的承諾）。 |
+| m8 孤立代理字元 | `d6820ea` | 寫入改用 `encode("utf8", "surrogatepass")`（`json.loads(bytes)` 本來就用 surrogatepass 解碼）；往返測試。 |
+| m9 快取記錄格式 | `d99a9fe` | 快取 detail 改為短代碼（`too_large` 等）；快取 payload 未通過接受檢查時記成 `code=unreadable_cache type=<接受檢查的代碼>`（spec §10）；bundled 來源丟例外時 `accept_remote_document` 回 `bundled_source_failed`，不再誤報 `remote_no_models`。 |
+| m10 記錄目前來源 | `f60f472` | 啟動與 D8 切換網址時記 `WordBridge: catalog source=%s fetch=%s host=%s`（info；關閉或無效時 host 為 `(none)`）。§六第 6、7 項現在可以從記錄核對。 |
+| m11 測試強化 | `becb582` | 整張 `PROVIDER_URL_RULES` 釘住；`parse_remote_payload` 每一列的 detail 釘住（另加 `invalid-utf8` 列，原 `bad-utf8` 列其實是 UTF-16 BOM → `JSONDecodeError`）；`os.fsync` spy 與「`os.replace` 時暫存檔已關閉」。拿掉 fsync、把 replace 移進 `with` 兩個突變各 1 failed。 |
+| m12 未用的 `load_catalog` 匯入 | `b7cd8f3` | 移除；兩個測試改從已載入套件的 `lib.catalog.fallback` 取用。 |
+| m13 `getattr(super(), "isValid")` | `8839d45` | 測試 stub 的 `SettingsPanel` 補上 `isValid()`，正式碼改為 `return super().isValid()`；新測試釘住「網址有效時沿用父類別的答案」，`return True` 突變 1 failed。 |
+| m14 翻譯檔 | `89aa4c2` | 兩個 `_("WordBridge")` 呼叫點加上 `# Translators:`；新條目的 `#:` 行號改成 `xgettext` 對目前檔案的輸出。 |
+| 範圍外：`lib/llm/provider.py:88, 122` | 未修 | `main` 既有問題（`log.error` 記 `str(e)`，可能含 Google 的 `?key=`），不在本分支範圍；交由 orchestrator 向使用者提出。 |
+
+**突變重驗**：M35、M36 由存活變成被抓到；m1、m2、m6、m7、m8、m9、m10、I1 的新測試在修正前都是紅的。
+
+**最後結果**：附加元件 774 passed / 1 skipped（3 subtests passed）；伺服器 96 passed；`prek run --all-files` 全部 Passed；`git diff --check` 乾淨；`msgfmt --check` 通過。沒有執行 `tests/test_integration_*`。
+
+**新增、尚待使用者確認的使用者可見預設**（補充 §七）：
+
+1. m7：§12.5 對話框開著時清單到達，按 Yes 會用使用者自己存的本機模型校正，設定不改成 Coseeing；按 No／Escape 仍不送出。
+2. m2：URL 含空白或控制字元的遠端 provider 會被丟掉（以前會顯示但每次都失敗）。
+3. m10：每次啟動與每次改網址各多一行 info 記錄。
+4. m1：記錄中的目錄 issue 位置與內容超過 200 字元會被截斷，控制字元以跳脫形式顯示。
