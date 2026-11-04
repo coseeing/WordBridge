@@ -163,11 +163,12 @@ class LLMSettingsPanel(SettingsPanel):
 		# NVDA does not store a value equal to the spec default). It counts as
 		# resolved, so OK writes the shown default and starts the Coseeing
 		# sign-in, as on main. A stored "local" channel keeps D12 and U7.
-		self._storedSelection = self.settings.stored_corrector_selection()
-		resolved = self.settings.corrector_selection(catalog=self.catalog)
-		self._storedSelectionResolved = resolved == self._storedSelection or not self._storedSelection[1]
-		self.selection = SelectionState.restore(self.catalog, *resolved)
-		self._restoredIndices = (self.selection.provider_group_index, self.selection.model_index)
+		baseline = self._storedBaseline(self.catalog)
+		self._applyBaseline(baseline)
+		self.selection = baseline[2]
+		# C22: a pick the user made, kept by a live rebuild, is saved even when
+		# it equals the recomputed baseline. Only _rebuild sets this.
+		self._keptUserPick = False
 
 		# The dropped-entries line (spec: "the settings panel shows a summary
 		# line" when catalog entries failed to load) and the status line
@@ -362,8 +363,55 @@ class LLMSettingsPanel(SettingsPanel):
 
 	def _rebuild(self) -> bool:
 		"""Replace the choices for the live catalog; True when the set of shown
-		windows changed."""
+		windows changed. Never moves focus and never shows the panel: it does
+		not call onPanelActivated(), which is Show() (F2)."""
+		new = registry.current()
+		selection, keptUserPick = self._chooseSelection(new)
+		self._applyBaseline(self._storedBaseline(new))
+		self._keptUserPick = keptUserPick
+		self.catalog = new
+		self.selection = selection
+		providerLabels = [_provider_group_label(new, group) for group in new.provider_groups]
+		if self.providerList.GetItems() != providerLabels:
+			self.providerList.SetItems(providerLabels)
+		modelLabels = list(_display_labels(new, selection.provider_group))
+		if self.modelList.GetItems() != modelLabels:
+			self.modelList.SetItems(modelLabels)
+		self.providerList.SetSelection(selection.provider_group_index)
+		self.modelList.SetSelection(selection.model_index)
 		return False
+
+	def _storedBaseline(self, catalog) -> tuple:
+		"""(stored, storedResolved, restored SelectionState) for `catalog`: the
+		D12 rule, with the stored selection re-read from config (Apply may have
+		written a new one since the panel opened)."""
+		stored = self.settings.stored_corrector_selection()
+		resolved = self.settings.corrector_selection(catalog=catalog)
+		storedResolved = resolved == stored or not stored[1]
+		return stored, storedResolved, SelectionState.restore(catalog, *resolved)
+
+	def _applyBaseline(self, baseline) -> None:
+		stored, storedResolved, restored = baseline
+		self._storedSelection = stored
+		self._storedSelectionResolved = storedResolved
+		self._restoredIndices = (restored.provider_group_index, restored.model_index)
+
+	def _chooseSelection(self, new) -> tuple:
+		"""(SelectionState for `new`, whether it is a pick the user made here).
+
+		R4 as read by C8 (R7): a selection the user made in this panel is
+		kept if `new` still offers it; otherwise, and for an untouched panel,
+		the stored selection as resolved in `new` (or its default).
+		"""
+		shown = (self.providerList.GetSelection(), self.modelList.GetSelection())
+		touched = shown != self._restoredIndices or self._keptUserPick
+		if touched and min(shown) >= 0:
+			pick = self.catalog.get_item(*shown)
+			indices = new.find_selection(pick.corrector_config_id, pick.execution_channel)
+			if indices != (-1, -1):
+				return SelectionState(new, *indices), True
+		restored = self._storedBaseline(new)[2]
+		return SelectionState(new, restored.provider_group_index, restored.model_index), False
 
 	def _setLine(self, line, text) -> bool:
 		"""Show `text` on a line, or hide the line without one. True when its
@@ -441,7 +489,7 @@ class LLMSettingsPanel(SettingsPanel):
 		self.selection.model_index = self.modelList.GetSelection()
 		selected_item = self.selection.current_item()
 		chosen = (self.selection.provider_group_index, self.selection.model_index)
-		if self._storedSelectionResolved or chosen != self._restoredIndices:
+		if self._storedSelectionResolved or chosen != self._restoredIndices or self._keptUserPick:
 			self.settings.save_corrector_selection(
 				selected_item.corrector_config_id, selected_item.execution_channel
 			)

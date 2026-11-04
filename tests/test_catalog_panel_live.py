@@ -160,3 +160,186 @@ def test_a_notification_after_the_panel_is_gone_unregisters_and_does_nothing(mon
 	assert panel.providerList.items == items
 	assert getattr(panel.providerList, "set_items_calls", 0) == 0
 	assert f.messages == []
+
+
+# --- Task 9: rebuild, selection and the D12 baseline (R4, R7/C8, C22) -----
+
+import dataclasses  # noqa: E402
+
+DEFAULT = ("default", "Coseeing")
+
+
+def _shipped(f):
+	return f.plugin.catalog
+
+
+def _shipped_without(*ids):
+	def build(f):
+		catalog = f.plugin.catalog
+		return dataclasses.replace(catalog, models=tuple(m for m in catalog.models if m.corrector_config_id not in ids))
+	return build
+
+
+def _item_ids(item):
+	return (item.corrector_config_id, item.execution_channel)
+
+
+def touch(panel, group, model_index):
+	"""Choose a provider and a model the way the user does."""
+	panel.providerList.SetSelection(panel.catalog.provider_groups.index(group))
+	panel.onChangeProviderChoice(None)
+	panel.modelList.SetSelection(model_index)
+
+
+def rebuild_with(f, panel, catalog):
+	f.box["catalog"] = catalog
+	f.fake.emit(change(f, True))
+
+
+def _run_queued(f):
+	for callback, args in list(f.queued):
+		callback(*args)
+	f.queued.clear()
+
+
+SOL = ("gpt-6.1-sol&OpenAI", "local")
+DEEPSEEK_PRO = ("deepseek-v4-pro&DeepSeek", "local")
+SELECTION_ROWS = [
+	("fresh-untouched", _bundled_only, _shipped, ("", ""), None, DEFAULT, DEFAULT),
+	("stored-local-unresolved-untouched", _bundled_only, _shipped, ("gpt-6-luna&OpenAI", "local"), None,
+		("gpt-6-luna&OpenAI", "local"), ("gpt-6-luna&OpenAI", "local")),
+	("touched-pick-kept", _shipped, _shipped, SOL, ("DeepSeek", 0), DEEPSEEK_PRO, SOL),
+	("touched-pick-gone-stored-present", _shipped, _shipped_without("deepseek-v4-pro&DeepSeek"), SOL, ("DeepSeek", 0),
+		SOL, SOL),
+	("touched-pick-gone-stored-absent", _shipped, _shipped_without("deepseek-v4-pro&DeepSeek", SOL[0]), SOL,
+		("DeepSeek", 0), DEFAULT, DEFAULT),
+	("stored-coseeing-non-default", _bundled_only, _shipped, ("gpt-6-luna&OpenAI", "Coseeing"), None, DEFAULT, DEFAULT),
+]
+
+
+@pytest.mark.parametrize(
+	"old, new, stored, touched, expected, baseline", [row[1:] for row in SELECTION_ROWS], ids=[row[0] for row in SELECTION_ROWS],
+)
+def test_live_selection_table(monkeypatch, old, new, stored, touched, expected, baseline):
+	f = live_fixture(monkeypatch, corrector_config_id=stored[0], execution_channel=stored[1])
+	f.box["catalog"] = old(f)
+	panel = f.make_panel()
+	if touched is not None:
+		touch(panel, *touched)
+	new_catalog = new(f)
+
+	rebuild_with(f, panel, new_catalog)
+
+	assert panel.catalog is new_catalog
+	assert _item_ids(panel.selection.current_item()) == expected
+	assert (panel.providerList.GetSelection(), panel.modelList.GetSelection()) == new_catalog.find_selection(*expected)
+	assert panel._restoredIndices == new_catalog.find_selection(*baseline)
+
+
+def _stored(f):
+	return (f.settings["corrector_config_id"], f.settings["execution_channel"])
+
+
+def test_an_untouched_save_after_a_rebuild_keeps_an_unresolved_stored_model(monkeypatch):
+	f = live_fixture(monkeypatch, corrector_config_id="gpt-retired&OpenAI", execution_channel="local")
+	f.box["catalog"] = _bundled_only(f)
+	panel = f.make_panel()
+	rebuild_with(f, panel, _shipped(f))
+	f.queued.clear()
+
+	panel.onSave()
+	_run_queued(f)
+
+	assert _stored(f) == ("gpt-retired&OpenAI", "local")
+	assert f.auth_calls == []
+
+
+def test_an_untouched_save_after_the_list_arrives_saves_the_users_own_model(monkeypatch):
+	# F1: the offline local user's own model appears; OK must not save the
+	# Coseeing default that was shown before, nor sign in to Coseeing.
+	f = live_fixture(monkeypatch, corrector_config_id="gpt-6-luna&OpenAI", execution_channel="local")
+	f.box["catalog"] = _bundled_only(f)
+	panel = f.make_panel()
+	rebuild_with(f, panel, _shipped(f))
+	assert _item_ids(panel.selection.current_item()) == ("gpt-6-luna&OpenAI", "local")
+	f.queued.clear()
+
+	panel.onSave()
+	_run_queued(f)
+
+	assert _stored(f) == ("gpt-6-luna&OpenAI", "local")
+	assert f.auth_calls == []
+
+
+def test_a_touched_pick_kept_across_a_rebuild_is_saved(monkeypatch):
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
+	panel = f.make_panel()
+	touch(panel, "DeepSeek", 0)
+	rebuild_with(f, panel, _shipped(f))
+
+	panel.onSave()
+
+	assert _stored(f) == DEEPSEEK_PRO
+
+
+def test_a_kept_pick_equal_to_the_new_baseline_is_saved(monkeypatch):
+	# C22: the user explicitly picks the Coseeing default; the new list drops
+	# their stored model, so the recomputed baseline is that default too.
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
+	panel = f.make_panel()
+	touch(panel, "Coseeing", 0)
+	rebuild_with(f, panel, _shipped_without(SOL[0])(f))
+	assert _item_ids(panel.selection.current_item()) == DEFAULT
+	f.queued.clear()
+
+	panel.onSave()
+	_run_queued(f)
+
+	assert _stored(f) == DEFAULT
+	assert f.auth_calls == ["Coseeing"]
+
+
+def test_the_baseline_is_reread_from_config_after_apply(monkeypatch):
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
+	panel = f.make_panel()
+	# Apply wrote a new stored selection; then the D8 switch notifies.
+	f.settings["corrector_config_id"] = "gpt-6-sol&OpenAI"
+
+	rebuild_with(f, panel, _shipped(f))
+
+	assert panel._storedSelection == ("gpt-6-sol&OpenAI", "local")
+	assert _item_ids(panel.selection.current_item()) == ("gpt-6-sol&OpenAI", "local")
+
+
+def _focused(f, panel):
+	windows = list(f.plugin.panel_added_controls) + [panel.providerList, panel.modelList]
+	return [window for window in windows if getattr(window, "focused", False)]
+
+
+@pytest.mark.parametrize("shown", [True, False], ids=["shown", "hidden"])
+def test_a_rebuild_never_moves_focus_or_shows_the_panel(monkeypatch, shown):
+	f = live_fixture(monkeypatch)
+	f.box["catalog"] = _bundled_only(f)
+	panel = f.make_panel()
+	panel.shown = shown
+
+	rebuild_with(f, panel, _shipped(f))
+
+	assert _focused(f, panel) == []
+	assert getattr(panel, "show_calls", 0) == 0
+	assert getattr(panel, "activated_calls", 0) == 0
+	assert (panel.freeze_count, panel.thaw_count) == (1, 1)
+	assert len(panel.providerList.items) == len(_shipped(f).provider_groups)
+	assert panel.shown is shown
+
+
+def test_choices_are_replaced_only_when_their_labels_change(monkeypatch):
+	f = live_fixture(monkeypatch)
+	panel = f.make_panel()
+
+	rebuild_with(f, panel, _shipped(f))
+	assert getattr(panel.providerList, "set_items_calls", 0) == 0
+	assert getattr(panel.modelList, "set_items_calls", 0) == 0
+
+	rebuild_with(f, panel, _bundled_only(f))
+	assert panel.providerList.set_items_calls == 1
