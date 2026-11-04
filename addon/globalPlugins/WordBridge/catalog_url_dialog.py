@@ -167,11 +167,10 @@ class CatalogUrlDialog(SettingsDialog):
 	def _showResult(self, message, ok):
 		if ok:
 			# Translators: Title of the message after a successful test of the model list URL.
-			caption = _("Success")
+			gui.message.MessageDialog.alert(message, _("Success"), self)
 		else:
 			# Translators: Title of the message after a failed test of the model list URL.
-			caption = _("Error")
-		gui.message.MessageDialog.alert(message, caption, self)
+			self._showErrorMessage(message, _("Error"))
 
 	def onOk(self, evt):
 		"""Spec 20.2: validate, compare, warn when not tested, save, then close."""
@@ -200,7 +199,18 @@ class CatalogUrlDialog(SettingsDialog):
 
 	def _showError(self, message):
 		# Translators: Title of the message shown when the model list URL is not valid.
-		gui.message.MessageDialog.alert(message, _("Error"), self)
+		self._showErrorMessage(message, _("Error"))
+
+	def _showErrorMessage(self, message, caption):
+		"""An OK-only message with NVDA's error icon and sound, as NVDA's
+		_SetURLDialog shows its failure (wx.ICON_ERROR). Main thread."""
+		gui.message.MessageDialog(
+			self,
+			message,
+			caption,
+			dialogType=gui.message.DialogType.ERROR,
+			buttons=(gui.message.DefaultButton.OK,),
+		).ShowModal()
 
 	def _askSaveAnyway(self, failed):
 		"""Yes saves, No closes without saving, Cancel (the default and the

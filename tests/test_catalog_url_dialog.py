@@ -25,17 +25,25 @@ FAILED = "The model list URL failed the test. Save it anyway?"
 
 
 class FakeMessageDialog:
-	"""gui.message.MessageDialog: records what it was built with and answers."""
+	"""gui.message.MessageDialog: records what it was built with and answers.
+
+	An OK-only dialog is a message, not a question: it is recorded with the
+	alerts (and its type in alert_types) when shown, not in instances."""
 
 	instances = []
 	alerts = []
+	alert_types = []
 	answer = None
 
-	def __init__(self, parent, message, title="", dialogType=None, *, buttons=None, helpId=""):
+	def __init__(self, parent, message, title="", dialogType="STANDARD", *, buttons=None, helpId=""):
 		self.parent, self.message, self.title, self.dialog_type, self.buttons = parent, message, title, dialogType, buttons
 		self.default_focus = None
 		self.escape_id = None
-		FakeMessageDialog.instances.append(self)
+		if not self._is_message():
+			FakeMessageDialog.instances.append(self)
+
+	def _is_message(self):
+		return tuple(self.buttons or ()) == ("OK",)
 
 	def setDefaultFocus(self, id):
 		self.default_focus = id
@@ -46,11 +54,16 @@ class FakeMessageDialog:
 		return self
 
 	def ShowModal(self):
+		if self._is_message():
+			FakeMessageDialog.alerts.append((self.message, self.title, self.parent))
+			FakeMessageDialog.alert_types.append(self.dialog_type)
+			return RETURN_CODE.OK
 		return FakeMessageDialog.answer
 
 	@classmethod
 	def alert(cls, message, caption="", parent=None, **kwargs):
 		cls.alerts.append((message, caption, parent))
+		cls.alert_types.append("STANDARD")
 
 
 class StubPanel:
@@ -66,12 +79,14 @@ def dialog_fixture(monkeypatch, **settings):
 	f.module = importlib.import_module(f.plugin.__name__ + ".catalog_url_dialog")
 	FakeMessageDialog.instances = []
 	FakeMessageDialog.alerts = []
+	FakeMessageDialog.alert_types = []
 	FakeMessageDialog.answer = None
 	monkeypatch.setattr(f.plugin.gui, "message", SimpleNamespace(
 		MessageDialog=FakeMessageDialog,
 		DefaultButtonSet=SimpleNamespace(YES_NO_CANCEL="YES_NO_CANCEL"),
 		ReturnCode=RETURN_CODE,
-		DialogType=SimpleNamespace(WARNING="WARNING"),
+		DialogType=SimpleNamespace(STANDARD="STANDARD", WARNING="WARNING", ERROR="ERROR"),
+		DefaultButton=SimpleNamespace(OK="OK"),
 	), raising=False)
 	f.order = []
 	f.panel = StubPanel(f.order)
@@ -216,6 +231,8 @@ def test_an_error_is_an_error_alert_on_the_dialog(monkeypatch):
 	dialog._showError("message")
 
 	assert FakeMessageDialog.alerts == [("message", "Error", dialog)]
+	# Final review m6: NVDA's error icon and sound, as _SetURLDialog's failure.
+	assert FakeMessageDialog.alert_types == ["ERROR"]
 
 
 # --- translator comments and zh_TW entries ----------------------------------
@@ -412,6 +429,9 @@ def test_test_result_messages(monkeypatch, probe, message, ok):
 
 	assert f.module.probe_result_message(_probe(f, *probe)) == message
 	assert FakeMessageDialog.alerts == [(message, "Success" if ok else "Error", dialog)]
+	# Final review m6: a failure has NVDA's error icon and sound (_SetURLDialog
+	# uses wx.ICON_ERROR); a success stays a plain message.
+	assert FakeMessageDialog.alert_types == ["STANDARD" if ok else "ERROR"]
 	assert dialog.testStatus == ("passed" if ok else "failed")
 
 
