@@ -122,6 +122,7 @@ def _provider_group_label(catalog, group):
 
 
 class LLMSettingsPanel(SettingsPanel):
+	# Translators: Title of the WordBridge category in NVDA's settings dialog; the add-on name.
 	title = _("WordBridge")
 	helpId = "WordBridge Settings"
 

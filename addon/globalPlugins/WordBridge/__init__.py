@@ -319,6 +319,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					"Switch to the Coseeing default and correct this text with Coseeing? "
 					"Your WordBridge setting will be changed to the Coseeing default."
 				),
+				# Translators: Title of the Yes/No dialog asking whether to switch to the Coseeing default; the
+				# add-on name.
 				_("WordBridge"),
 				buttons=gui.message.DefaultButtonSet.YES_NO,
 			)
