@@ -166,7 +166,7 @@ def test_a_cached_payload_failing_acceptance_is_ignored(tmp_path):
 	assert h.status() == ("none", "running")
 	# Spec section 10: a cached payload failing acceptance is an unreadable
 	# cache, logged with the type of problem only.
-	assert h.log.records == [
+	assert [record for record in h.log.records if record[0] == "warning"] == [
 		("warning", "WordBridge: catalog cache problem code=%s type=%s", "unreadable_cache", "remote_no_models"),
 	]
 
@@ -597,3 +597,40 @@ def test_a_failing_bundled_source_is_not_logged_as_a_bad_cache_payload(tmp_path)
 	assert (
 		"warning", "WordBridge: catalog cache problem code=%s type=%s", "unreadable_cache", "bundled_source_failed",
 	) in h.log.records
+
+
+SOURCE_LOG = "WordBridge: catalog source=%s fetch=%s host=%s"
+
+
+def _source_lines(h):
+	return [record[2:] for record in h.log.records if record[:2] == ("info", SOURCE_LOG)]
+
+
+def test_startup_logs_the_source_in_use(tmp_path):
+	# Spec section 17.6 items 6 and 7 check in the log whether the cache was used.
+	with_cache = Harness(tmp_path)
+	with_cache.seed_cache(URL_A, _payload("cached"))
+	with_cache.updater.initial_catalog(URL_A)
+	assert _source_lines(with_cache) == [("cache", "running", "https://a.test")]
+
+	other_url = Harness(tmp_path)
+	other_url.updater.initial_catalog(URL_B)
+	assert _source_lines(other_url) == [("none", "running", "https://b.test")]
+
+
+@pytest.mark.parametrize("url, fetch", [("", "off"), ("ftp://x", "invalid")], ids=["empty", "invalid"])
+def test_startup_without_a_usable_url_logs_no_host(tmp_path, url, fetch):
+	h = Harness(tmp_path)
+	h.updater.initial_catalog(url)
+
+	assert _source_lines(h) == [("none", fetch, "(none)")]
+
+
+def test_a_url_change_logs_the_new_source_and_a_same_url_refresh_does_not(tmp_path):
+	h = Harness(tmp_path, {URL_A: FakeResponse(status_code=500), URL_B: FakeResponse(status_code=500)})
+	h.seed_cache(URL_B, _payload("cached"))
+	h.updater.initial_catalog(URL_A)
+	h.updater.refresh(URL_A)
+	h.updater.refresh(URL_B)
+
+	assert _source_lines(h) == [("none", "running", "https://a.test"), ("cache", "running", "https://b.test")]

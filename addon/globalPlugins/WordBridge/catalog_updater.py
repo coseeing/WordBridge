@@ -187,6 +187,7 @@ class CatalogUpdater:
 			self._live_key = check.key
 			self._source = source
 			self._fetch = _fetch_state(check)
+		self._log_source(check, source)
 		return catalog
 
 	def refresh(self, url: str) -> None:
@@ -202,6 +203,7 @@ class CatalogUpdater:
 			with self._lock:
 				self._live_key = check.key
 				self._source = source
+			self._log_source(check, source)
 			self._install(catalog)
 		if check.enabled:
 			self._thread = self._start_thread(self._run, (generation, check))
@@ -234,6 +236,14 @@ class CatalogUpdater:
 				)
 		catalog = load_overlay_catalog(self._bundled_source, None, runnable_providers=self._runnable_providers)
 		return catalog, SOURCE_NONE
+
+	def _log_source(self, check, source) -> None:
+		"""Which catalog is in use, so a reader of the log can tell whether the
+		cache was used (spec section 17.6, items 6 and 7)."""
+		self._log.info(
+			"WordBridge: catalog source=%s fetch=%s host=%s",
+			source, _fetch_state(check), redact_url(check.url) if check.enabled else "(none)",
+		)
 
 	def _log_cache_problems(self, issues) -> None:
 		for issue in issues:
