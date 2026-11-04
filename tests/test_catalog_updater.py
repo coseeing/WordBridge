@@ -521,3 +521,27 @@ def test_a_failed_cache_write_still_installs_the_catalog(tmp_path, cache_class):
 	assert h.cache.stores == [_key(URL_A)]
 	assert "cache_write_failed" in h.log.text()
 	assert "secret" not in h.log.text()
+
+
+@pytest.mark.parametrize("url", [
+	remote_module.DEFAULT_CATALOG_URL,
+	"HTTPS://WordBridge.Coseeing.ORG",
+], ids=["default-url", "upper-case-host"])
+def test_the_cache_is_stored_under_the_key_and_used_at_the_next_start(tmp_path, url):
+	# The URL as typed is not the key here (no trailing slash, upper case),
+	# so a cache stored under the URL would never be found again.
+	key = "https://wordbridge.coseeing.org/"
+	assert _key(url) == key != url
+	h = Harness(tmp_path, {url: _ok(_payload("fresh"))})
+	h.updater.initial_catalog(url)
+	h.updater.refresh(url)
+	h.threads[0].run()
+	h.deliver()
+
+	assert h.cache.stores == [key]
+	assert h.cache.inner.load(key)[0] == _payload("fresh")
+
+	restarted = Harness(tmp_path)
+	catalog = restarted.updater.initial_catalog(url)
+	assert _ids(catalog) == ["fresh&OpenAI"]
+	assert restarted.status() == ("cache", "running")
