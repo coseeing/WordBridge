@@ -329,8 +329,9 @@ class ProviderModelAdapterTests(unittest.TestCase):
 
 		self.assertEqual(
 			captured["api_url"],
-			"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=google-key",
+			"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
 		)
+		self.assertEqual(captured["headers"]["x-goog-api-key"], "google-key")
 		self.assertEqual(captured["json"], payload)
 
 	def test_google_adapter_maps_provider_setting_to_generation_config(self):

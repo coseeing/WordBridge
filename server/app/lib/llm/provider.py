@@ -163,14 +163,18 @@ class GoogleProvider(Provider):
 	name = "Google"
 
 	def get_headers(self):
+		# The key goes in a header, never the URL query: requests puts the
+		# full URL into the text of its exceptions, so a key in the query
+		# ends up wherever that text is logged or shown.
 		return {
 			"Content-Type": "application/json",
+			"x-goog-api-key": f"{self.credential['api_key']}",
 		}
 
 	def get_api_url(self, model_name=None):
 		if not model_name:
 			raise ValueError("Google provider requires model_name when sending a request")
-		return f"{self.url}/models/{model_name}:generateContent?key={self.credential['api_key']}"
+		return f"{self.url}/models/{model_name}:generateContent"
 
 
 class OpenrouterProvider(Provider):
