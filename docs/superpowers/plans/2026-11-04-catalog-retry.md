@@ -71,7 +71,7 @@ refers to the retry spec. Paths are relative to
 | File | Responsibility | Tasks |
 | --- | --- | --- |
 | `catalog_updater.py` | retry constants, `schedule` injection, timer, R10 reset, `retry_on_panel_open`, `CatalogChange`, listeners, `close()`, module `add_listener`/`remove_listener`/`retry_on_panel_open`, `uninstall()` closes | 1–4 |
-| `__init__.py` | `_schedule_catalog_retry` seam passed as `schedule=` | 5 |
+| `__init__.py` | `_schedule_catalog_retry` seam passed as `schedule=` | 6 (erratum, final review m7: was listed as 5) |
 | `catalog_updater.py` (probe) | `ProbeResult`, `CatalogUpdater.probe`, module `probe_url` | 5 |
 | `dialogs.py` | R1 call, always-present lines, `panelDescription`, listener/destroy wiring, `_rebuild`, account boxes on demand, deferral, URL group, announcements | 7–11, 14, 15 |
 | `catalog_url_dialog.py` (new) | `CatalogUrlDialog`, `url_identity` (moved from `dialogs._url_identity`), `invalid_url_message`, test-result texts | 12, 13 |
