@@ -230,7 +230,10 @@ def check_remote_document(document) -> tuple:
 	if not isinstance(document, dict):
 		return _issue("remote_malformed", f"expected an object, got {type(document).__name__}")
 	version = document.get("schema_version")
-	if version != SCHEMA_VERSION:
+	# type() first: 1.0 == 1 and True == 1. build_catalog() keeps its looser
+	# check, which only ever sees the bundled file and the overlay's own
+	# schema_version 1.
+	if type(version) is not int or version != SCHEMA_VERSION:
 		shown = repr(version) if version is None or type(version) in (int, float, bool) else type(version).__name__
 		return _issue("remote_schema_version", f"expected {SCHEMA_VERSION}, got {shown}")
 	if not isinstance(document.get("providers"), dict):

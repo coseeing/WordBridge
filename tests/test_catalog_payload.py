@@ -29,6 +29,10 @@ PARSE_TABLE = [
 	("array", b"[]", "remote_malformed"),
 	("schema-2", _body(schema_version=2, providers={}, models=[]), "remote_schema_version"),
 	("schema-missing", _body(providers={}, models=[]), "remote_schema_version"),
+	# 1.0 == 1 and True == 1 in Python; the version must be the integer 1.
+	("schema-float", _body(schema_version=1.0, providers={}, models=[]), "remote_schema_version"),
+	("schema-true", _body(schema_version=True, providers={}, models=[]), "remote_schema_version"),
+	("schema-string", _body(schema_version="1", providers={}, models=[]), "remote_schema_version"),
 	("providers-list", _body(schema_version=1, providers=[], models=[]), "remote_malformed"),
 	("providers-missing", _body(schema_version=1, models=[]), "remote_malformed"),
 	("models-missing", _body(schema_version=1, providers={}), "remote_malformed"),
