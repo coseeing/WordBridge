@@ -2,6 +2,7 @@ from concurrent.futures import Future
 
 import config
 import os
+import ui
 import wx
 
 import addonHandler
@@ -134,6 +135,17 @@ def _status_line_message(status, keep_stale):
 	):
 		return _stale_list_message()
 	return catalog_status_message(status)
+
+
+def _announcement_text(outcome):
+	"""What NVDA says after a live update of the open panel (R3)."""
+	if outcome == catalog_updater.FETCH_SUCCEEDED:
+		# Translators: Spoken when the open WordBridge settings panel has just shown a newly downloaded list of
+		# providers and models.
+		return _("Model list updated.")
+	# Translators: Spoken when downloading the list of providers and models failed while the WordBridge settings
+	# panel is open.
+	return _("Model list update failed.")
 
 
 def _dropped_entries_message(catalog):
@@ -419,12 +431,27 @@ class LLMSettingsPanel(SettingsPanel):
 		if layoutChanged:
 			self._requestLayout()
 		if deferred:
+			# The announcement waits for the rebuild (spec 11, condition 4).
 			if self._deferTimer is None:
 				self._deferTimer = wx.CallLater(DEFERRED_UPDATE_POLL_MS, self._onDeferTimer)
 			return
 		timer, self._deferTimer = self._deferTimer, None
 		if timer is not None:
 			timer.Stop()
+		outcome, self._pendingAnnouncement = self._pendingAnnouncement, None
+		# Dropped, not kept, when the panel cannot speak now (spec 11).
+		if outcome is not None and self._canAnnounce():
+			# Default priority: queued behind what NVDA is saying.
+			ui.message(_announcement_text(outcome))
+
+	def _canAnnounce(self) -> bool:
+		"""The WordBridge category is the one shown and the settings dialog is
+		the active window (not another application, a message box or the URL
+		dialog in front, C11, C20)."""
+		try:
+			return bool(self.IsShown() and self.GetTopLevelParent().IsActive())
+		except Exception:
+			return False
 
 	def _onDeferTimer(self):
 		self._deferTimer = None

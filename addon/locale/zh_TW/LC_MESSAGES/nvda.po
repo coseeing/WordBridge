@@ -660,3 +660,13 @@ msgstr "變更..."
 #: addon\globalPlugins\WordBridge\dialogs.py:643
 msgid "No model list URL"
 msgstr "未設定模型清單網址"
+
+#. Translators: Spoken when the open WordBridge settings panel has just shown a newly downloaded list of providers and models.
+#: addon\globalPlugins\WordBridge\dialogs.py:145
+msgid "Model list updated."
+msgstr "模型清單已更新。"
+
+#. Translators: Spoken when downloading the list of providers and models failed while the WordBridge settings panel is open.
+#: addon\globalPlugins\WordBridge\dialogs.py:148
+msgid "Model list update failed."
+msgstr "模型清單更新失敗。"

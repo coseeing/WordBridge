@@ -903,3 +903,160 @@ def test_the_drop_down_probe(monkeypatch, winuser, expected):
 	assert f.dialogs.LLMSettingsPanel._isDroppedDown(panel, panel.providerList) is expected
 	if winuser != "absent":
 		assert calls == [(panel.providerList.GetHandle(), 0x0157, 0, 0)]
+
+
+# --- Task 15: announcements (R3, R8, C11) -----------------------------------
+
+UPDATED = "Model list updated."
+UPDATE_FAILED = "Model list update failed."
+ANNOUNCEMENT_ROWS = [
+	("success-background", (True, "succeeded", False), [UPDATED]),
+	("success-user", (True, "succeeded", True), [UPDATED]),
+	("failure-panel-open", (False, "failed", True), [UPDATE_FAILED]),
+	("failure-url-change", (False, "failed", True), [UPDATE_FAILED]),
+	("failure-timer", (False, "failed", False), []),
+	("failure-startup", (False, "failed", False), []),
+]
+
+
+@pytest.mark.parametrize("event, expected", [row[1:] for row in ANNOUNCEMENT_ROWS], ids=[row[0] for row in ANNOUNCEMENT_ROWS])
+def test_announcements_table(monkeypatch, event, expected):
+	f = live_fixture(monkeypatch)
+	panel = f.make_panel()
+	if event[1] == "failed":
+		set_status(f, "none", "failed")
+
+	f.fake.emit(change(f, *event))
+
+	assert f.messages == expected
+	# Spoken once: a later notification without an outcome says nothing.
+	f.fake.emit(change(f))
+	assert f.messages == expected
+	assert panel  # still alive
+
+
+def _hide(panel):
+	panel.shown = False
+
+
+def _deactivate(panel):
+	panel.active = False
+
+
+def _destroy(panel):
+	panel.alive = False
+
+
+SILENT_ROWS = [
+	("refresh-start", (False, None, False), None),
+	("d8-swap", (True, None, True), None),
+	("hidden", (True, "succeeded", True), _hide),
+	("inactive", (True, "succeeded", True), _deactivate),
+	("destroyed", (True, "succeeded", True), _destroy),
+]
+
+
+@pytest.mark.parametrize("event, condition", [row[1:] for row in SILENT_ROWS], ids=[row[0] for row in SILENT_ROWS])
+def test_no_announcement_when(monkeypatch, event, condition):
+	f = live_fixture(monkeypatch)
+	panel = f.make_panel()
+	if condition is not None:
+		condition(panel)
+
+	f.fake.emit(change(f, *event))
+
+	assert f.messages == []
+	# A dropped announcement is not kept for later (spec 11).
+	panel.shown = panel.active = True
+	f.fake.emit(change(f))
+	assert f.messages == []
+
+
+def test_only_the_latest_speakable_outcome_behind_a_deferral_is_spoken(monkeypatch):
+	f = live_fixture(monkeypatch)
+	f.box["catalog"] = _bundled_only(f)
+	panel = f.make_panel()
+	dropped = {"open": True}
+	panel._isDroppedDown = lambda choice: dropped["open"]
+	rebuild_with(f, panel, _shipped(f))
+
+	f.fake.emit(change(f, False, "failed", True))
+	f.fake.emit(change(f, True, "succeeded", False))
+	assert f.messages == []
+
+	dropped["open"] = False
+	_timers(f)[0].fire()
+	assert f.messages == [UPDATED]
+
+
+def test_a_background_failure_behind_a_deferral_keeps_the_pending_message(monkeypatch):
+	f = live_fixture(monkeypatch)
+	f.box["catalog"] = _bundled_only(f)
+	panel = f.make_panel()
+	dropped = {"open": True}
+	panel._isDroppedDown = lambda choice: dropped["open"]
+	rebuild_with(f, panel, _shipped(f))
+
+	f.fake.emit(change(f, False, "failed", True))
+	f.fake.emit(change(f, False, "failed", False))
+	assert f.messages == []
+
+	dropped["open"] = False
+	_timers(f)[0].fire()
+	assert f.messages == [UPDATE_FAILED]
+
+
+def test_a_description_change_alone_speaks_nothing(monkeypatch):
+	# R11: panelDescription changes; only R3/R8 outcomes are spoken.
+	f = live_fixture(monkeypatch)
+	panel = f.make_panel()
+
+	set_status(f, "none", "failed")
+	f.fake.emit(change(f))
+
+	assert panel.panelDescription == _text("failed")
+	assert f.messages == []
+
+
+def test_the_new_strings_have_translator_comments_and_zh_tw_translations():
+	from test_catalog_url_dialog import ADDON, _assert_translated
+
+	_assert_translated(ADDON / "dialogs.py", {UPDATED: "模型清單已更新。", UPDATE_FAILED: "模型清單更新失敗。"})
+
+
+def test_the_panel_follows_a_real_updater_end_to_end(monkeypatch, tmp_path):
+	from test_catalog_retry import FakeScheduler
+	from test_catalog_settings_panel import _refuse, _serve_the_server_catalog, real_updater
+
+	f = _panel_fixture(monkeypatch)
+	messages = []
+	monkeypatch.setattr(f.dialogs, "ui", SimpleNamespace(message=messages.append))
+	network = {"get": _refuse}
+	scheduler = FakeScheduler()
+	updater = real_updater(f, tmp_path, lambda url, **kwargs: network["get"](url, **kwargs), schedule=scheduler)
+	url = "https://wordbridge.coseeing.org"
+	f.dialogs.registry.replace(updater.initial_catalog(url))
+	updater.refresh(url)
+	updater.run_latest()
+	assert [timer.delay_ms for timer in scheduler.live()] == [60_000]
+	f.dialogs.catalog_updater.install(updater)
+	try:
+		panel = f.make_panel()
+		assert len(updater.threads) == 2  # R1
+		assert panel.providerList.items == ["Coseeing"]
+
+		updater.run_latest()
+		assert messages == [UPDATE_FAILED]
+		assert panel.catalogStatusText.label == _text("failed")
+		# R6: the panel-open failure continues the schedule.
+		assert [timer.delay_ms for timer in scheduler.live()] == [2 * 60_000]
+
+		network["get"] = _serve_the_server_catalog
+		scheduler.live()[0].fire()
+		updater.run_latest()
+		assert messages == [UPDATE_FAILED, UPDATED]
+		assert panel.providerList.items == list(f.plugin.catalog.provider_groups)
+		assert panel.catalogStatusText.label == ""
+		assert scheduler.live() == []
+	finally:
+		f.dialogs.catalog_updater.uninstall()
