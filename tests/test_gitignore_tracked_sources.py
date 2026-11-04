@@ -66,3 +66,16 @@ def test_coseeing_auth_storage_module_is_not_ignored(path):
 def test_root_storage_notes_folder_stays_ignored():
 	result = _git("check-ignore", "-q", "--no-index", "--", "storage/notes.md")
 	assert result.returncode == 0, "the repo-root storage/ folder must stay ignored"
+
+
+def test_root_docs_folder_stays_ignored():
+	result = _git("check-ignore", "-q", "--no-index", "--", "docs/notes.md")
+	assert result.returncode == 0, "the repo-root docs/ folder must stay ignored"
+
+
+@pytest.mark.parametrize("path", ["addon/docs/readme.md", "server/app/docs/index.md"])
+def test_a_docs_folder_below_the_root_is_not_ignored(path):
+	# An unanchored ``docs`` rule would hide any nested docs/ folder the same
+	# way the old ``storage`` rule hid the server's storage package.
+	result = _git("check-ignore", "-v", "--no-index", "--", path)
+	assert result.returncode == 1, f"{path} is matched by an ignore rule: {result.stdout}"
