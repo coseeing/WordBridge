@@ -3,11 +3,14 @@ import json
 from pathlib import Path
 
 from lib.catalog import COSEEING_GROUP, LOCAL_CHANNEL, CatalogIssue, is_dropped_issue
+from lib.catalog.fallback import load_catalog
 from lib.catalog.overlay import OverlaySource, has_local_items, load_overlay_catalog, overlay_documents
+from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
 
 
 SERVER_CATALOG = Path(__file__).resolve().parents[1] / "server" / "app" / "setting" / "catalog.json"
+SETTING_DIR = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge" / "setting"
 SENTINEL = {"model": "default", "label": "default", "active": True}
 
 
@@ -91,12 +94,21 @@ def test_the_overlay_document_has_exactly_the_four_keys():
 
 
 def test_no_remote_document_gives_the_sentinel_only():
-	catalog = _load(StaticSource(_bundled()), None)
+	# U1: the bundled file's local entries are never used, even with no
+	# remote document at all -- there is no snapshot to fall back to.
+	bundled = _bundled(
+		providers={"OpenAI": _provider("https://api.openai.com/v1/responses")},
+		models=[{"model": "bundled-local", "provider": "OpenAI", "label": "bundled-local"}],
+	)
 
+	catalog = _load(StaticSource(bundled), None)
+
+	assert catalog.providers == {}
+	assert catalog.models == ()
 	assert catalog.provider_groups == (COSEEING_GROUP,)
 	assert catalog.labels_for(COSEEING_GROUP) == ("default",)
 	assert catalog.degraded is False
-	assert catalog.issues == ()
+	assert [issue.code for issue in catalog.issues] == ["ignored_bundled_local_entries"]
 	assert has_local_items(catalog) is False
 
 
@@ -173,3 +185,23 @@ def test_the_shipped_target_files_overlay_as_section_7_4():
 	]
 	assert catalog.find_selection("gpt-6-luna&OpenAI", COSEEING_GROUP) == (-1, -1)
 	assert catalog.find_selection("gpt-6-luna&OpenAI", LOCAL_CHANNEL) != (-1, -1)
+
+	# AC2: exactly today's local data. Today's catalog is the shipped add-on
+	# file read the way 774560b reads it. (Task 10 empties that file of local
+	# data; the reference then becomes the same server document built
+	# directly, without the overlay.)
+	today = load_catalog(BundledCatalogSource(SETTING_DIR), runnable_providers=SUPPORTED_PROVIDERS)
+
+	def local_items(c):
+		return [
+			(item.corrector_config_id, item.label)
+			for item in c.selectable_items
+			if item.execution_channel == LOCAL_CHANNEL
+		]
+
+	assert local_items(catalog) == local_items(today)
+	assert catalog.providers == today.providers
+	assert [(entry.corrector_config_id, entry.active, entry.price_entry()) for entry in catalog.models] == [
+		(entry.corrector_config_id, entry.active, entry.price_entry()) for entry in today.models
+	]
+	assert any(entry.price_entry() for entry in catalog.models), "reference has no prices -- test would be vacuous"
