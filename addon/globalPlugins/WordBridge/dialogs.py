@@ -101,6 +101,28 @@ def catalog_status_message(status):
 	return None
 
 
+def _stale_list_message():
+	"""The "could not be updated ... the list it saved earlier" line."""
+	return catalog_status_message(
+		catalog_updater.UpdaterStatus(source=catalog_updater.SOURCE_CACHE, fetch=catalog_updater.FETCH_FAILED)
+	)
+
+
+def _status_line_message(status, keep_stale):
+	"""catalog_status_message(), except that `keep_stale` (a same-key refresh
+	while the saved list is in use) keeps the stale-list text for
+	cache/running, which has none of its own. A failing retry then leaves the
+	line as it is instead of hiding and showing it (C24)."""
+	if (
+		keep_stale
+		and status is not None
+		and status.source == catalog_updater.SOURCE_CACHE
+		and status.fetch == catalog_updater.FETCH_RUNNING
+	):
+		return _stale_list_message()
+	return catalog_status_message(status)
+
+
 def _dropped_entries_message(catalog):
 	"""The panel's "N catalog entries could not be loaded" line, or None.
 
@@ -155,7 +177,7 @@ class LLMSettingsPanel(SettingsPanel):
 		# R1: after a failed fetch, opening the panel fetches at once. First,
 		# so the status read below already says "loading". makeSettings runs
 		# once per settings dialog; switching categories does not fetch.
-		catalog_updater.retry_on_panel_open()
+		retried = catalog_updater.retry_on_panel_open()
 		# NVDA's _buildGui has set this already; the live update needs it.
 		self.settingsSizer = settingsSizer
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
@@ -187,7 +209,9 @@ class LLMSettingsPanel(SettingsPanel):
 		droppedMessage = _dropped_entries_message(self.catalog)
 		self.catalogIssuesText = settingsSizerHelper.addItem(wx.StaticText(self, label=droppedMessage or ""))
 		settingsSizer.Show(self.catalogIssuesText, droppedMessage is not None)
-		statusMessage = catalog_status_message(catalog_updater.status())
+		# A fetch R1 started from cache/failed keeps that line (C24).
+		statusMessage = _status_line_message(catalog_updater.status(), keep_stale=retried)
+		self._statusMessage = statusMessage
 		self.catalogStatusText = settingsSizerHelper.addItem(wx.StaticText(self, label=statusMessage or ""))
 		settingsSizer.Show(self.catalogStatusText, statusMessage is not None)
 		self.panelDescription = statusMessage or ""
@@ -352,7 +376,7 @@ class LLMSettingsPanel(SettingsPanel):
 			layoutChanged = False
 			if change is not None:
 				# Never focusable and never inside a drop-down: always now.
-				layoutChanged = self._updateStatusLine()
+				layoutChanged = self._updateStatusLine(change)
 			if rebuild:
 				self._pendingRebuild = False
 				layoutChanged = self._rebuild() or layoutChanged
@@ -445,10 +469,13 @@ class LLMSettingsPanel(SettingsPanel):
 		self.settingsSizer.Show(line, shown)
 		return changed
 
-	def _updateStatusLine(self) -> bool:
+	def _updateStatusLine(self, change) -> bool:
 		"""The status line and the accessible description (R11) from the
-		updater's current status; True when the line appeared or vanished."""
-		message = catalog_status_message(catalog_updater.status())
+		updater's current status; True when the line appeared or vanished.
+		A refresh that keeps the URL key keeps a shown stale-list line (C24)."""
+		keepStale = not change.catalog_changed and self._statusMessage == _stale_list_message()
+		message = _status_line_message(catalog_updater.status(), keep_stale=keepStale)
+		self._statusMessage = message
 		self.panelDescription = message or ""
 		return self._setLine(self.catalogStatusText, message)
 

@@ -183,6 +183,63 @@ def test_a_hidden_panel_retrying_with_the_cache_sends_no_layout_event(monkeypatc
 	assert getattr(panel, "layout_events", 0) == 0
 
 
+def _status_line(panel):
+	return (panel.catalogStatusText.label, panel.settingsSizer.IsShown(panel.catalogStatusText), panel.panelDescription)
+
+
+def test_a_same_key_retry_with_the_cache_keeps_the_stale_line(monkeypatch):
+	# C24: cache/running has no text; a failing retry must not hide and show
+	# the "could not be updated" line (and re-lay out the panel) each time.
+	f = live_fixture(monkeypatch)
+	set_status(f, "cache", "failed")
+	panel = f.make_panel()
+	stale = (_text("stale"), True, _text("stale"))
+	assert _status_line(panel) == stale
+
+	for _ in range(2):
+		set_status(f, "cache", "running")
+		f.fake.emit(change(f))
+		assert _status_line(panel) == stale
+		set_status(f, "cache", "failed")
+		f.fake.emit(change(f, False, "failed"))
+		assert _status_line(panel) == stale
+	assert getattr(panel, "layout_events", 0) == 0
+
+	set_status(f, "cache", "running")
+	f.fake.emit(change(f))
+	set_status(f, "fetched", "succeeded")
+	f.fake.emit(change(f, True, "succeeded"))
+	assert _status_line(panel) == ("", False, "")
+	assert panel.layout_events == 1
+
+
+def test_a_url_change_with_the_cache_hides_the_stale_line(monkeypatch):
+	f = live_fixture(monkeypatch)
+	set_status(f, "cache", "failed")
+	panel = f.make_panel()
+
+	set_status(f, "cache", "running")
+	f.fake.emit(change(f, True))
+
+	assert _status_line(panel) == ("", False, "")
+
+
+@pytest.mark.parametrize("retried, expected", [(True, "stale"), (False, None)], ids=["r1-started", "already-running"])
+def test_the_panel_opens_on_the_stale_line_when_its_fetch_starts_from_a_cache_failure(monkeypatch, retried, expected):
+	f = live_fixture(monkeypatch)
+	set_status(f, "cache", "failed" if retried else "running")
+
+	def retry_on_panel_open():
+		set_status(f, "cache", "running")
+		return retried
+
+	f.fake.retry_on_panel_open = retry_on_panel_open
+	panel = f.make_panel()
+
+	text = _text(expected) if expected else ""
+	assert _status_line(panel) == (text, bool(expected), text)
+
+
 def test_a_destroy_event_from_a_child_keeps_the_listener(monkeypatch):
 	f = live_fixture(monkeypatch)
 	panel = f.make_panel()
