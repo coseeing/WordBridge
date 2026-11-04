@@ -113,7 +113,8 @@ before merge`.
 | C19 | Strings and zh_TW translations as in §20.5, with `# Translators:` comments; terms follow existing WordBridge entries (「模型清單網址」, 「錯誤」) and NVDA's zh_TW (`/workspace/nvda/source/locale/zh_TW/LC_MESSAGES/nvda.po`: 「變更...」, 「測試(&T)...」, 「警告」, 「成功」). | §20.5 |
 | C20 | Interaction with R1/R2/R11: R1 still runs at `makeSettings`; every live update also refreshes the read-only box from the stored URL; while the URL dialog is open a live update never touches the dialog, and nothing is spoken because the settings dialog is not the active window (§11 condition 3). | §20.4 |
 | C22 | A touched pick that a rebuild keeps is saved on OK even when it equals the recomputed D12 baseline (`_keptUserPick`). | §10.3 |
-| C23 | Translator comments are checked per task and by one generic test over `dialogs.py` and `catalog_url_dialog.py` (no `tests/test_translator_comments.py` exists). | §13, §15.4 |
+| C23 | Translator comments are checked per task and by one generic test over `dialogs.py` and `catalog_url_dialog.py` (no `tests/test_translator_comments.py` exists). The generic test follows `xgettext --add-comments=Translators:`: a `# Translators:` comment block (one or more comment lines) must end on the line right before the line holding `_(`. Comments for the existing `dialogs.py` strings are added in a separate comment-only commit; `nvda.po`'s `#.`/`#:` lines are not resynchronised. | §13, §15.4 |
+| C24 | While the cache is in use, a same-key refresh (a timer retry, or the panel-open fetch R1) keeps the line "The model list could not be updated. WordBridge is using the list it saved earlier." shown instead of hiding it for `cache/running`, so a failing retry does not hide and show the line (and re-lay out the panel) each time. A URL change (D8 swap) or a success still clears it. | §10.5 |
 | C21 | A test result applies only to the text it tested: if the field changed while the test ran, the result is still shown but the test status stays "untested". The probe thread is a daemon; its result is dropped if the dialog is already gone. | §20.3 |
 
 ### 4.3 What this changes in the predecessor spec
@@ -222,7 +223,9 @@ and resolved F6 (R10).
   full schedule again if that fetch fails, R10), or after restarting NVDA.
 - **Opening the WordBridge panel after a failure:** a fetch starts at once. The
   status line says the list is loading (RC §13.3 row 3) when no cache is in
-  use. With a cache in use there is no status line while loading, as today.
+  use. With a cache in use the line keeps saying that the list could not be
+  updated and the saved list is used, until the fetch succeeds (C24); a
+  failing retry while the panel is open changes nothing on screen.
 - **A fetch finishes while the panel is open and shown, and the settings
   dialog is the active window:** the Service Provider and model choices, the
   API key box for the selected provider, the status line and the
@@ -556,8 +559,13 @@ Consequences:
   The flag is set only by a rebuild that keeps a touched pick, never by a
   choice event, so D12 behaviour without a live update is unchanged; a rebuild
   that falls back to the baseline clears it. This is what R7 means: a
-  selection the user made in this panel counts. — Decided by orchestrator with
-  the recommended default; user may override before merge
+  selection the user made in this panel counts. The flag is sticky by design
+  (R7): once a rebuild kept a pick, a user who then re-selects the baseline
+  item by hand and presses OK still saves it, and a Coseeing baseline starts
+  the Coseeing sign-in, because that is again a selection made in this panel.
+  A later rebuild that keeps the pick keeps the flag even when the pick equals
+  the new baseline; only a rebuild that falls back clears it. — Decided by
+  orchestrator with the recommended default; user may override before merge
 - When the user's pick vanished, the panel falls back to the baseline and
   counts as untouched. D12 then protects an unresolved stored value again.
 - An untouched panel of an offline local user (F1) moves from Coseeing
@@ -618,6 +626,19 @@ the status line or the dropped-entries line. NVDA's handler re-runs
 defaults that scrolls the view back to the top, so it is not done for an
 update that changed only items.
 
+One notification (status line, rebuild, dropped-entries line) is applied
+inside one `Freeze()`/`Thaw()` and sends **at most one** layout event
+(batch-2 review m2).
+
+**Hidden panel (batch-2 review I1).** The container is shared by every
+category, so a layout event from the hidden WordBridge panel would scroll the
+category the user is viewing back to the top. The event is therefore sent only
+when `self.IsShown()`. Otherwise the panel sets `_layoutPending`, and its
+`onPanelActivated()` override calls `super().onPanelActivated()` and then, if
+a layout is pending, `self.Layout()` and clears the flag. NVDA's
+`_doCategoryChange` re-lays out and re-scrolls the container on the switch
+back anyway (`settingsDialogs.py:730-747`), so no event is needed then.
+
 ### 10.5 Status line and dropped-entries line (C10, C12)
 
 Both `wx.StaticText` lines are created in `makeSettings` at their current
@@ -629,6 +650,17 @@ the label (`SetLabel`) and shows or hides it.
 - Status line: `catalog_status_message(catalog_updater.status())`
   (`dialogs.py:64-92`), unchanged texts (C12). Updated on every
   notification. Its docstring drops "the panel is not refreshed afterwards".
+- **Same-key refresh with the cache in use (C24).** `cache/running` has no
+  text of its own. When the line already shows the `cache/failed` text ("could
+  not be updated … the list it saved earlier") and the refresh keeps the URL
+  key (`change.catalog_changed` is false: a timer retry or R1), the line keeps
+  that text until the fetch ends: a failure leaves it as it is (no hide/show,
+  no layout event per retry), a success hides it. At panel open, when R1 starts
+  a fetch from `cache/failed`, the line opens with that text too. A URL change
+  (the D8 swap, `catalog_changed` true) hides it as before. The text stays true
+  while the fetch runs: the saved list is in use and the last update failed.
+  — Decided by orchestrator with the recommended default; user may override
+  before merge
 - `panelDescription` (R11): set to the same message (or `""`) every time the
   status line is set, at `makeSettings` and on every notification. It is an
   instance attribute shadowing NVDA's class default `""`
@@ -701,7 +733,9 @@ Both strings are in `dialogs.py`, each with a `# Translators:` comment.
 this repository; instead each task that adds strings checks its own comments
 and zh_TW entries, and one generic test checks that every `_(` call in
 `dialogs.py` and `catalog_url_dialog.py` is preceded by a `# Translators:`
-comment (C23). The terms follow the existing
+comment (C23), with `xgettext --add-comments=Translators:` semantics: the
+comment block (possibly several `#` lines) ends on the line right before the
+line holding `_(`. The terms follow the existing
 translations: "模型清單" (`addon/locale/zh_TW/LC_MESSAGES/nvda.po:533`),
 "無法更新模型清單" (`nvda.po:528`), "失敗" (`nvda.po:241`).
 
@@ -953,7 +987,11 @@ network.
     errors in the log.
 11. Low vision: a live update that only changes items does not scroll the
     panel. One that changes the shown account box re-lays out the panel as
-    choosing a provider does.
+    choosing a provider does. With a cache in use and the server stopped, the
+    "could not be updated" line stays put through every retry (C24). With the
+    WordBridge panel open but another category shown and scrolled down, a
+    retry or a new list does not scroll that category (I1); switching back to
+    WordBridge shows it laid out.
 12. Braille: the two messages flash on the display.
 13. Accessible description (R11): with the server stopped and no cache, open
     the NVDA settings dialog on another category and Tab or arrow into the
