@@ -498,3 +498,53 @@ msgstr "協助使用者辨識並修正中文同音錯字。"
 #: buildVars.py:29
 msgid "Update models to GPT-5.6 and Claude 5"
 msgstr "更新至 GPT-5.6 與 Claude 5"
+
+#. Translators: Status line in the WordBridge settings panel when the model list URL is empty.
+#: addon\globalPlugins\WordBridge\dialogs.py:74
+msgid "The model list URL is empty, so only the Coseeing default is available."
+msgstr "模型清單網址為空白，因此只能使用 Coseeing 預設。"
+
+#. Translators: Status line in the WordBridge settings panel when the stored model list URL is not a valid address, so no model list was downloaded.
+#: addon\globalPlugins\WordBridge\dialogs.py:78
+msgid "The model list URL is invalid, so no model list was loaded."
+msgstr "模型清單網址無效，未取得模型清單。"
+
+#. Translators: Status line in the WordBridge settings panel while the model list is still being downloaded.
+#: addon\globalPlugins\WordBridge\dialogs.py:81
+msgid "The model list is still loading. Until it loads, only the Coseeing default is available."
+msgstr "模型清單仍在載入中。載入完成前，只能使用 Coseeing 預設。"
+
+#. Translators: Status line in the WordBridge settings panel when the model list could not be downloaded and no earlier copy is saved.
+#: addon\globalPlugins\WordBridge\dialogs.py:85
+msgid "The model list could not be loaded, so only the Coseeing default is available. See the NVDA log for details."
+msgstr "無法載入模型清單，因此只能使用 Coseeing 預設。詳情請參閱 NVDA 記錄。"
+
+#. Translators: Status line in the WordBridge settings panel when the model list could not be downloaded and the copy saved earlier is used instead.
+#: addon\globalPlugins\WordBridge\dialogs.py:91
+msgid "The model list could not be updated. WordBridge is using the list it saved earlier."
+msgstr "無法更新模型清單。WordBridge 正在使用先前儲存的清單。"
+
+#. Translators: Label of the edit field for the web address the WordBridge model list is downloaded from.
+#: addon\globalPlugins\WordBridge\dialogs.py:300
+msgid "Model list URL:"
+msgstr "模型清單網址："
+
+#. Translators: Tooltip of the model list URL field in the WordBridge settings panel.
+#: addon\globalPlugins\WordBridge\dialogs.py:307
+msgid "The address WordBridge downloads the model list from. Leave it empty to use only the Coseeing default."
+msgstr "WordBridge 下載模型清單的網址。留空則只使用 Coseeing 預設。"
+
+#. Translators: Shown in NVDA's "Invalid configuration" message when the model list URL uses plain http for a host other than this computer.
+#: addon\globalPlugins\WordBridge\dialogs.py:352
+msgid "The model list URL must start with https://. http:// is allowed only for localhost."
+msgstr "模型清單網址必須以 https:// 開頭。只有 localhost 可以使用 http://。"
+
+#. Translators: Shown in NVDA's "Invalid configuration" message when the model list URL is not a complete web address.
+#: addon\globalPlugins\WordBridge\dialogs.py:356
+msgid "Enter a complete web address, such as https://wordbridge.coseeing.org, or leave the field empty."
+msgstr "請輸入完整的網址，例如 https://wordbridge.coseeing.org，或將此欄位留空。"
+
+#. Translators: The option name in NVDA's "Invalid configuration" message; the model list URL label without the colon.
+#: addon\globalPlugins\WordBridge\dialogs.py:361
+msgid "Model list URL"
+msgstr "模型清單網址"

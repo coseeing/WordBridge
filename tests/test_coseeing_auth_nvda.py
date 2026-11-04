@@ -723,6 +723,8 @@ def test_settings_save_preserves_coseeing_refresh_token_and_starts_selected_chan
 	panel.accountTextCtrlMap = {
 		"OpenAI": Control("updated-key"),
 	}
+	# Unchanged, so the save schedules no catalog refresh.
+	panel.catalogUrlCtrl = Control("https://wordbridge.coseeing.org")
 
 	panel.onSave()
 	assert config.conf["WordBridge"]["settings"]["execution_channel"] == "Coseeing"
@@ -918,6 +920,9 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 		def SetItems(self, items):
 			self.items = items
 
+		def SetFocus(self):
+			self.focused = True
+
 	class Sizer:
 		def Show(self, item, recursive=True):
 			pass
@@ -926,6 +931,9 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 			pass
 
 	helper_calls = []
+	added_controls = []
+	# Read by tests that pin tab order (tests/test_catalog_settings_panel.py).
+	plugin.panel_added_controls = added_controls
 
 	class Helper:
 		def __init__(self, owner, sizer=None, **kwargs):
@@ -933,9 +941,13 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 
 		def addLabeledControl(self, label, control_type, **kwargs):
 			helper_calls.append((label, control_type, kwargs))
-			return control_type(None, **kwargs)
+			control = control_type(None, **kwargs)
+			added_controls.append(control)
+			return control
 
 		def addItem(self, item):
+			# Every control in creation order (tab order), labeled or not.
+			added_controls.append(item)
 			return item
 
 	static_box_captions = []

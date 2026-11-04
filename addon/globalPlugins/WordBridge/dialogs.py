@@ -11,9 +11,11 @@ from gui import guiHelper, nvdaControls
 from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
 
+from . import catalog_updater
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.catalog import COSEEING_GROUP, is_dropped_issue, registry
 from .lib.catalog.fallback import SENTINEL_ID
+from .lib.catalog.remote import validate_catalog_url
 from .lib.catalog.selection import SelectionState
 from .lib.coseeing_auth import (
 	clean_coseeing_auth,
@@ -57,6 +59,44 @@ SOUND_EFFECTS_URL = "https://www.zapsplat.com/music/medium-underwater-movement-w
 MODEL_LABEL_TRANSLATIONS = {
 	SENTINEL_ID: _("default"),
 }
+
+
+def catalog_status_message(status):
+	"""The panel's status line for an updater status, or None (spec 13.3).
+
+	It explains why the Service Provider list below may be short. It reflects
+	the status when the panel opens; the panel is not refreshed afterwards.
+	"""
+	if status is None:
+		return None
+	if status.fetch == catalog_updater.FETCH_OFF:
+		# Translators: Status line in the WordBridge settings panel when the model list URL is empty.
+		return _("The model list URL is empty, so only the Coseeing default is available.")
+	if status.fetch == catalog_updater.FETCH_INVALID:
+		# Translators: Status line in the WordBridge settings panel when the stored model list URL is not a valid
+		# address, so no model list was downloaded.
+		return _("The model list URL is invalid, so no model list was loaded.")
+	if status.source == catalog_updater.SOURCE_NONE and status.fetch == catalog_updater.FETCH_RUNNING:
+		# Translators: Status line in the WordBridge settings panel while the model list is still being downloaded.
+		return _("The model list is still loading. Until it loads, only the Coseeing default is available.")
+	if status.source == catalog_updater.SOURCE_NONE and status.fetch == catalog_updater.FETCH_FAILED:
+		# Translators: Status line in the WordBridge settings panel when the model list could not be downloaded
+		# and no earlier copy is saved.
+		return _(
+			"The model list could not be loaded, so only the Coseeing default is available. See the NVDA log for details."
+		)
+	if status.source == catalog_updater.SOURCE_CACHE and status.fetch == catalog_updater.FETCH_FAILED:
+		# Translators: Status line in the WordBridge settings panel when the model list could not be downloaded
+		# and the copy saved earlier is used instead.
+		return _("The model list could not be updated. WordBridge is using the list it saved earlier.")
+	return None
+
+
+def _url_identity(text):
+	"""What "the URL changed" compares: the normalised key, or for an invalid
+	value the text itself (an invalid and an empty URL both have no key)."""
+	check = validate_catalog_url(text)
+	return check.key if check.error is None else ("invalid", check.url)
 
 
 def _display_labels(catalog, provider_group):
@@ -129,6 +169,13 @@ class LLMSettingsPanel(SettingsPanel):
 					).format(count=droppedIssueCount),
 				)
 			)
+
+		# Explains a short Service Provider list (no model list loaded yet,
+		# or not at all). Not in the Tab order; NVDA+B reads it.
+		self.catalogStatusText = None
+		statusMessage = catalog_status_message(catalog_updater.status())
+		if statusMessage is not None:
+			self.catalogStatusText = settingsSizerHelper.addItem(wx.StaticText(self, label=statusMessage))
 
 		# For selecting provider
 		providerLabelText = _("Service Provider:")
@@ -247,6 +294,19 @@ class LLMSettingsPanel(SettingsPanel):
 		)
 		self.soundEffectsCtrl.Bind(wx.EVT_BUTTON, self.onSoundEffects)
 
+		# The last control, so every existing control keeps its Tab position.
+		self.catalogUrlCtrl = settingsSizerHelper.addLabeledControl(
+			# Translators: Label of the edit field for the web address the WordBridge model list is downloaded from.
+			_("Model list URL:"),
+			wx.TextCtrl,
+			size=(self.scaleSize(375), -1),
+			value=self.settings.catalog_url(),
+		)
+		self.catalogUrlCtrl.SetToolTip(wx.ToolTip(
+			# Translators: Tooltip of the model list URL field in the WordBridge settings panel.
+			_("The address WordBridge downloads the model list from. Leave it empty to use only the Coseeing default.")
+		))
+
 		self.settingsSizer = settingsSizer
 
 	def _refreshModelChoice(self):
@@ -283,6 +343,28 @@ class LLMSettingsPanel(SettingsPanel):
 			os.startfile(SOUND_EFFECTS_URL)
 		wx.CallAfter(openfile)
 
+	def isValid(self):
+		check = validate_catalog_url(self.catalogUrlCtrl.GetValue())
+		if check.error is not None:
+			if check.error == "insecure_scheme":
+				# Translators: Shown in NVDA's "Invalid configuration" message when the model list URL uses plain
+				# http for a host other than this computer.
+				message = _("The model list URL must start with https://. http:// is allowed only for localhost.")
+			else:
+				# Translators: Shown in NVDA's "Invalid configuration" message when the model list URL is not a
+				# complete web address.
+				message = _("Enter a complete web address, such as https://wordbridge.coseeing.org, or leave the field empty.")
+			self._validationErrorMessageBox(
+				message=message,
+				# Translators: The option name in NVDA's "Invalid configuration" message; the model list URL label
+				# without the colon.
+				option=_("Model list URL"),
+			)
+			self.catalogUrlCtrl.SetFocus()
+			return False
+		parent = getattr(super(), "isValid", None)
+		return parent() if parent is not None else True
+
 	def onSave(self):
 		self.selection.provider_group_index = self.providerList.GetSelection()
 		self.selection.model_index = self.modelList.GetSelection()
@@ -301,6 +383,14 @@ class LLMSettingsPanel(SettingsPanel):
 
 		for group, control in self.accountTextCtrlMap.items():
 			self.settings.save_api_key(group, control.GetValue())
+
+		# Saved as typed (stripped), and only when it really changed, so an
+		# untouched default never lands in nvda.ini. The refresh is deferred
+		# past the dialog's save sequence, for OK and Apply alike.
+		catalogUrl = self.catalogUrlCtrl.GetValue().strip()
+		if _url_identity(catalogUrl) != _url_identity(self.settings.catalog_url()):
+			self.settings.save_catalog_url(catalogUrl)
+			wx.CallAfter(catalog_updater.request_refresh, catalogUrl)
 
 		wx.CallAfter(lambda: start_coseeing_auth(selected_item.execution_channel, silent=False))
 
