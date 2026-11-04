@@ -238,6 +238,9 @@ def test_the_panel_opens_on_the_stale_line_when_its_fetch_starts_from_a_cache_fa
 
 	text = _text(expected) if expected else ""
 	assert _status_line(panel) == (text, bool(expected), text)
+	# Only a line already shown is kept: a hidden one stays hidden.
+	f.fake.emit(change(f))
+	assert _status_line(panel) == (text, bool(expected), text)
 
 
 def test_a_destroy_event_from_a_child_keeps_the_listener(monkeypatch):
