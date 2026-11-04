@@ -47,9 +47,9 @@ from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .configManager import CorrectorTaskConfig, load_corrector_task_config
 from . import catalog_updater
 from .catalog_updater import CatalogUpdater
-from .lib.catalog import LOCAL_CHANNEL, registry
+from .lib.catalog import COSEEING_GROUP, LOCAL_CHANNEL, registry
 from .lib.catalog.cache import CatalogCache
-from .lib.catalog.fallback import load_catalog
+from .lib.catalog.fallback import SENTINEL_ID, load_catalog
 from .lib.catalog.remote import DEFAULT_CATALOG_URL
 from .lib.catalog.sources import BundledCatalogSource
 from .lib.llm import SUPPORTED_PROVIDERS
@@ -215,7 +215,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._log_catalog_issues(self.catalog)
 		self.correctorTaskConfig = self._load_corrector_task_config()
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(LLMSettingsPanel)
+		self._catalog_choice_pending = False
 		_, channel = self.settings.corrector_selection()
+		if self._needs_catalog_choice():
+			# U7: the user chose a local model and there is no model list to
+			# run it from. Only a Yes in the switch dialog moves them to
+			# Coseeing, so no Coseeing sign-in starts on their behalf.
+			channel = LOCAL_CHANNEL
 		wx.CallAfter(self._start_coseeing_auth, channel)
 		# Same deferral as the sign-in: it runs once the wx main loop starts
 		# dispatching, which is after NVDA has finished starting -- and, unlike
@@ -278,6 +284,62 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if self._shutdown.is_set():
 			return
 		self._catalog_updater.refresh(self.settings.catalog_url())
+
+	def _needs_catalog_choice(self):
+		"""A stored local selection while no remote or cached catalog is loaded (U7).
+
+		Keyed on the raw stored channel: normalize_selection() would resolve
+		that selection to the Coseeing default, which is exactly what must not
+		happen without the user's say-so.
+		"""
+		status = catalog_updater.status()
+		if status is None:
+			# No updater installed (the plugin is not running).
+			return False
+		_, stored_channel = self.settings.stored_corrector_selection()
+		return stored_channel == LOCAL_CHANNEL and status.source == catalog_updater.SOURCE_NONE
+
+	def _ask_switch_to_coseeing(self, text):
+		"""Main thread. Ask whether to switch a local user to the Coseeing default (U7).
+
+		No is focused and is the Escape answer, so nothing is sent anywhere
+		unless the user explicitly says Yes. The information comes first in
+		the message, so NVDA reads it before the question when the dialog opens.
+		"""
+		try:
+			if self._shutdown.is_set():
+				return
+			dialog = gui.message.MessageDialog(
+				gui.mainFrame,
+				# Translators: Message of a Yes/No dialog shown when the user starts a correction with a model
+				# that uses their own API key, but the model list has not been downloaded. Yes switches the
+				# setting to the Coseeing default and sends the text to Coseeing; No sends nothing.
+				_(
+					"The model list is not available yet, so the model you selected cannot be used.\n\n"
+					"Switch to the Coseeing default and correct this text with Coseeing? "
+					"Your WordBridge setting will be changed to the Coseeing default."
+				),
+				_("WordBridge"),
+				buttons=gui.message.DefaultButtonSet.YES_NO,
+			)
+			dialog.setDefaultFocus(gui.message.ReturnCode.NO)
+			dialog.SetEscapeId(gui.message.ReturnCode.NO)
+			answer = dialog.ShowModal()
+		finally:
+			self._catalog_choice_pending = False
+		# ShowModal() runs a nested event loop, so terminate() may have run.
+		if self._shutdown.is_set():
+			return
+		if answer == gui.message.ReturnCode.YES:
+			self.settings.save_corrector_selection(SENTINEL_ID, COSEEING_GROUP)
+			self.startCorrection(text)
+			return
+		ui.message(self._catalog_choice_cancel_message())
+
+	def _catalog_choice_cancel_message(self):
+		# Translators: Spoken after the user answers No (or presses Escape) in the dialog asking whether to switch
+		# to the Coseeing default because the model list is not available.
+		return _("The text was not sent. Your model selection was not changed.")
 
 	def _install_catalog(self, catalog):
 		# Main thread only (the updater posts here through _run_on_ui), so the
@@ -490,6 +552,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# against one catalog and looking it up in another could make
 		# get_model() miss an id that was just resolved.
 		catalog = registry.current()
+		if self._needs_catalog_choice():
+			# script_correction() asks first; this only guards a correction that
+			# reached here some other way. A stored local model must never be
+			# resolved to Coseeing behind the user's back (U7).
+			self._notify(self._catalog_choice_cancel_message())
+			return
 		corrector_config_id, execution_channel = self.settings.corrector_selection(catalog=catalog)
 
 		language = self.settings.language()
@@ -703,6 +771,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		text = self.getSelectedText()
 		if not self.isTextValid(text):
+			return
+		if self._needs_catalog_choice():
+			if not self._catalog_choice_pending:
+				self._catalog_choice_pending = True
+				wx.CallAfter(self._ask_switch_to_coseeing, text)
 			return
 		self.startCorrection(text)
 

@@ -548,3 +548,22 @@ msgstr "請輸入完整的網址，例如 https://wordbridge.coseeing.org，或�
 #: addon\globalPlugins\WordBridge\dialogs.py:361
 msgid "Model list URL"
 msgstr "模型清單網址"
+
+#. Translators: Message of a Yes/No dialog shown when the user starts a correction with a model that uses their own API key, but the model list has not been downloaded. Yes switches the setting to the Coseeing default and sends the text to Coseeing; No sends nothing.
+#: addon\globalPlugins\WordBridge\__init__.py:318
+msgid ""
+"The model list is not available yet, so the model you selected cannot be "
+"used.\n"
+"\n"
+"Switch to the Coseeing default and correct this text with Coseeing? Your "
+"WordBridge setting will be changed to the Coseeing default."
+msgstr ""
+"模型清單尚未取得，因此無法使用您選擇的模型。\n"
+"\n"
+"要改用 Coseeing 預設，並使用 Coseeing 校正這段文字嗎？您的 WordBridge 設定會改為 "
+"Coseeing 預設。"
+
+#. Translators: Spoken after the user answers No (or presses Escape) in the dialog asking whether to switch to the Coseeing default because the model list is not available.
+#: addon\globalPlugins\WordBridge\__init__.py:342
+msgid "The text was not sent. Your model selection was not changed."
+msgstr "未傳送文字，模型選擇維持不變。"
