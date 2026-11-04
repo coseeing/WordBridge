@@ -7,6 +7,8 @@ from test_helpers import (
 
 PROVIDER_NAME = "Anthropic"
 MODELS_TO_TEST = [
+	"claude-sonnet-5-5",
+	"claude-haiku-5-5",
 	"claude-opus-5",
 	"claude-sonnet-5",
 ]

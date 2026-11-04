@@ -4,7 +4,7 @@ from .model import CatalogIssue
 
 SENTINEL_ID = "default"
 # Not translated, like every other catalog label. See the note in sources.py.
-SENTINEL_LABEL = "Coseeing default"
+SENTINEL_LABEL = "default"
 
 # One entry, the same shape as any other document, parsed by the same
 # build_catalog(). The id is a sentinel the Coseeing server resolves to its

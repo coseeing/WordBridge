@@ -32,7 +32,7 @@ class CorrectorCatalogTests(unittest.TestCase):
 		catalog = shipped_catalog()
 		self.assertEqual(
 			catalog.labels_for("Anthropic"),
-			("claude-opus-5.5", "claude-opus-5", "claude-sonnet-5"),
+			("claude-opus-5.5", "claude-sonnet-5.5", "claude-haiku-5.5", "claude-opus-5", "claude-sonnet-5"),
 		)
 		self.assertEqual(
 			catalog.labels_for("OpenAI"),

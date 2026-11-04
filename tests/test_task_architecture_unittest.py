@@ -45,8 +45,8 @@ class TaskArchitectureTests(unittest.TestCase):
 		document, issues = BundledCatalogSource(ADDON_PATH / "setting").load()
 		catalog = build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
 
-		self.assertEqual(len(catalog.models), 15)
-		self.assertEqual(len({entry.corrector_config_id for entry in catalog.models}), 15)
+		self.assertEqual(len(catalog.models), 17)
+		self.assertEqual(len({entry.corrector_config_id for entry in catalog.models}), 17)
 
 	def test_plugin_local_correction_uses_endpoint_and_task_configs_with_unchanged_runner_interface(self):
 		"""Catches task-config reads, a local-routing regression, and provider/price
