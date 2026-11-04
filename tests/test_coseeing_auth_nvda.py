@@ -429,9 +429,11 @@ def test_global_plugin_starts_normalized_coseeing_auth_and_guards_queued_callbac
 	callback, args = queued.pop(0)
 	queued.clear()
 	callback(*args)
-	assert auth_calls == []
+	# U6: a stored Coseeing selection whose id Coseeing no longer offers
+	# (gemini is local-only) stays on Coseeing as the default, so it signs in.
+	assert auth_calls == ["Coseeing"]
 	instance.terminate()
-	assert auth_calls == ["shutdown"]
+	assert auth_calls == ["Coseeing", "shutdown"]
 
 	# The Coseeing group offers only the sentinel now (U8).
 	settings["corrector_config_id"] = "default"
@@ -440,15 +442,15 @@ def test_global_plugin_starts_normalized_coseeing_auth_and_guards_queued_callbac
 	queued.clear()
 	instance.terminate()
 	callback(*args)
-	assert auth_calls == ["shutdown", "shutdown"]
+	assert auth_calls == ["Coseeing", "shutdown", "shutdown"]
 
 	instance = plugin.GlobalPlugin()
 	callback, args = queued.pop(0)
 	queued.clear()
 	callback(*args)
-	assert auth_calls == ["shutdown", "shutdown", "Coseeing"]
+	assert auth_calls == ["Coseeing", "shutdown", "shutdown", "Coseeing"]
 	instance.terminate()
-	assert auth_calls == ["shutdown", "shutdown", "Coseeing", "shutdown"]
+	assert auth_calls == ["Coseeing", "shutdown", "shutdown", "Coseeing", "shutdown"]
 	assert gui.settingsDialogs.NVDASettingsDialog.categoryClasses == []
 	assert config.conf["WordBridge"]["settings"]["execution_channel"] == "Coseeing"
 

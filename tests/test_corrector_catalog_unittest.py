@@ -53,18 +53,33 @@ class CorrectorCatalogTests(unittest.TestCase):
 		self.assertEqual(groups[-1], COSEEING_GROUP)
 		self.assertEqual(sorted(groups[:-1]), list(groups[:-1]))
 
-	def test_normalize_selection_falls_back_invalid_coseeing_channel_to_local(self):
+	def test_a_stored_coseeing_id_offered_only_locally_stays_on_coseeing(self):
+		# U6 (OQ2 -> B, decided by the user 2026-11-04): the user keeps the
+		# channel -- and the account and billing -- they chose. Their text
+		# must not move to a local provider and their personal key.
 		from lib.catalog.selection import normalize_selection
 
 		catalog = shipped_catalog()
-		config_id, execution_channel = normalize_selection(
-			catalog,
-			"gemini-3.1-pro-preview&Google",
-			"Coseeing",
-		)
+		for stored_id in ("gpt-6-luna&OpenAI", "deepseek-flash&DeepSeek", "gemini-3.1-pro-preview&Google"):
+			with self.subTest(stored_id=stored_id):
+				self.assertNotEqual(catalog.find_selection(stored_id, "local"), (-1, -1))
+				self.assertEqual(
+					normalize_selection(catalog, stored_id, "Coseeing"),
+					("default", "Coseeing"),
+				)
 
-		self.assertEqual(config_id, "gemini-3.1-pro-preview&Google")
-		self.assertEqual(execution_channel, "local")
+	def test_a_stored_coseeing_id_offered_on_coseeing_is_kept(self):
+		from lib.catalog.selection import normalize_selection
+
+		self.assertEqual(normalize_selection(shipped_catalog(), "default", "Coseeing"), ("default", "Coseeing"))
+
+	def test_a_stored_local_id_still_resolves_locally(self):
+		from lib.catalog.selection import normalize_selection
+
+		self.assertEqual(
+			normalize_selection(shipped_catalog(), "gpt-6-luna&OpenAI", "local"),
+			("gpt-6-luna&OpenAI", "local"),
+		)
 
 	def test_normalize_selection_falls_back_unknown_channel_to_local(self):
 		from lib.catalog.selection import normalize_selection

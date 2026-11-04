@@ -13,12 +13,20 @@ def normalize_selection(catalog, corrector_config_id: str, execution_channel: st
 	Anything unresolvable becomes the catalog's default, which is why an
 	empty stored value -- what a fresh install has, now that the config spec
 	defaults are static -- lands on the default too.
+
+	A stored Coseeing selection never moves to the local channel, even when
+	the id is offered there (U6, decided by the user 2026-11-04): the user
+	keeps the channel, account and billing they chose, so it resolves to the
+	catalog default (the Coseeing sentinel) instead. Released add-ons offered
+	gpt-6-luna and deepseek-flash on Coseeing; those now exist only locally.
 	"""
 	on_coseeing = catalog.find_selection(corrector_config_id, COSEEING_GROUP) != (-1, -1)
 	on_local = catalog.find_selection(corrector_config_id, LOCAL_CHANNEL) != (-1, -1)
 
-	if execution_channel == COSEEING_GROUP and on_coseeing:
-		return (corrector_config_id, COSEEING_GROUP)
+	if execution_channel == COSEEING_GROUP:
+		if on_coseeing:
+			return (corrector_config_id, COSEEING_GROUP)
+		return catalog.default_selection()
 	if on_local:
 		return (corrector_config_id, LOCAL_CHANNEL)
 	if on_coseeing:

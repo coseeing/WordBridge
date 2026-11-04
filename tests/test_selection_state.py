@@ -46,8 +46,17 @@ def test_an_empty_id_falls_back_to_the_catalog_default():
 	assert normalize_selection(catalog(), "", "") == ("default", COSEEING_GROUP)
 
 
-def test_a_channel_the_entry_does_not_offer_falls_back_to_the_other_one():
-	assert normalize_selection(catalog(), "gpt-x&OpenAI", COSEEING_GROUP) == ("gpt-x&OpenAI", "local")
+def test_a_coseeing_selection_the_coseeing_channel_does_not_offer_stays_on_coseeing():
+	# U6 (OQ2 -> B): never moved onto the local channel and the user's own
+	# API key; it resolves to the Coseeing default instead.
+	assert normalize_selection(catalog(), "gpt-x&OpenAI", COSEEING_GROUP) == ("default", COSEEING_GROUP)
+
+
+def test_restore_shows_the_coseeing_default_for_such_a_selection():
+	state = SelectionState.restore(catalog(), "gpt-x&OpenAI", COSEEING_GROUP)
+
+	assert state.provider_group == COSEEING_GROUP
+	assert state.current_item().corrector_config_id == "default"
 
 
 def test_a_coseeing_only_entry_asked_for_locally_stays_on_coseeing():
