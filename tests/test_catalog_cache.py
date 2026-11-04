@@ -32,6 +32,16 @@ def test_round_trip(tmp_path):
 	assert stored == {"cache_version": CACHE_VERSION, "url_key": KEY, "document": DOCUMENT}
 
 
+def test_a_lone_surrogate_round_trips(tmp_path):
+	# json.loads() turns a \ud800 escape in the payload into a lone
+	# surrogate, which strict UTF-8 cannot encode.
+	document = json.loads('{"schema_version": 1, "providers": {}, "models": [{"model": "m", "label": "\\ud800x"}]}')
+	cache = _cache(tmp_path)
+
+	assert cache.store(KEY, document) == ()
+	assert cache.load(KEY) == (document, ())
+
+
 def test_a_missing_file_is_no_cache_and_no_issue(tmp_path):
 	assert _cache(tmp_path).load(KEY) == (None, ())
 

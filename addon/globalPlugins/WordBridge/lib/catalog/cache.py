@@ -74,11 +74,14 @@ class CatalogCache:
 			return ()
 		temporary = None
 		try:
+			# surrogatepass: a "\ud800" escape in the payload is a lone
+			# surrogate after json.loads(), which strict UTF-8 cannot encode;
+			# json.loads(bytes) in load() decodes with surrogatepass as well.
 			body = json.dumps(
 				{"cache_version": CACHE_VERSION, "url_key": url_key, "document": document},
 				ensure_ascii=False,
 				separators=(",", ":"),
-			).encode("utf8")
+			).encode("utf8", "surrogatepass")
 			if len(body) > MAX_CACHE_BYTES:
 				return (CatalogIssue("cache_write_failed", _LOCATION, "file would be larger than the limit"),)
 			self.path.parent.mkdir(parents=True, exist_ok=True)
