@@ -80,6 +80,7 @@ invisible until the panel is closed and reopened.
 | R8 | **OQ1 → C.** "Model list update failed." is spoken only when a user-triggered fetch fails: the panel-open retry (R1), or a URL change saved in the settings panel. Failures of background retries (and of the startup fetch) are not spoken; they only update the status line. "Model list updated." is announced per R3/C11 whenever an in-place update happens while the panel is open and active, whatever started the fetch (C11's conditions are kept). — Decided by the user (2026-11-04) |
 | R9 | **OQ2 → A.** The U7 / RC §12.5 dialog does not trigger a fetch; its behaviour is unchanged. — Decided by the user (2026-11-04) |
 | R10 | **F6 → a URL change resets the backoff.** A saved URL change resets the retry step to the first wait (1 minute). Even if background retrying had already stopped, a failure for the new URL schedules the full 1, 2, 4, 8, 16, 32 minute sequence again. A panel-open (R1) fetch that fails still continues the existing interval and, if retrying had stopped, schedules nothing (R6 now applies to panel-open only). — Decided by the user (2026-11-04) |
+| R11 | **Status line as the panel's accessible description** (the coordinator's message called it "R7"; renumbered because R7 is the C8 confirmation above). Whenever the status line is set — in `makeSettings` and on every live update (R2) — the panel's `panelDescription` is set to the same status message, or to `""` (the class default) when there is none. NVDA's `SettingsPanelAccessible.GetDescription()` returns `Window.panelDescription` on each request (`/workspace/nvda/source/gui/settingsDialogs.py:386`, `:504-505`; attached at `:682`), so the status in force is what NVDA reports the next time focus enters the panel. The visible StaticText stays. A description change forces no announcement beyond R3/C11 and R8. — Decided by the user (2026-11-04) |
 
 ### 4.2 Decided by orchestrator with the recommended default; user may override before merge
 
@@ -583,6 +584,11 @@ the label (`SetLabel`) and shows or hides it.
 - Status line: `catalog_status_message(catalog_updater.status())`
   (`dialogs.py:64-92`), unchanged texts (C12). Updated on every
   notification. Its docstring drops "the panel is not refreshed afterwards".
+- `panelDescription` (R11): set to the same message (or `""`) every time the
+  status line is set, at `makeSettings` and on every notification. It is an
+  instance attribute shadowing NVDA's class default `""`
+  (`/workspace/nvda/source/gui/settingsDialogs.py:386`). Nothing is spoken
+  because it changed.
 - Dropped-entries line: the same count and the same two strings as
   `dialogs.py:166-185`, recomputed for the new catalog at each rebuild.
 
@@ -795,6 +801,10 @@ active-dialog check are seams the tests set.
   a timer-retry or startup failure, hidden category, inactive dialog, panel
   destroyed. Two speakable outcomes behind one deferral → only the latest is
   spoken; a background failure behind a deferral leaves the pending one.
+- **Accessible description (R11):** after `makeSettings`, `panelDescription`
+  equals the status text for each RC §13.3 status kind, and `""` when there is
+  none. It follows live updates: none → a status → none → a status again. No
+  `ui.message` is caused by a description change alone.
 - **Lifecycle:** a destroy event from a child does not unregister; one from
   the panel does, and stops the poll. A notification after the panel's object
   is gone unregisters and does nothing else.
@@ -876,6 +886,12 @@ network.
     panel. One that changes the shown account box re-lays out the panel as
     choosing a provider does.
 12. Braille: the two messages flash on the display.
+13. Accessible description (R11): with the server stopped and no cache, open
+    the NVDA settings dialog on another category and Tab or arrow into the
+    WordBridge category and its panel: NVDA speaks the status line as the
+    panel's description. After a live update changes the status (start the
+    server), leaving and re-entering the panel speaks the new description, or
+    none once the list loaded normally.
 
 ## 16. Open questions (answered by the user, 2026-11-04)
 
@@ -971,5 +987,7 @@ msgfmt --check -o /dev/null addon/locale/zh_TW/LC_MESSAGES/nvda.po
    §11's conditions, at the default priority; a failure only for a
    user-initiated fetch (R8).
 8. No log line contains a URL path or query, or exception text.
+8a. The panel's `panelDescription` always equals the status line's text (or
+   `""` without one), at open and after every live update (R11).
 9. The full non-integration suites are green at every commit. prek passes.
    `git diff --check` is clean. `msgfmt --check` passes.
