@@ -111,6 +111,8 @@ before merge`.
 | C18 | An empty URL stays allowed (remote catalog off). The read-only box then shows "No model list URL" (zh_TW 「未設定模型清單網址」). "Test..." is enabled only when the field has non-blank text. The group stays the last item of the panel (RC D16), box first, then the button. | §20.1 |
 | C19 | Strings and zh_TW translations as in §20.5, with `# Translators:` comments; terms follow existing WordBridge entries (「模型清單網址」, 「錯誤」) and NVDA's zh_TW (`/workspace/nvda/source/locale/zh_TW/LC_MESSAGES/nvda.po`: 「變更...」, 「測試(&T)...」, 「警告」, 「成功」). | §20.5 |
 | C20 | Interaction with R1/R2/R11: R1 still runs at `makeSettings`; every live update also refreshes the read-only box from the stored URL; while the URL dialog is open a live update never touches the dialog, and nothing is spoken because the settings dialog is not the active window (§11 condition 3). | §20.4 |
+| C22 | A touched pick that a rebuild keeps is saved on OK even when it equals the recomputed D12 baseline (`_keptUserPick`). | §10.3 |
+| C23 | Translator comments are checked per task and by one generic test over `dialogs.py` and `catalog_url_dialog.py` (no `tests/test_translator_comments.py` exists). | §13, §15.4 |
 | C21 | A test result applies only to the text it tested: if the field changed while the test ran, the result is still shown but the test status stays "untested". The probe thread is a daemon; its result is dropped if the dialog is already gone. | §20.3 |
 
 ### 4.3 What this changes in the predecessor spec
@@ -539,6 +541,19 @@ Consequences:
 
 - A kept user pick has indices different from the new baseline unless it
   equals it, so `onSave` saves it, as before the update.
+- **A kept user pick that equals the new baseline (C22).** Example: stored
+  `("X&OpenAI", "local")`, the cache offers X, the user explicitly picks
+  Coseeing "default" (touched), then a new list arrives without X. The pick is
+  kept, but the recomputed baseline is also Coseeing "default", so by indices
+  alone the panel would look untouched and OK would keep X (and start no
+  Coseeing sign-in). When `_rebuild` keeps a touched pick it therefore sets
+  `_keptUserPick = True`, and `onSave` saves when
+  `_storedSelectionResolved or chosen != _restoredIndices or _keptUserPick`.
+  The flag is set only by a rebuild that keeps a touched pick, never by a
+  choice event, so D12 behaviour without a live update is unchanged; a rebuild
+  that falls back to the baseline clears it. This is what R7 means: a
+  selection the user made in this panel counts. — Decided by orchestrator with
+  the recommended default; user may override before merge
 - When the user's pick vanished, the panel falls back to the baseline and
   counts as untouched. D12 then protects an unresolved stored value again.
 - An untouched panel of an offline local user (F1) moves from Coseeing
@@ -658,8 +673,12 @@ stopped, plus R1 lines).
 
 ## 13. New strings and suggested zh_TW translations
 
-Both strings are in `dialogs.py`, each with a `# Translators:` comment
-(`tests/test_translator_comments.py`). The terms follow the existing
+Both strings are in `dialogs.py`, each with a `# Translators:` comment.
+`tests/test_translator_comments.py`, named here originally, does not exist in
+this repository; instead each task that adds strings checks its own comments
+and zh_TW entries, and one generic test checks that every `_(` call in
+`dialogs.py` and `catalog_url_dialog.py` is preceded by a `# Translators:`
+comment (C23). The terms follow the existing
 translations: "模型清單" (`addon/locale/zh_TW/LC_MESSAGES/nvda.po:533`),
 "無法更新模型清單" (`nvda.po:528`), "失敗" (`nvda.po:241`).
 
@@ -841,8 +860,9 @@ active-dialog check are seams the tests set.
 
 ### 15.4 Translations
 
-`nvda.po` gains the two entries of §13. `msgfmt --check` passes.
-`tests/test_translator_comments.py` passes.
+`nvda.po` gains the two entries of §13 and those of §20.5. `msgfmt --check`
+passes. The per-task string checks and the generic `# Translators:` check of
+C23 pass.
 
 ### 15.5 What is not covered on Linux
 
