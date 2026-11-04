@@ -104,10 +104,19 @@ class SettingsRepository:
 		self._settings["typo_correction_mode"] = value
 
 	def api_key(self, provider: str) -> str:
+		"""The provider's key for a correction; an unseen provider gets an
+		empty entry. The settings panel reads through stored_api_key()."""
 		keys = self._settings["api_key"]
 		if provider not in keys:
 			keys[provider] = ""
 		return keys[provider]
+
+	def stored_api_key(self, provider: str) -> str:
+		"""The stored key, or "" when there is none; unlike api_key() it never
+		writes. The settings panel shows a box for every supported provider
+		(retry spec R13) and must not add empty entries for unused ones."""
+		keys = self._settings["api_key"]
+		return keys[provider] if provider in keys else ""
 
 	def save_api_key(self, provider: str, value: str) -> None:
 		self._settings["api_key"][provider] = value

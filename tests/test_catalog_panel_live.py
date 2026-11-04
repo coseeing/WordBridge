@@ -345,35 +345,160 @@ def test_choices_are_replaced_only_when_their_labels_change(monkeypatch):
 	assert panel.providerList.set_items_calls == 1
 
 
-# --- Task 10: account boxes on demand (C9) and the dropped-entries line --
-
-def _windows_as_children(f, panel):
-	"""The stub panel's GetChildren(): every window created so far."""
-	panel.GetChildren = lambda: list(f.plugin.panel_added_controls)
-
+# --- Task 10 (R13): account boxes up front, and the dropped-entries line --
 
 def _shown_boxes(panel):
 	return [group for group, box in panel.accountGroupSizerMap.items() if panel.settingsSizer.IsShown(box)]
 
 
-def test_a_new_provider_gets_its_box_after_the_model_choice_in_tab_order(monkeypatch):
+def _account_groups(f):
+	return [*sorted(f.plugin.SUPPORTED_PROVIDERS), "Coseeing"]
+
+
+@pytest.mark.parametrize("catalog", [_bundled_only, lambda f: f.plugin.catalog], ids=["bundled", "shipped"])
+def test_every_supported_provider_has_a_box_in_a_fixed_order(monkeypatch, catalog):
+	# R13: the boxes do not depend on the catalog, so no live update ever
+	# needs to create one.
 	f = live_fixture(monkeypatch)
+	f.box["catalog"] = catalog(f)
+
+	panel = f.make_panel()
+
+	groups = _account_groups(f)
+	assert list(panel.accountGroupSizerMap) == groups
+	assert set(panel.accountTextCtrlMap) == set(groups) - {"Coseeing"}
+	boxes = [child for child in panel.settingsSizer.children if any(child is box for box in panel.accountGroupSizerMap.values())]
+	assert boxes == [panel.accountGroupSizerMap[group] for group in groups]
+	assert _shown_boxes(panel) == ["Coseeing"]
+
+
+def test_only_the_selected_groups_box_is_shown(monkeypatch):
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
+
+	panel = f.make_panel()
+
+	assert _shown_boxes(panel) == ["OpenAI"]
+
+
+def test_a_live_update_creates_no_window_and_only_shows_hides_and_relabels(monkeypatch):
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
 	f.box["catalog"] = _bundled_only(f)
 	panel = f.make_panel()
-	_windows_as_children(f, panel)
-	coseeing_box = panel.accountGroupSizerMap["Coseeing"]
+	windows = list(f.plugin.created_windows)
+	children = list(panel.settingsSizer.children)
+	catalog = _shipped(f)
+	relabelled = dataclasses.replace(
+		catalog, providers={**catalog.providers, "OpenAI": dataclasses.replace(catalog.providers["OpenAI"], label="OpenAI EU")},
+	)
 
+	for new, shown, caption in [
+		(_shipped(f), ["OpenAI"], "OpenAI Authentication"),
+		(relabelled, ["OpenAI"], "OpenAI EU Authentication"),
+		(_without_group(f, "OpenAI"), ["Coseeing"], "OpenAI Authentication"),
+		(_bundled_only(f), ["Coseeing"], "OpenAI Authentication"),
+	]:
+		rebuild_with(f, panel, new)
+		assert _shown_boxes(panel) == shown
+		assert panel.accountGroupSizerMap["OpenAI"].GetStaticBox().label == caption
+
+	assert f.plugin.created_windows == windows
+	assert panel.settingsSizer.children == children
+	assert [w for w in f.plugin.created_windows if hasattr(w, "moved_after")] == []
+
+
+def test_tab_and_window_order_is_creation_order(monkeypatch):
+	# wx orders windows, and so Tab and NVDA object navigation, by creation.
+	f = live_fixture(monkeypatch)
+	panel = f.make_panel()
+	windows = f.plugin.created_windows
+
+	def at(window):
+		return next(index for index, known in enumerate(windows) if known is window)
+
+	order = [at(panel.modelList)]
+	for group in _account_groups(f):
+		order.append(at(panel.accountGroupSizerMap[group].GetStaticBox()))
+		control = panel.coseeingCleanButton if group == "Coseeing" else panel.accountTextCtrlMap[group]
+		order.append(at(control))
+	order.append(at(panel.languageList))
+	assert order == sorted(order)
+
+	rebuild_with(f, panel, _bundled_only(f))
+	assert [at(panel.modelList), at(panel.languageList)] == [order[0], order[-1]]
+
+
+def _without_group(f, group):
+	catalog = f.plugin.catalog
+	return dataclasses.replace(catalog, models=tuple(m for m in catalog.models if m.provider != group))
+
+
+def _keys(f):
+	return dict(f.settings["api_key"])
+
+
+def _path_open(f, panel):
+	pass
+
+
+def _path_rebuild(f, panel):
+	rebuild_with(f, panel, _bundled_only(f))
 	rebuild_with(f, panel, _shipped(f))
 
-	new_groups = [group for group in _shipped(f).provider_groups if group != "Coseeing"]
-	assert set(panel.accountGroupSizerMap) == set(new_groups) | {"Coseeing"}
-	children = panel.settingsSizer.children
-	for group in new_groups:
-		assert panel.accountTextCtrlMap[group].moved_after is panel.modelList
-		box = panel.accountGroupSizerMap[group]
-		assert children.index(coseeing_box) < children.index(box) < children.index(panel.languageList)
-	order = [children.index(panel.accountGroupSizerMap[group]) for group in new_groups]
-	assert order == sorted(order)
+
+def _path_rebuild_after_ok(f, panel):
+	# OK ran onSave; the D8 swap arrives before DestroyLater (F5, batch-2 m1).
+	panel.onSave()
+	rebuild_with(f, panel, _bundled_only(f))
+	rebuild_with(f, panel, _shipped(f))
+
+
+def _path_save(f, panel):
+	panel.onSave()
+
+
+def _path_type_and_save(f, panel):
+	panel.accountTextCtrlMap["OpenAI"].SetValue("sk-typed")
+	panel.onSave()
+
+
+def _path_clear_and_save(f, panel):
+	panel.accountTextCtrlMap["DeepSeek"].SetValue("")
+	panel.onSave()
+
+
+KEY_ROWS = [
+	("open", {}, _path_open, {}),
+	("rebuild", {}, _path_rebuild, {}),
+	("rebuild-after-ok", {}, _path_rebuild_after_ok, {}),
+	("untouched-ok", {}, _path_save, {}),
+	("typed-ok", {}, _path_type_and_save, {"OpenAI": "sk-typed"}),
+	("kept", {"DeepSeek": "k", "Ollama": ""}, _path_save, {"DeepSeek": "k", "Ollama": ""}),
+	("cleared", {"DeepSeek": "k"}, _path_clear_and_save, {"DeepSeek": ""}),
+]
+
+
+@pytest.mark.parametrize("stored, path, expected", [row[1:] for row in KEY_ROWS], ids=[row[0] for row in KEY_ROWS])
+def test_no_blank_api_key_is_written(monkeypatch, stored, path, expected):
+	# R13: boxes exist for providers the user never used; neither reading
+	# their keys nor an OK may add empty entries, and no stored key is lost.
+	f = live_fixture(monkeypatch, api_key=dict(stored))
+	panel = f.make_panel()
+
+	path(f, panel)
+
+	assert _keys(f) == expected
+
+
+def test_a_hidden_providers_key_is_shown_in_its_box_and_kept(monkeypatch):
+	f = live_fixture(monkeypatch, api_key={"OpenRouter": "r"})
+	f.box["catalog"] = _bundled_only(f)
+	panel = f.make_panel()
+
+	panel.onSave()
+
+	assert panel.accountTextCtrlMap["OpenRouter"].GetValue() == "r"
+	assert "OpenRouter" not in _shown_boxes(panel)
+	assert _keys(f) == {"OpenRouter": "r"}
 
 
 def test_typed_api_keys_survive_a_rebuild(monkeypatch):
@@ -387,11 +512,6 @@ def test_typed_api_keys_survive_a_rebuild(monkeypatch):
 	assert panel.accountTextCtrlMap["OpenAI"] is field
 	assert field.GetValue() == "typed"
 	assert _shown_boxes(panel) == ["OpenAI"]
-
-
-def _without_group(f, group):
-	catalog = f.plugin.catalog
-	return dataclasses.replace(catalog, models=tuple(m for m in catalog.models if m.provider != group))
 
 
 def test_a_vanished_providers_box_is_hidden_and_its_key_saved_unchanged(monkeypatch):

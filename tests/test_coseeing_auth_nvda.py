@@ -956,8 +956,12 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 	settingsSizerHelper.addLabeledControl() call as (label, control_type,
 	kwargs) -- kwargs["choices"] is what a wx.Choice was built with -- and
 	static_box_captions is the label given to each wx.StaticBoxSizer(...), in
-	provider_groups order.
+	creation order. plugin.created_windows lists every widget (and static
+	box sizer) created, in creation order, which is wx's window order.
 	"""
+	created_windows = []
+	plugin.created_windows = created_windows
+
 	class Widget:
 		def __init__(self, *args, value="", label="", **kwargs):
 			self.value = value
@@ -965,6 +969,7 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 			self.enabled = True
 			self.bindings = {}
 			self.items = kwargs.get("choices", [])
+			created_windows.append(self)
 
 		def Enable(self, enabled=True):
 			self.enabled = enabled
@@ -1084,7 +1089,9 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 
 	def static_box_sizer(orientation, parent, label=""):
 		static_box_captions.append(label)
-		return StaticBoxSizer(label)
+		sizer = StaticBoxSizer(label)
+		created_windows.append(sizer.static_box)
+		return sizer
 
 	monkeypatch.setattr(gui.guiHelper, "BoxSizerHelper", Helper)
 	monkeypatch.setattr(plugin.wx, "Choice", Widget)

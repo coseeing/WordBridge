@@ -218,6 +218,19 @@ def test_api_keys_support_nvda_aggregated_sections_without_setdefault():
 	assert settings["api_key"]["OpenAI"] == "sk-test"
 
 
+@pytest.mark.parametrize("kind", ["dict", "aggregated"])
+def test_a_stored_api_key_read_never_writes(kind):
+	# R13: the settings panel populates a box for every supported provider;
+	# reading an unseen provider's key must not add an empty entry.
+	values = {"api_key": {"DeepSeek": "k"}}
+	settings = AggregatedSectionLike(values) if kind == "aggregated" else values
+	repo = SettingsRepository(settings, catalog)
+
+	assert repo.stored_api_key("OpenAI") == ""
+	assert repo.stored_api_key("DeepSeek") == "k"
+	assert "OpenAI" not in settings["api_key"]
+
+
 def test_the_boolean_settings_round_trip():
 	repo, settings = repository()
 

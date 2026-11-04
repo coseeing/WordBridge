@@ -17,6 +17,7 @@ from .lib.catalog import COSEEING_GROUP, is_dropped_issue, registry
 from .lib.catalog.fallback import SENTINEL_ID
 from .lib.catalog.remote import validate_catalog_url
 from .lib.catalog.selection import SelectionState
+from .lib.llm import SUPPORTED_PROVIDERS
 from .lib.coseeing_auth import (
 	clean_coseeing_auth,
 	has_saved_coseeing_refresh_token,
@@ -59,6 +60,13 @@ SOUND_EFFECTS_URL = "https://www.zapsplat.com/music/medium-underwater-movement-w
 MODEL_LABEL_TRANSLATIONS = {
 	SENTINEL_ID: _("default"),
 }
+
+# Every account box the panel may ever show, in the order the catalog lists
+# its groups (sorted local providers, Coseeing last). The set is fixed by
+# code: a catalog offers no other provider (build_catalog drops them), so the
+# panel creates all of them up front and a live update only shows, hides and
+# relabels, keeping window, Tab and visual order the same (retry spec R13).
+ACCOUNT_BOX_GROUPS = tuple(sorted(SUPPORTED_PROVIDERS)) + (COSEEING_GROUP,)
 
 
 def catalog_status_message(status):
@@ -205,15 +213,14 @@ class LLMSettingsPanel(SettingsPanel):
 		self.modelList.SetToolTip(wx.ToolTip(_("Choose the large language model for the Word Bridge")))
 		self.modelList.SetSelection(self.selection.model_index)
 
-		# For setting account information. A box exists for every group the
-		# panel has shown; one a live update adds is created then (C9).
+		# For setting account information: a box for every provider the panel
+		# may ever show, hidden unless selected (R13). Never created later.
 		self.accountGroupSizerMap = {}
 		self.accountTextCtrlMap = {}
 		self._accountCaptions = {}
 		self._shownAccountGroup = None
-		self._settingsSizerHelper = settingsSizerHelper
-		for group in self.catalog.provider_groups:
-			self._ensureAccountBox(group, live=False)
+		for group in ACCOUNT_BOX_GROUPS:
+			self._makeAccountBox(settingsSizerHelper, group)
 
 		self._refreshAccountInfo()
 
@@ -363,8 +370,7 @@ class LLMSettingsPanel(SettingsPanel):
 			self.modelList.SetItems(modelLabels)
 		self.providerList.SetSelection(selection.provider_group_index)
 		self.modelList.SetSelection(selection.model_index)
-		for group in new.provider_groups:
-			self._ensureAccountBox(group, live=True)
+		self._updateAccountCaptions()
 		accountChanged = self._refreshAccountInfo()
 		droppedChanged = self._setLine(self.catalogIssuesText, _dropped_entries_message(new))
 		return accountChanged or droppedChanged
@@ -420,26 +426,12 @@ class LLMSettingsPanel(SettingsPanel):
 	def _accountCaption(self, group):
 		return _provider_group_label(self.catalog, group) + " " + _("Authentication")
 
-	def _ensureAccountBox(self, group, *, live) -> None:
-		"""Create the account box of `group` once; later calls only update its
-		caption. A box made by a live update goes right after the last
-		account box, and its windows move after the model choice in the Tab
-		order (and the window order NVDA reads labels and groups from):
-		otherwise they would come after "Model list URL:", because wx orders
-		windows by creation."""
-		if group in self.accountGroupSizerMap:
-			self._updateAccountCaption(group)
-			return
+	def _makeAccountBox(self, settingsSizerHelper, group) -> None:
+		"""Append the account box of `group` (makeSettings only, R13)."""
 		caption = self._accountCaption(group)
-		before = list(self.GetChildren()) if live else []
 		accountBoxSizer = wx.StaticBoxSizer(wx.VERTICAL, self, label=caption)
 		accountGroupSizerHelper = guiHelper.BoxSizerHelper(self, sizer=accountBoxSizer)
-		if live:
-			index = self._accountBoxInsertIndex()
-			self.settingsSizer.InsertSpacer(index, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS)
-			self.settingsSizer.Insert(index + 1, accountBoxSizer, flag=wx.EXPAND)
-		else:
-			self._settingsSizerHelper.addItem(accountGroupSizerHelper)
+		settingsSizerHelper.addItem(accountGroupSizerHelper)
 		self.accountGroupSizerMap[group] = accountBoxSizer
 		self._accountCaptions[group] = caption
 		if group == COSEEING_GROUP:
@@ -452,31 +444,17 @@ class LLMSettingsPanel(SettingsPanel):
 				_("API Key:"),
 				wx.TextCtrl,
 				size=(self.scaleSize(375), -1),
-				value=self.settings.api_key(group),
+				# Never api_key(): it would store "" for every unused provider.
+				value=self.settings.stored_api_key(group),
 			)
-		if live:
-			previous = self.modelList
-			for window in self.GetChildren():
-				if any(window is known for known in before):
-					continue
-				window.MoveAfterInTabOrder(previous)
-				previous = window
 
-	def _accountBoxInsertIndex(self) -> int:
-		"""The sizer index right after the last existing account box."""
-		boxes = list(self.accountGroupSizerMap.values())
-		children = list(self.settingsSizer.GetChildren())
-		last = None
-		for index, child in enumerate(children):
-			if child.IsSizer() and any(child.GetSizer() is box for box in boxes):
-				last = index
-		return len(children) if last is None else last + 1
-
-	def _updateAccountCaption(self, group) -> None:
-		caption = self._accountCaption(group)
-		if caption != self._accountCaptions.get(group):
-			self.accountGroupSizerMap[group].GetStaticBox().SetLabel(caption)
-			self._accountCaptions[group] = caption
+	def _updateAccountCaptions(self) -> None:
+		"""Relabel the boxes for the live catalog, in place."""
+		for group, box in self.accountGroupSizerMap.items():
+			caption = self._accountCaption(group)
+			if caption != self._accountCaptions.get(group):
+				box.GetStaticBox().SetLabel(caption)
+				self._accountCaptions[group] = caption
 
 	def _refreshModelChoice(self):
 		self.modelList.SetItems(list(_display_labels(self.catalog, self.selection.provider_group)))
@@ -484,7 +462,7 @@ class LLMSettingsPanel(SettingsPanel):
 
 	def _refreshAccountInfo(self) -> bool:
 		"""Show only the selected group's box, including over boxes of groups
-		the catalog no longer offers (C9). True when the shown box changed."""
+		the catalog does not offer (R13). True when the shown box changed."""
 		shownGroup = self.selection.provider_group
 		for group, box in self.accountGroupSizerMap.items():
 			if group == shownGroup:
@@ -562,8 +540,12 @@ class LLMSettingsPanel(SettingsPanel):
 		self.settings.save_customized_words_enable(self.customizedWordEnable.GetValue())
 		self.settings.save_sound_effects_enable(self.soundEffectsEnable.GetValue())
 
+		# Only a key the user changed is written: an unused provider's empty
+		# box adds no entry, and an untouched stored key stays as it is (R13).
 		for group, control in self.accountTextCtrlMap.items():
-			self.settings.save_api_key(group, control.GetValue())
+			value = control.GetValue()
+			if value != self.settings.stored_api_key(group):
+				self.settings.save_api_key(group, value)
 
 		# Saved as typed (stripped), and only when it really changed, so an
 		# untouched default never lands in nvda.ini. The refresh is deferred
