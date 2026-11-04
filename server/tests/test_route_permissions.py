@@ -103,6 +103,17 @@ def _superuser(db):
 	return user
 
 
+# --- / (the public catalog) ------------------------------------------------
+
+
+def test_catalog_root_guest_is_200(db):
+	assert _client(db).get("/").status_code == 200
+
+
+def test_catalog_root_ordinary_user_is_200(db):
+	assert _client(db, user=_ordinary_user(db)).get("/").status_code == 200
+
+
 # --- /users, /interactions CRUD: superuser only -----------------------------
 
 

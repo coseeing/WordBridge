@@ -1,10 +1,11 @@
+import json
 import logging
 import os
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List, Literal, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastcrud import FastCRUD, crud_router
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func
@@ -23,7 +24,7 @@ from .user.auth import get_optional_user, require_superuser
 from dotenv import load_dotenv
 load_dotenv()
 
-from .correction_config import load_correction_settings, resolve_model
+from .correction_config import SETTING_DIR, load_correction_settings, resolve_model
 from .lib.application.task_runner import run_typo_correction
 from .lib.decimalUtils import decimal_to_str_0
 from .lib.tasks.typo.utils import strings_diff
@@ -37,6 +38,28 @@ app = FastAPI()
 # import time -- a broken deployment fails loudly at startup rather than
 # silently misbehaving per-request.
 CORRECTION_SETTINGS = load_correction_settings()
+
+
+def load_catalog_bytes(path) -> bytes:
+	"""The catalog file's bytes, checked once: a JSON object with schema_version 1.
+
+	Served verbatim by GET /, so the remote payload the add-on downloads is
+	exactly this file. Raises ValueError for anything else, the same
+	fail-loud stance as load_correction_settings(): a broken deployment
+	stops at startup instead of serving a payload every add-on rejects.
+	"""
+	content = path.read_bytes()
+	try:
+		document = json.loads(content)
+	except ValueError as error:
+		raise ValueError(f"{path.name} is not valid JSON") from error
+	if not isinstance(document, dict) or document.get("schema_version") != 1:
+		raise ValueError(f"{path.name} must be a JSON object with schema_version 1")
+	return content
+
+
+# The file only changes with a deployment, so it is read once.
+CATALOG_BYTES = load_catalog_bytes(SETTING_DIR / "catalog.json")
 
 GUEST_TEXT_LIMIT = 128
 # Applies to every caller (guest, authenticated, superuser). Chosen comfortably
@@ -136,6 +159,16 @@ def _enforce_quota(db: Session, *, user: Optional[UserModel], client_ip: str, te
 	global_cost = _sum_cost(db, since=since, user_id_is_none=True)
 	if ip_cost >= GUEST_IP_QUOTA or global_cost >= GUEST_GLOBAL_QUOTA:
 		raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=_QUOTA_EXCEEDED_DETAIL)
+
+
+@app.get("/")
+def catalog():
+	"""The provider/model catalog the add-on downloads. Public data: no authentication."""
+	return Response(
+		content=CATALOG_BYTES,
+		media_type="application/json",
+		headers={"Cache-Control": "no-cache"},
+	)
 
 
 @app.post("/proofreader")
