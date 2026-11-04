@@ -568,6 +568,8 @@ def test_the_panel_open_log_line_names_only_the_host(tmp_path):
 
 @pytest.mark.parametrize("installed", [False, True], ids=["no-updater", "installed"])
 def test_module_retry_on_panel_open(tmp_path, installed):
+	# Not relying on earlier tests to leave no updater installed (final review m7).
+	updater_module.uninstall()
 	h = retry_harness(tmp_path, {URL_A: failing()})
 	start(h)
 	threads = len(h.threads)
@@ -1016,6 +1018,8 @@ def test_probe_installs_caches_and_changes_nothing(tmp_path):
 
 @pytest.mark.parametrize("installed", [False, True], ids=["no-updater", "installed"])
 def test_module_probe_url(tmp_path, installed):
+	# Not relying on earlier tests to leave no updater installed (final review m7).
+	updater_module.uninstall()
 	h = retry_harness(tmp_path, {URL_B: _ok(_payload("b"))})
 	if installed:
 		updater_module.install(h.updater)
