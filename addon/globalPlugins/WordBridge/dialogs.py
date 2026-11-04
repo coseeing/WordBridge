@@ -11,6 +11,7 @@ import gui
 from gui import guiHelper, nvdaControls
 from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
+from logHandler import log
 
 from . import catalog_updater
 from .catalog_url_dialog import CatalogUrlDialog
@@ -198,7 +199,13 @@ class LLMSettingsPanel(SettingsPanel):
 		# R1: after a failed fetch, opening the panel fetches at once. First,
 		# so the status read below already says "loading". makeSettings runs
 		# once per settings dialog; switching categories does not fetch.
-		retried = catalog_updater.retry_on_panel_open()
+		# Thread.start() can raise; the settings must still open (log the
+		# type only, D15).
+		try:
+			retried = catalog_updater.retry_on_panel_open()
+		except Exception as error:
+			log.warning("WordBridge: catalog fetch on settings panel open failed type=%s", type(error).__name__)
+			retried = False
 		# NVDA's _buildGui has set this already; the live update needs it.
 		self.settingsSizer = settingsSizer
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)

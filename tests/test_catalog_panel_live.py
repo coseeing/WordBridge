@@ -243,6 +243,27 @@ def test_the_panel_opens_on_the_stale_line_when_its_fetch_starts_from_a_cache_fa
 	assert _status_line(panel) == (text, bool(expected), text)
 
 
+def test_a_raising_panel_open_retry_still_builds_the_panel(monkeypatch):
+	# Final review m1: Thread.start() can raise ("can't start new thread");
+	# the settings must still open, and the log names only the type (D15).
+	f = live_fixture(monkeypatch)
+	set_status(f, "none", "failed")
+	warnings = []
+	monkeypatch.setattr(
+		f.dialogs, "log", SimpleNamespace(warning=lambda *args, **kwargs: warnings.append(args)), raising=False,
+	)
+
+	def retry_on_panel_open():
+		raise RuntimeError("can't start new thread https://a.test/catalog?token=secret-a")
+
+	f.fake.retry_on_panel_open = retry_on_panel_open
+	panel = f.make_panel()
+
+	assert _status_line(panel) == (_text("failed"), True, _text("failed"))
+	assert f.fake.listeners == [panel._onCatalogChange]
+	assert warnings == [("WordBridge: catalog fetch on settings panel open failed type=%s", "RuntimeError")]
+
+
 def test_a_destroy_event_from_a_child_keeps_the_listener(monkeypatch):
 	f = live_fixture(monkeypatch)
 	panel = f.make_panel()
