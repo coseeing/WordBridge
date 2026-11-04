@@ -930,3 +930,19 @@ def test_module_probe_url(tmp_path, installed):
 	assert result.kind == ("ok" if installed else "unavailable")
 	if not installed:
 		assert result == P("unavailable")
+
+
+def test_a_listener_removing_itself_does_not_skip_the_next(tmp_path):
+	# The settings panel unregisters itself from inside a notification.
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	h.updater.initial_catalog(URL_A)
+	second = Recorder()
+
+	def first(change):
+		h.updater.remove_listener(first)
+
+	h.updater.add_listener(first)
+	h.updater.add_listener(second)
+	h.updater.refresh(URL_A)
+
+	assert second.events == [C(False, None)]

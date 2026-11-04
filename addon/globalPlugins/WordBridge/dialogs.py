@@ -313,6 +313,58 @@ class LLMSettingsPanel(SettingsPanel):
 			_("The address WordBridge downloads the model list from. Leave it empty to use only the Coseeing default.")
 		))
 
+		# R2: follow catalog changes while the panel exists (retry spec 10.1).
+		self._pendingRebuild = False
+		self._pendingAnnouncement = None
+		self._deferTimer = None
+		catalog_updater.add_listener(self._onCatalogChange)
+		# Destroy events bubble up from child windows, see _onPanelDestroy.
+		self.Bind(wx.EVT_WINDOW_DESTROY, self._onPanelDestroy)
+
+	def _onPanelDestroy(self, evt):
+		if evt.GetEventObject() is self:
+			catalog_updater.remove_listener(self._onCatalogChange)
+			timer, self._deferTimer = self._deferTimer, None
+			if timer is not None:
+				timer.Stop()
+		evt.Skip()
+
+	def _onCatalogChange(self, change):
+		"""Main thread: the updater's listener (retry spec 10.1)."""
+		if not self:
+			# The window is gone (OK destroys the dialog later, F5).
+			catalog_updater.remove_listener(self._onCatalogChange)
+			return
+		if change.outcome == catalog_updater.FETCH_SUCCEEDED or (
+			change.outcome == catalog_updater.FETCH_FAILED and change.user_initiated
+		):
+			# Only the latest speakable outcome is kept (C11); a background
+			# failure is never spoken (R8) and leaves it as it is.
+			self._pendingAnnouncement = change.outcome
+		if change.catalog_changed:
+			self._pendingRebuild = True
+		if self._updateStatusLine():
+			self._sendLayoutUpdatedEvent()
+		self._applyPendingUpdate()
+
+	def _applyPendingUpdate(self):
+		if not self:
+			return
+		if self._pendingRebuild:
+			self._pendingRebuild = False
+			self.Freeze()
+			try:
+				layoutChanged = self._rebuild()
+			finally:
+				self.Thaw()
+			if layoutChanged:
+				self._sendLayoutUpdatedEvent()
+
+	def _rebuild(self) -> bool:
+		"""Replace the choices for the live catalog; True when the set of shown
+		windows changed."""
+		return False
+
 	def _setLine(self, line, text) -> bool:
 		"""Show `text` on a line, or hide the line without one. True when its
 		visibility changed (the panel then needs a layout event)."""
