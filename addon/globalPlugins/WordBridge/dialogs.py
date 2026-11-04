@@ -64,8 +64,9 @@ MODEL_LABEL_TRANSLATIONS = {
 def catalog_status_message(status):
 	"""The panel's status line for an updater status, or None (spec 13.3).
 
-	It explains why the Service Provider list below may be short. It reflects
-	the status when the panel opens; the panel is not refreshed afterwards.
+	It explains why the Service Provider list below may be short. The open
+	panel keeps it up to date, and it is also the panel's accessible
+	description (retry spec R11).
 	"""
 	if status is None:
 		return None
@@ -89,6 +90,22 @@ def catalog_status_message(status):
 		# Translators: Status line in the WordBridge settings panel when the model list could not be downloaded
 		# and the copy saved earlier is used instead.
 		return _("The model list could not be updated. WordBridge is using the list it saved earlier.")
+	return None
+
+
+def _dropped_entries_message(catalog):
+	"""The panel's "N catalog entries could not be loaded" line, or None.
+
+	Counting every issue would be a permanent false alarm: the shipped,
+	fully healthy catalog always carries one "unreferenced_provider" lint
+	issue. is_dropped_issue() keeps only what really failed to load; the
+	log (__init__.py) still lists every issue.
+	"""
+	count = sum(1 for issue in catalog.issues if is_dropped_issue(issue))
+	if count == 1:
+		return _("{count} catalog entry could not be loaded; see the NVDA log for details.").format(count=count)
+	if count > 1:
+		return _("{count} catalog entries could not be loaded; see the NVDA log for details.").format(count=count)
 	return None
 
 
@@ -127,6 +144,12 @@ class LLMSettingsPanel(SettingsPanel):
 	helpId = "WordBridge Settings"
 
 	def makeSettings(self, settingsSizer):
+		# R1: after a failed fetch, opening the panel fetches at once. First,
+		# so the status read below already says "loading". makeSettings runs
+		# once per settings dialog; switching categories does not fetch.
+		catalog_updater.retry_on_panel_open()
+		# NVDA's _buildGui has set this already; the live update needs it.
+		self.settingsSizer = settingsSizer
 		settingsSizerHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 
 		self.catalog = registry.current()
@@ -146,50 +169,19 @@ class LLMSettingsPanel(SettingsPanel):
 		self.selection = SelectionState.restore(self.catalog, *resolved)
 		self._restoredIndices = (self.selection.provider_group_index, self.selection.model_index)
 
-		# Spec: "the settings panel shows a summary line" when catalog
-		# issues exist (Validation and degradation -> Visibility). The log
-		# line (see __init__.py) and the degraded-catalog announcement
-		# already cover the other two channels; this is the one that was
-		# missing entirely, and it is the only one that surfaces rung-2
-		# ("Degraded: some entries dropped; the rest work") to the user --
-		# self.catalog.degraded is only ever True on the Empty rung.
-		#
-		# Counting every issue here (rather than just checking
-		# self.catalog.issues) would be a permanent false alarm: the
-		# shipped, fully healthy catalog always carries one
-		# "unreferenced_provider" issue (providers.OpenRouter, named by no
-			# catalog model entry), which is lint -- legal, nothing failed to load, all
-		# entries selectable -- not a dropped entry. is_dropped_issue()
-		# filters those out so this line is only ever true of what it
-		# counts; the log (__init__.py) still logs every issue, lint
-		# included.
-		droppedIssueCount = sum(1 for issue in self.catalog.issues if is_dropped_issue(issue))
-		self.catalogIssuesText = None
-		if droppedIssueCount == 1:
-			self.catalogIssuesText = settingsSizerHelper.addItem(
-				wx.StaticText(
-					self,
-					label=_(
-						"{count} catalog entry could not be loaded; see the NVDA log for details."
-					).format(count=droppedIssueCount),
-				)
-			)
-		elif droppedIssueCount > 1:
-			self.catalogIssuesText = settingsSizerHelper.addItem(
-				wx.StaticText(
-					self,
-					label=_(
-						"{count} catalog entries could not be loaded; see the NVDA log for details."
-					).format(count=droppedIssueCount),
-				)
-			)
-
-		# Explains a short Service Provider list (no model list loaded yet,
-		# or not at all). Not in the Tab order; NVDA+B reads it.
-		self.catalogStatusText = None
+		# The dropped-entries line (spec: "the settings panel shows a summary
+		# line" when catalog entries failed to load) and the status line
+		# explaining a short Service Provider list always exist, so their
+		# place in the window order never changes; each is hidden while it
+		# has nothing to say. Not in the Tab order; NVDA+B reads them. The
+		# status is also the panel's accessible description (R11).
+		droppedMessage = _dropped_entries_message(self.catalog)
+		self.catalogIssuesText = settingsSizerHelper.addItem(wx.StaticText(self, label=droppedMessage or ""))
+		settingsSizer.Show(self.catalogIssuesText, droppedMessage is not None)
 		statusMessage = catalog_status_message(catalog_updater.status())
-		if statusMessage is not None:
-			self.catalogStatusText = settingsSizerHelper.addItem(wx.StaticText(self, label=statusMessage))
+		self.catalogStatusText = settingsSizerHelper.addItem(wx.StaticText(self, label=statusMessage or ""))
+		settingsSizer.Show(self.catalogStatusText, statusMessage is not None)
+		self.panelDescription = statusMessage or ""
 
 		# For selecting provider
 		providerLabelText = _("Service Provider:")
@@ -321,7 +313,21 @@ class LLMSettingsPanel(SettingsPanel):
 			_("The address WordBridge downloads the model list from. Leave it empty to use only the Coseeing default.")
 		))
 
-		self.settingsSizer = settingsSizer
+	def _setLine(self, line, text) -> bool:
+		"""Show `text` on a line, or hide the line without one. True when its
+		visibility changed (the panel then needs a layout event)."""
+		shown = bool(text)
+		changed = shown != self.settingsSizer.IsShown(line)
+		line.SetLabel(text or "")
+		self.settingsSizer.Show(line, shown)
+		return changed
+
+	def _updateStatusLine(self) -> bool:
+		"""The status line and the accessible description (R11) from the
+		updater's current status; True when the line appeared or vanished."""
+		message = catalog_status_message(catalog_updater.status())
+		self.panelDescription = message or ""
+		return self._setLine(self.catalogStatusText, message)
 
 	def _refreshModelChoice(self):
 		self.modelList.SetItems(list(_display_labels(self.catalog, self.selection.provider_group)))

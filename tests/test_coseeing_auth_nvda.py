@@ -190,6 +190,7 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 		ALL = 5
 		EVT_CHOICE = object()
 		EVT_BUTTON = object()
+		EVT_WINDOW_DESTROY = object()
 		OK = 6
 		CANCEL = 7
 		StaticText = type("StaticText", (), {})
@@ -221,11 +222,62 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	monkeypatch.setitem(sys.modules, "config", config)
 	monkeypatch.setitem(sys.modules, "wx", Wx)
 	monkeypatch.setitem(sys.modules, "gui", gui)
-	# NVDA's SettingsPanel.isValid() returns True unless a panel overrides it
-	# (gui/settingsDialogs.py:440-447); the panel ends with super().isValid().
-	monkeypatch.setitem(sys.modules, "gui.settingsDialogs", SimpleNamespace(
-		SettingsPanel=type("SettingsPanel", (), {"isValid": lambda self: True}),
-	))
+	class SettingsPanel:
+		"""The part of NVDA's SettingsPanel (gui/settingsDialogs.py:362-491)
+		the WordBridge panel uses, recording what a live update does to it.
+
+		Panels are built with object.__new__, so every recorded value
+		defaults through the instance __dict__. Tests set `alive` (the C++
+		object), `shown` (the category is the one shown) and `active` (the
+		settings dialog is the active window).
+		"""
+
+		panelDescription = ""
+
+		def isValid(self):
+			# NVDA's SettingsPanel.isValid() returns True unless a panel
+			# overrides it (gui/settingsDialogs.py:440-447).
+			return True
+
+		def __bool__(self):
+			return self.__dict__.get("alive", True)
+
+		def _count(self, name):
+			self.__dict__[name] = self.__dict__.get(name, 0) + 1
+
+		def Bind(self, event, handler, *args, **kwargs):
+			self.__dict__.setdefault("bindings", {})[event] = handler
+
+		def Freeze(self):
+			self._count("freeze_count")
+
+		def Thaw(self):
+			self._count("thaw_count")
+
+		def IsShown(self):
+			return self.__dict__.get("shown", True)
+
+		def Show(self, show=True):
+			self._count("show_calls")
+			self.shown = show
+
+		def Hide(self):
+			self.Show(False)
+
+		def onPanelActivated(self):
+			self._count("activated_calls")
+			self.Show()
+
+		def GetTopLevelParent(self):
+			return SimpleNamespace(IsActive=lambda: self.__dict__.get("active", True))
+
+		def _sendLayoutUpdatedEvent(self):
+			self._count("layout_events")
+
+		def GetChildren(self):
+			return list(self.__dict__.get("children", []))
+
+	monkeypatch.setitem(sys.modules, "gui.settingsDialogs", SimpleNamespace(SettingsPanel=SettingsPanel))
 	monkeypatch.setitem(sys.modules, "gui.contextHelp", SimpleNamespace(ContextHelpMixin=type("ContextHelpMixin", (), {})))
 	monkeypatch.setitem(sys.modules, "globalPluginHandler", SimpleNamespace(GlobalPlugin=ParentPlugin))
 	monkeypatch.setitem(sys.modules, "addonHandler", SimpleNamespace(initTranslation=lambda: None))
@@ -941,16 +993,68 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 
 		def SetItems(self, items):
 			self.items = items
+			self.set_items_calls = getattr(self, "set_items_calls", 0) + 1
+
+		def GetItems(self):
+			return list(self.items)
+
+		def SetLabel(self, label):
+			self.label = label
+
+		def GetHandle(self):
+			return id(self)
+
+		def MoveAfterInTabOrder(self, window):
+			self.moved_after = window
 
 		def SetFocus(self):
 			self.focused = True
 
 	class Sizer:
-		def Show(self, item, recursive=True):
-			pass
+		"""Children in order and their visibility, like a wx.BoxSizer."""
 
-		def Hide(self, item, recursive=True):
-			pass
+		def __init__(self):
+			self.children = []
+			self.visible = {}
+
+		def Show(self, item, show=True, recursive=False):
+			self.visible[id(item)] = bool(show)
+
+		def Hide(self, item, recursive=False):
+			self.visible[id(item)] = False
+
+		def IsShown(self, item):
+			return self.visible.get(id(item), True)
+
+		def Insert(self, index, item, *args, **kwargs):
+			self.children.insert(index, item)
+
+		def InsertSpacer(self, index, size):
+			self.children.insert(index, ("spacer", size))
+
+		def GetChildren(self):
+			return [
+				SimpleNamespace(
+					IsSizer=lambda child=child: isinstance(child, Sizer),
+					GetSizer=lambda child=child: child if isinstance(child, Sizer) else None,
+				)
+				for child in self.children
+			]
+
+	class StaticBox:
+		def __init__(self, label):
+			self.label = label
+
+		def SetLabel(self, label):
+			self.label = label
+
+	class StaticBoxSizer(Sizer):
+		def __init__(self, label):
+			super().__init__()
+			self.static_box = StaticBox(label)
+
+		def GetStaticBox(self):
+			return self.static_box
 
 	helper_calls = []
 	added_controls = []
@@ -965,18 +1069,20 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 			helper_calls.append((label, control_type, kwargs))
 			control = control_type(None, **kwargs)
 			added_controls.append(control)
+			self.sizer.children.append(control)
 			return control
 
 		def addItem(self, item):
 			# Every control in creation order (tab order), labeled or not.
 			added_controls.append(item)
+			self.sizer.children.append(item.sizer if isinstance(item, Helper) else item)
 			return item
 
 	static_box_captions = []
 
 	def static_box_sizer(orientation, parent, label=""):
 		static_box_captions.append(label)
-		return Sizer()
+		return StaticBoxSizer(label)
 
 	monkeypatch.setattr(gui.guiHelper, "BoxSizerHelper", Helper)
 	monkeypatch.setattr(plugin.wx, "Choice", Widget)
@@ -1016,7 +1122,8 @@ def test_settings_panel_summary_line_appears_only_when_the_catalog_has_issues(mo
 	clean_catalog = dataclasses.replace(plugin.catalog, issues=())
 	monkeypatch.setattr(dialogs.registry, "current", lambda: clean_catalog)
 	panel = _make_panel(monkeypatch, dialogs, Sizer)
-	assert panel.catalogIssuesText is None
+	assert panel.catalogIssuesText.label == ""
+	assert panel.settingsSizer.IsShown(panel.catalogIssuesText) is False
 
 	from lib.catalog.model import CatalogIssue
 
@@ -1055,7 +1162,8 @@ def test_settings_panel_summary_line_is_silent_for_the_shipped_healthy_catalog(m
 	assert all(issue.code == "unreferenced_provider" for issue in plugin.catalog.issues)
 
 	panel = _make_panel(monkeypatch, dialogs, Sizer)
-	assert panel.catalogIssuesText is None
+	assert panel.catalogIssuesText.label == ""
+	assert panel.settingsSizer.IsShown(panel.catalogIssuesText) is False
 
 
 def test_settings_panel_summary_line_ignores_lint_issues_and_uses_correct_grammar(monkeypatch):

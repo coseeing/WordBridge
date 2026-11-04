@@ -181,17 +181,137 @@ def test_the_status_line_is_shown_after_the_dropped_entries_line_and_before_the_
 	assert controls.index(panel.catalogStatusText) < controls.index(panel.providerList)
 
 
+def _line_shown(panel, line):
+	return panel.settingsSizer.IsShown(line)
+
+
 def test_no_status_line_when_the_list_is_fresh(monkeypatch):
 	f = _panel_fixture(monkeypatch)
 	monkeypatch.setattr(f.dialogs.catalog_updater, "status", lambda: _status(f.dialogs, "fetched", "succeeded"))
 
-	assert f.make_panel().catalogStatusText is None
+	panel = f.make_panel()
+
+	assert panel.catalogStatusText.label == ""
+	assert _line_shown(panel, panel.catalogStatusText) is False
 
 
 def test_the_dropped_entries_line_is_silent_for_the_shipped_overlay(monkeypatch):
 	f = _panel_fixture(monkeypatch)
 
-	assert f.make_panel().catalogIssuesText is None
+	panel = f.make_panel()
+
+	assert panel.catalogIssuesText.label == ""
+	assert _line_shown(panel, panel.catalogIssuesText) is False
+
+
+@pytest.mark.parametrize("source, fetch, message", [row[1:] for row in STATUS_TABLE], ids=[row[0] for row in STATUS_TABLE])
+def test_the_panel_description_is_the_status_line(monkeypatch, source, fetch, message):
+	# R11: NVDA reads panelDescription as the property page's description
+	# when focus enters the panel (gui/settingsDialogs.py:504-505).
+	f = _panel_fixture(monkeypatch)
+	monkeypatch.setattr(f.dialogs.catalog_updater, "status", lambda: _status(f.dialogs, source, fetch))
+
+	panel = f.make_panel()
+
+	assert panel.panelDescription == (message or "")
+	assert panel.catalogStatusText.label == (message or "")
+	assert _line_shown(panel, panel.catalogStatusText) is (message is not None)
+
+
+def test_both_lines_exist_in_their_place_when_empty(monkeypatch):
+	f = _panel_fixture(monkeypatch)
+	monkeypatch.setattr(f.dialogs.catalog_updater, "status", lambda: _status(f.dialogs, "fetched", "succeeded"))
+
+	panel = f.make_panel()
+
+	controls = f.plugin.panel_added_controls
+	assert controls.index(panel.catalogIssuesText) < controls.index(panel.catalogStatusText) < controls.index(panel.providerList)
+	assert not _line_shown(panel, panel.catalogIssuesText)
+	assert not _line_shown(panel, panel.catalogStatusText)
+
+
+class _Log:
+	def __init__(self):
+		self.records = []
+
+	def info(self, *args):
+		self.records.append(args)
+
+	warning = info
+
+
+def real_updater(f, tmp_path, http_get, schedule=None):
+	"""The plugin package's own CatalogUpdater with fakes at its edges:
+	threads are recorded, posted results are queued in `updater.posted`."""
+	import threading
+
+	module = f.dialogs.catalog_updater
+	cache_module = __import__(f.plugin.__name__ + ".lib.catalog.cache", fromlist=["CatalogCache"])
+	threads = []
+	posted = []
+	installed = []
+
+	def install(catalog):
+		installed.append(catalog)
+		f.dialogs.registry.replace(catalog)
+
+	updater = module.CatalogUpdater(
+		bundled_source=f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting"),
+		cache=cache_module.CatalogCache(tmp_path / "catalog" / "remote-catalog.json", can_write=lambda: False),
+		runnable_providers=f.plugin.SUPPORTED_PROVIDERS,
+		http_get=http_get,
+		post_to_ui=lambda function, *args: posted.append((function, args)),
+		install=install,
+		shutdown=threading.Event(),
+		log=_Log(),
+		start_thread=lambda target, args: threads.append((target, args)) or SimpleNamespace(is_alive=lambda: False),
+		schedule=schedule,
+	)
+	updater.threads, updater.posted, updater.installed = threads, posted, installed
+
+	def run_latest():
+		target, args = threads[-1]
+		target(*args)
+		queue, posted[:] = list(posted), []
+		for function, args in queue:
+			function(*args)
+
+	updater.run_latest = run_latest
+	return updater
+
+
+def _refuse(url, **kwargs):
+	raise OSError("offline")
+
+
+def _serve_the_server_catalog(url, **kwargs):
+	import json
+
+	from fake_http import BodyResponse
+	from shipped_catalog import server_document
+
+	return BodyResponse(json.dumps(server_document()).encode("utf8"))
+
+
+@pytest.mark.parametrize("state, new_threads", [("failed", 1), ("succeeded", 0), ("running", 0)])
+def test_opening_the_panel_retries_only_after_a_failure(monkeypatch, tmp_path, state, new_threads):
+	f = _panel_fixture(monkeypatch)
+	updater = real_updater(f, tmp_path, _serve_the_server_catalog if state == "succeeded" else _refuse)
+	updater.initial_catalog(DEFAULT_URL)
+	updater.refresh(DEFAULT_URL)
+	if state != "running":
+		updater.run_latest()
+	f.dialogs.catalog_updater.install(updater)
+	threads = len(updater.threads)
+	try:
+		panel = f.make_panel()
+	finally:
+		f.dialogs.catalog_updater.uninstall()
+
+	assert len(updater.threads) - threads == new_threads
+	if state == "failed":
+		# R1 ran before the status was read: the panel opens on "loading".
+		assert panel.catalogStatusText.label == STATUS_TABLE[2][3]
 
 
 def _bundled_only(f):
