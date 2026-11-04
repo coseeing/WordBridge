@@ -585,6 +585,30 @@ def test_choices_are_replaced_only_when_their_labels_change(monkeypatch):
 	assert panel.providerList.set_items_calls == 1
 
 
+def test_a_failing_widget_update_leaves_the_panel_on_the_old_catalog(monkeypatch):
+	# Final review m3: catalog, selection and baseline change only once the
+	# choices show the new catalog, so a wx failure halfway leaves them
+	# matching the widgets, and the next update picks the right item.
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
+	panel = f.make_panel()
+	before = (panel.catalog, panel.selection, panel._storedSelection, panel._restoredIndices, panel._keptUserPick)
+	new_catalog = _without_group(f, "DeepSeek")
+
+	def broken(items):
+		raise RuntimeError("wx failed")
+
+	panel.providerList.SetItems = broken
+	with pytest.raises(RuntimeError):
+		rebuild_with(f, panel, new_catalog)
+
+	assert (panel.catalog, panel.selection, panel._storedSelection, panel._restoredIndices, panel._keptUserPick) == before
+	del panel.providerList.SetItems
+	rebuild_with(f, panel, new_catalog)
+	assert panel.catalog is new_catalog
+	assert _item_ids(panel.selection.current_item()) == SOL
+	assert (panel.providerList.GetSelection(), panel.modelList.GetSelection()) == new_catalog.find_selection(*SOL)
+
+
 # --- Task 10 (R13): account boxes up front, and the dropped-entries line --
 
 def _shown_boxes(panel):

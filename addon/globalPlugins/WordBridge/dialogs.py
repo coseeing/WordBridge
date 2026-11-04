@@ -525,10 +525,7 @@ class LLMSettingsPanel(SettingsPanel):
 		not call onPanelActivated(), which is Show() (F2)."""
 		new = registry.current()
 		selection, keptUserPick = self._chooseSelection(new)
-		self._applyBaseline(self._storedBaseline(new))
-		self._keptUserPick = keptUserPick
-		self.catalog = new
-		self.selection = selection
+		baseline = self._storedBaseline(new)
 		providerLabels = [_provider_group_label(new, group) for group in new.provider_groups]
 		if self.providerList.GetItems() != providerLabels:
 			self.providerList.SetItems(providerLabels)
@@ -537,6 +534,13 @@ class LLMSettingsPanel(SettingsPanel):
 			self.modelList.SetItems(modelLabels)
 		self.providerList.SetSelection(selection.provider_group_index)
 		self.modelList.SetSelection(selection.model_index)
+		# Only now that the choices show `new` (a wx failure above leaves the
+		# panel's state matching its widgets, final review m3); the account
+		# boxes below read self.catalog and self.selection.
+		self._applyBaseline(baseline)
+		self._keptUserPick = keptUserPick
+		self.catalog = new
+		self.selection = selection
 		self._updateAccountCaptions()
 		accountChanged = self._refreshAccountInfo()
 		droppedChanged = self._setLine(self.catalogIssuesText, _dropped_entries_message(new))
