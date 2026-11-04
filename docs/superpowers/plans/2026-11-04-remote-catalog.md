@@ -44,6 +44,8 @@ relative to `addon/globalPlugins/WordBridge/` unless they start with
 - git: stage explicit paths only, check `git diff --cached --stat`; English `<type>: <summary>` messages with a why-body; no `Co-Authored-By`; no `--no-verify`, no push, no `git stash`. New files under `docs/` need `git add -f <path>`. Never stage `server/app/package/coseeing_auth/storage`.
 - Deviations go to `.superpowers/sdd/2026-11-04-remote-catalog/progress.md` as `Ruling: <decision> — <reason> — <cost if wrong>`.
 - Linux tests cover injected boundaries only; §17.6 (Windows/NVDA manual checks) is not covered by this plan's automation.
+- NVDA runs Python 3.13 (`/workspace/nvda/pyproject.toml:12`, `requires-python = ">=3.13,<3.14"`) while the test venv is 3.14: use no 3.14-only syntax or library behaviour.
+- User decisions (2026-11-04, spec §4 U5–U9): OQ1 → B, OQ2 → B, OQ3 → new option D (Yes/No dialog, spec §12.5), Coseeing group offers only `default`, invalid URL has its own status line.
 
 ## Review Focus
 
@@ -78,9 +80,12 @@ relative to `addon/globalPlugins/WordBridge/` unless they start with
 16 tasks, three batches (DEVELOPMENT_WORKFLOW.md §3.2): **Batch 1 = Tasks 1–5**
 (pure `lib/catalog` modules), **Batch 2 = Tasks 6–10** (fetch, updater,
 migration, wiring), **Batch 3 = Tasks 11–16** (panel, server, the three
-decision-gated tasks; boundary moved by one so the OQ tasks stay together).
-Tasks 14, 15 and 16 are `PENDING USER DECISION`; stop before each until the
-answer arrives.
+OQ tasks; boundary moved by one so the OQ tasks stay together).
+Tasks 14, 15 and 16 implement the user's 2026-11-04 answers to OQ2, OQ3 and
+OQ1 (spec §4 U5–U7).
+
+Expected counts after Batch 1 and its review fixes: add-on **588 passed, 1
+skipped**, server 81. The per-task counts from Task 6 on start from there.
 
 ---
 
@@ -281,7 +286,8 @@ def test_the_shipped_target_files_overlay_as_section_7_4():
 - Consumes: `load_overlay_catalog`, `has_local_items` (Task 3).
 - Produces:
   - `parse_remote_payload(body: bytes) -> tuple[dict | None, tuple[CatalogIssue, ...]]` (§8.3). Codes: `remote_malformed` (location `"payload"`, detail = exception type name or `f"expected an object, got {type}"` / `"providers must be a mapping"` / `"models must be a list"`), `remote_schema_version` (detail `f"expected 1, got {value!r}"` only when the value is an int/None; otherwise the type name). Catches `Exception` (covers `RecursionError`).
-  - `accept_remote_document(bundled_source, document, *, runnable_providers) -> tuple[CorrectorCatalog | None, tuple[CatalogIssue, ...]]` in `overlay.py` (§8.4): `(catalog, ())` when `has_local_items`, else `(None, (CatalogIssue("remote_no_models", "payload", "the payload offers no selectable local model"),))`.
+  - `check_remote_document(document) -> tuple[CatalogIssue, ...]` in `remote.py` — the §8.3 document checks, `()` when they pass; `parse_remote_payload` = JSON decode + this check.
+  - `accept_remote_document(bundled_source, document, *, runnable_providers) -> tuple[CorrectorCatalog | None, tuple[CatalogIssue, ...]]` in `overlay.py` (§8.4): runs `check_remote_document` first (a cached document never went through `parse_remote_payload`), then `(catalog, ())` when `has_local_items`, else `(None, (CatalogIssue("remote_no_models", "payload", "the payload offers no selectable local model"),))`.
 
 - [ ] **Step 1: Write the failing tests.** `test_parse_remote_payload_table` parametrized `(id, body, code)` with `code None` meaning accepted:
 `valid` (server file bytes, None), `utf8-bom` (`b"\xef\xbb\xbf"` + server file bytes, None), `not-json` (`b"{not json"`, `remote_malformed`), `array` (`b"[]"`, `remote_malformed`), `schema-2` (`remote_schema_version`), `schema-missing` (`remote_schema_version`), `providers-list` (`remote_malformed`), `providers-missing` (`remote_malformed`), `models-missing` (`remote_malformed`), `deep-nesting` (`b"[" * 100000`, `remote_malformed`), `bad-utf8` (`b"\xff\xfe\x00{"`, `remote_malformed`). Assert `document is None` iff `code` is set and the body text never appears in any detail.
@@ -309,7 +315,7 @@ def test_malformed_details_never_contain_the_body(): # body b'{"secret": [1,' ->
 **Interfaces:**
 - Consumes: `MAX_PAYLOAD_BYTES` (Task 1), `CatalogIssue`.
 - Produces:
-  - `CACHE_VERSION = 1`; `MAX_CACHE_BYTES = 2 * MAX_PAYLOAD_BYTES` (see Ruling R1 in the ledger).
+  - `CACHE_VERSION = 1`; `MAX_CACHE_BYTES = 2 * MAX_PAYLOAD_BYTES` for reading **and** writing (see the revised Ruling 4 in the ledger); `store()` refuses a body over it with `cache_write_failed` ("file would be larger than the limit") and keeps the old file; compact JSON (`separators=(",", ":")`).
   - `class CatalogCache: __init__(self, path, *, can_write: Callable[[], bool])`.
   - `load(url_key: str) -> tuple[dict | None, tuple[CatalogIssue, ...]]` — missing file or other `url_key`: `(None, ())`; corrupt (unreadable, > `MAX_CACHE_BYTES`, not JSON, not an object, wrong `cache_version`, `url_key` not a str, `document` not a dict): `(None, (CatalogIssue("unreadable_cache", "cache", <type name or short reason>),))`. Never deletes.
   - `store(url_key: str, document: dict) -> tuple[CatalogIssue, ...]` — `()` on success or when `can_write()` is false or raises; on failure `(CatalogIssue("cache_write_failed", "cache", <type name>),)`. File body `{"cache_version": 1, "url_key": ..., "document": ...}` as UTF-8 JSON (`ensure_ascii=False`). Directory created here (`mkdir(parents=True, exist_ok=True)`), never in `__init__`. Atomic: `NamedTemporaryFile(dir=parent, delete=False, prefix="remote-catalog.", suffix=".tmp")`, write, flush, `os.fsync`, close, `os.replace`; on any exception unlink the temp file best effort.
@@ -369,7 +375,7 @@ def test_a_parent_that_is_a_file_reports_cache_write_failed(): # no exception
   - `test_empty_keepalive_chunks_are_skipped`: `[b"", b"{}", b""]` → `body == b"{}"`. (Review Focus 4)
 - [ ] **Step 2: Red** — `ModuleNotFoundError: No module named 'catalog_updater'`.
 - [ ] **Step 3: Implement** `FetchResult`, `fetch_payload`.
-- [ ] **Step 4: Green** — 19 passed; full suite **585 passed, 1 skipped**.
+- [ ] **Step 4: Green** — 19 passed; full suite **607 passed, 1 skipped**.
 - [ ] **Step 5: Commit** — `feat: fetch the remote catalog with size, time and status limits`.
 
 ### Task 7: Registry swap and settings repository
@@ -387,7 +393,7 @@ def test_a_parent_that_is_a_file_reports_cache_write_failed(): # no exception
 - [ ] **Step 1: Tests** — `test_replace_before_initialize_raises`, `test_replace_swaps_current` (both reset the registry in a fixture); `test_catalog_url_defaults_when_absent` (`== DEFAULT_CATALOG_URL`), `test_catalog_url_is_stripped` (`" https://h.test/ "` → `"https://h.test/"`), `test_save_catalog_url_writes_the_value`, `test_corrector_selection_uses_an_explicit_catalog` (callable is `lambda: pytest.fail(...)`).
 - [ ] **Step 2: Red** — `AttributeError: module ... has no attribute 'replace'` / `'catalog_url'`.
 - [ ] **Step 3: Implement.**
-- [ ] **Step 4: Green** — 6 passed; full suite **591 passed, 1 skipped**.
+- [ ] **Step 4: Green** — 6 passed; full suite **613 passed, 1 skipped**.
 - [ ] **Step 5: Commit** — `feat: let the registry swap catalogs and store the catalog URL`.
 
 ### Task 8: CatalogUpdater
@@ -399,9 +405,9 @@ def test_a_parent_that_is_a_file_reports_cache_write_failed(): # no exception
 **Interfaces:**
 - Consumes: Tasks 1–7.
 - Produces:
-  - `@dataclass(frozen=True) class UpdaterStatus: source: str; fetch: str` (`source ∈ {"none","cache","fetched"}`, `fetch ∈ {"off","running","succeeded","failed"}`).
+  - `@dataclass(frozen=True) class UpdaterStatus: source: str; fetch: str` (`source ∈ {"none","cache","fetched"}`, `fetch ∈ {"off","invalid","running","succeeded","failed"}`; `off` = empty URL, `invalid` = fails §8.1, U9).
   - `class CatalogUpdater.__init__(self, *, bundled_source, cache, runnable_providers, http_get, post_to_ui, install, shutdown, log, clock=time.monotonic, start_thread=start_daemon_thread)`; `start_thread(target, args) -> thread` (production `start_daemon_thread` makes `threading.Thread(target=..., args=..., name="wordbridge-catalog-fetch", daemon=True)`, starts and returns it).
-  - `initial_catalog(url: str) -> CorrectorCatalog` (main thread, §11.2): validate; off/invalid → bundled-only, `fetch="off"` (invalid logged once as `"WordBridge: catalog URL is invalid code=%s; the remote catalog is off"`); else bundled ⊕ accepted cache, `source="cache"` or `"none"`, `fetch="running"`. Records the live key.
+  - `initial_catalog(url: str) -> CorrectorCatalog` (main thread, §11.2): validate; empty → bundled-only, `fetch="off"`; invalid → bundled-only, `fetch="invalid"`, logged once as `"WordBridge: catalog URL is invalid code=%s; the remote catalog is off"`; else bundled ⊕ cache document accepted by `accept_remote_document`, `source="cache"` or `"none"`, `fetch="running"`. Records the live key. A cache issue or a rejected cache logs `"WordBridge: catalog cache problem code=%s type=%s"`; mind batch-1 Minor 9 (a raising bundled source surfaces as `remote_no_models`).
   - `refresh(url: str) -> None` (main thread, §11.3, D8).
   - `status() -> UpdaterStatus`; property `thread` (latest started thread or `None`).
   - Internal `_run(generation, check)` (thread) and `_apply(generation, catalog, issue)` (main thread). Log lines exactly §14: `"WordBridge: catalog fetched host=%s bytes=%d models=%d"`, `"WordBridge: catalog fetch failed host=%s code=%s type=%s"`; cache problems `"WordBridge: catalog cache problem code=%s type=%s"`.
@@ -415,12 +421,12 @@ def test_a_parent_that_is_a_file_reports_cache_write_failed(): # no exception
   - `test_a_url_change_installs_bundled_plus_new_cache_at_once` (D8: install called synchronously in `refresh`).
   - `test_url_changed_back_before_fetches_complete_installs_only_the_last` (Review Focus 5: A→B→A; immediate installs for B then A's cache; only generation 3 posts).
   - `test_an_empty_url_starts_no_thread_and_reads_no_cache` (`fetch == "off"`).
-  - `test_an_invalid_stored_url_is_off_and_logged_once`.
+  - `test_an_invalid_stored_url_is_invalid_and_logged_once` (`fetch == "invalid"`, no thread, no cache read, one log line).
   - `test_logs_never_contain_path_query_or_error_text` (URL `https://h.test/p?token=s`, `http_get` raising `OSError("https://h.test/p?token=s")`; no log arg contains `"/p"`, `"token"` or the message).
   - `test_module_request_refresh_is_a_no_op_without_an_updater`, `test_module_functions_delegate_to_the_installed_updater`.
 - [ ] **Step 2: Red** — `ImportError: cannot import name 'CatalogUpdater'`.
 - [ ] **Step 3: Implement** (lock around generation/status; cache write outside the lock; outer `try/except Exception` in `_run` logs the type only).
-- [ ] **Step 4: Green** — 15 passed; full suite **606 passed, 1 skipped**.
+- [ ] **Step 4: Green** — 15 passed; full suite **628 passed, 1 skipped**.
 - [ ] **Step 5: Commit** — `feat: add the catalog updater with generations and status`.
 
 ### Task 9: Move local-catalog tests to the server file
@@ -432,10 +438,10 @@ def test_a_parent_that_is_a_file_reports_cache_write_failed(): # no exception
 **Interfaces:**
 - Consumes: `overlay_documents`, `load_overlay_catalog` (Task 3), `fetch_payload` (Task 6), `parse_remote_payload` (Task 4).
 - Produces (`tests/shipped_catalog.py`): `SERVER_CATALOG_PATH`, `ADDON_SETTING_DIR`, `server_document() -> dict`, `bundled_document() -> dict`, `shipped_overlay() -> CorrectorCatalog` (= `load_overlay_catalog(BundledCatalogSource(ADDON_SETTING_DIR), server_document(), runnable_providers=SUPPORTED_PROVIDERS)`), `TEMPORARY_LINT_CODES = frozenset({"ignored_remote_coseeings", "ignored_bundled_local_entries"})` (comment: removed in Tasks 10 and 16).
-- [ ] **Step 1:** Switch every test that reads providers, models or prices through `BundledCatalogSource(SETTING_DIR)` to `server_document()`/`shipped_overlay()`, pinning the same values. Tests needing a non-sentinel Coseeing entry build a fixture document. `test_helpers.py` and `workspace/evals/provider.py` build from `server/app/setting/catalog.json`.
+- [ ] **Step 1:** Switch every test that reads providers, models or prices through `BundledCatalogSource(SETTING_DIR)` to `server_document()`/`shipped_overlay()`, pinning the same values; price assertions go through `shipped_overlay()` (the catalog users see), not a direct build. Tests needing a non-sentinel Coseeing entry build a fixture document. `test_helpers.py` and `workspace/evals/provider.py` build from `server/app/setting/catalog.json`.
 - [ ] **Step 2:** Rewrite `tests/test_catalog_source_seam.py` per §17.3: a fake `http_get` serving the server file bytes; fetch → parse → `load_overlay_catalog` equals `load_catalog(InMemory(overlay_documents(bundled_document(), server_document())[0]))` in provider groups, selectable items, default selection and price entries; keep "add a model with no code change", "None issues", and the unimplemented-provider case (Mistral gets a temporary `PROVIDER_URL_RULES` entry via `monkeypatch.setitem`, models dropped with `unsupported_provider`).
-- [ ] **Step 3: Verify the guard** — temporarily apply `target-addon-catalog.json` in a scratch copy (not the worktree) and confirm none of these files fail any more; record the command in the ledger.
-- [ ] **Step 4: Green** — full suite **606 passed, 1 skipped** (± seam-test case changes; record the exact count).
+- [ ] **Step 3: Verify the guard** — apply `target-addon-catalog.json` in a scratch copy (`git worktree add` under the scratchpad, never the task worktree), run the files touched in this task there, and confirm none of them fail; record the command and the result in the ledger.
+- [ ] **Step 4: Green** — full suite **628 passed, 1 skipped** (± seam-test case changes; record the exact count).
 - [ ] **Step 5: Commit** — `test: read local catalog data from the server catalog file`.
 
 ### Task 10: Wire the updater into the plugin and ship the sentinel-only bundled file
@@ -457,7 +463,7 @@ def test_a_parent_that_is_a_file_reports_cache_write_failed(): # no exception
 - [ ] **Step 2: New tests** in `tests/test_catalog_plugin_wiring.py`: `test_init_schedules_sign_in_and_fetch_start`, `test_fetch_start_does_nothing_after_terminate`, `test_terminate_joins_the_fetch_thread_and_uninstalls_even_if_an_earlier_step_raises`, `test_install_catalog_updates_registry_and_self_catalog`, `test_correct_typo_uses_one_catalog_snapshot` (patched `registry.current` returns a different catalog on the 2nd call; payload id and degraded check come from the first), `test_no_test_performs_real_http` (recorder list empty after init + queued callbacks run with a fake thread starter).
 - [ ] **Step 3: Red** — the new tests fail (`AttributeError: _install_catalog`, queued count 1).
 - [ ] **Step 4: Implement** the wiring; apply the target bundled file; migrate the remaining §16.1 tests (`len(queued)` counts at `:367`, `:494`, `:666` → 2 and `:596` → 3; `test_catalog_bundled.py` and `test_ai_config_schema.py` pin keys `{"schema_version", "coseeings"}` and the one sentinel; `test_coseeing_requests.py:28` uses a fixture document with a non-sentinel Coseeing entry).
-- [ ] **Step 5: Green** — full suite **≈612 passed, 1 skipped** (record exact); server **81 passed**.
+- [ ] **Step 5: Green** — full suite **≈634 passed, 1 skipped** (record exact); server **81 passed**. `tests/test_catalog_overlay.py`'s §7.4 reference moves from `BundledCatalogSource(SETTING_DIR)` to `build_catalog(server_document())` (the bundled file no longer carries local data).
 - [ ] **Step 6: Commit** — `feat: load the catalog from the remote URL and cache at startup`.
 
 **— End of Batch 2: stop and report for the batch review. —**
@@ -470,10 +476,10 @@ def test_a_parent_that_is_a_file_reports_cache_write_failed(): # no exception
 
 **Interfaces:**
 - Consumes: `validate_catalog_url`, `catalog_updater.status()/request_refresh()`, `SettingsRepository.catalog_url/save_catalog_url`.
-- Produces: `LLMSettingsPanel.catalogUrlCtrl` (last control, `addLabeledControl(_("Model list URL:"), wx.TextCtrl, size=(self.scaleSize(375), -1), value=...)`, tooltip), `LLMSettingsPanel.catalogStatusText` (`wx.StaticText` or `None`, added right after the dropped-entries line), `isValid() -> bool`, module function `catalog_status_message(status) -> str | None` (§13.3 table).
-- [ ] **Step 1: Tests** — `test_the_url_field_is_the_last_control`; `test_is_valid_rejects` [`ftp://x` → malformed message, `http://example.com` → https message]: `_validationErrorMessageBox(message=..., option="Model list URL")` called once, field focused, returns `False`; `test_is_valid_accepts_empty_and_default`; `test_an_unchanged_url_saves_nothing_and_triggers_no_refresh` (also `HTTPS://WORDBRIDGE.COSEEING.ORG/` vs stored default); `test_a_changed_url_saves_the_stripped_text_and_schedules_one_refresh`; `test_catalog_status_message_table` (five §13.3 rows incl. `None` for fresh); `test_the_dropped_entries_line_is_silent_for_the_shipped_overlay`.
+- Produces: `LLMSettingsPanel.catalogUrlCtrl` (last control, `addLabeledControl(_("Model list URL:"), wx.TextCtrl, size=(self.scaleSize(375), -1), value=...)`, tooltip), `LLMSettingsPanel.catalogStatusText` (`wx.StaticText` or `None`, added right after the dropped-entries line), `isValid() -> bool`, module function `catalog_status_message(status) -> str | None` (§13.3 table, six rows including `fetch=invalid`, U9).
+- [ ] **Step 1: Tests** — `test_the_url_field_is_the_last_control`; `test_is_valid_rejects` [`ftp://x` → malformed message, `http://example.com` → https message]: `_validationErrorMessageBox(message=..., option="Model list URL")` called once, field focused, returns `False`; `test_is_valid_accepts_empty_and_default`; `test_an_unchanged_url_saves_nothing_and_triggers_no_refresh` (also `HTTPS://WORDBRIDGE.COSEEING.ORG/` vs stored default); `test_a_changed_url_saves_the_stripped_text_and_schedules_one_refresh`; `test_catalog_status_message_table` (six §13.3 rows incl. `fetch=invalid` and `None` for fresh); `test_the_dropped_entries_line_is_silent_for_the_shipped_overlay`.
 - [ ] **Step 2: Red.**
-- [ ] **Step 3: Implement**; every new `_()` has a `# Translators:` comment; add the nine §13.4 entries to `nvda.po`; `msgfmt --check -o /dev/null addon/locale/zh_TW/LC_MESSAGES/nvda.po`.
+- [ ] **Step 3: Implement**; every new `_()` has a `# Translators:` comment; add the ten §13.4 panel entries (nine plus the invalid-URL line) to `nvda.po`; `msgfmt --check -o /dev/null addon/locale/zh_TW/LC_MESSAGES/nvda.po`.
 - [ ] **Step 4: Green** — record counts.
 - [ ] **Step 5: Commit** — `feat: add the model list URL field and status line to the panel`.
 
@@ -495,9 +501,9 @@ def test_a_parent_that_is_a_file_reports_cache_write_failed(): # no exception
 - [ ] **Step 2: Red. Step 3: Implement. Step 4: Green** — server **86 passed** (record exact).
 - [ ] **Step 5: Commit** — `feat: serve the catalog at the server root`.
 
-### Task 14: PENDING USER DECISION (OQ2) — stored Coseeing selection offered only locally
+### Task 14: Stored Coseeing selection offered only locally (OQ2 → B)
 
-Written against the recommended option **B** (stay on Coseeing).
+Decided by the user (2026-11-04), spec §4 U6 and §12.1: stay on Coseeing.
 
 **Files:** Modify `lib/catalog/selection.py`; Test `tests/test_corrector_catalog_unittest.py:62-73` (rewritten), `tests/test_selection_state.py`.
 
@@ -505,19 +511,24 @@ Written against the recommended option **B** (stay on Coseeing).
 - [ ] **Step 1: Tests** — `test_a_stored_coseeing_id_offered_only_locally_stays_on_coseeing` (`("gpt-6-luna&OpenAI", "Coseeing")` → `("default", "Coseeing")`); `test_a_stored_local_id_still_resolves_locally`; `test_selection_state_restores_the_coseeing_default_for_it`.
 - [ ] **Step 2: Red. Step 3: Implement. Step 4: Green. Step 5: Commit** — `fix: keep a Coseeing selection on Coseeing when its model moved to local`.
 
-### Task 15: PENDING USER DECISION (OQ3) — stored local selection with no remote or cached catalog
+### Task 15: Stored local selection with no remote or cached catalog (OQ3 → D)
 
-Written against the recommended option **B** (refuse with a message, skip the startup sign-in).
+Decided by the user (2026-11-04), spec §4 U7 and §12.5: ask in a Yes/No
+dialog whether to switch to the Coseeing default.
 
 **Files:** Modify `__init__.py`, `settings_repository.py`, `nvda.po`; Test `tests/test_catalog_plugin_wiring.py`.
 
-**Interfaces:** `SettingsRepository.stored_execution_channel() -> str` (raw stored value); `GlobalPlugin._local_selection_unavailable(self) -> str | None` returning the §13.4 OQ3 message (`fetch == "running"` → "still loading" text; otherwise → "unavailable" text) when the raw stored channel is `LOCAL_CHANNEL` and `status().source == "none"`.
-- [ ] **Step 1: Tests** — `test_correction_refuses_while_the_list_is_loading`, `test_correction_refuses_when_the_list_could_not_be_loaded`, `test_correction_proceeds_once_a_catalog_is_loaded`, `test_startup_skips_coseeing_sign_in_for_a_local_user_without_a_catalog`, `test_a_coseeing_user_is_unaffected`; neither message is sent for a stored Coseeing channel.
-- [ ] **Step 2: Red. Step 3: Implement** (+ the two §13.4 OQ3 strings with `# Translators:` and zh_TW). **Step 4: Green. Step 5: Commit** — `fix: do not send a local user's text to Coseeing before the model list loads`.
+**Interfaces:**
+- `SettingsRepository.stored_execution_channel() -> str` (raw stored value, `""` when absent).
+- `GlobalPlugin._needs_catalog_choice(self) -> bool` — raw stored channel is `LOCAL_CHANNEL` and `catalog_updater.status().source == "none"`.
+- `GlobalPlugin._ask_switch_to_coseeing(self, text) -> None` (main thread, via `wx.CallAfter` from `script_correction`): `gui.message.MessageDialog(gui.mainFrame, SWITCH_TO_COSEEING_MESSAGE, _("WordBridge"), buttons=DefaultButtonSet.YES_NO)`, `.setDefaultFocus(ReturnCode.NO)`, `.SetEscapeId(ReturnCode.NO)`, `ShowModal()`; re-check `_shutdown`; Yes → `save_corrector_selection("default", COSEEING_GROUP)` + `startCorrection(text)`; anything else → `ui.message(_("The text was not sent. Your model selection was not changed."))`. Flag `self._catalog_choice_open` ignores a second request while the dialog is open.
+- Startup: `_start_coseeing_auth` is not scheduled with the resolved Coseeing channel when `_needs_catalog_choice()` is true.
+- [ ] **Step 1: Tests** — `test_correction_asks_instead_of_correcting_without_a_catalog` (a `CallAfter` to `_ask_switch_to_coseeing` is queued, no worker thread); `test_the_dialog_has_the_spec_title_message_focus_and_escape` (fake `MessageDialog` records args, `setDefaultFocus(NO)`, `SetEscapeId(NO)`); `test_yes_saves_the_coseeing_default_and_corrects_with_coseeing`; `test_no_sends_nothing_and_keeps_the_stored_selection` (stored keys unchanged, no worker, cancel line spoken); `test_a_second_request_while_the_dialog_is_open_is_ignored`; `test_a_coseeing_user_never_sees_the_dialog`; `test_the_dialog_is_not_shown_once_a_catalog_is_loaded`; `test_startup_skips_coseeing_sign_in_for_a_local_user_without_a_catalog`; `test_shutdown_during_the_dialog_starts_nothing`.
+- [ ] **Step 2: Red. Step 3: Implement** (+ the two §13.4 dialog strings with `# Translators:` and zh_TW; `msgfmt --check`). **Step 4: Green. Step 5: Commit** — `feat: ask before sending a local user's text to Coseeing without a model list`.
 
-### Task 16: PENDING USER DECISION (OQ1) — server target catalog and non-default Coseeing ids
+### Task 16: Server target catalog and non-default Coseeing ids (OQ1 → B)
 
-Written against the recommended option **B** (server-only `COSEEING_MODEL_IDS`).
+Decided by the user (2026-11-04), spec §4 U5 and §15.2: server-only `COSEEING_MODEL_IDS`.
 
 **Files:** Modify `server/app/setting/catalog.json` (← `target-server-catalog.json`, byte for byte), `server/app/correction_config.py`, `server/tests/test_correction_config.py`, `server/tests/test_proofreader_api.py`, `server/tests/test_catalog_route.py`, `tests/shipped_catalog.py` (remove `TEMPORARY_LINT_CODES` and its uses), `tests/test_catalog_overlay.py` (read the real files).
 

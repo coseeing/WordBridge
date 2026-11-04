@@ -79,6 +79,11 @@ two can drift.
 | U2 | **Provider URL security.** The add-on has a built-in allowlist of hosts per provider, derived from the provider URLs in the committed catalog. A remote provider whose `url` host is not allowed for that provider is dropped and logged, because users' personal API keys are sent to that URL. — Decided by the user (2026-11-04) |
 | U3 | **Fetch timing.** Once, in the background, after NVDA starts (never blocking NVDA startup or the UI thread), and again right after the user changes the URL in the settings panel and saves. No manual refresh button, no periodic refresh. — Decided by the user (2026-11-04) |
 | U4 | **Target files.** The bundled catalog becomes the content in §2.3; the server catalog becomes the remote payload; `catalog-remote.json` is not kept; `GET /` serves the server catalog. — Decided by the user (2026-11-04) |
+| U5 | **OQ1 → B.** The server keeps its own list of servable Coseeing model ids (env `COSEEING_MODEL_IDS`, default `deepseek-flash&DeepSeek,gpt-6-luna&OpenAI`), not exposed in `GET /`, so released add-ons keep working (§15.2, §18). — Decided by the user (2026-11-04) |
+| U6 | **OQ2 → B.** A stored `(non-default id, Coseeing)` selection whose id is not offered on Coseeing stays on Coseeing and resolves to `default` (§12.1, §18). — Decided by the user (2026-11-04) |
+| U7 | **OQ3 → new option D.** A stored local selection with no remote or cached catalog: the correction asks, in a Yes/No dialog, whether to switch to the Coseeing default; Yes saves `(default, Coseeing)` and runs the correction on Coseeing, No sends nothing and keeps the stored selection. No Coseeing sign-in at startup for this user (§12.5, §18). — Decided by the user (2026-11-04) |
+| U8 | **Coseeing group offers only `default`.** The bundled target file in §2.3 is intended (finding 1). — Decided by the user (2026-11-04) |
+| U9 | **Invalid URL status.** An invalid stored URL gets its own status line, distinct from the empty-URL line (§13.3). — Decided by the user (2026-11-04) |
 
 ### Decided by orchestrator with the recommended default; user may override before merge
 
@@ -107,7 +112,7 @@ before merge`.
 | D17 | Server: `GET /` serves the file's bytes, read and checked once at startup, `application/json`, `Cache-Control: no-cache`, no authentication. | §15.1 |
 | D18 | Cache location reuses `lib/paths.py:user_workspace_root()`, the root the dictionary and reports already use, instead of a second derivation. | §10 |
 
-User-visible questions that are **not** decided here are listed in §18.
+The user-visible questions in §18 were answered by the user on 2026-11-04 (U5–U7).
 
 ## 5. Findings that bear on the user decisions
 
@@ -155,8 +160,8 @@ User-visible questions that are **not** decided here are listed in §18.
    `:158`). The allowlist (U2) therefore protects keys for every provider, and
    provider URLs must never be logged in full.
 
-None of these makes a user decision unworkable. Findings 1–4 need the answers
-in §18.
+None of these makes a user decision unworkable. Findings 1–4 are settled by
+U5–U8.
 
 ## 6. What NVDA users hear and see
 
@@ -167,9 +172,10 @@ in §18.
   Provider list contains only Coseeing. Afterwards it shows Anthropic,
   DeepSeek, Google, OpenAI and Coseeing, as today.
 - **Coseeing group:** only "default" (Chinese UI: "預設"). See finding 1.
-- **No cache and the fetch fails, or the URL is empty:** only Coseeing
-  "default". The settings panel shows a status line explaining why (§13.3).
-  What a correction with a stored local selection does depends on OQ3.
+- **No cache and the fetch fails, or the URL is empty or invalid:** only
+  Coseeing "default". The settings panel shows a status line explaining why
+  (§13.3). A correction with a stored local selection opens the Yes/No dialog
+  of §12.5 (U7).
 - **Settings panel:** a new last field, "Model list URL:". An invalid value
   blocks saving with NVDA's standard "Invalid configuration" message box.
 - **Startup:** no new speech, no delay. Fetching never announces anything.
@@ -259,8 +265,9 @@ one lint issue (`unreferenced_provider` for `providers.OpenRouter`, as today:
 - `http` for loopback exists for the local development server (the commented
   `COSEEING_BASE_URL` at `__init__.py:119`).
 - A stored value that fails validation (for example, hand-edited `nvda.ini`)
-  is treated as "off" and logged once. The panel shows it so the user can fix
-  it.
+  behaves like "off" (no request, no cache) but has its own status
+  `fetch=invalid` and status line (U9), and is logged once. The panel shows
+  the value so the user can fix it.
 
 ### 8.2 HTTP client (D4)
 
@@ -430,7 +437,9 @@ has no side effects, so `tests/test_import_purity.py` stays green.
 `__init__.py:273-283`), `install` (a main-thread callback), the shutdown event,
 the logger, a clock, a thread starter, a lock, a generation counter, the latest
 thread, and a status: `source ∈ {none, cache, fetched}` and
-`fetch ∈ {off, running, succeeded, failed}`.
+`fetch ∈ {off, invalid, running, succeeded, failed}`. `off` means the URL
+is empty; `invalid` means a stored value failed §8.1 (U9). Both start no
+fetch and read no cache.
 
 ### 11.2 Startup
 
@@ -456,7 +465,7 @@ thread, and a status: `source ∈ {none, cache, fetched}` and
 
 `updater.refresh(url)` (main thread): under the lock, increment the generation,
 record `(generation, url_key)`, and set `fetch=running`, or `off` for an empty
-URL. If the key differs from the one the live catalog was built for (D8),
+URL, or `invalid` for one that fails §8.1. If the key differs from the one the live catalog was built for (D8),
 immediately install bundled ⊕ (cache for the new key, if any) and set `source`
 to match. Then start a thread for this generation. Older threads are not
 joined; their results are discarded.
@@ -539,15 +548,23 @@ release retires a model (for example, GPT-5.6 in `a3935fd`). Stored values are
 never rewritten on read (`settings_repository.py:60-65`), so a model that
 returns in a later payload comes back by itself.
 
-The two user-visible cases not covered by this rule are OQ2 (a stored Coseeing
-id that now exists only on the local channel) and OQ3 (a stored local selection
-while `source == none`).
+The two user-visible cases not covered by this rule were OQ2 and OQ3:
+
+- **Stored Coseeing id offered only locally (U6, OQ2 → B).** A stored
+  `execution_channel == "Coseeing"` whose id is not offered on Coseeing
+  resolves to `default_selection()` (the Coseeing `default`), never to the
+  local channel. `normalize_selection()` changes accordingly; the rule pinned
+  at `tests/test_corrector_catalog_unittest.py:62-73` is rewritten, and the
+  unknown-channel case (`:75-85`) is unchanged. Stored values are still not
+  rewritten on read.
+- **Stored local selection while `source == none` (U7, OQ3 → D).** See §12.5.
 
 ### 12.2 Startup Coseeing sign-in
 
 `_start_coseeing_auth(channel)` keeps using the resolved selection
-(`__init__.py:181-182`), unless OQ3 picks option B, which also skips it for a
-stored local selection while `source == none`.
+(`__init__.py:181-182`), except that it is skipped when the **stored**
+`execution_channel` is `local` and `source == none` (U7): the user chose a
+local model, and only a Yes in the §12.5 dialog moves them to Coseeing.
 
 ### 12.3 Panel does not overwrite an unresolved selection (D12)
 
@@ -568,7 +585,55 @@ announcement (`__init__.py:416-422`, "The model list could not be loaded.
 Coseeing will choose a model for you.") is unchanged. It does not fire for the
 new bundled-only state, because a Coseeing user loses nothing there; the
 bundled-only state is explained by the panel status line (§13.3) and, for local
-users, by OQ3.
+users, by the §12.5 dialog.
+
+### 12.5 Stored local selection with no remote or cached catalog (U7)
+
+Applies when a correction is requested (`script_correction`, NVDA+Alt+O),
+the selected text passed `isTextValid()`, the **stored**
+`execution_channel` (`SettingsRepository.stored_execution_channel()`, the raw
+value) is `local`, and the updater status has `source == none` — the first
+start after the upgrade before the first fetch, offline with no cache, or an
+empty or invalid URL. `normalize_selection()` is unchanged by this; the check
+is keyed on the raw stored channel, before the resolution that would otherwise
+send the text to the Coseeing default.
+
+1. `script_correction` schedules `wx.CallAfter(self._ask_switch_to_coseeing,
+   text)` and returns. A `gui.message.MessageDialog` must be built on the main
+   thread, and NVDA recommends `wx.CallAfter` over a modal dialog shown
+   directly from a script (`/workspace/nvda/source/gui/__init__.py:948-955`).
+   While this dialog is open, a second correction request is ignored (a flag
+   set before `ShowModal()` and cleared after it).
+2. The dialog: `gui.message.MessageDialog(gui.mainFrame, message,
+   _("WordBridge"), buttons=DefaultButtonSet.YES_NO)`
+   (`/workspace/nvda/source/gui/message.py:361-364`, `:420-428`), with
+   `setDefaultFocus(ReturnCode.NO)` and `SetEscapeId(ReturnCode.NO)`
+   (`message.py:699`, `:712`). **Title** "WordBridge" (the existing
+   translated panel title). **Message** (two paragraphs, information first, so
+   NVDA reads "not available" before the question when the dialog opens):
+
+   > The model list is not available yet, so the model you selected cannot be used.
+   >
+   > Switch to the Coseeing default and correct this text with Coseeing? Your
+   > WordBridge setting will be changed to the Coseeing default.
+
+   **Buttons** NVDA's own Yes and No (already translated by NVDA). **Initial
+   focus and default button: No**, so pressing Enter or Escape sends nothing.
+   NVDA reads: "WordBridge dialog, The model list is not available yet, …,
+   No button".
+3. After `ShowModal()` returns, re-check `_shutdown` (the nested loop can run
+   `terminate()`).
+   - **Yes:** `self.settings.save_corrector_selection("default", "Coseeing")`
+     — the same write the panel's `onSave` does, so NVDA persists it the same
+     way as any panel change — then `self.startCorrection(text)`. The correction
+     takes the Coseeing path, which requests its own access token
+     (`__init__.py:467`); no separate sign-in call is made.
+   - **No (or Escape, or closed):** nothing is sent anywhere, the stored
+     selection is unchanged, and NVDA says "The text was not sent. Your model
+     selection was not changed."
+4. No new speech happens before the dialog: a `ui.message` would be cut off by
+   the dialog's own focus announcement, so the information is the dialog's
+   first sentence instead.
 
 ## 13. Settings
 
@@ -626,6 +691,7 @@ opens:
 | Status | Line |
 | --- | --- |
 | `fetch=off` | "The model list URL is empty, so only the Coseeing default is available." |
+| `fetch=invalid` (U9) | "The model list URL is invalid, so no model list was loaded." |
 | `source=none`, `fetch=running` | "The model list is still loading. Until it loads, only the Coseeing default is available." |
 | `source=none`, `fetch=failed` | "The model list could not be loaded, so only the Coseeing default is available. See the NVDA log for details." |
 | `source=cache`, `fetch=failed` | "The model list could not be updated. WordBridge is using the list it saved earlier." |
@@ -649,13 +715,12 @@ Every new `_()` call gets a `# Translators:` comment. The zh_TW entries go into
 | `The model list is still loading. Until it loads, only the Coseeing default is available.` | `模型清單仍在載入中。載入完成前，只能使用 Coseeing 預設。` | Panel status line |
 | `The model list could not be loaded, so only the Coseeing default is available. See the NVDA log for details.` | `無法載入模型清單，因此只能使用 Coseeing 預設。詳情請參閱 NVDA 記錄。` | Panel status line |
 | `The model list could not be updated. WordBridge is using the list it saved earlier.` | `無法更新模型清單。WordBridge 正在使用先前儲存的清單。` | Panel status line |
+| `The model list URL is invalid, so no model list was loaded.` | `模型清單網址無效，未取得模型清單。` | Panel status line for an invalid stored URL (U9) |
+| `The model list is not available yet, so the model you selected cannot be used.\n\nSwitch to the Coseeing default and correct this text with Coseeing? Your WordBridge setting will be changed to the Coseeing default.` | `模型清單尚未取得，因此無法使用您選擇的模型。\n\n要改用 Coseeing 預設，並使用 Coseeing 校正這段文字嗎？您的 WordBridge 設定會改為 Coseeing 預設。` | Message of the Yes/No dialog in §12.5; Yes switches to Coseeing and sends the text there |
+| `The text was not sent. Your model selection was not changed.` | `未傳送文字，模型選擇維持不變。` | Spoken after the user answers No in that dialog |
 
-These are added only if OQ3 option B is chosen:
-
-| English | zh_TW |
-| --- | --- |
-| `The model list is still loading, so your selected model is not available yet. Please try again in a moment.` | `模型清單仍在載入中，所選模型暫時無法使用。請稍後再試。` |
-| `Your selected model is unavailable because the model list could not be loaded. Check the model list URL in WordBridge settings.` | `無法載入模型清單，因此所選模型無法使用。請檢查 WordBridge 設定中的模型清單網址。` |
+The dialog title reuses the existing `_("WordBridge")` (`nvda.po:52`); the
+buttons are NVDA's own Yes and No.
 
 ## 14. Logging (D15)
 
@@ -697,9 +762,17 @@ Today `resolve_model()` maps `"default"` to `DEFAULT_CORRECTOR_CONFIG_ID`
 That still works with the target file, because `deepseek-flash` is an active
 DeepSeek model there. Any other id requires an active `coseeings` offer
 (`correction_config.py:68-71`), and the target file has none. This changes
-which models Coseeing users of **released** add-ons can use, so it is OQ1 and
-is not decided here. The server task waits for that answer. The add-on tasks
-do not depend on it (§16.3).
+which models Coseeing users of **released** add-ons can use, so it was OQ1.
+
+**Decided by the user (2026-11-04): B (U5).** `CorrectionSettings` gains
+`coseeing_ids: frozenset[str]`, read at startup from the env var
+`COSEEING_MODEL_IDS` (comma-separated, items stripped, empty items ignored;
+default `deepseek-flash&DeepSeek,gpt-6-luna&OpenAI`). `resolve_model()`
+checks it where it checked the `coseeings` offer
+(`correction_config.py:68-71`); the local-model check after it is unchanged.
+The list is server-only and is not part of the `GET /` payload. Released
+add-ons keep working exactly as today, and the two server tests keep their
+meaning.
 
 ## 16. Tests that depend on the bundled catalog today
 
@@ -882,7 +955,14 @@ a temporary rule in that test, so the allowlist does not drop it first).
 ### 17.4 Regression
 
 Every test in §16.1 is migrated per §16.2 and must pass with the target files
-applied. The OQ2 and OQ3 outcomes each get their own named tests once decided.
+applied. U6 and U7 each get their own named tests: for U6, a stored
+`("gpt-6-luna&OpenAI", "Coseeing")` resolves to `("default", "Coseeing")`;
+for U7, the dialog is scheduled instead of a correction, its message, title,
+default focus and escape id match §12.5, Yes saves `("default", "Coseeing")`
+and starts a Coseeing correction, No starts nothing, sends nothing, keeps the
+stored values and speaks the cancel line, a second request while it is open is
+ignored, a stored Coseeing user never sees it, it does not appear once
+`source != none`, and startup skips the Coseeing sign-in for that user.
 
 ### 17.5 Server
 
@@ -891,10 +971,11 @@ applied. The OQ2 and OQ3 outcomes each get their own named tests once decided.
   object without `coseeings`. An anonymous client works.
 - A startup check: a non-object or wrong `schema_version` in the file raises
   (monkeypatched path).
-- The two failing tests are updated according to the OQ1 answer.
-  `test_inactive_coseeing_offer_is_rejected` (`:20-28`) is rewritten or
-  removed according to the same answer, since it becomes vacuous without
-  `coseeings`.
+- The two failing tests keep their meaning under U5 (the ids are in the
+  default `COSEEING_MODEL_IDS`). `test_inactive_coseeing_offer_is_rejected`
+  (`:20-28`) becomes vacuous without `coseeings` and is rewritten as "an id
+  not in `COSEEING_MODEL_IDS` is rejected" plus "a listed id whose local model
+  is inactive is rejected".
 
 ### 17.6 Windows/NVDA manual checks
 
@@ -907,7 +988,12 @@ Each item is tested on an installed add-on built from the branch.
 2. Same, opening the panel within the first second: the status line says the
    list is loading, and Coseeing is the only group.
 3. Offline with no cache: only Coseeing "default"; the status line says the
-   list could not be loaded. The stored local selection behaves as OQ3 decides.
+   list could not be loaded. With a stored local model, NVDA+Alt+O opens the
+   §12.5 dialog: NVDA reads the title, the "not available" sentence, the
+   question, and "No button". Escape speaks the cancel line and sends nothing;
+   reopening the panel still shows the stored model is unchanged (D12). Yes
+   corrects the text through Coseeing and the panel then shows Coseeing
+   "default".
 4. Offline with a cache: the cached list; the status line says it could not be
    updated.
 5. URL `ftp://x`, then `http://example.com`: NVDA reads the "Invalid
@@ -931,7 +1017,7 @@ Each item is tested on an installed add-on built from the branch.
 13. Speech: "Model list URL: edit, https://wordbridge.coseeing.org". It is last
     in the Tab order. NVDA+B reads the status line.
 
-## 18. Open questions (user-visible; not decided)
+## 18. Open questions (answered by the user on 2026-11-04)
 
 ### OQ1. How does the server resolve a non-default `corrector_config_id` once its catalog has no `coseeings`?
 
@@ -956,6 +1042,8 @@ Released add-ons let Coseeing users pick `deepseek-flash&DeepSeek` and
 **Recommended: B.** It is the only option that changes nothing for installed
 add-ons. It can be removed later with no add-on change.
 
+**Decided by the user (2026-11-04): B** (U5, §15.2).
+
 ### OQ2. What happens to a stored Coseeing selection whose id is now offered only on the local channel?
 
 Affects users who chose Coseeing `gpt-6-luna` or `deepseek-flash` (finding 2).
@@ -976,6 +1064,8 @@ Affects users who chose Coseeing `gpt-6-luna` or `deepseek-flash` (finding 2).
 they chose. Stored values are not rewritten, so nothing is lost if the answer
 changes later.
 
+**Decided by the user (2026-11-04): B** (U6, §12.1).
+
 ### OQ3. What does a correction do when the stored selection is local and no remote or cached catalog is loaded?
 
 This happens on the first start after the upgrade before the fetch finishes,
@@ -994,11 +1084,17 @@ when offline with no cache, or with an empty URL (finding 4).
 **Recommended: B.** Text is never sent to a processor the user did not choose,
 and the message says what to fix.
 
-### What can start before the answers
+**Decided by the user (2026-11-04): a new option D** (U7, §12.5): say that the
+model list is not available yet and ask, in a Yes/No dialog, whether to
+switch to the Coseeing default. Yes saves `(default, Coseeing)` and corrects
+the text with Coseeing; No sends nothing and keeps the stored selection. No
+Coseeing sign-in at startup for this user. The two option-B strings in §13.4
+are replaced by the dialog strings.
+
+### What could start before the answers
 
 Everything in §16.3 steps 1–2 except the OQ2 and OQ3 code paths and their tests.
-The selection code is the last part of step 2, so the plan can schedule it as
-its final task. Step 3 waits for OQ1.
+All three answers arrived on 2026-11-04, so nothing waits any more.
 
 ## 19. Verification and baseline
 
