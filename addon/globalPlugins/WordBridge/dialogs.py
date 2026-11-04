@@ -133,10 +133,12 @@ class LLMSettingsPanel(SettingsPanel):
 		# D12: remember whether the stored selection resolved as stored. One the
 		# catalog cannot offer (offline with no model list, a retired model) is
 		# shown as the default, but it is only overwritten if the user actually
-		# changes the Service Provider or model choice.
+		# changes the Service Provider or model choice. Nothing stored at all (a
+		# fresh install) has nothing to protect: it counts as resolved, so OK
+		# writes the shown default and starts the Coseeing sign-in, as before.
 		self._storedSelection = self.settings.stored_corrector_selection()
 		resolved = self.settings.corrector_selection(catalog=self.catalog)
-		self._storedSelectionResolved = resolved == self._storedSelection
+		self._storedSelectionResolved = resolved == self._storedSelection or self._storedSelection == ("", "")
 		self.selection = SelectionState.restore(self.catalog, *resolved)
 		self._restoredIndices = (self.selection.provider_group_index, self.selection.model_index)
 

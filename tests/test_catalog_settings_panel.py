@@ -217,6 +217,26 @@ def test_an_unresolved_stored_selection_survives_an_untouched_save(monkeypatch):
 	assert f.auth_calls == []
 
 
+@pytest.mark.parametrize("catalog_kind", ["shipped", "bundled-only"])
+def test_a_fresh_install_untouched_save_stores_the_default_and_signs_in(monkeypatch, catalog_kind):
+	# Nothing stored yet (a fresh nvda.ini): there is nothing for D12 to
+	# protect, so OK on the untouched panel behaves as on main -- the default
+	# Coseeing selection is written and the interactive Coseeing sign-in runs.
+	f = _panel_fixture(monkeypatch)
+	assert (f.settings["corrector_config_id"], f.settings["execution_channel"]) == ("", "")
+	if catalog_kind == "bundled-only":
+		catalog = _bundled_only(f)
+		monkeypatch.setattr(f.dialogs.registry, "current", lambda: catalog)
+	panel = f.make_panel()
+	f.queued.clear()
+
+	_save(panel)
+	_run_queued(f)
+
+	assert (f.settings["corrector_config_id"], f.settings["execution_channel"]) == ("default", "Coseeing")
+	assert f.auth_calls == ["Coseeing"]
+
+
 def test_a_changed_choice_overwrites_the_unresolved_selection(monkeypatch):
 	# A retired local model: unresolved, shown as the Coseeing default.
 	f = _panel_fixture(monkeypatch, corrector_config_id="gpt-retired&OpenAI", execution_channel="local")
