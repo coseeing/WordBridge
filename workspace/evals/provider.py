@@ -46,7 +46,9 @@ _CATALOG = None
 def _catalog():
     global _CATALOG
     if _CATALOG is None:
-        setting_dir = Path(__file__).resolve().parents[2] / "addon" / "globalPlugins" / "WordBridge" / "setting"
+        # Local providers and models live in the server catalog file, the
+        # remote payload; the add-on's bundled file has only the Coseeing default.
+        setting_dir = Path(__file__).resolve().parents[2] / "server" / "app" / "setting"
         document, _issues = BundledCatalogSource(setting_dir).load()
         _CATALOG = build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
     return _CATALOG

@@ -1,18 +1,12 @@
 import unittest
-from pathlib import Path
 
-from lib.catalog.document import build_catalog
 from lib.catalog.model import COSEEING_GROUP
-from lib.catalog.sources import BundledCatalogSource
-from lib.llm import SUPPORTED_PROVIDERS
-
-
-SETTING_DIR = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge" / "setting"
+from shipped_catalog import shipped_overlay
 
 
 def shipped_catalog():
-	document, _issues = BundledCatalogSource(SETTING_DIR).load()
-	return build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
+	# The catalog a user sees after fetching the shipped server file.
+	return shipped_overlay()
 
 
 class CorrectorCatalogTests(unittest.TestCase):

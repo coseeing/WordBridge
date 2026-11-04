@@ -45,13 +45,13 @@ SETTING_DIR = ADDON_PATH / "setting"
 
 
 def _catalog():
-	from lib.catalog.document import build_catalog
-	from lib.catalog.sources import BundledCatalogSource
-	from lib.llm import SUPPORTED_PROVIDERS
+	# Provider parameters and prices live in the server catalog file now;
+	# this is the catalog a user sees after fetching it.
+	from shipped_catalog import dropped_issues, shipped_overlay
 
-	document, issues = BundledCatalogSource(SETTING_DIR).load()
-	assert issues == ()
-	return build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
+	catalog = shipped_overlay()
+	assert dropped_issues(catalog) == []
+	return catalog
 
 
 def _provider_entry(provider_name):

@@ -1,38 +1,145 @@
-from pathlib import Path
+"""The remote seam: a fetched payload behaves exactly like the same content
+loaded from disk.
 
+The fetch path is the real one -- catalog_updater.fetch_payload() with a fake
+http_get serving bytes, then parse_remote_payload() and the overlay -- and the
+reference is the same documents overlaid in memory and built by
+load_catalog(). Nothing downstream of the seam may tell the two apart.
+"""
+
+import json
+
+import pytest
+
+from lib.catalog import remote
 from lib.catalog.fallback import load_catalog
 from lib.catalog.model import COSEEING_GROUP, CatalogIssue
+from lib.catalog.overlay import load_overlay_catalog, overlay_documents
+from lib.catalog.remote import ProviderUrlRule, parse_remote_payload
 from lib.catalog.selection import SelectionState
 from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
+from plugin_modules import load_plugin_module
+from shipped_catalog import ADDON_SETTING_DIR, SERVER_CATALOG_PATH, bundled_document, server_document
 
 
-SETTING_DIR = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge" / "setting"
+updater = load_plugin_module("catalog_updater")
 
 
-class FakeRemoteCatalogSource:
-	"""What a RemoteCatalogSource will be: a document from somewhere else.
-
-	It holds no HTTP, no cache and no retry, because none of that changes what
-	the rest of the add-on sees. That is the claim this test exists to prove.
-	"""
-
-	def __init__(self, document):
+class InMemorySource:
+	def __init__(self, document, issues=()):
 		self.document = document
+		self.issues = issues
 
 	def load(self):
-		return self.document, ()
+		return self.document, self.issues
+
+
+class FakeResponse:
+	def __init__(self, body):
+		self.status_code = 200
+		self.headers = {"Content-Length": str(len(body))}
+		self.body = body
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, *exc):
+		return False
+
+	def iter_content(self, chunk_size):
+		for start in range(0, len(self.body), chunk_size):
+			yield self.body[start:start + chunk_size]
+
+
+def _serve(body):
+	return lambda url, **kwargs: FakeResponse(body)
+
+
+def fetched_catalog(body: bytes):
+	result = updater.fetch_payload("https://wordbridge.coseeing.org", http_get=_serve(body))
+	assert result.issue is None
+	document, issues = parse_remote_payload(result.body)
+	assert issues == ()
+	return load_overlay_catalog(BundledCatalogSource(ADDON_SETTING_DIR), document, runnable_providers=SUPPORTED_PROVIDERS)
+
+
+def in_memory_catalog(remote_document):
+	document, issues = overlay_documents(bundled_document(), remote_document)
+	return load_catalog(InMemorySource(document, issues), runnable_providers=SUPPORTED_PROVIDERS)
+
+
+def _body(document) -> bytes:
+	return json.dumps(document).encode("utf8")
+
+
+def test_a_fetched_payload_behaves_exactly_like_the_same_documents_from_disk():
+	fetched = fetched_catalog(SERVER_CATALOG_PATH.read_bytes())
+	reference = in_memory_catalog(server_document())
+
+	assert fetched.provider_groups == reference.provider_groups
+	assert fetched.selectable_items == reference.selectable_items
+	assert fetched.default_selection() == reference.default_selection()
+	assert [entry.price_entry() for entry in fetched.models] == [
+		entry.price_entry() for entry in reference.models
+	]
+	assert any(entry.price_entry() for entry in fetched.models)
+
+
+def test_a_remote_document_can_add_a_model_with_no_code_change():
+	document = server_document()
+	document["models"] = document["models"] + [{
+		"provider": "OpenAI",
+		"model": "gpt-9-future",
+		"label": "GPT 9 Future",
+		"pricing": {"input_tokens": 1, "output_tokens": 2, "base_unit": 1000000},
+		"usage_key": "usage",
+	}]
+
+	catalog = fetched_catalog(_body(document))
+
+	assert "GPT 9 Future" in catalog.labels_for("OpenAI")
+	assert catalog.get_model("gpt-9-future&OpenAI").price_entry()["pricing"]["input_tokens"] == 1
+
+
+def test_a_remote_document_naming_an_unimplemented_provider_drops_its_models(monkeypatch):
+	# Mistral gets a temporary URL rule, so it is build_catalog()'s
+	# unsupported_provider rule that drops it, not the allowlist.
+	monkeypatch.setitem(remote.PROVIDER_URL_RULES, "Mistral", ProviderUrlRule(
+		schemes=frozenset({"https"}), hosts=frozenset({"api.mistral.test"}),
+	))
+	document = server_document()
+	document["providers"] = dict(document["providers"], Mistral={
+		"label": "Mistral",
+		"url": "https://api.mistral.test/v1",
+		"setting": {},
+		"timeout0": 10,
+		"timeout_max": 20,
+	})
+	document["models"] = document["models"] + [{"provider": "Mistral", "model": "m-large", "label": "M Large"}]
+
+	catalog = fetched_catalog(_body(document))
+
+	codes = {issue.code for issue in catalog.issues}
+	assert "Mistral" not in catalog.provider_groups
+	assert "M Large" not in catalog.labels_for(COSEEING_GROUP)
+	assert "unsupported_provider" in codes
+	assert "disallowed_provider_url" not in codes
+
+
+def test_the_panel_facing_selection_is_identical_across_sources():
+	fetched = fetched_catalog(SERVER_CATALOG_PATH.read_bytes())
+	reference = in_memory_catalog(server_document())
+
+	from_fetched = SelectionState.restore(fetched, "", "")
+	from_reference = SelectionState.restore(reference, "", "")
+
+	assert from_fetched.provider_group == from_reference.provider_group
+	assert from_fetched.current_item() == from_reference.current_item()
 
 
 class FakeSourceWithNoIssues:
-	"""A source that reports its second tuple element as None instead of ().
-
-	This is exactly the shape a not-yet-written RemoteCatalogSource could
-	return -- a 200 response with nothing to report -- and load_catalog()
-	must degrade to the sentinel rung rather than let TypeError escape
-	tuple(None), which would otherwise propagate straight out of
-	GlobalPlugin.__init__.
-	"""
+	"""A source that reports its second tuple element as None instead of ()."""
 
 	def __init__(self, document):
 		self.document = document
@@ -41,102 +148,29 @@ class FakeSourceWithNoIssues:
 		return self.document, None
 
 
-class FakeSourceReportingAnIssue:
-	"""A source that actually uses the issues half of the (document, issues)
-	contract -- proving that half is wired end to end, not just declared.
-	"""
-
-	def __init__(self, document, issue):
-		self.document = document
-		self.issue = issue
-
-	def load(self):
-		return self.document, (self.issue,)
-
-
-def test_a_document_from_a_remote_source_behaves_exactly_like_the_bundled_one():
-	document, issues = BundledCatalogSource(SETTING_DIR).load()
-	assert issues == ()
-
-	bundled = load_catalog(BundledCatalogSource(SETTING_DIR), runnable_providers=SUPPORTED_PROVIDERS)
-	remote = load_catalog(FakeRemoteCatalogSource(document), runnable_providers=SUPPORTED_PROVIDERS)
-
-	assert remote.provider_groups == bundled.provider_groups
-	assert remote.selectable_items == bundled.selectable_items
-	assert remote.default_selection() == bundled.default_selection()
-	assert [entry.price_entry() for entry in remote.models] == [
-		entry.price_entry() for entry in bundled.models
-	]
-
-
-def test_a_remote_document_can_add_a_model_with_no_code_change():
-	document, _ = BundledCatalogSource(SETTING_DIR).load()
-	document["models"] = document["models"] + [{
-		"provider": "OpenAI",
-		"model": "gpt-9-future",
-		"label": "GPT 9 Future",
-		"pricing": {"input_tokens": 1, "output_tokens": 2, "base_unit": 1000000},
-		"usage_key": "usage",
-	}]
-	catalog = load_catalog(FakeRemoteCatalogSource(document), runnable_providers=SUPPORTED_PROVIDERS)
-
-	assert "GPT 9 Future" in catalog.labels_for("OpenAI")
-	entry = catalog.get_model("gpt-9-future&OpenAI")
-	assert entry.price_entry()["pricing"]["input_tokens"] == 1
-
-
-def test_a_remote_document_naming_an_unimplemented_provider_offers_only_coseeing():
-	document, _ = BundledCatalogSource(SETTING_DIR).load()
-	document["providers"] = dict(document["providers"], Mistral={
-		"label": "Mistral",
-		"url": "https://example.invalid",
-		"setting": {},
-		"timeout0": 10,
-		"timeout_max": 20,
-	})
-	document["models"] = document["models"] + [
-		{"provider": "Mistral", "model": "m-large", "label": "M Large"}
-	]
-	document["coseeings"] = document["coseeings"] + [
-		{"model": "m-large", "provider": "Mistral", "label": "M Large"}
-	]
-	catalog = load_catalog(FakeRemoteCatalogSource(document), runnable_providers=SUPPORTED_PROVIDERS)
-
-	assert "Mistral" not in catalog.provider_groups
-	assert "M Large" in catalog.labels_for(COSEEING_GROUP)
-	assert "unsupported_provider" in {issue.code for issue in catalog.issues}
-
-
-def test_the_panel_facing_selection_is_identical_across_sources():
-	document, _ = BundledCatalogSource(SETTING_DIR).load()
-	bundled = load_catalog(BundledCatalogSource(SETTING_DIR), runnable_providers=SUPPORTED_PROVIDERS)
-	remote = load_catalog(FakeRemoteCatalogSource(document), runnable_providers=SUPPORTED_PROVIDERS)
-
-	from_bundled = SelectionState.restore(bundled, "", "")
-	from_remote = SelectionState.restore(remote, "", "")
-
-	assert from_bundled.provider_group == from_remote.provider_group
-	assert from_bundled.current_item() == from_remote.current_item()
-
-
 def test_a_source_reporting_no_issues_as_none_degrades_instead_of_raising():
-	document, _ = BundledCatalogSource(SETTING_DIR).load()
+	catalog = load_catalog(FakeSourceWithNoIssues(server_document()), runnable_providers=SUPPORTED_PROVIDERS)
 
-	catalog = load_catalog(FakeSourceWithNoIssues(document), runnable_providers=SUPPORTED_PROVIDERS)
-
-	# A source this well-behaved (a valid document, just a None instead of an
-	# empty tuple) should not degrade the whole catalog to the sentinel --
-	# the point is only that load_catalog() must not raise.
+	# A valid document with None instead of () must not degrade the whole
+	# catalog to the sentinel -- the point is only that load_catalog() must
+	# not raise.
 	assert catalog.degraded is False
 	assert catalog.selectable_items != ()
 
 
 def test_issues_a_source_reports_reach_the_catalog():
-	document, _ = BundledCatalogSource(SETTING_DIR).load()
 	issue = CatalogIssue("unreadable_file", "remote-payload.json", "simulated 500")
 
-	catalog = load_catalog(
-		FakeSourceReportingAnIssue(document, issue), runnable_providers=SUPPORTED_PROVIDERS
-	)
+	catalog = load_catalog(InMemorySource(server_document(), (issue,)), runnable_providers=SUPPORTED_PROVIDERS)
 
 	assert issue in catalog.issues
+
+
+@pytest.mark.parametrize("chunk", [1, 7, 65536])
+def test_the_fetch_reassembles_the_body_whatever_the_chunking(chunk, monkeypatch):
+	body = SERVER_CATALOG_PATH.read_bytes()
+	monkeypatch.setattr(updater, "CHUNK_BYTES", chunk)
+
+	result = updater.fetch_payload("https://wordbridge.coseeing.org", http_get=_serve(body))
+
+	assert result.body == body

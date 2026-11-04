@@ -6,15 +6,11 @@ import pytest
 
 ADDON_PATH = Path(__file__).parents[1] / "addon" / "globalPlugins" / "WordBridge"
 sys.path.insert(0, str(ADDON_PATH))
-from lib.catalog.document import build_catalog
 from lib.catalog.model import make_corrector_config_id
-from lib.catalog.sources import BundledCatalogSource
-from lib.llm import SUPPORTED_PROVIDERS
 from lib.llm.adapter import get_provider_model_adapter
 from lib.llm.provider import get_provider
 
 
-SETTING_DIR = ADDON_PATH / "setting"
 
 PROVIDER_PATH = Path(__file__).parents[1] / "workspace" / "evals" / "provider.py"
 spec = importlib.util.spec_from_file_location("wordbridge_eval_provider", PROVIDER_PATH)
@@ -23,9 +19,11 @@ spec.loader.exec_module(provider_module)
 
 
 def _catalog():
-    document, issues = BundledCatalogSource(SETTING_DIR).load()
-    assert issues == ()
-    return build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
+    from shipped_catalog import dropped_issues, shipped_overlay
+
+    catalog = shipped_overlay()
+    assert dropped_issues(catalog) == []
+    return catalog
 
 
 def test_get_config_reads_explicit_wordbridge_settings():

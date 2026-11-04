@@ -2,24 +2,24 @@ from pathlib import Path
 
 import pytest
 
-from lib.catalog.document import build_catalog
-from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
 from lib.llm.adapter import ADAPTER_CLASSES
 from lib.llm.provider import PROVIDER_CLASSES, get_provider
+from shipped_catalog import dropped_issues, server_document, shipped_overlay
 
 
-SETTING_DIR = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge" / "setting"
+ADDON_PATH = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge"
+
+
 def catalog():
-	document, issues = BundledCatalogSource(SETTING_DIR).load()
-	assert issues == ()
-	return build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
+	catalog = shipped_overlay()
+	assert dropped_issues(catalog) == []
+	return catalog
 
 
 def catalog_document():
-	document, issues = BundledCatalogSource(SETTING_DIR).load()
-	assert issues == ()
-	return document
+	# Provider names live in the server catalog file, the remote payload.
+	return server_document()
 
 
 def test_the_provider_and_adapter_family_tables_agree():
@@ -52,13 +52,13 @@ def test_every_active_local_catalog_model_has_pricing():
 
 
 def test_provider_lookup_does_not_fall_back_to_a_case_insensitive_glob():
-	source = (SETTING_DIR.parent / "lib" / "llm" / "provider.py").read_text(encoding="utf8")
+	source = (ADDON_PATH / "lib" / "llm" / "provider.py").read_text(encoding="utf8")
 
 	assert "casefold()" not in source
 
 
 def test_the_provider_no_longer_reads_its_settings_from_disk():
-	source = (SETTING_DIR.parent / "lib" / "llm" / "provider.py").read_text(encoding="utf8")
+	source = (ADDON_PATH / "lib" / "llm" / "provider.py").read_text(encoding="utf8")
 
 	assert "setting_name" not in source
 	assert "setting_dir" not in source

@@ -39,11 +39,11 @@ class TaskArchitectureTests(unittest.TestCase):
 		against the canonical document directly.
 		"""
 		from lib.catalog.document import build_catalog
-		from lib.catalog.sources import BundledCatalogSource
 		from lib.llm import SUPPORTED_PROVIDERS
+		from shipped_catalog import server_document
 
-		document, issues = BundledCatalogSource(ADDON_PATH / "setting").load()
-		catalog = build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
+		# Local models live in the server catalog file, the remote payload.
+		catalog = build_catalog(server_document(), runnable_providers=SUPPORTED_PROVIDERS)
 
 		self.assertEqual(len(catalog.models), 17)
 		self.assertEqual(len({entry.corrector_config_id for entry in catalog.models}), 17)
@@ -64,10 +64,10 @@ class TaskArchitectureTests(unittest.TestCase):
 			# Build the catalog and register it the same way GlobalPlugin.__init__
 			# does, without running the rest of __init__ (categoryClasses
 			# registration, starting Coseeing auth) that this test doesn't want.
-			catalog = plugin.load_catalog(
-				plugin.BundledCatalogSource(str(ADDON_PATH / "setting")),
-				runnable_providers=plugin.SUPPORTED_PROVIDERS,
-			)
+			from shipped_catalog import shipped_overlay
+
+			# The catalog a user sees after fetching the shipped server file.
+			catalog = shipped_overlay()
 			plugin.registry.initialize(catalog)
 			instance.settings = plugin.SettingsRepository(
 				nvda_stubs.config.conf["WordBridge"]["settings"], plugin.registry.current
