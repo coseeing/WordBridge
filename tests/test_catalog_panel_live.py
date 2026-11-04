@@ -471,6 +471,65 @@ def test_the_baseline_is_reread_from_config_after_apply(monkeypatch):
 	assert _item_ids(panel.selection.current_item()) == ("gpt-6-sol&OpenAI", "local")
 
 
+def _touch_item(panel, item):
+	group_index, model_index = panel.catalog.find_selection(*item)
+	touch(panel, panel.catalog.provider_groups[group_index], model_index)
+
+
+def test_a_pick_made_after_apply_survives_a_rebuild(monkeypatch):
+	# Final review I1 (R4/R7): Apply saves DeepSeek, the user then picks
+	# their old model again by hand. A live update must keep that pick, and
+	# OK must save it, instead of moving back to what Apply stored.
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
+	panel = f.make_panel()
+	touch(panel, "DeepSeek", 0)
+	panel.onSave()
+	assert _stored(f) == DEEPSEEK_PRO
+	_touch_item(panel, SOL)
+
+	rebuild_with(f, panel, _shipped(f))
+
+	assert _item_ids(panel.selection.current_item()) == SOL
+	assert (panel.providerList.GetSelection(), panel.modelList.GetSelection()) == panel.catalog.find_selection(*SOL)
+	panel.onSave()
+	assert _stored(f) == SOL
+
+
+def test_apply_moves_the_baseline_to_what_it_saved(monkeypatch):
+	# After Apply, what is shown is what is stored: the panel is untouched
+	# again, and a kept pick (C22) is no longer pending.
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
+	panel = f.make_panel()
+	touch(panel, "Coseeing", 0)
+	rebuild_with(f, panel, _shipped_without(SOL[0])(f))
+	assert panel._keptUserPick is True
+
+	panel.onSave()
+
+	assert _stored(f) == DEFAULT
+	assert panel._keptUserPick is False
+	assert panel._storedSelection == DEFAULT
+	assert panel._restoredIndices == (panel.providerList.GetSelection(), panel.modelList.GetSelection())
+
+
+def test_apply_keeps_the_d12_baseline_when_it_saved_no_selection(monkeypatch):
+	# The D12 skip branch saves nothing, so the recomputed baseline is the
+	# same: a later untouched OK still keeps the unresolved stored model.
+	f = live_fixture(monkeypatch, corrector_config_id="gpt-retired&OpenAI", execution_channel="local")
+	panel = f.make_panel()
+	before = (panel._storedSelection, panel._storedSelectionResolved, panel._restoredIndices)
+
+	panel.onSave()
+	rebuild_with(f, panel, _shipped(f))
+	f.queued.clear()
+	panel.onSave()
+	_run_queued(f)
+
+	assert (panel._storedSelection, panel._storedSelectionResolved, panel._restoredIndices) == before
+	assert _stored(f) == ("gpt-retired&OpenAI", "local")
+	assert f.auth_calls == []
+
+
 def _focused(f, panel):
 	windows = list(f.plugin.panel_added_controls) + [panel.providerList, panel.modelList]
 	return [window for window in windows if getattr(window, "focused", False)]

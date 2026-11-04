@@ -851,6 +851,8 @@ def test_settings_save_preserves_coseeing_refresh_token_and_starts_selected_chan
 
 	panel = object.__new__(dialogs.LLMSettingsPanel)
 	panel.selection = FakeSelection()
+	# onSave recomputes the D12 baseline against the panel's catalog (I1).
+	panel.catalog = plugin.catalog
 	panel.settings = dialogs.SettingsRepository(settings, lambda: None)
 	panel.providerList = Control(0)
 	panel.modelList = Control(0)

@@ -699,6 +699,12 @@ class LLMSettingsPanel(SettingsPanel):
 			# Nothing the user chose was saved, so their stored channel stands;
 			# a stored local model must not trigger a Coseeing sign-in (U7).
 			signInChannel = self._storedSelection[1]
+		# What is shown is now what is stored (or still protected by D12), so
+		# a later rebuild measures "touched" against this, not the baseline of
+		# the panel's opening (final review I1, R4/R7). The D12 skip branch
+		# saved nothing and recomputes the same baseline.
+		self._applyBaseline(self._storedBaseline(self.catalog))
+		self._keptUserPick = False
 		self.settings.save_language(LANGUAGE_VALUES[self.languageList.GetSelection()])
 		self.settings.save_typo_correction_mode(
 			TYPO_CORRECTION_MODE_VALUES[self.typoCorrectionModeList.GetSelection()]
