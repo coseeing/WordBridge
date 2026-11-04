@@ -209,7 +209,21 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 		ToolTip = staticmethod(lambda value: value)
 		Size = staticmethod(lambda width, height: (width, height))
 
+	class IndeterminateProgressDialog:
+		"""gui.IndeterminateProgressDialog: records its text and done()."""
+
+		instances = []
+
+		def __init__(self, parent, title, message):
+			self.parent, self.title, self.message = parent, title, message
+			self.done_calls = 0
+			IndeterminateProgressDialog.instances.append(self)
+
+		def done(self):
+			self.done_calls += 1
+
 	gui = SimpleNamespace(
+		IndeterminateProgressDialog=IndeterminateProgressDialog,
 		settingsDialogs=SimpleNamespace(
 			NVDASettingsDialog=type(
 				"NVDASettingsDialog",

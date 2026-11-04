@@ -184,12 +184,13 @@ def test_editing_the_text_resets_a_passed_test(monkeypatch):
 	assert dialog.testStatus == "untested"
 
 
-def test_the_text_change_handler_is_bound(monkeypatch):
+def test_the_text_and_test_handlers_are_bound(monkeypatch):
 	f = dialog_fixture(monkeypatch)
 
 	dialog = f.make_dialog()
 
 	assert dialog.urlCtrl.bindings[f.plugin.wx.EVT_TEXT] == dialog._onTextChange
+	assert dialog.testButton.bindings[f.plugin.wx.EVT_BUTTON] == dialog._onTest
 
 
 @pytest.mark.parametrize("failed, text", [(False, NOT_TESTED), (True, FAILED)], ids=["untested", "failed"])
@@ -298,3 +299,198 @@ TASK12_STRINGS = {
 
 def test_the_dialog_strings_have_translator_comments_and_translations():
 	_assert_translated(ADDON / "catalog_url_dialog.py", TASK12_STRINGS)
+
+
+# --- Task 13: Test... -------------------------------------------------------
+
+def _probe(f, kind, detail="", models=0):
+	return f.plugin.dialogs.catalog_updater.ProbeResult(kind, detail, models)
+
+
+def _record_threads(monkeypatch, f):
+	threads = []
+	monkeypatch.setattr(f.module, "_start_probe_thread", lambda target, args: threads.append((target, args)))
+	return threads
+
+
+def _progress(f):
+	return f.plugin.gui.IndeterminateProgressDialog.instances
+
+
+@pytest.mark.parametrize("text, error", [("ftp://x", MALFORMED), ("http://example.com", INSECURE)], ids=["invalid", "insecure"])
+def test_test_validates_first_without_a_request(monkeypatch, text, error):
+	f = dialog_fixture(monkeypatch)
+	threads = _record_threads(monkeypatch, f)
+	_progress(f).clear()
+	dialog = f.make_dialog()
+	dialog.urlCtrl.SetValue(text)
+
+	dialog._onTest(None)
+
+	assert _errors() == [error]
+	assert threads == []
+	assert _progress(f) == []
+
+
+def test_test_runs_off_the_ui_thread_and_posts_the_result(monkeypatch):
+	f = dialog_fixture(monkeypatch)
+	threads = _record_threads(monkeypatch, f)
+	probed = []
+	result = _probe(f, "ok", models=3)
+	monkeypatch.setattr(f.module.catalog_updater, "probe_url", lambda url: probed.append(url) or result)
+	_progress(f).clear()
+	dialog = f.make_dialog()
+	dialog.urlCtrl.SetValue("  " + LOCAL + " ")
+	f.queued.clear()
+
+	dialog._onTest(None)
+	assert probed == []
+	assert threads == [(dialog._runProbe, (LOCAL,))]
+	[progress] = _progress(f)
+	assert (progress.parent, progress.title, progress.message) == (dialog, "Set Model List URL", "Validating the model list URL...")
+
+	target, args = threads[0]
+	target(*args)
+	assert probed == [LOCAL]
+	assert f.queued == [(dialog._onProbeDone, (LOCAL, result))]
+	assert progress.done_calls == 0
+
+	callback, args = f.queued.pop()
+	callback(*args)
+	assert progress.done_calls == 1
+	assert FakeMessageDialog.alerts == [("The model list loaded. It offers 3 models.", "Success", dialog)]
+	assert dialog.testStatus == "passed"
+
+
+def test_the_probe_thread_is_a_named_daemon(monkeypatch):
+	import threading
+
+	f = dialog_fixture(monkeypatch)
+	ran = threading.Event()
+	seen = {}
+
+	def target(value):
+		seen["thread"] = threading.current_thread()
+		seen["value"] = value
+		ran.set()
+
+	f.module._start_probe_thread(target, ("x",))
+
+	assert ran.wait(5)
+	assert seen["value"] == "x"
+	assert seen["thread"] is not threading.main_thread()
+	assert seen["thread"].daemon is True
+	assert seen["thread"].name == "wordbridge-catalog-url-test"
+
+
+NETWORK_TIP = "There was a network error. Check that you are connected to the internet and try again."
+OTHER_TIP = "Make sure you are connected to the internet and the URL is correct."
+RESULT_ROWS = [
+	("ok-1", ("ok", "", 1), "The model list loaded. It offers 1 model.", True),
+	("ok-many", ("ok", "", 12), "The model list loaded. It offers 12 models.", True),
+	("network", ("network", "OSError", 0), "The model list URL failed the test. " + NETWORK_TIP, False),
+	("http_status", ("http_status", "404", 0),
+		"The model list URL failed the test. The server answered with HTTP status 404. Check that the URL is correct.", False),
+	("not_a_list", ("not_a_list", "", 0),
+		"The model list URL failed the test. The server's answer is not a WordBridge model list. Check that the URL is correct.",
+		False),
+	("no_models", ("no_models", "", 0), "The model list URL failed the test. The model list offers no model WordBridge can use.", False),
+	("disallowed_hosts", ("disallowed_hosts", "", 0),
+		"The model list URL failed the test. The model list names only provider addresses WordBridge does not allow.", False),
+	("failed", ("failed", "", 0), "The model list URL failed the test. " + OTHER_TIP, False),
+	("unavailable", ("unavailable", "", 0), "The model list URL failed the test. " + OTHER_TIP, False),
+]
+
+
+@pytest.mark.parametrize("probe, message, ok", [row[1:] for row in RESULT_ROWS], ids=[row[0] for row in RESULT_ROWS])
+def test_test_result_messages(monkeypatch, probe, message, ok):
+	f = dialog_fixture(monkeypatch)
+	dialog = f.make_dialog()
+	dialog.urlCtrl.SetValue(LOCAL)
+
+	dialog._onProbeDone(LOCAL, _probe(f, *probe))
+
+	assert f.module.probe_result_message(_probe(f, *probe)) == message
+	assert FakeMessageDialog.alerts == [(message, "Success" if ok else "Error", dialog)]
+	assert dialog.testStatus == ("passed" if ok else "failed")
+
+
+def test_a_result_for_changed_text_leaves_the_status_untested(monkeypatch):
+	f = dialog_fixture(monkeypatch)
+	_record_threads(monkeypatch, f)
+	dialog = f.make_dialog()
+	dialog.urlCtrl.SetValue(LOCAL)
+	dialog._onTest(None)
+	dialog.urlCtrl.SetValue("http://localhost:9000")
+	dialog._onTextChange(None)
+
+	dialog._onProbeDone(LOCAL, _probe(f, "ok", models=1))
+
+	assert len(FakeMessageDialog.alerts) == 1
+	assert dialog.testStatus == "untested"
+
+
+def test_a_result_after_the_dialog_is_gone_does_nothing(monkeypatch):
+	f = dialog_fixture(monkeypatch)
+	_record_threads(monkeypatch, f)
+	_progress(f).clear()
+	dialog = f.make_dialog()
+	dialog.urlCtrl.SetValue(LOCAL)
+	dialog._onTest(None)
+	dialog.alive = False
+
+	dialog._onProbeDone(LOCAL, _probe(f, "ok", models=1))
+
+	assert FakeMessageDialog.alerts == []
+	assert _progress(f)[0].done_calls == 0
+	assert dialog.testStatus == "untested"
+
+
+def test_a_passed_test_then_ok_saves_without_a_warning(monkeypatch, tmp_path):
+	from test_catalog_settings_panel import _serve_the_server_catalog, real_updater
+
+	f = dialog_fixture(monkeypatch)
+	threads = _record_threads(monkeypatch, f)
+	updater = real_updater(f, tmp_path, _serve_the_server_catalog)
+	updater.initial_catalog(DEFAULT_URL)
+	f.dialogs.catalog_updater.install(updater)
+	try:
+		dialog = f.make_dialog()
+		dialog.urlCtrl.SetValue("https://mirror.test/catalog")
+		f.queued.clear()
+		dialog._onTest(None)
+		target, args = threads[0]
+		target(*args)
+		callback, args = f.queued.pop()
+		callback(*args)
+		assert dialog.testStatus == "passed"
+
+		dialog.onOk(None)
+	finally:
+		f.dialogs.catalog_updater.uninstall()
+
+	assert f.settings["catalog_url"] == "https://mirror.test/catalog"
+	assert dialog.savedUrl == "https://mirror.test/catalog"
+	assert FakeMessageDialog.instances == []
+	assert updater.installed == []
+
+
+TASK13_STRINGS = {
+	"Validating the model list URL...": "正在驗證模型清單網址...",
+	"Success": "成功",
+	"The model list loaded. It offers {count} model.": "已載入模型清單，共有 {count} 個模型。",
+	"The model list loaded. It offers {count} models.": "已載入模型清單，共有 {count} 個模型。",
+	"The model list URL failed the test. {tip}": "模型清單網址測試失敗。{tip}",
+	NETWORK_TIP: "發生網路錯誤。請確認已連上網際網路，然後再試一次。",
+	"The server answered with HTTP status {status}. Check that the URL is correct.": "伺服器回應 HTTP 狀態碼 {status}。請確認網址是否正確。",
+	"The server's answer is not a WordBridge model list. Check that the URL is correct.":
+		"伺服器的回應不是 WordBridge 模型清單。請確認網址是否正確。",
+	"The model list offers no model WordBridge can use.": "這份模型清單沒有 WordBridge 可以使用的模型。",
+	"The model list names only provider addresses WordBridge does not allow.":
+		"這份模型清單列出的服務提供者網址都不在 WordBridge 允許的範圍內。",
+	OTHER_TIP: "請確認已連上網際網路，且網址正確。",
+}
+
+
+def test_the_test_strings_have_translator_comments_and_translations():
+	_assert_translated(ADDON / "catalog_url_dialog.py", TASK13_STRINGS)

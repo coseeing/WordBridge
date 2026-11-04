@@ -5,6 +5,8 @@ that private class: the URL is checked and saved on this dialog's OK, not
 on the settings dialog's OK/Apply.
 """
 
+import threading
+
 import gui
 import wx
 
@@ -12,6 +14,7 @@ import addonHandler
 from gui import guiHelper
 from gui.settingsDialogs import SettingsDialog
 
+from . import catalog_updater
 from .lib.catalog.remote import validate_catalog_url
 
 addonHandler.initTranslation()
@@ -33,6 +36,54 @@ def invalid_url_message(error: str) -> str:
 		return _("The model list URL must start with https://. http:// is allowed only for localhost.")
 	# Translators: Shown when the model list URL is not a complete web address.
 	return _("Enter a complete web address, such as https://wordbridge.coseeing.org, or leave the field empty.")
+
+
+def _start_probe_thread(target, args):
+	"""Run the URL test off the UI thread (a seam for tests). A daemon, so an
+	unanswered request never holds NVDA's exit; its result is dropped when
+	the dialog is gone (C21)."""
+	thread = threading.Thread(target=target, args=args, name="wordbridge-catalog-url-test", daemon=True)
+	thread.start()
+	return thread
+
+
+def _failure_tip(result) -> str:
+	if result.kind == "network":
+		# Translators: Part of the message after a failed test of the model list URL: a network error.
+		return _("There was a network error. Check that you are connected to the internet and try again.")
+	if result.kind == "http_status":
+		# Translators: Part of the message after a failed test of the model list URL; {status} is the HTTP
+		# status code the server answered with, for example 404.
+		return _("The server answered with HTTP status {status}. Check that the URL is correct.").format(
+			status=result.detail,
+		)
+	if result.kind == "not_a_list":
+		# Translators: Part of the message after a failed test of the model list URL: the address answered,
+		# but not with a model list.
+		return _("The server's answer is not a WordBridge model list. Check that the URL is correct.")
+	if result.kind == "no_models":
+		# Translators: Part of the message after a failed test of the model list URL: the list has no usable model.
+		return _("The model list offers no model WordBridge can use.")
+	if result.kind == "disallowed_hosts":
+		# Translators: Part of the message after a failed test of the model list URL: every provider in the list
+		# points at an address WordBridge refuses to send API keys to.
+		return _("The model list names only provider addresses WordBridge does not allow.")
+	# Translators: Part of the message after a failed test of the model list URL, for any other failure.
+	return _("Make sure you are connected to the internet and the URL is correct.")
+
+
+def probe_result_message(result) -> str:
+	"""The message shown after "Test..." for a ProbeResult (spec 20.5)."""
+	if result.kind == "ok":
+		if result.models == 1:
+			# Translators: Shown after a successful test of the model list URL; {count} is the number of models (1).
+			text = _("The model list loaded. It offers {count} model.")
+		else:
+			# Translators: Shown after a successful test of the model list URL; {count} is the number of models.
+			text = _("The model list loaded. It offers {count} models.")
+		return text.format(count=result.models)
+	# Translators: Shown after a failed test of the model list URL; {tip} says what went wrong and what to do.
+	return _("The model list URL failed the test. {tip}").format(tip=_failure_tip(result))
 
 
 class CatalogUrlDialog(SettingsDialog):
@@ -64,6 +115,7 @@ class CatalogUrlDialog(SettingsDialog):
 		# Translators: Button next to the model list URL field that checks whether the address offers a model list.
 		self.testButton = wx.Button(self, label=_("&Test..."))
 		guiHelper.BoxSizerHelper(self, sizer=self.urlCtrl.GetContainingSizer()).addItem(self.testButton)
+		self.testButton.Bind(wx.EVT_BUTTON, self._onTest)
 		self.urlCtrl.Bind(wx.EVT_TEXT, self._onTextChange)
 		self._updateTestButton()
 
@@ -77,6 +129,49 @@ class CatalogUrlDialog(SettingsDialog):
 		"""A test applies only to the text it tested (C21)."""
 		self.testStatus = TEST_UNTESTED
 		self._updateTestButton()
+
+	def _onTest(self, evt):
+		"""Spec 20.3: validate first (no request for an invalid URL), then
+		probe the text off the UI thread behind a progress dialog."""
+		text = self.urlCtrl.GetValue().strip()
+		check = validate_catalog_url(text)
+		if check.error is not None:
+			self._showError(invalid_url_message(check.error))
+			self.urlCtrl.SetFocus()
+			return
+		self._progress = gui.IndeterminateProgressDialog(
+			self,
+			title=self.title,
+			# Translators: Shown while WordBridge tests the model list URL.
+			message=_("Validating the model list URL..."),
+		)
+		_start_probe_thread(self._runProbe, (text,))
+
+	def _runProbe(self, text):
+		"""Probe thread: the normal fetch and checks, nothing installed or cached."""
+		wx.CallAfter(self._onProbeDone, text, catalog_updater.probe_url(text))
+
+	def _onProbeDone(self, text, result):
+		"""Main thread. The status changes only if the field still holds the
+		tested text (C21); the message is shown either way."""
+		if not self:
+			return
+		progress, self._progress = getattr(self, "_progress", None), None
+		if progress is not None:
+			progress.done()
+		ok = result.kind == "ok"
+		if self.urlCtrl.GetValue().strip() == text:
+			self.testStatus = TEST_PASSED if ok else TEST_FAILED
+		self._showResult(probe_result_message(result), ok)
+
+	def _showResult(self, message, ok):
+		if ok:
+			# Translators: Title of the message after a successful test of the model list URL.
+			caption = _("Success")
+		else:
+			# Translators: Title of the message after a failed test of the model list URL.
+			caption = _("Error")
+		gui.message.MessageDialog.alert(message, caption, self)
 
 	def onOk(self, evt):
 		"""Spec 20.2: validate, compare, warn when not tested, save, then close."""
