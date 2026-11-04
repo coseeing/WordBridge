@@ -182,6 +182,18 @@ def test_a_saved_url_refreshes_once_resets_the_backoff_and_updates_the_box(monke
 		f.dialogs.catalog_updater.uninstall()
 
 
+def test_a_saved_url_is_refreshed_once_and_shown_without_a_listener(monkeypatch):
+	# The box follows the stored URL even when no live update arrives.
+	f = _panel_fixture(monkeypatch)
+	panel = f.make_panel()
+	refreshes = _fake_dialog(monkeypatch, f, f.plugin.wx.ID_OK, saves=URL_B)
+
+	panel.onChangeCatalogUrl(None)
+
+	assert refreshes == [URL_B]
+	assert panel.catalogUrlBox.GetValue() == URL_B
+
+
 @pytest.mark.parametrize("answer", ["cancel", "ok-unsaved"])
 def test_a_cancelled_or_unsaved_dialog_refreshes_nothing(monkeypatch, answer):
 	f = _panel_fixture(monkeypatch)
