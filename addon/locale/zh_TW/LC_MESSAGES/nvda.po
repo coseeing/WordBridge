@@ -567,6 +567,6 @@ msgstr ""
 "Coseeing 預設。"
 
 #. Translators: Spoken after the user answers No (or presses Escape) in the dialog asking whether to switch to the Coseeing default because the model list is not available.
-#: addon\globalPlugins\WordBridge\__init__.py:348
+#: addon\globalPlugins\WordBridge\__init__.py:347
 msgid "The text was not sent. Your model selection was not changed."
 msgstr "未傳送文字，模型選擇維持不變。"

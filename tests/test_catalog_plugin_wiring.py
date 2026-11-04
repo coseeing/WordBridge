@@ -486,18 +486,23 @@ def _deliver_the_model_list(f):
 	assert f.plugin.catalog_updater.status().source == "fetched"
 
 
-def test_yes_after_the_model_list_arrived_keeps_the_users_model(monkeypatch):
-	# The premise of the question ("cannot be used") no longer holds when the
-	# user answers: their own model is used and the setting is left alone.
+def test_yes_after_the_model_list_arrived_still_switches_to_coseeing(monkeypatch):
+	# Decided by the user (2026-11-04): Yes always does what the dialog just
+	# said -- save the Coseeing default and correct with Coseeing -- even if
+	# the model list arrived while the dialog was open (spec section 12.5).
 	f = _choice_fixture(monkeypatch, answer=RETURN_CODE.YES, catalog_url=NO_CACHE_URL)
 	FakeMessageDialog.on_show = lambda: _deliver_the_model_list(f)
+	corrections = []
+	monkeypatch.setattr(
+		f.instance, "startCorrection",
+		lambda text: corrections.append((text, f.instance.settings.corrector_selection())),
+	)
 
 	f.instance.script_correction(None)
 	_run(f.queued)
 
-	assert f.instance.settings.stored_corrector_selection() == ("gpt-6.1-sol&OpenAI", "local")
-	assert f.instance.settings.corrector_selection() == ("gpt-6.1-sol&OpenAI", "local")
-	assert f.started == ["原文"]
+	assert f.instance.settings.stored_corrector_selection() == ("default", "Coseeing")
+	assert corrections == [("原文", ("default", "Coseeing"))]
 	assert f.messages == []
 	f.instance.terminate()
 
