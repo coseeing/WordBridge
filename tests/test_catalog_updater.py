@@ -446,3 +446,78 @@ def _no_installed_updater():
 	updater_module.uninstall()
 	yield
 	updater_module.uninstall()
+
+
+def test_a_result_posted_before_a_url_change_is_not_installed(tmp_path):
+	# A's thread has already posted _apply, but the wx queue has not run it
+	# yet when the user saves URL B: only the D8 switch to B may happen.
+	h = Harness(tmp_path, {URL_A: _ok(_payload("fresh-a")), URL_B: _ok(_payload("fresh-b"))})
+	h.updater.initial_catalog(URL_A)
+	h.updater.refresh(URL_A)
+	h.threads[0].run()
+	assert len(h.queue) == 1
+
+	h.updater.refresh(URL_B)
+	h.deliver()
+
+	assert [_ids(catalog) for catalog in h.installed] == [[]]
+	assert h.status() == ("none", "running")
+	# The live key is still B: refreshing B again switches nothing.
+	h.updater.refresh(URL_B)
+	assert len(h.installed) == 1
+
+
+def test_switching_to_an_empty_url_discards_the_in_flight_fetch(tmp_path):
+	h = Harness(tmp_path, {URL_A: _ok(_payload("fresh-a"))})
+	h.updater.initial_catalog(URL_A)
+	h.updater.refresh(URL_A)
+
+	h.updater.refresh("")
+	h.threads[0].run()
+	h.deliver()
+
+	assert [_ids(catalog) for catalog in h.installed] == [[]]
+	assert h.status() == ("none", "off")
+	assert h.cache.stores == []
+
+
+def test_switching_to_an_invalid_url_discards_the_in_flight_fetch(tmp_path):
+	h = Harness(tmp_path, {URL_A: _ok(_payload("fresh-a"))})
+	h.updater.initial_catalog(URL_A)
+	h.updater.refresh(URL_A)
+
+	h.updater.refresh("http://example.com/")
+	h.threads[0].run()
+	h.deliver()
+
+	assert [_ids(catalog) for catalog in h.installed] == [[]]
+	assert h.status() == ("none", "invalid")
+
+
+class RaisingStoreCache(SpyCache):
+	def store(self, url_key, document):
+		self.stores.append(url_key)
+		raise OSError("disk gone: C:\\Users\\someone\\secret")
+
+
+class FailingStoreCache(SpyCache):
+	def store(self, url_key, document):
+		self.stores.append(url_key)
+		return (cache_module.CatalogIssue("cache_write_failed", "cache", "OSError"),)
+
+
+@pytest.mark.parametrize("cache_class", [RaisingStoreCache, FailingStoreCache], ids=["raises", "reports"])
+def test_a_failed_cache_write_still_installs_the_catalog(tmp_path, cache_class):
+	h = Harness(tmp_path, {URL_A: _ok(_payload("fresh"))})
+	h.updater._cache = h.cache = cache_class(h.cache.inner)
+	h.updater.initial_catalog(URL_A)
+	h.updater.refresh(URL_A)
+
+	h.threads[0].run()
+	h.deliver()
+
+	assert [_ids(catalog) for catalog in h.installed] == [["fresh&OpenAI"]]
+	assert h.status() == ("fetched", "succeeded")
+	assert h.cache.stores == [_key(URL_A)]
+	assert "cache_write_failed" in h.log.text()
+	assert "secret" not in h.log.text()
