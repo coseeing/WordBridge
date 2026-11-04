@@ -20,11 +20,6 @@ SERVER_SETTING_DIR = PROJECT_ROOT / "server" / "app" / "setting"
 SERVER_CATALOG_PATH = SERVER_SETTING_DIR / "catalog.json"
 ADDON_SETTING_DIR = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge" / "setting"
 
-# Lint the overlay records only while the server target file is not applied
-# yet: ignored_remote_coseeings until the server file loses its coseeings
-# (plan Task 16). Tests that pin the lint list allow it.
-TEMPORARY_LINT_CODES = frozenset({"ignored_remote_coseeings"})
-
 
 def server_document() -> dict:
 	return json.loads(SERVER_CATALOG_PATH.read_text(encoding="utf8"))
@@ -44,10 +39,7 @@ def shipped_overlay():
 
 
 def dropped_issues(catalog) -> list:
-	"""Issues other than lint (including the temporary lint above)."""
+	"""Issues other than lint: entries, providers or documents actually dropped."""
 	from lib.catalog.model import is_dropped_issue
 
-	return [
-		issue for issue in catalog.issues
-		if is_dropped_issue(issue) and issue.code not in TEMPORARY_LINT_CODES
-	]
+	return [issue for issue in catalog.issues if is_dropped_issue(issue)]

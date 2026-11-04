@@ -27,6 +27,9 @@ def test_the_served_payload_is_a_schema_1_object_with_local_data():
 	assert body["schema_version"] == 1
 	assert isinstance(body["providers"], dict)
 	assert isinstance(body["models"], list)
+	# The Coseeing channel ships in the add-on; the servable Coseeing ids are
+	# the server's own list (COSEEING_MODEL_IDS), never part of the payload.
+	assert "coseeings" not in body
 
 
 def test_root_needs_no_authentication_and_sets_no_cookie():

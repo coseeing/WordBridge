@@ -18,6 +18,11 @@ from .lib.llm import SUPPORTED_PROVIDERS
 SETTING_DIR = Path(__file__).parent / "setting"
 CORRECTOR_TASK_CONFIG_PATH = SETTING_DIR / "task" / "corrector.json"
 DEFAULT_CORRECTOR_CONFIG_ID_DEFAULT = "deepseek-flash&DeepSeek"
+# The non-default corrector config ids Coseeing serves. Released add-ons
+# offered these on their Coseeing channel and keep sending them; the catalog
+# the server publishes at GET / no longer has a Coseeing channel (the add-on
+# ships only the "default" sentinel), so the list lives here, server-only.
+COSEEING_MODEL_IDS_DEFAULT = "deepseek-flash&DeepSeek,gpt-6-luna&OpenAI"
 
 
 @dataclass(frozen=True)
@@ -26,6 +31,7 @@ class CorrectionSettings:
 	template_name: dict
 	optional_guidance_enable: dict
 	default_id: str
+	coseeing_ids: frozenset = frozenset()
 
 
 def load_correction_settings() -> CorrectionSettings:
@@ -52,23 +58,27 @@ def load_correction_settings() -> CorrectionSettings:
 		template_name=task_config.get("template_name", {}),
 		optional_guidance_enable=task_config.get("optional_guidance_enable", {}),
 		default_id=default_id,
+		coseeing_ids=_coseeing_ids(os.environ.get("COSEEING_MODEL_IDS", COSEEING_MODEL_IDS_DEFAULT)),
 	)
+
+
+def _coseeing_ids(text: str) -> frozenset:
+	"""Comma-separated ids, stripped; empty items ignored. "" means none."""
+	return frozenset(item.strip() for item in text.split(",") if item.strip())
 
 
 def resolve_model(settings: CorrectionSettings, requested_id: str):
 	"""Resolve a requested corrector config ID to a runnable local model entry.
 
 	"default" resolves to the deployment-configured default local model. Any
-	other ID must first name an active Coseeing offer -- the server only
-	honors a non-default request the catalog actually advertises -- and must
-	then name an active local model entry with a supported provider. Raises
-	LookupError when the requested model is unavailable.
+	other ID must first be one the server serves on Coseeing
+	(settings.coseeing_ids, from COSEEING_MODEL_IDS) and must then name an
+	active local model entry with a supported provider. Raises LookupError
+	when the requested model is unavailable.
 	"""
 	selected_id = settings.default_id if requested_id == "default" else requested_id
-	if requested_id != "default":
-		offer = settings.catalog.get_coseeing(selected_id)
-		if offer is None or not offer.active:
-			raise LookupError(selected_id)
+	if requested_id != "default" and selected_id not in settings.coseeing_ids:
+		raise LookupError(selected_id)
 	model = settings.catalog.get_model(selected_id)
 	if model is None or not model.active or settings.catalog.get_provider(model.provider) is None:
 		raise LookupError(selected_id)

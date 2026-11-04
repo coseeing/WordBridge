@@ -5,6 +5,7 @@ from pathlib import Path
 from lib.catalog import COSEEING_GROUP, LOCAL_CHANNEL, CatalogIssue, is_dropped_issue
 from lib.catalog.document import build_catalog
 from lib.catalog.overlay import OverlaySource, has_local_items, load_overlay_catalog, overlay_documents
+from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
 
 
@@ -166,13 +167,17 @@ def test_the_overlay_source_is_a_load_catalog_source():
 
 
 def test_the_shipped_target_files_overlay_as_section_7_4():
-	# The target bundled content (spec section 2.3) inline, and today's server
-	# file minus coseeings, which is exactly the target server content (spec
-	# section 2.4). Task 16 switches this to the real files once both apply.
-	server = json.loads(SERVER_CATALOG.read_text(encoding="utf8"))
-	server.pop("coseeings", None)
+	# The two shipped files, as applied from the target files (spec sections
+	# 2.3 and 2.4): the add-on's bundled file and the server's catalog.
+	from shipped_catalog import ADDON_SETTING_DIR, bundled_document
 
-	catalog = _load(StaticSource(_bundled()), server)
+	assert bundled_document() == _bundled()
+	server = json.loads(SERVER_CATALOG.read_text(encoding="utf8"))
+	assert "coseeings" not in server
+
+	catalog = load_overlay_catalog(
+		BundledCatalogSource(ADDON_SETTING_DIR), server, runnable_providers=SUPPORTED_PROVIDERS,
+	)
 
 	assert catalog.provider_groups == ("Anthropic", "DeepSeek", "Google", "OpenAI", COSEEING_GROUP)
 	local = [item for item in catalog.selectable_items if item.execution_channel == LOCAL_CHANNEL]

@@ -1037,10 +1037,7 @@ def test_settings_panel_summary_line_is_silent_for_the_shipped_healthy_catalog(m
 	# assertion (not the one below) would fail, and the test would no longer
 	# be exercising the exclusion at all.
 	assert plugin.catalog.issues, "fixture no longer carries the shipped lint issue -- test would be vacuous"
-	from shipped_catalog import TEMPORARY_LINT_CODES
-
-	assert {issue.code for issue in plugin.catalog.issues} <= {"unreferenced_provider"} | TEMPORARY_LINT_CODES
-	assert "unreferenced_provider" in {issue.code for issue in plugin.catalog.issues}
+	assert all(issue.code == "unreferenced_provider" for issue in plugin.catalog.issues)
 
 	panel = _make_panel(monkeypatch, dialogs, Sizer)
 	assert panel.catalogIssuesText is None

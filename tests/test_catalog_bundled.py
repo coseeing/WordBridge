@@ -4,7 +4,7 @@ from pathlib import Path
 from lib.catalog.document import SCHEMA_VERSION, build_catalog
 from lib.catalog.model import COSEEING_GROUP
 from lib.catalog.sources import BundledCatalogSource
-from shipped_catalog import TEMPORARY_LINT_CODES, server_document, shipped_overlay
+from shipped_catalog import server_document, shipped_overlay
 
 
 ADDON_PATH = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge"
@@ -110,10 +110,7 @@ def test_every_provider_entry_matches_its_canonical_document_value():
 def test_the_shipped_data_produces_only_the_known_lint_issue():
 	catalog = shipped_overlay()
 
-	assert [
-		(issue.code, issue.location) for issue in catalog.issues
-		if issue.code not in TEMPORARY_LINT_CODES
-	] == [
+	assert [(issue.code, issue.location) for issue in catalog.issues] == [
 		("unreferenced_provider", "providers.OpenRouter"),
 	]
 

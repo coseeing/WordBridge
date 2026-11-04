@@ -286,24 +286,5 @@
 			},
 			"usage_key": "usage"
 		}
-	],
-	"coseeings": [
-		{
-			"model": "default",
-			"label": "default",
-			"active": true
-		},
-		{
-			"model": "deepseek-flash",
-			"label": "deepseek-flash",
-			"active": true,
-			"provider": "DeepSeek"
-		},
-		{
-			"model": "gpt-6-luna",
-			"label": "gpt-6-luna",
-			"active": true,
-			"provider": "OpenAI"
-		}
 	]
 }
