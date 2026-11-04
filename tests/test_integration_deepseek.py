@@ -8,7 +8,8 @@ from test_helpers import (
 
 PROVIDER_NAME = "DeepSeek"
 MODELS_TO_TEST = [
-	"deepseek-chat",
+	"deepseek-flash",
+	"deepseek-v4-pro",
 ]
 
 
