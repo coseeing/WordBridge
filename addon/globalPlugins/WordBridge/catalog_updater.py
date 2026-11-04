@@ -227,7 +227,11 @@ class CatalogUpdater:
 				)
 				if catalog is not None:
 					return catalog, SOURCE_CACHE
-				self._log_cache_problems(issues)
+				# Spec section 10: a cached payload failing acceptance is an
+				# unreadable cache; the acceptance code is its type.
+				self._log_cache_problems(
+					CatalogIssue("unreadable_cache", issue.location, issue.code) for issue in issues
+				)
 		catalog = load_overlay_catalog(self._bundled_source, None, runnable_providers=self._runnable_providers)
 		return catalog, SOURCE_NONE
 

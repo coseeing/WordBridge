@@ -26,6 +26,8 @@ _LOCATION = "cache"
 
 
 def _unreadable(detail: str) -> tuple:
+	# detail is logged as the problem's type (spec section 10, "type only"):
+	# a short code or an exception type name.
 	return None, (CatalogIssue("unreadable_cache", _LOCATION, detail),)
 
 
@@ -47,19 +49,19 @@ class CatalogCache:
 		except OSError as error:
 			return _unreadable(type(error).__name__)
 		if len(data) > MAX_CACHE_BYTES:
-			return _unreadable("file is larger than the limit")
+			return _unreadable("too_large")
 		try:
 			stored = json.loads(data)
 		except Exception as error:
 			return _unreadable(type(error).__name__)
 		if not isinstance(stored, dict):
-			return _unreadable(f"expected an object, got {type(stored).__name__}")
+			return _unreadable("not_an_object")
 		if stored.get("cache_version") != CACHE_VERSION:
-			return _unreadable("unknown cache_version")
+			return _unreadable("unknown_cache_version")
 		if not isinstance(stored.get("url_key"), str):
-			return _unreadable("url_key is not a string")
+			return _unreadable("url_key_not_a_string")
 		if not isinstance(stored.get("document"), dict):
-			return _unreadable("document is not an object")
+			return _unreadable("document_not_an_object")
 		if stored["url_key"] != url_key:
 			return None, ()
 		return stored["document"], ()
@@ -83,7 +85,7 @@ class CatalogCache:
 				separators=(",", ":"),
 			).encode("utf8", "surrogatepass")
 			if len(body) > MAX_CACHE_BYTES:
-				return (CatalogIssue("cache_write_failed", _LOCATION, "file would be larger than the limit"),)
+				return (CatalogIssue("cache_write_failed", _LOCATION, "too_large"),)
 			self.path.parent.mkdir(parents=True, exist_ok=True)
 			with tempfile.NamedTemporaryFile(
 				dir=self.path.parent,

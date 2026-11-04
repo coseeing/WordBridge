@@ -113,6 +113,22 @@ def test_only_disallowed_hosts_is_rejected():
 	assert [issue.code for issue in issues] == ["remote_no_models"]
 
 
+def test_a_failing_bundled_source_is_reported_as_such():
+	# The bundled file, not the payload, is what failed: the fallback catalog
+	# has no local items, but remote_no_models would send the reader of the
+	# log looking at the server.
+	class RaisingSource:
+		def load(self):
+			raise OSError("catalog.json unreadable")
+
+	catalog, issues = accept_remote_document(RaisingSource(), _server_document(), runnable_providers=SUPPORTED_PROVIDERS)
+
+	assert catalog is None
+	assert [(issue.code, issue.location, issue.detail) for issue in issues] == [
+		("bundled_source_failed", "bundled", "unreadable_source"),
+	]
+
+
 # (id, document, code). The cache hands accept_remote_document() an already
 # parsed dict, so the section 8.3 document checks must live on that path too.
 ACCEPT_DOCUMENT_TABLE = [

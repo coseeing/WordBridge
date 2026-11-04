@@ -113,6 +113,11 @@ def accept_remote_document(bundled_source, document, *, runnable_providers) -> t
 	if issues:
 		return None, issues
 	catalog = load_overlay_catalog(bundled_source, document, runnable_providers=runnable_providers)
+	if catalog.degraded:
+		# OverlaySource guarantees the Coseeing sentinel, so only a bundled
+		# source that raised reaches the fallback rung. Said so, rather than
+		# blaming the payload with remote_no_models.
+		return None, (CatalogIssue("bundled_source_failed", "bundled", "unreadable_source"),)
 	if has_local_items(catalog):
 		return catalog, ()
 	return None, (CatalogIssue("remote_no_models", "payload", "the payload offers no selectable local model"),)

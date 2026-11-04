@@ -55,14 +55,16 @@ def test_another_url_key_is_not_used(tmp_path):
 	assert _path(tmp_path).read_bytes() == before
 
 
-@pytest.mark.parametrize("content", [
-	b"{not json",
-	b"[]",
-	b'{"cache_version": 2, "url_key": "k", "document": {}}',
-	b'{"cache_version": 1, "url_key": 5, "document": {}}',
-	b'{"cache_version": 1, "url_key": "k", "document": []}',
+# The detail is logged as the problem's type (spec section 10: "type only"),
+# so it is a short code or an exception type name, never a sentence.
+@pytest.mark.parametrize("content, detail", [
+	(b"{not json", "JSONDecodeError"),
+	(b"[]", "not_an_object"),
+	(b'{"cache_version": 2, "url_key": "k", "document": {}}', "unknown_cache_version"),
+	(b'{"cache_version": 1, "url_key": 5, "document": {}}', "url_key_not_a_string"),
+	(b'{"cache_version": 1, "url_key": "k", "document": []}', "document_not_an_object"),
 ], ids=["not-json", "not-object", "cache-version", "url-key-type", "document-type"])
-def test_a_corrupt_cache_is_ignored_and_left_in_place(tmp_path, content):
+def test_a_corrupt_cache_is_ignored_and_left_in_place(tmp_path, content, detail):
 	path = _path(tmp_path)
 	path.parent.mkdir(parents=True)
 	path.write_bytes(content)
@@ -70,7 +72,7 @@ def test_a_corrupt_cache_is_ignored_and_left_in_place(tmp_path, content):
 	document, issues = _cache(tmp_path).load("k")
 
 	assert document is None
-	assert [(issue.code, issue.location) for issue in issues] == [("unreadable_cache", "cache")]
+	assert [(issue.code, issue.location, issue.detail) for issue in issues] == [("unreadable_cache", "cache", detail)]
 	assert path.read_bytes() == content
 
 
@@ -96,7 +98,7 @@ def test_a_valid_file_one_byte_over_the_limit_is_ignored(tmp_path):
 	document, issues = _cache(tmp_path).load(KEY)
 
 	assert document is None
-	assert [(issue.code, issue.detail) for issue in issues] == [("unreadable_cache", "file is larger than the limit")]
+	assert [(issue.code, issue.detail) for issue in issues] == [("unreadable_cache", "too_large")]
 	assert path.stat().st_size == MAX_CACHE_BYTES + 1
 
 
@@ -147,7 +149,7 @@ def test_store_refuses_a_body_over_the_limit_and_keeps_the_old_file(tmp_path):
 
 	issues = cache.store(KEY, {"schema_version": 1, "providers": {}, "models": [], "x": "a" * MAX_CACHE_BYTES})
 
-	assert [(issue.code, issue.detail) for issue in issues] == [("cache_write_failed", "file would be larger than the limit")]
+	assert [(issue.code, issue.detail) for issue in issues] == [("cache_write_failed", "too_large")]
 	assert _path(tmp_path).read_bytes() == before
 	assert sorted(path.name for path in _path(tmp_path).parent.iterdir()) == ["remote-catalog.json"]
 

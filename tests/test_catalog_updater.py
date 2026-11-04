@@ -164,8 +164,11 @@ def test_a_cached_payload_failing_acceptance_is_ignored(tmp_path):
 
 	assert catalog.models == ()
 	assert h.status() == ("none", "running")
-	assert "catalog cache problem" in h.log.text()
-	assert "remote_no_models" in h.log.text()
+	# Spec section 10: a cached payload failing acceptance is an unreadable
+	# cache, logged with the type of problem only.
+	assert h.log.records == [
+		("warning", "WordBridge: catalog cache problem code=%s type=%s", "unreadable_cache", "remote_no_models"),
+	]
 
 
 def test_a_cached_document_with_a_wrong_schema_is_ignored(tmp_path):
@@ -575,3 +578,22 @@ def test_a_huge_cached_detail_is_logged_bounded(tmp_path):
 	[problem] = [line for line in _logged_lines(h) if "catalog cache problem" in line]
 	assert "remote_schema_version" in problem
 	assert len(problem) < 400
+
+
+class RaisingBundled:
+	def load(self):
+		raise OSError("catalog.json unreadable")
+
+
+def test_a_failing_bundled_source_is_not_logged_as_a_bad_cache_payload(tmp_path):
+	h = Harness(tmp_path)
+	h.seed_cache(URL_A, _payload("cached"))
+	h.updater._bundled_source = RaisingBundled()
+
+	catalog = h.updater.initial_catalog(URL_A)
+
+	assert catalog.degraded
+	assert h.status() == ("none", "running")
+	assert (
+		"warning", "WordBridge: catalog cache problem code=%s type=%s", "unreadable_cache", "bundled_source_failed",
+	) in h.log.records
