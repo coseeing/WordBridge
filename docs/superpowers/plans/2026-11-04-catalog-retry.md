@@ -464,6 +464,22 @@ Catalogs: `bundled` (bundled-only, `_bundled_only` as in `tests/test_catalog_set
 - [ ] **Step 5: Commit** — `feat: create account boxes for providers that appear in a live update`.
 - [ ] **Step 6: Mutant check:** drop the `MoveAfterInTabOrder` chain → `test_a_new_provider_gets_its_box_after_the_model_choice_in_tab_order` FAILS. Ledger.
 
+### Task 10 revision: account boxes up front (R13, Decided by the user (2026-11-04))
+
+Replaces Task 10's on-demand creation after the batch-2 review (spec §10.4, R13).
+
+**Files:** `dialogs.py` (`ACCOUNT_BOX_GROUPS`; `makeSettings` account loop; `_ensureAccountBox` → `_makeAccountBox`; `_rebuild`; `onSave` key loop; `_accountBoxInsertIndex` removed), `settings_repository.py` (`stored_api_key`), `tests/test_coseeing_auth_nvda.py` (widget stub records every created window in `plugin.created_windows`), `tests/test_settings_repository.py`, `tests/test_catalog_panel_live.py`.
+
+**Interfaces:**
+- Produces: `ACCOUNT_BOX_GROUPS = tuple(sorted(SUPPORTED_PROVIDERS)) + (COSEEING_GROUP,)`; `SettingsRepository.stored_api_key(provider) -> str` (never writes); `_makeAccountBox(group) -> None` (makeSettings only); `_updateAccountCaptions() -> None` (rebuild); `onSave` writes a key only when `value != stored_api_key(group)`.
+- Removes: `_ensureAccountBox(group, *, live)`, `_accountBoxInsertIndex()`, every `MoveAfterInTabOrder`, `InsertSpacer` and `Insert` call.
+
+- [ ] **Step 1: Failing tests** (`tests/test_catalog_panel_live.py`, `tests/test_settings_repository.py`): `test_every_supported_provider_has_a_box_in_a_fixed_order` (bundled/shipped, 2), `test_only_the_selected_groups_box_is_shown`, `test_a_live_update_creates_no_window_and_only_shows_hides_and_relabels`, `test_tab_and_window_order_is_creation_order`, `test_no_blank_api_key_is_written` (paths: open, rebuild, rebuild-after-ok, untouched-ok, typed-ok, kept, cleared — 7), `test_a_stored_api_key_read_never_writes` (+ aggregated section). `test_a_new_provider_gets_its_box_after_the_model_choice_in_tab_order` is replaced.
+- [ ] **Step 2: Red**, **Step 3: Implement**, **Step 4: Green** (full suite; counts in the ledger), **Step 5: Commit** — `feat: create every account box up front and only show or hide it`.
+- [ ] **Step 6: Mutants:** create boxes from the catalog's groups → `test_every_supported_provider_has_a_box_in_a_fixed_order[bundled]` FAILS; `onSave` writes every field → `test_no_blank_api_key_is_written[untouched-ok]` FAILS; populate with `api_key()` → `test_no_blank_api_key_is_written[open]` FAILS.
+
+Task 11 consumes `_refreshAccountInfo`/`accountTextCtrlMap` from this revision (no box creation in the rebuild).
+
 ---
 
 **Batch 2 ends here: stop and report for the batch review.**

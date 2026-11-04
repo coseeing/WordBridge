@@ -82,6 +82,7 @@ invisible until the panel is closed and reopened.
 | R10 | **F6 → a URL change resets the backoff.** A saved URL change resets the retry step to the first wait (1 minute). Even if background retrying had already stopped, a failure for the new URL schedules the full 1, 2, 4, 8, 16, 32 minute sequence again. A panel-open (R1) fetch that fails still continues the existing interval and, if retrying had stopped, schedules nothing (R6 now applies to panel-open only). — Decided by the user (2026-11-04) |
 | R11 | **Status line as the panel's accessible description** (the coordinator's message called it "R7"; renumbered because R7 is the C8 confirmation above). Whenever the status line is set — in `makeSettings` and on every live update (R2) — the panel's `panelDescription` is set to the same status message, or to `""` (the class default) when there is none. NVDA's `SettingsPanelAccessible.GetDescription()` returns `Window.panelDescription` on each request (`/workspace/nvda/source/gui/settingsDialogs.py:386`, `:504-505`; attached at `:682`), so the status in force is what NVDA reports the next time focus enters the panel. The visible StaticText stays. A description change forces no announcement beyond R3/C11 and R8. — Decided by the user (2026-11-04) |
 | R12 | **Model list URL through a "Change..." dialog** (the coordinator's message called it "R8"; renumbered because R8 is the OQ1 answer above). The editable "Model list URL:" field is replaced by NVDA's update-mirror pattern: a group with a read-only, focusable box showing the current URL and a "Change..." button; Enter in the box or the button opens a small dialog (General panel `/workspace/nvda/source/gui/settingsDialogs.py:938-968`, `:979-1004`, `:1125-1133`; Add-on Store panel `:3915-3935`; dialog `/workspace/nvda/source/gui/_SetURLDialog.py`). The URL is saved when that dialog's OK is pressed, not at the settings dialog's OK/Apply, and cancelling the settings dialog afterwards does not revert it. Saving triggers what a saved URL change triggers today: the D8 switch and refresh, and the R10 backoff reset. Section 20. — Decided by the user (2026-11-04) |
+| R13 | **Account boxes up front (WorldVoice's pattern; supersedes C9).** As in WorldVoice's voice panel (`/workspace/WorldVoice/addon/synthDrivers/WorldVoice/ui/voicePanel.py:112-121`), every control that may ever be needed is created in `makeSettings`, in one fixed order, so window order (what NVDA object navigation follows), Tab order and layout agree; a live update only shows, hides and relabels. The providers that can ever appear are fixed by code: `SUPPORTED_PROVIDERS` (`lib/llm/__init__.py:27`); `build_catalog` drops every other provider (`lib/catalog/document.py:109-111`) and `PROVIDER_URL_RULES` (`lib/catalog/remote.py:172-185`) has rules only for these. So `makeSettings` creates one account box per supported provider plus the Coseeing box, all hidden except the selected group's. No box is ever created by a live update, and no `MoveAfterInTabOrder` is used. Captions come from the current catalog's labels (fallback: the provider name) and are updated in place with `SetLabel`; a provider absent from the catalog keeps its hidden box and its key. Reading keys for the boxes never writes to the config (F3), and saving never adds a blank key for a provider that had none. §10.4. — Decided by the user (2026-11-04) |
 
 ### 4.2 Decided by orchestrator with the recommended default; user may override before merge
 
@@ -99,7 +100,7 @@ before merge`.
 | C6 | The panel learns of changes through a listener on the updater, called synchronously on the main thread after every state change (`refresh` start, D8 swap, fetch success, fetch failure). A failing listener is logged (type only) and never breaks the updater. | §9 |
 | C7 | The open panel always mirrors the live catalog and status, including the RC D8 swap after Apply, and also while its category is hidden. The rebuild never calls `onPanelActivated()`, never calls `SetFocus()`, sets items only on a choice whose labels changed, and is deferred while a choice's drop-down list is open or while focus is in a control the rebuild would hide. | §10 |
 | C8 | R4's "selection currently shown" counts only when the user changed the Service Provider or model choice in this panel. An untouched panel shows the stored selection resolved against the new catalog. The D12 baseline (`_storedSelection`, `_storedSelectionResolved`, `_restoredIndices`) is recomputed at every rebuild from the stored values re-read from config. The reading itself is confirmed by the user (R7). | §10.3 |
-| C9 | A provider group that appears in the new catalog gets its account box created then, inserted after the existing boxes and placed in the Tab order after the model choice. A group that disappears keeps its (hidden) box and API key text, and `onSave` writes that text back unchanged. | §10.4 |
+| C9 | ~~A provider group that appears in the new catalog gets its account box created then, inserted after the existing boxes and placed in the Tab order after the model choice. A group that disappears keeps its (hidden) box and API key text, and `onSave` writes that text back unchanged.~~ **Superseded by R13 (Decided by the user (2026-11-04)):** every box exists from `makeSettings` on; a vanished group's box is hidden and its key is kept. | §10.4 |
 | C10 | The dropped-entries line ("N catalog entries could not be loaded") is updated live as well. It and the status line always exist from `makeSettings` on and are hidden when they have nothing to say. | §10.5 |
 | C11 | Speech happens only for a fetch outcome of the current generation (not for a fetch start or the D8 swap), only when the panel is alive, its category is the one shown, and the settings dialog is the active window. A failure is spoken only when its fetch was user-initiated (R8). It is spoken after the rebuild (so after a deferral too), once, with `ui.message` at the default NORMAL priority. If several speakable outcomes queue up behind a deferral, only the latest is spoken; an outcome that is not speakable (a background failure) leaves the pending announcement as it is. | §11 |
 | C12 | No new status-line strings. The six RC §13.3 lines stay as they are and are refreshed live. | §10.5 |
@@ -166,8 +167,11 @@ They are created in one loop over `self.catalog.provider_groups`
 `KeyError`. Creating boxes up front for every supported provider would avoid
 creating controls later, but `SettingsRepository.api_key()` writes `""` into
 the config for any provider it has not seen (`settings_repository.py:106-110`),
-so it would add empty keys for providers the user never saw. C9 creates boxes
-on demand instead.
+so it would add empty keys for providers the user never saw. ~~C9 creates boxes
+on demand instead.~~ **Resolved by R13 (Decided by the user (2026-11-04)):**
+boxes are created up front for every supported provider, populated through a
+non-writing getter (`SettingsRepository.stored_api_key()`), and `onSave` writes a
+key only when it differs from the stored one, so no blank entry is ever added.
 
 F4. **The panel is created lazily, once per dialog.** NVDA builds a category's
 panel the first time that category is selected and keeps it until the dialog
@@ -566,27 +570,46 @@ ones. Same for `modelList` with `_display_labels` (`dialogs.py:102-111`).
 Then `SetSelection` on both. Never `SetFocus()`. Never `onPanelActivated()`
 (F2).
 
-### 10.4 Account boxes (C9)
+### 10.4 Account boxes (R13; C9 superseded)
 
-`_ensureAccountBox(group)`, used by `makeSettings` (replacing the loop body at
-`dialogs.py:218-239`) and by the rebuild, creates the box for a group that has
-none.
+**Decided by the user (2026-11-04)** (R13), following WorldVoice's voice panel
+(`/workspace/WorldVoice/addon/synthDrivers/WorldVoice/ui/voicePanel.py:112-121`).
 
-- In `makeSettings` it appends, as today.
-- In a rebuild it inserts the new `StaticBoxSizer` into `settingsSizer` right
-  after the last existing account box, so the visual order stays "model
-  choice, account box, Language". It moves the new API key field (or the clean
-  button) in the Tab order with `MoveAfterInTabOrder(self.modelList)`. Without
-  that, a control created now would come after "Model list URL:" in the Tab
-  order, because wx's Tab order is creation order.
-- The box caption is updated with `GetStaticBox().SetLabel(...)` when the
-  provider's label changes.
+- `ACCOUNT_BOX_GROUPS = tuple(sorted(SUPPORTED_PROVIDERS)) + (COSEEING_GROUP,)`
+  in `dialogs.py`: the same order `CorrectorCatalog.provider_groups` uses
+  (sorted local providers, Coseeing last, `lib/catalog/model.py:143-147`), and
+  independent of the catalog, so it is the same for every panel. `makeSettings`
+  creates one box per entry, in that order, between the model choice and
+  Language (where the loop at `dialogs.py:215-216` is). Window order, Tab order
+  and visual order are therefore creation order, and nothing is moved.
+- Every box is hidden except the selected group's. A live update never creates
+  a window, never inserts into a sizer and never calls `MoveAfterInTabOrder`;
+  it only shows, hides and relabels.
+- Captions: `_provider_group_label(catalog, group) + " " + _("Authentication")`
+  for the current catalog, falling back to the provider name when the catalog
+  has no provider entry for it (Coseeing, or a provider the catalog does not
+  offer). A rebuild updates each caption in place with
+  `GetStaticBox().SetLabel(...)` when it changed.
+- Keys: each API key field is populated with
+  `SettingsRepository.stored_api_key(provider)`, which returns `""` for an
+  unseen provider **without writing it** (`api_key()`,
+  `settings_repository.py:106-110`, keeps its create-on-read behaviour for the
+  correction path). `onSave` writes a field only when its value differs from
+  `stored_api_key(provider)`: a provider with no stored key and an empty field
+  gets no entry (so `{}` stays `{}`), an untouched existing key is left as it is,
+  and a key the user typed or cleared is saved. A provider absent from the
+  catalog keeps its hidden box and its key.
 
 `_refreshAccountInfo()` (`dialogs.py:330-335`) iterates over
 `accountGroupSizerMap`, not over the catalog's groups. It shows only the
-selected group's box and hides all others, including boxes of groups that
-disappeared. `onSave` keeps saving every field in `accountTextCtrlMap`
-(`dialogs.py:404-405`), so a vanished provider's key is written back as it is.
+selected group's box and hides all others, including boxes of groups the
+catalog does not offer.
+
+This replaces the on-demand creation of C9 (boxes inserted live, moved with
+`MoveAfterInTabOrder` after the model choice). Batch-2 review Minors m3 (the
+live insert index) and m4 (the spacer order) are moot with it, and m1 (a
+rebuild after OK/Cancel wrote `""` keys for Anthropic, DeepSeek, Google and
+OpenAI) is fixed by the non-writing getter.
 
 `self._sendLayoutUpdatedEvent()` (`/workspace/nvda/source/gui/settingsDialogs.py:483-491`)
 is sent only when the set of shown windows changed: the shown account box,
@@ -813,10 +836,17 @@ active-dialog check are seams the tests set.
   "closing" and firing → items updated, one announcement. Focus in the shown
   API key field while the selected group changes → deferred. Focus in that
   field while the group stays → not deferred.
-- **Account boxes (C9):** a new group's box is created and placed after the
-  model choice in the Tab order (`MoveAfterInTabOrder(modelList)`). Existing
-  fields keep typed values. A vanished group's box is hidden and its key saved
-  unchanged. `_refreshAccountInfo` raises no `KeyError` for any group change.
+- **Account boxes (R13):** `makeSettings` creates a box for every supported
+  provider and Coseeing, in `ACCOUNT_BOX_GROUPS` order, whatever the catalog;
+  only the selected group's box is shown. A live update that adds or removes
+  providers only shows, hides and relabels: the list of created windows, the
+  sizer's children and the static boxes are unchanged, and no
+  `MoveAfterInTabOrder` is called. Tab/window order is creation order (each
+  field between the model choice and Language, in box order). Existing fields
+  keep typed values; a hidden box keeps its key. No blank key is written on
+  any path (open, rebuild, rebuild after OK, untouched OK, OK with a typed
+  key), an untouched existing key is kept, and a cleared key is saved.
+  `_refreshAccountInfo` raises no `KeyError` for any group change.
 - **Lines (C10):** each RC §13.3 row updates live. The dropped-entries count
   follows the new catalog. Both lines exist from `makeSettings` and are hidden
   when empty. The layout event is sent only when visibility changed.
@@ -902,6 +932,18 @@ network.
 7. After providers appear: Tab order is Service Provider, model, the selected
    provider's API key, Language, … , "Model list URL:" last. NVDA+B reads the
    status line only when it is visible.
+7a. (R13) Object navigation (NVDA+Numpad 4/6 inside the panel) and Tab order
+   through the account boxes match the visual order: after the model choice
+   comes the shown provider's box (its group name, then "API Key:" or
+   "clean"), then Language. Hidden boxes are skipped by both. Choose each
+   provider in turn and repeat: the order never changes, before or after a
+   live update.
+7b. StaticBox children and window order as NVDA reads them: NVDA+B (read the
+   foreground window) and object navigation report each account box's group
+   name with its own field or button inside it, never a hidden box's control;
+   the HWND z-order (what object navigation walks) is the creation order of
+   §10.4, so the status line and dropped-entries line come before the Service
+   Provider choice and the URL group last.
 8. WordBridge panel open but another category shown, or another application
    in front, when the fetch finishes: no speech. Going back shows the new list.
 9. Apply with a changed URL: the list switches silently. When the fetch
@@ -1131,8 +1173,12 @@ msgfmt --check -o /dev/null addon/locale/zh_TW/LC_MESSAGES/nvda.po
 - **Polling the drop-down state** relies on a Win32 message (F7). If it
   misreports, the worst case is changing items while the list is open (no
   focus loss), seen in §15.6 item 5.
-- **Tab order of late-created controls** depends on `MoveAfterInTabOrder`
-  (§10.4). §15.6 item 7 checks it.
+- ~~**Tab order of late-created controls** depends on `MoveAfterInTabOrder`
+  (§10.4). §15.6 item 7 checks it.~~ Removed by R13: no control is created
+  late. §15.6 items 7, 7a and 7b check the order.
+- **Hidden boxes for providers the catalog does not offer** (R13) cost a few
+  hidden windows per panel (six supported providers today). They are never
+  shown, never in the Tab order while hidden, and keep the stored key.
 - **Chattiness** is bounded by §7 and §11 (OQ1).
 - **Load on the server** from many add-ons retrying at once after an outage:
   6 small `GET /` per add-on over an hour, spread by each add-on's own start
