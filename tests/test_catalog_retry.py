@@ -347,3 +347,82 @@ def test_retry_log_lines_carry_only_attempt_and_delay(tmp_path):
 	text = h.log.text()
 	for secret in ("/catalog", "token", "secret", "connect"):
 		assert secret not in text
+
+
+# --- Task 2: URL changes reset the backoff (R10, C4) ------------------------
+
+@pytest.mark.parametrize("path", ["a-b", "a-b-a"])
+def test_a_retry_fetches_the_current_url_not_the_armed_one(tmp_path, path):
+	h = retry_harness(tmp_path, {URL_A: failing(), URL_B: failing()})
+	start(h)
+	[armed] = h.scheduler.live()
+
+	h.updater.refresh(URL_B)
+	final = URL_B
+	if path == "a-b-a":
+		h.updater.refresh(URL_A)
+		final = URL_A
+	assert armed.stopped is True
+	threads, requests = len(h.threads), list(h.requests)
+	armed.fire()
+	assert (len(h.threads), h.requests) == (threads, requests)
+
+	finish(h)
+	assert [timer.delay_ms for timer in h.scheduler.live()] == [MINUTE_MS]
+	fire_and_finish(h)
+	assert h.requests[-1] == final
+
+
+def test_a_url_change_resets_the_schedule(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing(), URL_B: failing()})
+	start(h)
+	fire_and_finish(h)
+	fire_and_finish(h)
+	assert [timer.delay_ms for timer in h.scheduler.live()] == [4 * MINUTE_MS]
+
+	h.updater.refresh(URL_B)
+	finish(h)
+
+	assert exhaust(h) == [minutes * MINUTE_MS for minutes in (1, 2, 4, 8, 16, 32)]
+
+
+def test_a_url_change_after_retries_stopped_starts_the_full_schedule_again(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing(), URL_B: failing()})
+	start(h)
+	exhaust(h)
+	assert len(records(h, STOPPED)) == 1
+
+	h.updater.refresh(URL_B)
+	finish(h)
+
+	assert exhaust(h) == [minutes * MINUTE_MS for minutes in (1, 2, 4, 8, 16, 32)]
+	assert len(records(h, STOPPED)) == 2
+
+
+def test_a_same_key_refresh_keeps_the_count(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing(), "  " + URL_A + "  ": failing()})
+	start(h)
+
+	h.updater.refresh("  " + URL_A + "  ")
+	finish(h)
+
+	assert [timer.delay_ms for timer in h.scheduler.live()] == [2 * MINUTE_MS]
+
+
+@pytest.mark.parametrize("value", ["", "http://example.com/"], ids=["empty", "invalid"])
+def test_switching_to_an_empty_or_invalid_url_cancels_and_resets(tmp_path, value):
+	h = retry_harness(tmp_path, {URL_A: failing(), URL_B: failing()})
+	start(h)
+	fire_and_finish(h)
+	[armed] = h.scheduler.live()
+	assert armed.delay_ms == 2 * MINUTE_MS
+	threads = len(h.threads)
+
+	h.updater.refresh(value)
+
+	assert armed.stopped is True
+	assert len(h.threads) == threads
+	assert h.scheduler.live() == []
+	h.updater.refresh(URL_B)
+	finish(h)
+	assert [timer.delay_ms for timer in h.scheduler.live()] == [MINUTE_MS]

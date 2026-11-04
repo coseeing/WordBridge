@@ -211,7 +211,12 @@ class CatalogUpdater:
 		return catalog
 
 	def refresh(self, url: str) -> None:
-		"""Fetch for `url`; on a URL change, switch to its cache at once (D8). Main thread."""
+		"""Fetch for `url`; on a URL change, switch to its cache at once (D8). Main thread.
+
+		Cancels a pending retry. A URL change (a different key, including an
+		empty or invalid URL) also resets the retry schedule (R10); a refresh
+		with the same key (startup, a retry) keeps it.
+		"""
 		check = self._check(url)
 		self._cancel_retry_timer()
 		self._current_url = url
@@ -221,6 +226,8 @@ class CatalogUpdater:
 			changed = check.key != self._live_key
 			self._fetch = _fetch_state(check)
 		if changed:
+			self._retry_count = 0
+			self._retries_stopped = False
 			catalog, source = self._local_catalog(check)
 			with self._lock:
 				self._live_key = check.key
