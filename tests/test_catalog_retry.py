@@ -6,6 +6,7 @@ another one is still live, so every test here also checks "at most one retry
 timer exists".
 """
 
+import copy
 import itertools
 
 import pytest
@@ -92,12 +93,17 @@ def fire_and_finish(h):
 	finish(h)
 
 
-def exhaust(h):
-	"""Fire every retry until none is armed; the delays in milliseconds."""
+def exhaust(h, bound=10):
+	"""Fire every retry until none is armed; the delays in milliseconds.
+
+	Bounded, so a broken schedule fails instead of looping forever."""
 	delays = []
-	while h.scheduler.live():
+	for _ in range(bound):
+		if not h.scheduler.live():
+			break
 		delays.append(h.scheduler.live()[0].delay_ms)
 		fire_and_finish(h)
+	assert not h.scheduler.live(), f"still retrying after {bound} retries"
 	return delays
 
 
@@ -223,11 +229,15 @@ def _with_cache(cache_class):
 
 
 def _stale(h):
+	# The fetch finishes and posts while it is still current; the user saves
+	# another URL before the main loop delivers it, so only _apply's own
+	# generation check can drop it.
 	h.responses[URL_A] = failing()
+	h.responses[URL_B] = failing()
 	h.updater.initial_catalog(URL_A)
 	h.updater.refresh(URL_A)
-	h.updater.refresh(URL_A)
 	h.threads[0].run()
+	h.updater.refresh(URL_B)
 	h.deliver()
 
 
@@ -612,6 +622,25 @@ def _event_panel_failure(h):
 	return recorder
 
 
+def _event_panel_then_timer_failure(h):
+	start(h)
+	recorder = _listen(h)
+	h.updater.retry_on_panel_open()
+	finish(h)
+	fire_and_finish(h)
+	return recorder
+
+
+def _event_url_change_then_timer_failure(h):
+	h.responses[URL_B] = failing()
+	start(h)
+	recorder = _listen(h)
+	h.updater.refresh(URL_B)
+	finish(h)
+	fire_and_finish(h)
+	return recorder
+
+
 def _event_url_change(response):
 	def scenario(h):
 		h.responses[URL_B] = response()
@@ -633,6 +662,11 @@ EVENT_ROWS = [
 	("panel-failure", _event_panel_failure, [(False, None), (False, "failed", True)]),
 	("url-change-failure", _event_url_change(failing), [(True, None), (False, "failed", True)]),
 	("url-change-success", _event_url_change(lambda: _ok(_payload("b"))), [(True, None), (True, "succeeded", True)]),
+	# A timer retry after a user-initiated failure is a background retry again (R8).
+	("panel-then-timer-failure", _event_panel_then_timer_failure,
+		[(False, None), (False, "failed", True), (False, None), (False, "failed", False)]),
+	("url-change-then-timer-failure", _event_url_change_then_timer_failure,
+		[(True, None), (False, "failed", True), (False, None), (False, "failed", False)]),
 ]
 
 
@@ -663,6 +697,24 @@ def test_listeners_see_the_new_state_when_notified(tmp_path, response, expected)
 	finish(h)
 
 	assert seen[-1] == expected
+
+
+@pytest.mark.parametrize("url, status", [
+	(URL_B, ("cache", "running")),
+	("", ("none", "off")),
+], ids=["new-url-with-cache", "empty-url"])
+def test_a_url_change_event_sees_the_d8_catalog_installed(tmp_path, url, status):
+	# The panel rebuilds from registry.current() when told; the D8 switch must
+	# already be installed, and an empty URL is never followed by a fetch.
+	h = retry_harness(tmp_path, {URL_A: failing(), URL_B: failing()})
+	h.seed_cache(URL_B, _payload("cached-b"))
+	h.updater.initial_catalog(URL_A)
+	seen = []
+	h.updater.add_listener(lambda change: seen.append((change, len(h.installed), h.status())))
+
+	h.updater.refresh(url)
+
+	assert seen == [(C(True, None), 1, status)]
 
 
 def test_a_raising_listener_is_logged_by_type_and_the_next_still_runs(tmp_path):
@@ -838,17 +890,31 @@ def test_probe_sends_the_d4_request(tmp_path):
 	})]
 
 
+def _updater_state(updater):
+	return {
+		key: copy.copy(value) if isinstance(value, (list, set, dict)) else value
+		for key, value in vars(updater).items()
+	}
+
+
 def test_probe_installs_caches_and_changes_nothing(tmp_path):
+	# A tested but unsaved URL must never become the URL a later retry fetches
+	# or D8 switches to (C4, D8, C16).
 	h = retry_harness(tmp_path, {URL_A: failing(), URL_B: _ok(_payload("b"))})
 	start(h)
+	[armed] = h.scheduler.live()
 	recorder = _listen(h)
-	before = (h.status(), h.updater._generation, len(h.threads), len(h.scheduler.timers), len(h.log.records))
-	installed, stores = list(h.installed), list(h.cache.stores)
+	before, records = _updater_state(h.updater), list(h.log.records)
+	installed, stores, threads = list(h.installed), list(h.cache.stores), len(h.threads)
 
 	assert h.updater.probe(URL_B).kind == "ok"
+	for url in ("http://example.com/", "ftp://x", ""):
+		h.updater.probe(url)
 
-	assert (h.status(), h.updater._generation, len(h.threads), len(h.scheduler.timers), len(h.log.records)) == before
-	assert (h.installed, h.cache.stores, recorder.events) == (installed, stores, [])
+	assert _updater_state(h.updater) == before
+	assert h.scheduler.live() == [armed]
+	assert h.log.records == records
+	assert (h.installed, h.cache.stores, len(h.threads), recorder.events) == (installed, stores, threads, [])
 
 
 @pytest.mark.parametrize("installed", [False, True], ids=["no-updater", "installed"])
