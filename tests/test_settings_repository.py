@@ -1,3 +1,4 @@
+import pytest
 import ctypes
 import importlib.util
 import sys
@@ -298,3 +299,41 @@ def test_an_unrelated_max_char_count_error_still_propagates(monkeypatch):
 		pass
 	else:
 		assert False, "only range errors may be clamped"
+
+
+def test_catalog_url_defaults_when_absent():
+	from lib.catalog.remote import DEFAULT_CATALOG_URL
+
+	repo, _ = repository()
+
+	assert repo.catalog_url() == DEFAULT_CATALOG_URL
+
+
+def test_catalog_url_is_stripped():
+	repo, _ = repository(catalog_url=" https://h.test/ ")
+
+	assert repo.catalog_url() == "https://h.test/"
+
+
+def test_a_non_string_catalog_url_reads_as_empty():
+	repo, _ = repository(catalog_url=None)
+
+	assert repo.catalog_url() == ""
+
+
+def test_save_catalog_url_writes_the_value():
+	repo, settings = repository()
+
+	repo.save_catalog_url("http://localhost:8000")
+
+	assert settings["catalog_url"] == "http://localhost:8000"
+
+
+def test_corrector_selection_uses_an_explicit_catalog_without_calling_the_callable():
+	def must_not_be_called():
+		pytest.fail("corrector_selection(catalog=...) must not read the registry")
+
+	settings = {"corrector_config_id": "gpt-x&OpenAI", "execution_channel": "local", "api_key": {}}
+	repo = SettingsRepository(settings, must_not_be_called)
+
+	assert repo.corrector_selection(catalog=catalog()) == ("gpt-x&OpenAI", "local")

@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from .lib.catalog.remote import DEFAULT_CATALOG_URL
 from .lib.catalog.selection import normalize_selection
 
 
@@ -57,9 +58,14 @@ class SettingsRepository:
 		self._catalog = current_catalog
 		self._max_char_count_bounds = max_char_count_bounds
 
-	def corrector_selection(self) -> tuple:
+	def corrector_selection(self, catalog=None) -> tuple:
+		"""The stored selection resolved against `catalog`, or the live one.
+
+		A caller that already holds a catalog passes it, so one operation
+		(a correction) never resolves against two different catalogs.
+		"""
 		return normalize_selection(
-			self._catalog(),
+			catalog if catalog is not None else self._catalog(),
 			self._settings.get("corrector_config_id", ""),
 			self._settings.get("execution_channel", ""),
 		)
@@ -67,6 +73,14 @@ class SettingsRepository:
 	def save_corrector_selection(self, corrector_config_id: str, execution_channel: str) -> None:
 		self._settings["corrector_config_id"] = corrector_config_id
 		self._settings["execution_channel"] = execution_channel
+
+	def catalog_url(self) -> str:
+		"""The stored model list URL, stripped. The config spec supplies the default."""
+		value = self._settings.get("catalog_url", DEFAULT_CATALOG_URL)
+		return value.strip() if isinstance(value, str) else ""
+
+	def save_catalog_url(self, value: str) -> None:
+		self._settings["catalog_url"] = value
 
 	def language(self) -> str:
 		value = self._settings.get("language", "")
