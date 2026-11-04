@@ -110,8 +110,11 @@ def redact_url(url) -> str:
 	"""scheme://host[:port] -- the only form of a URL that is ever logged.
 
 	A user-entered URL may carry a token in its path or query, so neither is
-	kept. Never raises.
+	kept. Never raises: anything but a str (bytes would give a bytes
+	hostname) is redacted as invalid.
 	"""
+	if not isinstance(url, str):
+		return _INVALID_REDACTED
 	try:
 		parts, port = _split(url)
 	except (TypeError, ValueError, AttributeError):

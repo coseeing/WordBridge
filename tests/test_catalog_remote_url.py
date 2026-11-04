@@ -74,6 +74,9 @@ def test_empty_path_and_slash_share_a_key():
 	("http://[::1]:8000/x", "http://[::1]:8000"),
 	("https://u:p@h.test/", "https://h.test"),
 	("https://[::1", "<invalid url>"),
+	(b"https://h.test/secret", "<invalid url>"),
+	(None, "<invalid url>"),
+	(42, "<invalid url>"),
 ])
 def test_redact_url(url, redacted):
 	assert redact_url(url) == redacted
