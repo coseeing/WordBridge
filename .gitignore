@@ -20,4 +20,5 @@ venv
 .superpowers
 .worktrees
 docs
-storage
+/storage
+ref
