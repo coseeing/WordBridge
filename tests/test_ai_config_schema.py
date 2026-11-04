@@ -6,14 +6,27 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SETTING_DIR = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge" / "setting"
 CATALOG_PATH = SETTING_DIR / "catalog.json"
 CORRECTOR_TASK_CONFIG_PATH = SETTING_DIR / "task" / "corrector.json"
+SENTINEL = {"model": "default", "label": "default", "active": True}
 
 
 def _catalog_document():
+	"""The add-on's bundled catalog: the Coseeing channel only."""
 	return json.loads(CATALOG_PATH.read_text(encoding="utf8"))
 
 
+def _server_document():
+	"""The remote payload: the only home of local providers and models."""
+	from shipped_catalog import server_document
+
+	return server_document()
+
+
+def test_the_bundled_catalog_is_exactly_the_coseeing_sentinel():
+	assert _catalog_document() == {"schema_version": 1, "coseeings": [SENTINEL]}
+
+
 def test_catalog_models_and_coseeings_use_the_expected_entry_shapes():
-	document = _catalog_document()
+	document = _server_document()
 
 	assert len(document["models"]) == 17
 	for entry in document["models"]:
@@ -25,14 +38,14 @@ def test_catalog_models_and_coseeings_use_the_expected_entry_shapes():
 			assert isinstance(entry["pricing"], dict) and entry["pricing"]
 			assert isinstance(entry["usage_key"], str) and entry["usage_key"]
 
-	providerless = [entry for entry in document["coseeings"] if "provider" not in entry]
-	assert providerless == [{"model": "default", "label": "default", "active": True}]
+	providerless = [entry for entry in _catalog_document()["coseeings"] if "provider" not in entry]
+	assert providerless == [SENTINEL]
 
 
 def test_ai_catalog_uses_unique_model_provider_pairs():
 	seen_pairs = set()
 
-	for entry in _catalog_document()["models"]:
+	for entry in _server_document()["models"]:
 		pair = (entry["model"], entry["provider"])
 		assert pair not in seen_pairs, pair
 		seen_pairs.add(pair)
@@ -40,7 +53,7 @@ def test_ai_catalog_uses_unique_model_provider_pairs():
 
 def test_catalog_has_exactly_one_providerless_coseeing_default():
 	providerless = [entry for entry in _catalog_document()["coseeings"] if "provider" not in entry]
-	assert providerless == [{"model": "default", "label": "default", "active": True}]
+	assert providerless == [SENTINEL]
 
 
 def test_corrector_task_config_is_the_only_prompt_setting_file():
@@ -67,7 +80,7 @@ def test_provider_catalogs_preserve_approved_and_unaffected_models():
 			"gemini-3.8-flash",
 		},
 	}
-	models = _catalog_document()["models"]
+	models = _server_document()["models"]
 	assert {
 		provider: {entry["model"] for entry in models if entry["provider"] == provider}
 		for provider in expected

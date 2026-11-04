@@ -47,7 +47,16 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 	instance.readDictionary = lambda: []
 	instance._shutdown = threading.Event()
 	# correctTypo() now also reads self.catalog / self._degraded_catalog_announced.
-	instance.catalog = plugin_module.catalog
+	# The shipped catalogs offer only the sentinel on Coseeing (U8); this test
+	# pins that a non-sentinel Coseeing id reaches the payload unchanged, so
+	# it uses a fixture catalog that offers one (spec section 16.2).
+	import dataclasses
+
+	sentinel_entry = plugin_module.catalog.get_coseeing("default")
+	instance.catalog = dataclasses.replace(plugin_module.catalog, coseeings=plugin_module.catalog.coseeings + (
+		dataclasses.replace(sentinel_entry, model="deepseek-flash", label="deepseek-flash", provider="DeepSeek"),
+	))
+	monkeypatch.setattr(plugin_module.registry, "current", lambda: instance.catalog)
 	instance._degraded_catalog_announced = False
 	future = Future()
 	future.set_result(access_token)
@@ -123,6 +132,8 @@ def test_degraded_catalog_announcement_fires_once_per_session(monkeypatch):
 		BrokenSource(), runnable_providers=plugin_module.SUPPORTED_PROVIDERS
 	)
 	assert instance.catalog.degraded is True
+	# correctTypo() takes its one snapshot from the registry.
+	monkeypatch.setattr(plugin_module.registry, "current", lambda: instance.catalog)
 	instance._degraded_catalog_announced = False
 
 	future = Future()
@@ -162,7 +173,7 @@ def test_proofreader_auth_failure_skips_post_and_queues_ui_notification(monkeypa
 
 	queued = []
 	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-flash&DeepSeek",
+		"corrector_config_id": "default",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 		"language": "zh_traditional",
@@ -203,7 +214,7 @@ def test_proofreader_termination_before_worker_request_skips_post_and_ui(monkeyp
 
 	queued = []
 	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-flash&DeepSeek",
+		"corrector_config_id": "default",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 		"language": "zh_traditional",
@@ -240,7 +251,7 @@ def test_proofreader_failures_use_stable_notification(monkeypatch, failure):
 
 	queued = []
 	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-flash&DeepSeek",
+		"corrector_config_id": "default",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 		"language": "zh_traditional",
@@ -537,6 +548,8 @@ def test_degraded_catalog_flag_is_set_only_after_the_notification_is_dispatched(
 		BrokenSource(), runnable_providers=plugin_module.SUPPORTED_PROVIDERS
 	)
 	assert instance.catalog.degraded is True
+	# correctTypo() takes its one snapshot from the registry.
+	monkeypatch.setattr(plugin_module.registry, "current", lambda: instance.catalog)
 	instance._degraded_catalog_announced = False
 
 	notify_order = []
@@ -609,7 +622,7 @@ def test_local_channel_notifies_and_returns_when_the_selected_model_is_gone(monk
 	# for -- normalize_selection() already keeps a *fresh* settings read from
 	# ever producing this, so the fake below stands in for the catalog having
 	# changed out from under an already-resolved selection.
-	monkeypatch.setattr(instance.settings, "corrector_selection", lambda: ("ghost-model&OpenAI", "local"))
+	monkeypatch.setattr(instance.settings, "corrector_selection", lambda catalog=None: ("ghost-model&OpenAI", "local"))
 	messages = []
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
 	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
@@ -664,7 +677,7 @@ def test_local_channel_notifies_and_returns_when_the_selected_provider_is_gone(m
 	)
 	instance.catalog = catalog
 	monkeypatch.setattr(plugin_module.registry, "current", lambda: catalog)
-	monkeypatch.setattr(instance.settings, "corrector_selection", lambda: ("ghost-model&GhostProvider", "local"))
+	monkeypatch.setattr(instance.settings, "corrector_selection", lambda catalog=None: ("ghost-model&GhostProvider", "local"))
 	messages = []
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
 	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
@@ -751,7 +764,7 @@ def _coseeing_plugin_instance(monkeypatch, queued, messages):
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-flash&DeepSeek",
+		"corrector_config_id": "default",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 		"language": "zh_traditional",

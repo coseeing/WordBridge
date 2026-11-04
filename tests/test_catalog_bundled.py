@@ -4,6 +4,7 @@ from pathlib import Path
 from lib.catalog.document import SCHEMA_VERSION, build_catalog
 from lib.catalog.model import COSEEING_GROUP
 from lib.catalog.sources import BundledCatalogSource
+from shipped_catalog import TEMPORARY_LINT_CODES, server_document, shipped_overlay
 
 
 ADDON_PATH = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge"
@@ -69,11 +70,22 @@ def test_the_bundled_document_declares_the_current_schema_version():
 	document = shipped_document()
 
 	assert document["schema_version"] == SCHEMA_VERSION
-	assert set(document) == {"schema_version", "providers", "models", "coseeings"}
+	# The Coseeing channel only: local providers and models come from the
+	# remote payload, and no snapshot of it ships in the add-on (U1).
+	assert set(document) == {"schema_version", "coseeings"}
+
+
+def test_the_bundled_catalog_alone_offers_only_the_sentinel():
+	catalog = shipped_catalog()
+
+	assert catalog.provider_groups == (COSEEING_GROUP,)
+	assert catalog.providers == {}
+	assert catalog.models == ()
+	assert catalog.issues == ()
 
 
 def test_every_active_local_model_has_explicit_pricing_and_usage_metadata():
-	catalog = shipped_catalog()
+	catalog = shipped_overlay()
 
 	assert catalog.models, "the shipped catalog has no model entries"
 	for entry in catalog.models:
@@ -83,8 +95,8 @@ def test_every_active_local_model_has_explicit_pricing_and_usage_metadata():
 
 
 def test_every_provider_entry_matches_its_canonical_document_value():
-	document = shipped_document()
-	catalog = shipped_catalog()
+	document = server_document()
+	catalog = shipped_overlay()
 
 	assert document["providers"], "the shipped catalog has no providers"
 	for name, data in document["providers"].items():
@@ -96,9 +108,12 @@ def test_every_provider_entry_matches_its_canonical_document_value():
 
 
 def test_the_shipped_data_produces_only_the_known_lint_issue():
-	catalog = shipped_catalog()
+	catalog = shipped_overlay()
 
-	assert [(issue.code, issue.location) for issue in catalog.issues] == [
+	assert [
+		(issue.code, issue.location) for issue in catalog.issues
+		if issue.code not in TEMPORARY_LINT_CODES
+	] == [
 		("unreferenced_provider", "providers.OpenRouter"),
 	]
 
@@ -131,6 +146,7 @@ def test_the_shipped_coseeing_labels_are_pinned():
 	# panel's rendering, which (after the sentinel translation fix in
 	# dialogs.py) substitutes a translated string for the sentinel's entry
 	# only; lib/catalog itself must never reach _() (spec decision 9).
-	assert shipped_catalog().labels_for("Coseeing") == (
-		"default", "deepseek-flash", "gpt-6-luna",
-	)
+	# The new add-on offers only the sentinel on Coseeing (U8); a remote
+	# payload cannot add Coseeing entries (D1).
+	assert shipped_catalog().labels_for("Coseeing") == ("default",)
+	assert shipped_overlay().labels_for("Coseeing") == ("default",)

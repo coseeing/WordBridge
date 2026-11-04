@@ -8,7 +8,8 @@ import pytest
 from test_coseeing_auth_nvda import _load_nvda_plugin
 
 SETTINGS = {
-	"corrector_config_id": "deepseek-flash&DeepSeek",
+	# The Coseeing group offers only the sentinel now (U8).
+	"corrector_config_id": "default",
 	"execution_channel": "Coseeing",
 	"api_key": {},
 	"language": "zh_traditional",

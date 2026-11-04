@@ -3,14 +3,12 @@ import json
 from pathlib import Path
 
 from lib.catalog import COSEEING_GROUP, LOCAL_CHANNEL, CatalogIssue, is_dropped_issue
-from lib.catalog.fallback import load_catalog
+from lib.catalog.document import build_catalog
 from lib.catalog.overlay import OverlaySource, has_local_items, load_overlay_catalog, overlay_documents
-from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
 
 
 SERVER_CATALOG = Path(__file__).resolve().parents[1] / "server" / "app" / "setting" / "catalog.json"
-SETTING_DIR = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge" / "setting"
 SENTINEL = {"model": "default", "label": "default", "active": True}
 
 
@@ -186,11 +184,12 @@ def test_the_shipped_target_files_overlay_as_section_7_4():
 	assert catalog.find_selection("gpt-6-luna&OpenAI", COSEEING_GROUP) == (-1, -1)
 	assert catalog.find_selection("gpt-6-luna&OpenAI", LOCAL_CHANNEL) != (-1, -1)
 
-	# AC2: exactly today's local data. Today's catalog is the shipped add-on
-	# file read the way 774560b reads it. (Task 10 empties that file of local
-	# data; the reference then becomes the same server document built
-	# directly, without the overlay.)
-	today = load_catalog(BundledCatalogSource(SETTING_DIR), runnable_providers=SUPPORTED_PROVIDERS)
+	# AC2: exactly today's local data. At 774560b the add-on file and the
+	# server file carried the same providers and models, and the add-on built
+	# them directly; the reference is that direct build of the server
+	# document, without the overlay, so anything the overlay loses or changes
+	# (prices, labels, provider settings) shows up here.
+	today = build_catalog(server, runnable_providers=SUPPORTED_PROVIDERS)
 
 	def local_items(c):
 		return [

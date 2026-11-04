@@ -20,11 +20,10 @@ SERVER_SETTING_DIR = PROJECT_ROOT / "server" / "app" / "setting"
 SERVER_CATALOG_PATH = SERVER_SETTING_DIR / "catalog.json"
 ADDON_SETTING_DIR = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge" / "setting"
 
-# Lint the overlay records only while a target file is not applied yet:
-# ignored_bundled_local_entries until the add-on file loses its providers and
-# models (plan Task 10), ignored_remote_coseeings until the server file loses
-# its coseeings (plan Task 16). Tests that pin the lint list allow these.
-TEMPORARY_LINT_CODES = frozenset({"ignored_remote_coseeings", "ignored_bundled_local_entries"})
+# Lint the overlay records only while the server target file is not applied
+# yet: ignored_remote_coseeings until the server file loses its coseeings
+# (plan Task 16). Tests that pin the lint list allow it.
+TEMPORARY_LINT_CODES = frozenset({"ignored_remote_coseeings"})
 
 
 def server_document() -> dict:

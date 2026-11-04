@@ -45,8 +45,12 @@ import requests
 
 from .dialogs import LLMSettingsPanel, FeedbackDialog
 from .configManager import CorrectorTaskConfig, load_corrector_task_config
+from . import catalog_updater
+from .catalog_updater import CatalogUpdater
 from .lib.catalog import LOCAL_CHANNEL, registry
+from .lib.catalog.cache import CatalogCache
 from .lib.catalog.fallback import load_catalog
+from .lib.catalog.remote import DEFAULT_CATALOG_URL
 from .lib.catalog.sources import BundledCatalogSource
 from .lib.llm import SUPPORTED_PROVIDERS
 from .dictionary import default_dictionary_repository
@@ -56,6 +60,7 @@ from .lib.coseeing import build_coseeing_headers
 from .lib import coseeing_auth
 from .lib.coseeing_auth import shutdown_coseeing_auth, start_coseeing_auth
 from .lib.decimalUtils import decimal_to_str_0
+from .lib.paths import user_workspace_root
 from .lib.report import generate_report
 from .lib.progress_cue import ProgressCue
 from .lib.tasks.typo.utils import strings_diff
@@ -113,6 +118,9 @@ config.conf.spec["WordBridge"] = {
 		"auto_display_report": "boolean(default=False)",
 		"customized_words_enable": "boolean(default=True)",
 		"sound_effects_enable": "boolean(default=True)",
+		# Where the provider/model list is downloaded from. Empty turns the
+		# remote catalog off: only the bundled Coseeing default is offered.
+		"catalog_url": f"string(default='{DEFAULT_CATALOG_URL}')",
 	}
 }
 COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
@@ -130,6 +138,35 @@ COSEEING_TOKEN_WAIT_SECONDS = coseeing_auth.COSEEING_LOGIN_CALLBACK_TIMEOUT + 20
 # terminate() must not wait for an in-flight request. Workers are daemons, so
 # whatever is still running when this budget expires is abandoned.
 TERMINATE_WAIT_SECONDS = 3
+
+# The last accepted remote catalog. Beside the dictionary and the reports in
+# the NVDA user configuration directory, so it survives add-on updates. Pure
+# path arithmetic: nothing is created or read at import.
+CATALOG_CACHE_PATH = user_workspace_root() / "catalog" / "remote-catalog.json"
+
+
+def _can_write_catalog_cache():
+	"""NVDA's own rule for disk writes: never from secure mode or the launcher.
+
+	Imported lazily, like every NVDA module this file does not need at import;
+	any failure means "do not write".
+	"""
+	try:
+		import NVDAState
+
+		return bool(NVDAState.shouldWriteToDisk())
+	except Exception:
+		return False
+
+
+def _catalog_http_get(url, **kwargs):
+	# Looked up on every call, so the requests module NVDA provides is the one
+	# used (and tests can replace it).
+	return requests.get(url, **kwargs)
+
+
+def _start_catalog_thread(target, args):
+	return catalog_updater.start_daemon_thread(target, args)
 
 # Progress cue cadence, preserved from the sleep-polling loop this replaced:
 # the wave started immediately and repeated, the beep started after a beat.
@@ -165,21 +202,25 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# still safely use self._notify()/self._run_on_ui(), both of which
 		# read self._shutdown.
 		self._shutdown = threading.Event()
-		self.catalog = load_catalog(
-			BundledCatalogSource(os.path.join(PATH, "setting")),
-			runnable_providers=SUPPORTED_PROVIDERS,
-		)
-		registry.initialize(self.catalog)
-		for issue in self.catalog.issues:
-			log.warning(
-				"WordBridge: catalog issue code=%s location=%s: %s",
-				issue.code, issue.location, issue.detail,
-			)
-		self.correctorTaskConfig = self._load_corrector_task_config()
+		# The repository only stores the registry accessor here; nothing reads
+		# the catalog until registry.initialize() below.
 		self.settings = SettingsRepository(config.conf["WordBridge"]["settings"], registry.current)
+		# Bundled ⊕ the cache for the configured URL: one small file read on
+		# the main thread, next to the bundled file read. The network fetch
+		# itself is deferred to the fetch thread (see _start_catalog_fetch).
+		self._catalog_updater = self._make_catalog_updater()
+		catalog_updater.install(self._catalog_updater)
+		self.catalog = self._catalog_updater.initial_catalog(self.settings.catalog_url())
+		registry.initialize(self.catalog)
+		self._log_catalog_issues(self.catalog)
+		self.correctorTaskConfig = self._load_corrector_task_config()
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(LLMSettingsPanel)
 		_, channel = self.settings.corrector_selection()
 		wx.CallAfter(self._start_coseeing_auth, channel)
+		# Same deferral as the sign-in: it runs once the wx main loop starts
+		# dispatching, which is after NVDA has finished starting -- and, unlike
+		# core.postNvdaStartup, also when the plugin is reloaded.
+		wx.CallAfter(self._start_catalog_fetch)
 		self.latest_action = CorrectionAction()
 		self.correct_typo_thread = None
 		self._feedback_thread = None
@@ -219,6 +260,40 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not self._shutdown.is_set():
 			start_coseeing_auth(channel)
 
+	def _make_catalog_updater(self):
+		return CatalogUpdater(
+			bundled_source=BundledCatalogSource(os.path.join(PATH, "setting")),
+			cache=CatalogCache(CATALOG_CACHE_PATH, can_write=_can_write_catalog_cache),
+			runnable_providers=SUPPORTED_PROVIDERS,
+			http_get=_catalog_http_get,
+			post_to_ui=self._run_on_ui,
+			install=self._install_catalog,
+			shutdown=self._shutdown,
+			log=log,
+			start_thread=_start_catalog_thread,
+		)
+
+	def _start_catalog_fetch(self):
+		# Starting the thread is the only work done here, on the main thread.
+		if self._shutdown.is_set():
+			return
+		self._catalog_updater.refresh(self.settings.catalog_url())
+
+	def _install_catalog(self, catalog):
+		# Main thread only (the updater posts here through _run_on_ui), so the
+		# settings panel's reads can never see two catalogs. A correction
+		# already running keeps the snapshot it took (see correctTypo).
+		registry.replace(catalog)
+		self.catalog = catalog
+		self._log_catalog_issues(catalog)
+
+	def _log_catalog_issues(self, catalog):
+		for issue in catalog.issues:
+			log.warning(
+				"WordBridge: catalog issue code=%s location=%s: %s",
+				issue.code, issue.location, issue.detail,
+			)
+
 	def terminate(self, *args, **kwargs):
 		# R02: terminate() must never raise. Each step below is isolated in
 		# its own try/except so that a failure in one step cannot skip the
@@ -236,9 +311,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			log.exception("WordBridge: stopping the progress cue failed during terminate()")
 		deadline = time.monotonic() + TERMINATE_WAIT_SECONDS
 		try:
+			updater = getattr(self, "_catalog_updater", None)
 			workers = [
 				self.correct_typo_thread,
 				self._feedback_thread,
+				# A fetch blocked in a socket read cannot be interrupted; it is
+				# a daemon, and it can neither write the cache nor post once
+				# _shutdown is set, so abandoning it is safe.
+				updater.thread if updater is not None else None,
 			]
 			for worker in workers:
 				if worker is None or not worker.is_alive():
@@ -259,6 +339,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				shutdown_coseeing_auth()
 			except Exception:
 				log.exception("WordBridge: shutdown_coseeing_auth() failed during terminate()")
+			try:
+				catalog_updater.uninstall()
+			except Exception:
+				log.exception("WordBridge: catalog_updater.uninstall() failed during terminate()")
 			try:
 				categoryClasses = gui.settingsDialogs.NVDASettingsDialog.categoryClasses
 				if LLMSettingsPanel in categoryClasses:
@@ -401,8 +485,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		return False
 
 	def correctTypo(self, request):
+		# One snapshot for the whole correction: the catalog can be swapped on
+		# the main thread while this worker runs, and resolving the selection
+		# against one catalog and looking it up in another could make
+		# get_model() miss an id that was just resolved.
 		catalog = registry.current()
-		corrector_config_id, execution_channel = self.settings.corrector_selection()
+		corrector_config_id, execution_channel = self.settings.corrector_selection(catalog=catalog)
 
 		language = self.settings.language()
 		corrector_mode = self.settings.typo_correction_mode()
@@ -413,7 +501,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			customized_words = [row["text"] for row in self.readDictionary()]
 		else:
 			customized_words = []
-		if self.catalog.degraded and not self._degraded_catalog_announced:
+		if catalog.degraded and not self._degraded_catalog_announced:
 			# Notify before marking announced: _run_on_ui() silently drops the
 			# message when self._shutdown is already set, and the old order
 			# (flag first) could mark this session's one-shot announcement

@@ -71,6 +71,33 @@ for _module_name, _original_module in _ORIGINAL_IMPORT_MODULES.items():
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
 _STUB_UNAVAILABLE_REASON = "stub unavailable reason for test"
+DEFAULT_CATALOG_KEY = "https://wordbridge.coseeing.org/"
+_SEEDED_CATALOG_CACHE = None
+
+
+def seeded_catalog_cache_path():
+	"""A read-only cache file holding the server catalog for the default URL.
+
+	Plugin-level tests start with the catalog a user has after one
+	successful fetch. Never the real WordBridge-workspace root: the
+	directory is a TemporaryDirectory removed at interpreter exit, and the
+	plugin never writes to it (NVDAState is absent here, so the cache's
+	can_write check is False).
+	"""
+	global _SEEDED_CATALOG_CACHE
+	if _SEEDED_CATALOG_CACHE is None:
+		import tempfile
+
+		from shipped_catalog import server_document
+
+		_SEEDED_CATALOG_CACHE = tempfile.TemporaryDirectory(prefix="wordbridge-catalog-cache-")
+		path = Path(_SEEDED_CATALOG_CACHE.name) / "remote-catalog.json"
+		path.write_text(json.dumps({
+			"cache_version": 1,
+			"url_key": DEFAULT_CATALOG_KEY,
+			"document": server_document(),
+		}), encoding="utf8")
+	return Path(_SEEDED_CATALOG_CACHE.name) / "remote-catalog.json"
 
 
 def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_available=True, log_warnings=None):
@@ -241,7 +268,16 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	# network I/O), so wiring in the real one keeps this a fake network client
 	# while letting the real import machinery resolve it; every test that
 	# could otherwise reach the network still replaces `.get`/`.post` itself.
-	fake_requests = SimpleNamespace(utils=SimpleNamespace(urlparse=urlparse))
+	# No test may perform real HTTP. The catalog fetch reaches requests.get;
+	# every call is recorded (plugin.network_calls) and fails. A fetch thread
+	# would swallow an assertion raised here, so tests check the list instead.
+	network_calls = []
+
+	def refuse_network(*args, **kwargs):
+		network_calls.append((args, kwargs))
+		raise AssertionError("a test performed real HTTP")
+
+	fake_requests = SimpleNamespace(utils=SimpleNamespace(urlparse=urlparse), get=refuse_network)
 	monkeypatch.setitem(sys.modules, "requests", fake_requests)
 	monkeypatch.setitem(sys.modules, "requests.utils", fake_requests.utils)
 	monkeypatch.setattr(
@@ -328,8 +364,25 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	# shipped setting/ tree, means callers just assign instance.settings /
 	# instance.correctorTaskConfig from plugin.settings / plugin.correctorTaskConfig
 	# instead of each reimplementing catalog bootstrap.
-	plugin.catalog = plugin.load_catalog(
+	plugin.network_calls = network_calls
+	# GlobalPlugin() reads the catalog cache for the configured URL; point it
+	# at the seeded copy, and record fetch threads instead of starting them.
+	plugin.started_catalog_threads = []
+	monkeypatch.setattr(plugin, "CATALOG_CACHE_PATH", seeded_catalog_cache_path(), raising=False)
+	monkeypatch.setattr(
+		plugin,
+		"_start_catalog_thread",
+		lambda target, args: plugin.started_catalog_threads.append((target, args)) or SimpleNamespace(
+			is_alive=lambda: False, join=lambda timeout=None: None,
+		),
+		raising=False,
+	)
+	from shipped_catalog import server_document
+
+	overlay = importlib.import_module(f"{package_name}.lib.catalog.overlay")
+	plugin.catalog = overlay.load_overlay_catalog(
 		plugin.BundledCatalogSource(str(ADDON_PATH / "setting")),
+		server_document(),
 		runnable_providers=plugin.SUPPORTED_PROVIDERS,
 	)
 	plugin.registry.initialize(plugin.catalog)
@@ -364,22 +417,30 @@ def test_global_plugin_starts_normalized_coseeing_auth_and_guards_queued_callbac
 	# that line stays green everywhere except here, and everywhere except a
 	# degraded user's first correction (see fix-round-1 in task-7-report.md).
 	assert instance._degraded_catalog_announced is False
-	assert len(queued) == 1
+	# Two deferred callbacks: the sign-in, then the catalog fetch start
+	# (covered by tests/test_catalog_plugin_wiring.py).
+	assert [queued_callback for queued_callback, _ in queued] == [
+		instance._start_coseeing_auth, instance._start_catalog_fetch,
+	]
 	callback, args = queued.pop(0)
+	queued.clear()
 	callback(*args)
 	assert auth_calls == []
 	instance.terminate()
 	assert auth_calls == ["shutdown"]
 
-	settings["corrector_config_id"] = "deepseek-flash&DeepSeek"
+	# The Coseeing group offers only the sentinel now (U8).
+	settings["corrector_config_id"] = "default"
 	instance = plugin.GlobalPlugin()
 	callback, args = queued.pop(0)
+	queued.clear()
 	instance.terminate()
 	callback(*args)
 	assert auth_calls == ["shutdown", "shutdown"]
 
 	instance = plugin.GlobalPlugin()
 	callback, args = queued.pop(0)
+	queued.clear()
 	callback(*args)
 	assert auth_calls == ["shutdown", "shutdown", "Coseeing"]
 	instance.terminate()
@@ -591,9 +652,10 @@ def test_real_init_falls_back_to_shipped_defaults_and_notifies_on_a_corrupt_task
 	}
 	# _load_corrector_task_config() -- and the wx.CallAfter() its deferred
 	# notification schedules -- runs before wx.CallAfter(self._start_coseeing_auth,
-	# ...) later in __init__, so the notification is the first of the two
-	# callbacks queued during construction.
-	assert len(queued) == 2
+	# ...) and wx.CallAfter(self._start_catalog_fetch) later in __init__, so the
+	# notification is the first of the three callbacks queued during
+	# construction.
+	assert len(queued) == 3
 	callback, args = queued.pop(0)
 	callback(*args)
 	assert messages == [
@@ -952,7 +1014,10 @@ def test_settings_panel_summary_line_is_silent_for_the_shipped_healthy_catalog(m
 	# assertion (not the one below) would fail, and the test would no longer
 	# be exercising the exclusion at all.
 	assert plugin.catalog.issues, "fixture no longer carries the shipped lint issue -- test would be vacuous"
-	assert all(issue.code == "unreferenced_provider" for issue in plugin.catalog.issues)
+	from shipped_catalog import TEMPORARY_LINT_CODES
+
+	assert {issue.code for issue in plugin.catalog.issues} <= {"unreferenced_provider"} | TEMPORARY_LINT_CODES
+	assert "unreferenced_provider" in {issue.code for issue in plugin.catalog.issues}
 
 	panel = _make_panel(monkeypatch, dialogs, Sizer)
 	assert panel.catalogIssuesText is None
@@ -1050,7 +1115,12 @@ def test_the_sentinel_model_label_is_rendered_through_the_translation_map(monkey
 	helper_calls, static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
 
-	original = plugin.catalog
+	# The shipped catalogs offer only the sentinel on Coseeing now (U8), so
+	# the non-sentinel entry this test needs is a fixture (spec section 16.2).
+	sentinel_entry = plugin.catalog.get_coseeing(dialogs.SENTINEL_ID)
+	original = dataclasses.replace(plugin.catalog, coseeings=plugin.catalog.coseeings + (
+		dataclasses.replace(sentinel_entry, model="deepseek-flash", label="deepseek-flash", provider="DeepSeek"),
+	))
 	other_coseeings = tuple(
 		dataclasses.replace(entry, label="RAW SENTINEL LABEL FROM CATALOG")
 		if entry.corrector_config_id == dialogs.SENTINEL_ID else entry
