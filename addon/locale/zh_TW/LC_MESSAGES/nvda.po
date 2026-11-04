@@ -547,8 +547,8 @@ msgstr "模型清單網址必須以 https:// 開頭。只有 localhost 可以使
 msgid "Enter a complete web address, such as https://wordbridge.coseeing.org, or leave the field empty."
 msgstr "請輸入完整的網址，例如 https://wordbridge.coseeing.org，或將此欄位留空。"
 
-#. Translators: The option name in NVDA's "Invalid configuration" message; the model list URL label without the colon.
-#: addon\globalPlugins\WordBridge\dialogs.py:372
+#. Translators: Label of the group in the WordBridge settings panel showing the address the model list is downloaded from.
+#: addon\globalPlugins\WordBridge\dialogs.py:351
 msgid "Model list URL"
 msgstr "模型清單網址"
 
@@ -650,3 +650,13 @@ msgstr "正在驗證模型清單網址..."
 #: addon\globalPlugins\WordBridge\catalog_url_dialog.py:170
 msgid "Success"
 msgstr "成功"
+
+#. Translators: Button in the model list URL group of the WordBridge settings panel that opens the dialog changing the address.
+#: addon\globalPlugins\WordBridge\dialogs.py:358
+msgid "Change..."
+msgstr "變更..."
+
+#. Translators: Shown in the model list URL group of the WordBridge settings panel when the URL is empty.
+#: addon\globalPlugins\WordBridge\dialogs.py:643
+msgid "No model list URL"
+msgstr "未設定模型清單網址"

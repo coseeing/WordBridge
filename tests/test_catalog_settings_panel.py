@@ -1,4 +1,4 @@
-"""The settings panel's model list URL field and status line (spec section 13).
+"""The settings panel's model list URL group and status line (spec sections 13, 20).
 
 _load_nvda_plugin and the widget stubs are imported at function scope, never
 at module scope (importing test_coseeing_auth_nvda at collection time poisons
@@ -50,99 +50,194 @@ def _save(panel):
 	panel.onSave()
 
 
-def test_the_url_field_is_the_last_control_with_the_stored_value(monkeypatch):
-	f = _panel_fixture(monkeypatch, catalog_url="http://localhost:8000")
+# --- Task 14: the URL group (R12, C18, C20, spec 20.1/20.4) ----------------
+
+@pytest.mark.parametrize("stored, shown", [
+	({"catalog_url": "http://localhost:8000"}, "http://localhost:8000"),
+	({}, DEFAULT_URL),
+	({"catalog_url": ""}, "No model list URL"),
+], ids=["stored", "default", "empty"])
+def test_the_url_group_is_last_with_a_read_only_box_and_a_change_button(monkeypatch, stored, shown):
+	f = _panel_fixture(monkeypatch, **stored)
 
 	panel = f.make_panel()
 
-	assert f.plugin.panel_added_controls[-1] is panel.catalogUrlCtrl
-	label, control_type, kwargs = f.helper_calls[-1]
-	assert label == "Model list URL:"
-	assert control_type is f.plugin.wx.TextCtrl
-	assert kwargs["value"] == "http://localhost:8000"
-	assert kwargs["size"] == (375, -1)
+	controls = f.plugin.panel_added_controls
+	assert controls[-2:] == [panel.catalogUrlBox, panel.catalogUrlChangeButton]
+	assert panel.catalogUrlBox.style & f.plugin.wx.TE_READONLY
+	assert panel.catalogUrlBox.GetValue() == shown
+	assert panel.catalogUrlChangeButton.label == "Change..."
+	# As NVDA's update mirror group: both are children of the group's box.
+	group = panel.settingsSizer.children[-1]
+	assert group.GetStaticBox().label == "Model list URL"
+	assert panel.catalogUrlBox.parent is group.GetStaticBox()
+	assert panel.catalogUrlChangeButton.parent is group.GetStaticBox()
+	assert "Model list URL:" not in [call[0] for call in f.helper_calls]
+	assert not hasattr(panel, "catalogUrlCtrl")
 
 
-def test_the_url_field_shows_the_default_when_nothing_is_stored(monkeypatch):
+class KeyEvent:
+	def __init__(self, key):
+		self.key = key
+		self.skipped = False
+
+	def GetKeyCode(self):
+		return self.key
+
+	def Skip(self):
+		self.skipped = True
+
+
+class FakeUrlDialog:
+	"""Stands in for CatalogUrlDialog; `saves` is what its OK saves."""
+
+	instances = []
+	answer = None
+	saves = None
+
+	def __init__(self, parent, *, settings, panel):
+		self.parent, self.settings, self.panel = parent, settings, panel
+		self.savedUrl = None
+		FakeUrlDialog.instances.append(self)
+
+	def ShowModal(self):
+		if FakeUrlDialog.saves is not None:
+			self.settings.save_catalog_url(FakeUrlDialog.saves)
+			self.savedUrl = FakeUrlDialog.saves
+		return FakeUrlDialog.answer
+
+
+def _fake_dialog(monkeypatch, f, answer, saves=None):
+	FakeUrlDialog.instances = []
+	FakeUrlDialog.answer = answer
+	FakeUrlDialog.saves = saves
+	monkeypatch.setattr(f.dialogs, "CatalogUrlDialog", FakeUrlDialog)
+	refreshes = []
+	monkeypatch.setattr(f.dialogs.catalog_updater, "request_refresh", refreshes.append)
+	return refreshes
+
+
+@pytest.mark.parametrize("how", ["enter", "button"])
+def test_enter_in_the_box_and_the_button_open_the_dialog(monkeypatch, how):
 	f = _panel_fixture(monkeypatch)
-
 	panel = f.make_panel()
+	_fake_dialog(monkeypatch, f, f.plugin.wx.ID_CANCEL)
 
-	assert panel.catalogUrlCtrl.GetValue() == DEFAULT_URL
+	if how == "enter":
+		panel.catalogUrlBox.bindings[f.plugin.wx.EVT_CHAR_HOOK](KeyEvent(f.plugin.wx.WXK_RETURN))
+	else:
+		panel.catalogUrlChangeButton.bindings[f.plugin.wx.EVT_BUTTON](None)
+
+	[dialog] = FakeUrlDialog.instances
+	assert dialog.parent is panel
+	assert dialog.settings is panel.settings
+	assert dialog.panel is panel
 
 
-@pytest.mark.parametrize("text, message", [("ftp://x", MALFORMED), ("http://example.com", INSECURE)])
-def test_is_valid_rejects_a_bad_url_with_nvdas_message_box(monkeypatch, text, message):
+def test_other_keys_in_the_box_are_skipped(monkeypatch):
 	f = _panel_fixture(monkeypatch)
 	panel = f.make_panel()
-	calls = []
-	panel._validationErrorMessageBox = lambda **kwargs: calls.append(kwargs)
-	panel.catalogUrlCtrl.SetValue(text)
+	_fake_dialog(monkeypatch, f, f.plugin.wx.ID_CANCEL)
+	event = KeyEvent(ord("A"))
 
-	assert panel.isValid() is False
-	assert calls == [{"message": message, "option": "Model list URL"}]
-	assert getattr(panel.catalogUrlCtrl, "focused", False) is True
+	panel.catalogUrlBox.bindings[f.plugin.wx.EVT_CHAR_HOOK](event)
+
+	assert event.skipped is True
+	assert FakeUrlDialog.instances == []
 
 
-def test_is_valid_defers_to_nvdas_settings_panel_for_a_valid_url(monkeypatch):
+URL_B = "https://b.test/catalog"
+
+
+def test_a_saved_url_refreshes_once_resets_the_backoff_and_updates_the_box(monkeypatch, tmp_path):
+	from test_catalog_retry import FakeScheduler
+
+	f = _panel_fixture(monkeypatch)
+	scheduler = FakeScheduler()
+	updater = real_updater(f, tmp_path, _refuse, schedule=scheduler)
+	updater.initial_catalog(DEFAULT_URL)
+	updater.refresh(DEFAULT_URL)
+	updater.run_latest()
+	for _ in range(2):
+		scheduler.live()[0].fire()
+		updater.run_latest()
+	assert scheduler.live()[0].delay_ms == 4 * 60_000
+	f.dialogs.catalog_updater.install(updater)
+	try:
+		panel = f.make_panel()
+		FakeUrlDialog.instances = []
+		FakeUrlDialog.answer = f.plugin.wx.ID_OK
+		FakeUrlDialog.saves = URL_B
+		monkeypatch.setattr(f.dialogs, "CatalogUrlDialog", FakeUrlDialog)
+		threads = len(updater.threads)
+
+		panel.onChangeCatalogUrl(None)
+
+		assert len(updater.threads) == threads + 1
+		assert updater.threads[-1][1][1].url == URL_B
+		updater.run_latest()
+		assert [timer.delay_ms for timer in scheduler.live()] == [60_000]
+		assert panel.catalogUrlBox.GetValue() == URL_B
+	finally:
+		f.dialogs.catalog_updater.uninstall()
+
+
+@pytest.mark.parametrize("answer", ["cancel", "ok-unsaved"])
+def test_a_cancelled_or_unsaved_dialog_refreshes_nothing(monkeypatch, answer):
 	f = _panel_fixture(monkeypatch)
 	panel = f.make_panel()
-	parent = f.dialogs.LLMSettingsPanel.__mro__[1]
-	monkeypatch.setattr(parent, "isValid", lambda self: False)
+	code = f.plugin.wx.ID_CANCEL if answer == "cancel" else f.plugin.wx.ID_OK
+	refreshes = _fake_dialog(monkeypatch, f, code)
+	f.queued.clear()
 
-	assert panel.isValid() is False
+	panel.onChangeCatalogUrl(None)
+
+	assert refreshes == []
+	assert f.queued == []
+	assert panel.catalogUrlBox.GetValue() == DEFAULT_URL
 
 
-@pytest.mark.parametrize("text", ["", "   ", DEFAULT_URL, "http://localhost:8000"])
-def test_is_valid_accepts_empty_default_and_loopback(monkeypatch, text):
+def test_a_live_update_refreshes_the_url_box(monkeypatch):
+	from test_catalog_panel_live import change, live_fixture
+
+	f = live_fixture(monkeypatch)
+	panel = f.make_panel()
+	f.settings["catalog_url"] = "http://localhost:9000"
+
+	f.fake.emit(change(f))
+
+	assert panel.catalogUrlBox.GetValue() == "http://localhost:9000"
+
+
+def test_settings_ok_no_longer_saves_or_refreshes_the_url(monkeypatch):
 	f = _panel_fixture(monkeypatch)
 	panel = f.make_panel()
-	panel._validationErrorMessageBox = lambda **kwargs: pytest.fail("no message box for a valid URL")
-	panel.catalogUrlCtrl.SetValue(text)
-
-	assert panel.isValid() is True
-
-
-@pytest.mark.parametrize("typed", [DEFAULT_URL, "  HTTPS://WORDBRIDGE.COSEEING.ORG/  "])
-def test_an_unchanged_url_saves_nothing_and_triggers_no_refresh(monkeypatch, typed):
-	f = _panel_fixture(monkeypatch)
-	panel = f.make_panel()
-	panel.catalogUrlCtrl.SetValue(typed)
+	refreshes = _fake_dialog(monkeypatch, f, None)
 	f.queued.clear()
 
 	_save(panel)
 
 	assert "catalog_url" not in f.settings
-	assert not [call for call in f.queued if call[0] == f.dialogs.catalog_updater.request_refresh]
+	assert refreshes == []
+	assert [call for call in f.queued if call[0] == f.dialogs.catalog_updater.request_refresh] == []
 
 
-def test_a_changed_url_saves_the_stripped_text_and_schedules_one_refresh(monkeypatch):
-	f = _panel_fixture(monkeypatch)
-	panel = f.make_panel()
-	panel.catalogUrlCtrl.SetValue("  http://localhost:8000  ")
-	f.queued.clear()
-
-	_save(panel)
-
-	assert f.settings["catalog_url"] == "http://localhost:8000"
-	refreshes = [call for call in f.queued if call[0] == f.dialogs.catalog_updater.request_refresh]
-	assert refreshes == [(f.dialogs.catalog_updater.request_refresh, ("http://localhost:8000",))]
-
-
-def test_clearing_an_invalid_stored_url_saves_the_empty_value(monkeypatch):
-	# Both an invalid and an empty URL have no key; clearing a hand-edited
-	# bad value must still be saved.
+def test_the_panel_has_no_url_validation(monkeypatch):
 	f = _panel_fixture(monkeypatch, catalog_url="http://example.com")
 	panel = f.make_panel()
-	panel.catalogUrlCtrl.SetValue("")
-	f.queued.clear()
 
-	_save(panel)
+	assert panel.isValid() is True
+	assert "isValid" not in vars(f.dialogs.LLMSettingsPanel)
 
-	assert f.settings["catalog_url"] == ""
-	assert [call for call in f.queued if call[0] == f.dialogs.catalog_updater.request_refresh] == [
-		(f.dialogs.catalog_updater.request_refresh, ("",)),
-	]
+
+def test_the_url_group_strings_have_translator_comments_and_translations():
+	from test_catalog_url_dialog import ADDON, _assert_translated
+
+	_assert_translated(ADDON / "dialogs.py", {
+		"No model list URL": "未設定模型清單網址",
+		"Change...": "變更...",
+		"Model list URL": "模型清單網址",
+	})
 
 
 STATUS_TABLE = [

@@ -235,6 +235,7 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 			BoxSizerHelper=type("BoxSizerHelper", (), {}),
 			BORDER_FOR_DIALOGS=0,
 			SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS=10,
+			associateElements=lambda first, second: SimpleNamespace(associated=(first, second)),
 		),
 		nvdaControls=SimpleNamespace(SelectOnFocusSpinCtrl=object),
 		mainFrame=SimpleNamespace(),
@@ -243,6 +244,9 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	monkeypatch.setitem(sys.modules, "config", config)
 	monkeypatch.setitem(sys.modules, "wx", Wx)
 	monkeypatch.setitem(sys.modules, "gui", gui)
+	# The panel imports ExpandoTextCtrl when it builds the URL group; the
+	# widget stubs replace it with their Widget.
+	monkeypatch.setitem(sys.modules, "wx.lib.expando", SimpleNamespace(ExpandoTextCtrl=type("ExpandoTextCtrl", (), {})))
 	class SettingsPanel:
 		"""The part of NVDA's SettingsPanel (gui/settingsDialogs.py:362-491)
 		the WordBridge panel uses, recording what a live update does to it.
@@ -943,6 +947,9 @@ def test_settings_panel_uses_clean_button_without_legacy_credential_controls(mon
 		def Hide(self, item, recursive=True):
 			pass
 
+		def GetStaticBox(self):
+			return self
+
 	class Helper:
 		calls = []
 
@@ -964,6 +971,7 @@ def test_settings_panel_uses_clean_button_without_legacy_credential_controls(mon
 	monkeypatch.setattr(plugin.wx, "StaticText", Widget)
 	monkeypatch.setattr(plugin.wx, "StaticBoxSizer", lambda *args, **kwargs: Sizer())
 	monkeypatch.setattr(gui.nvdaControls, "SelectOnFocusSpinCtrl", Widget)
+	monkeypatch.setattr(sys.modules["wx.lib.expando"], "ExpandoTextCtrl", Widget)
 	config.conf.getConfigValidation = lambda path: SimpleNamespace(kwargs={"min": 256, "max": 4096})
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
 	panel = object.__new__(dialogs.LLMSettingsPanel)
@@ -1029,6 +1037,8 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 
 	class Widget:
 		def __init__(self, *args, value="", label="", **kwargs):
+			self.parent = args[0] if args else None
+			self.style = kwargs.get("style", 0)
 			self.value = value
 			self.label = label
 			self.enabled = True
@@ -1149,9 +1159,11 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 			return control
 
 		def addItem(self, item):
-			# Every control in creation order (tab order), labeled or not.
-			added_controls.append(item)
-			self.sizer.children.append(item.sizer if isinstance(item, Helper) else item)
+			# Every control in creation order (tab order), labeled or not;
+			# guiHelper.associateElements(a, b) adds both.
+			for element in getattr(item, "associated", (item,)):
+				added_controls.append(element)
+				self.sizer.children.append(element.sizer if isinstance(element, Helper) else element)
 			return item
 
 	static_box_captions = []
@@ -1159,6 +1171,7 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 	def static_box_sizer(orientation, parent, label=""):
 		static_box_captions.append(label)
 		sizer = StaticBoxSizer(label)
+		sizer.orientation = orientation
 		created_windows.append(sizer.static_box)
 		return sizer
 
@@ -1170,6 +1183,7 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 	monkeypatch.setattr(plugin.wx, "StaticText", Widget)
 	monkeypatch.setattr(plugin.wx, "StaticBoxSizer", static_box_sizer)
 	monkeypatch.setattr(gui.nvdaControls, "SelectOnFocusSpinCtrl", Widget)
+	monkeypatch.setattr(sys.modules["wx.lib.expando"], "ExpandoTextCtrl", Widget)
 	monkeypatch.setattr(sys.modules["gui.settingsDialogs"].SettingsDialog, "make_sizer", staticmethod(Sizer))
 	config.conf.getConfigValidation = lambda path: SimpleNamespace(kwargs={"min": 256, "max": 4096})
 	return helper_calls, static_box_captions, Sizer

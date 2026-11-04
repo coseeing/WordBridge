@@ -12,11 +12,10 @@ from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
 
 from . import catalog_updater
-from .catalog_url_dialog import invalid_url_message, url_identity
+from .catalog_url_dialog import CatalogUrlDialog
 from .dictionary.dialog import DictionaryEntryDialog
 from .lib.catalog import COSEEING_GROUP, is_dropped_issue, registry
 from .lib.catalog.fallback import SENTINEL_ID
-from .lib.catalog.remote import validate_catalog_url
 from .lib.catalog.selection import SelectionState
 from .lib.llm import SUPPORTED_PROVIDERS
 from .lib.coseeing_auth import (
@@ -340,18 +339,27 @@ class LLMSettingsPanel(SettingsPanel):
 		)
 		self.soundEffectsCtrl.Bind(wx.EVT_BUTTON, self.onSoundEffects)
 
-		# The last control, so every existing control keeps its Tab position.
-		self.catalogUrlCtrl = settingsSizerHelper.addLabeledControl(
-			# Translators: Label of the edit field for the web address the WordBridge model list is downloaded from.
-			_("Model list URL:"),
-			wx.TextCtrl,
-			size=(self.scaleSize(375), -1),
-			value=self.settings.catalog_url(),
-		)
-		self.catalogUrlCtrl.SetToolTip(wx.ToolTip(
-			# Translators: Tooltip of the model list URL field in the WordBridge settings panel.
-			_("The address WordBridge downloads the model list from. Leave it empty to use only the Coseeing default.")
-		))
+		# The last item, so every other control keeps its Tab position (RC
+		# D16). As NVDA's update mirror group: a read-only box showing the URL
+		# and a button opening the dialog that changes it (R12). An
+		# ExpandoTextCtrl, because a read-only wx.TextCtrl takes no keyboard
+		# focus (gui/settingsDialogs.py:944-949).
+		from wx.lib.expando import ExpandoTextCtrl
+
+		# Translators: Label of the group in the WordBridge settings panel showing the address the model list is
+		# downloaded from.
+		catalogUrlSizer = wx.StaticBoxSizer(wx.HORIZONTAL, self, label=_("Model list URL"))
+		catalogUrlGroup = catalogUrlSizer.GetStaticBox()
+		catalogUrlHelper = guiHelper.BoxSizerHelper(self, sizer=catalogUrlSizer)
+		settingsSizerHelper.addItem(catalogUrlHelper)
+		self.catalogUrlBox = ExpandoTextCtrl(catalogUrlGroup, size=(self.scaleSize(375), -1), style=wx.TE_READONLY)
+		# Translators: Button in the model list URL group of the WordBridge settings panel that opens the dialog
+		# changing the address.
+		self.catalogUrlChangeButton = wx.Button(catalogUrlGroup, label=_("Change..."))
+		catalogUrlHelper.addItem(guiHelper.associateElements(self.catalogUrlBox, self.catalogUrlChangeButton))
+		self.catalogUrlBox.Bind(wx.EVT_CHAR_HOOK, self._onCatalogUrlBoxKey)
+		self.catalogUrlChangeButton.Bind(wx.EVT_BUTTON, self.onChangeCatalogUrl)
+		self._updateCatalogUrlBox()
 
 		# R2: follow catalog changes while the panel exists (retry spec 10.1).
 		self._pendingRebuild = False
@@ -401,6 +409,8 @@ class LLMSettingsPanel(SettingsPanel):
 				if change is not None:
 					# Never focusable and never inside a drop-down: always now.
 					layoutChanged = self._updateStatusLine(change)
+					# The URL may have been saved since (C20).
+					self._updateCatalogUrlBox()
 				if rebuild:
 					self._pendingRebuild = False
 					layoutChanged = self._rebuild() or layoutChanged
@@ -626,18 +636,27 @@ class LLMSettingsPanel(SettingsPanel):
 			os.startfile(SOUND_EFFECTS_URL)
 		wx.CallAfter(openfile)
 
-	def isValid(self):
-		check = validate_catalog_url(self.catalogUrlCtrl.GetValue())
-		if check.error is not None:
-			self._validationErrorMessageBox(
-				message=invalid_url_message(check.error),
-				# Translators: The option name in NVDA's "Invalid configuration" message; the model list URL label
-				# without the colon.
-				option=_("Model list URL"),
-			)
-			self.catalogUrlCtrl.SetFocus()
-			return False
-		return super().isValid()
+	def _updateCatalogUrlBox(self) -> None:
+		"""Show the stored URL; set only when it changed, so NVDA does not
+		re-read an unchanged box."""
+		# Translators: Shown in the model list URL group of the WordBridge settings panel when the URL is empty.
+		value = self.settings.catalog_url() or _("No model list URL")
+		if self.catalogUrlBox.GetValue() != value:
+			self.catalogUrlBox.SetValue(value)
+
+	def _onCatalogUrlBoxKey(self, evt):
+		if evt.GetKeyCode() == wx.WXK_RETURN:
+			self.onChangeCatalogUrl(evt)
+		else:
+			evt.Skip()
+
+	def onChangeCatalogUrl(self, evt):
+		"""Spec 20.1: the dialog saves the URL on its own OK; a saved change
+		then switches and refreshes at once (D8, R10), like Apply used to."""
+		dialog = CatalogUrlDialog(self, settings=self.settings, panel=self)
+		if dialog.ShowModal() == wx.ID_OK and dialog.savedUrl is not None:
+			catalog_updater.request_refresh(dialog.savedUrl)
+		self._updateCatalogUrlBox()
 
 	def onSave(self):
 		self.selection.provider_group_index = self.providerList.GetSelection()
@@ -668,14 +687,6 @@ class LLMSettingsPanel(SettingsPanel):
 			value = control.GetValue()
 			if value != self.settings.stored_api_key(group):
 				self.settings.save_api_key(group, value)
-
-		# Saved as typed (stripped), and only when it really changed, so an
-		# untouched default never lands in nvda.ini. The refresh is deferred
-		# past the dialog's save sequence, for OK and Apply alike.
-		catalogUrl = self.catalogUrlCtrl.GetValue().strip()
-		if url_identity(catalogUrl) != url_identity(self.settings.catalog_url()):
-			self.settings.save_catalog_url(catalogUrl)
-			wx.CallAfter(catalog_updater.request_refresh, catalogUrl)
 
 		wx.CallAfter(lambda: start_coseeing_auth(signInChannel, silent=False))
 
