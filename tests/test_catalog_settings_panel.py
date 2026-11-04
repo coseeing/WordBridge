@@ -84,6 +84,15 @@ def test_is_valid_rejects_a_bad_url_with_nvdas_message_box(monkeypatch, text, me
 	assert getattr(panel.catalogUrlCtrl, "focused", False) is True
 
 
+def test_is_valid_defers_to_nvdas_settings_panel_for_a_valid_url(monkeypatch):
+	f = _panel_fixture(monkeypatch)
+	panel = f.make_panel()
+	parent = f.dialogs.LLMSettingsPanel.__mro__[1]
+	monkeypatch.setattr(parent, "isValid", lambda self: False)
+
+	assert panel.isValid() is False
+
+
 @pytest.mark.parametrize("text", ["", "   ", DEFAULT_URL, "http://localhost:8000"])
 def test_is_valid_accepts_empty_default_and_loopback(monkeypatch, text):
 	f = _panel_fixture(monkeypatch)

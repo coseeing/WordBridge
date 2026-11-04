@@ -221,7 +221,11 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	monkeypatch.setitem(sys.modules, "config", config)
 	monkeypatch.setitem(sys.modules, "wx", Wx)
 	monkeypatch.setitem(sys.modules, "gui", gui)
-	monkeypatch.setitem(sys.modules, "gui.settingsDialogs", SimpleNamespace(SettingsPanel=object))
+	# NVDA's SettingsPanel.isValid() returns True unless a panel overrides it
+	# (gui/settingsDialogs.py:440-447); the panel ends with super().isValid().
+	monkeypatch.setitem(sys.modules, "gui.settingsDialogs", SimpleNamespace(
+		SettingsPanel=type("SettingsPanel", (), {"isValid": lambda self: True}),
+	))
 	monkeypatch.setitem(sys.modules, "gui.contextHelp", SimpleNamespace(ContextHelpMixin=type("ContextHelpMixin", (), {})))
 	monkeypatch.setitem(sys.modules, "globalPluginHandler", SimpleNamespace(GlobalPlugin=ParentPlugin))
 	monkeypatch.setitem(sys.modules, "addonHandler", SimpleNamespace(initTranslation=lambda: None))

@@ -372,8 +372,7 @@ class LLMSettingsPanel(SettingsPanel):
 			)
 			self.catalogUrlCtrl.SetFocus()
 			return False
-		parent = getattr(super(), "isValid", None)
-		return parent() if parent is not None else True
+		return super().isValid()
 
 	def onSave(self):
 		self.selection.provider_group_index = self.providerList.GetSelection()
