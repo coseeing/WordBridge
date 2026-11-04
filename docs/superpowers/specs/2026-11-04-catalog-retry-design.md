@@ -41,7 +41,7 @@ invisible until the panel is closed and reopened.
 
 ## 2. Goals
 
-1. After a failed fetch, retry in the background with doubling waits (R5, R6).
+1. After a failed fetch, retry in the background with doubling waits (R5, R6, R10).
 2. Opening the WordBridge settings panel after a failed fetch fetches at once
    (R1).
 3. An open panel shows a newly installed catalog and the current status
@@ -75,7 +75,11 @@ invisible until the panel is closed and reopened.
 | R3 | **Announcement.** On such an in-place update NVDA briefly says "Model list updated." (zh_TW 「模型清單已更新」); when the fetch fails, "Model list update failed." (zh_TW 「模型清單更新失敗」). Spoken only while the panel is open; exact conditions in §11. — Decided by the user (2026-11-04) |
 | R4 | **Selection on a live update.** Keep the selection currently shown in the panel (even if unsaved) if it still exists in the new list; otherwise fall back to the stored selection; otherwise the default. How "currently shown" is read when the user has not touched the choices is §10.3 (finding F1). — Decided by the user (2026-11-04) |
 | R5 | **Background retry with doubling.** After a failed fetch, retry after 1 minute, then 2, 4, 8, 16, 32 minutes. A module constant holds the maximum wait in minutes, hard-coded to 32. A wait equal to the maximum is still performed; when the next wait would exceed it, retrying stops (until NVDA restarts, the URL changes, or the panel-open retry). Any successful fetch stops retrying. At most 6 retries, within about 63 minutes. — Decided by the user (2026-11-04) |
-| R6 | **Continuation.** A fetch triggered by opening the panel or by a URL change that fails continues the existing retry interval; it does not reset to 1 minute. If background retrying had already stopped, no further automatic retries are scheduled. — Decided by the user (2026-11-04) |
+| R6 | **Continuation (panel-open only, as amended by R10).** A fetch triggered by opening the panel (R1) that fails continues the existing retry interval; it does not reset to 1 minute. If background retrying had already stopped, no further automatic retries are scheduled. A URL change no longer falls under this rule (R10). — Decided by the user (2026-11-04) |
+| R7 | **F1/C8 confirmed.** R4's "selection currently shown" counts only a selection the user made in this panel. An untouched panel shows the stored selection as resolved in the new list. — Decided by the user (2026-11-04) |
+| R8 | **OQ1 → C.** "Model list update failed." is spoken only when a user-triggered fetch fails: the panel-open retry (R1), or a URL change saved in the settings panel. Failures of background retries (and of the startup fetch) are not spoken; they only update the status line. "Model list updated." is announced per R3/C11 whenever an in-place update happens while the panel is open and active, whatever started the fetch (C11's conditions are kept). — Decided by the user (2026-11-04) |
+| R9 | **OQ2 → A.** The U7 / RC §12.5 dialog does not trigger a fetch; its behaviour is unchanged. — Decided by the user (2026-11-04) |
+| R10 | **F6 → a URL change resets the backoff.** A saved URL change resets the retry step to the first wait (1 minute). Even if background retrying had already stopped, a failure for the new URL schedules the full 1, 2, 4, 8, 16, 32 minute sequence again. A panel-open (R1) fetch that fails still continues the existing interval and, if retrying had stopped, schedules nothing (R6 now applies to panel-open only). — Decided by the user (2026-11-04) |
 
 ### 4.2 Decided by orchestrator with the recommended default; user may override before merge
 
@@ -88,14 +92,14 @@ before merge`.
 | C1 | Every fetch failure of the current generation schedules a retry: network/TLS/DNS errors and any exception (`remote_request_failed`), `remote_timeout`, every non-200 status including 3xx (`remote_http_status`), `remote_too_large`, `remote_malformed`, `remote_schema_version`, `remote_no_models` (including "every provider was disallowed"). A payload accepted with some providers dropped is a success. A cache write failure is a success. Stale and post-shutdown results schedule nothing. | §7.2 |
 | C2 | Retries run whether or not a usable cache is installed (`source=cache` as well as `source=none`). | §7.2 |
 | C3 | The retry timer is `wx.CallLater` on the main thread, injected as `schedule(delay_ms, callback)` like `ProgressCue` (`lib/progress_cue.py:10-11`). At most one handle exists. Every fetch start cancels it. Its callback re-checks shutdown, the generation it was armed for, and `fetch == failed`. No `threading.Timer`. | §7.3 |
-| C4 | One step counter per updater. Every failed fetch of the current generation, whatever started it (startup, timer, panel, URL change), takes the next wait and advances the counter. Only a success resets it (and a new `CatalogUpdater`, i.e. NVDA start or plugin reload). Switching to an empty or invalid URL cancels the timer but keeps the counter. A retry always fetches the updater's current URL at the moment it fires, never a URL captured when it was armed. | §7.2, §7.4 |
+| C4 | One step counter per updater. Every failed fetch of the current generation started by startup, the timer or the panel (R1) takes the next wait and advances the counter. A success resets it, and so does a URL change: every `refresh()` whose URL key differs from the live key (a saved URL change, R10), including a switch to an empty or invalid URL, cancels the timer and resets the counter and the "stopped" state. A new `CatalogUpdater` (NVDA start or plugin reload) starts at 0. A retry always fetches the updater's current URL at the moment it fires, never a URL captured when it was armed. (Amended for R10, 2026-11-04.) | §7.2, §7.4 |
 | C5 | R1 runs once per panel instance, at the start of `makeSettings`, before the panel reads the catalog and status. "Last fetch failed" means `status().fetch == "failed"`; `running`, `succeeded`, `off` and `invalid` start nothing. A pending retry timer is cancelled and the fetch runs now. After retries stopped, R1 still fetches (R5). Re-activating the WordBridge category in the same dialog does not fetch again. | §8 |
 | C6 | The panel learns of changes through a listener on the updater, called synchronously on the main thread after every state change (`refresh` start, D8 swap, fetch success, fetch failure). A failing listener is logged (type only) and never breaks the updater. | §9 |
 | C7 | The open panel always mirrors the live catalog and status, including the RC D8 swap after Apply, and also while its category is hidden. The rebuild never calls `onPanelActivated()`, never calls `SetFocus()`, sets items only on a choice whose labels changed, and is deferred while a choice's drop-down list is open or while focus is in a control the rebuild would hide. | §10 |
-| C8 | R4's "selection currently shown" counts only when the user changed the Service Provider or model choice in this panel. An untouched panel shows the stored selection resolved against the new catalog. The D12 baseline (`_storedSelection`, `_storedSelectionResolved`, `_restoredIndices`) is recomputed at every rebuild from the stored values re-read from config. | §10.3 |
+| C8 | R4's "selection currently shown" counts only when the user changed the Service Provider or model choice in this panel. An untouched panel shows the stored selection resolved against the new catalog. The D12 baseline (`_storedSelection`, `_storedSelectionResolved`, `_restoredIndices`) is recomputed at every rebuild from the stored values re-read from config. The reading itself is confirmed by the user (R7). | §10.3 |
 | C9 | A provider group that appears in the new catalog gets its account box created then, inserted after the existing boxes and placed in the Tab order after the model choice. A group that disappears keeps its (hidden) box and API key text, and `onSave` writes that text back unchanged. | §10.4 |
 | C10 | The dropped-entries line ("N catalog entries could not be loaded") is updated live as well. It and the status line always exist from `makeSettings` on and are hidden when they have nothing to say. | §10.5 |
-| C11 | Speech happens only for a fetch outcome of the current generation (not for a fetch start or the D8 swap), only when the panel is alive, its category is the one shown, and the settings dialog is the active window. It is spoken after the rebuild (so after a deferral too), once, with `ui.message` at the default NORMAL priority. If several outcomes queue up behind a deferral, only the latest is spoken. | §11 |
+| C11 | Speech happens only for a fetch outcome of the current generation (not for a fetch start or the D8 swap), only when the panel is alive, its category is the one shown, and the settings dialog is the active window. A failure is spoken only when its fetch was user-initiated (R8). It is spoken after the rebuild (so after a deferral too), once, with `ui.message` at the default NORMAL priority. If several speakable outcomes queue up behind a deferral, only the latest is spoken; an outcome that is not speakable (a background failure) leaves the pending announcement as it is. | §11 |
 | C12 | No new status-line strings. The six RC §13.3 lines stay as they are and are refreshed live. | §10.5 |
 | C13 | Logging: one info line when a retry is scheduled (attempt number and wait), one when retrying stops, one when a panel-open fetch starts. Host only, never path, query or `str(error)` (RC D15). | §12 |
 | C14 | A panel that is destroyed, or whose window is already gone, ignores and unregisters itself; `terminate()` stops the timer and drops all listeners through `catalog_updater.uninstall()`. | §14 |
@@ -106,16 +110,16 @@ before merge`.
 | RC item | Change |
 | --- | --- |
 | **D9** (RC §4 table, §11.5) | **Superseded by R2.** An open panel is rebuilt in place (§10). RC §11.5's reasons ("rebuilding would move focus and change list contents under a screen reader user") are addressed by C7: focus never moves, a drop-down that is open is never changed, and a control that has focus is never hidden. |
-| **U3** fetch timing (RC §4) | Extended by R1, R5 and R6. "No periodic refresh" still holds after a success; after a failure there are up to 6 timed retries, plus R1. |
+| **U3** fetch timing (RC §4) | Extended by R1, R5, R6 and R10. "No periodic refresh" still holds after a success; after a failure there are up to 6 timed retries per URL change (or per NVDA start), plus R1. |
 | RC §3 non-goals | "A manual refresh button or periodic refresh" stays a non-goal with the R5 exception. "Live-refreshing an open settings panel (§11.5)" is removed. |
 | **D7** threading (RC §11) | Unchanged for the fetch itself: one daemon thread per fetch, catalog swapped only on the main thread. New: the retry timer and all retry state live on the main thread (§7.3, §14). |
-| **D8** URL change (RC §11.3) | `refresh()` also cancels the pending retry timer. A failure for the new URL continues the step counter (R6, C4). A retry can never fetch the old URL (§7.4). |
+| **D8** URL change (RC §11.3) | `refresh()` also cancels the pending retry timer. A URL change resets the step counter, so a failure for the new URL waits 1 minute (R10, C4). A retry can never fetch the old URL (§7.4). |
 | RC §6 | "Startup: no new speech … Fetching never announces anything" holds when no panel is open. With the panel open see §11. |
 | RC §11.1 modules | `catalog_updater.py` gains the retry constants, the `schedule` injection, `close()`, listeners and module-level `add_listener`, `remove_listener`, `retry_on_panel_open` (§7–§9). |
 | RC §11.3 fetch thread | `_apply` additionally advances or resets the retry schedule and notifies listeners (§7.2, §9). |
 | RC §11.7 shutdown | `catalog_updater.uninstall()` first calls `CatalogUpdater.close()` (§14). |
 | RC §12.3 D12 | Recomputed at every rebuild (C8, §10.3). The rule itself and the I1/N1 refinement at `dialogs.py:143-145` are unchanged. |
-| RC §12.5 U7 | Unchanged. A retry that succeeds while the U7 dialog is open behaves exactly like the first fetch did (Yes still switches, N2). Retries make the dialog stop appearing once a list arrives, without a restart. |
+| RC §12.5 U7 | Unchanged; the dialog does not trigger a fetch (R9). A retry that succeeds while the U7 dialog is open behaves exactly like the first fetch did (Yes still switches, N2). Retries make the dialog stop appearing once a list arrives, without a restart. |
 | RC §13.3 status line | Now live (C10, C12). The sentence "It reflects the status at the moment the panel opens" no longer holds; the docstring at `dialogs.py:64-69` changes with it. |
 | RC §13.4 strings | Two new strings (§13). |
 | RC §14 logging | Three new info lines (§12). |
@@ -135,7 +139,7 @@ Worse, the new D12 baseline (where the stored selection now resolves) differs
 from what is shown, so OK would save Coseeing default over the user's local
 model. C8 reads "currently shown" as "chosen by the user in this panel". For a
 touched panel this is exactly R4. For an untouched panel it is R4's second
-step, the stored selection. **Please confirm C8.**
+step, the stored selection. **Confirmed by the user (R7). — Decided by the user (2026-11-04)**
 
 F2. **The provider-change refresh path cannot be reused.**
 `onChangeProviderChoice` calls `self.onPanelActivated()`
@@ -171,11 +175,15 @@ including the updater's `_apply` and the deferred `request_refresh` from
 `onSave` (`dialogs.py:413`), can therefore run between OK and the panel's
 destruction. The listener guards (§14) cover this.
 
-F6. **R5's "until … the URL changes" and R6 agree.** A URL change performs one
+F6. ~~**R5's "until … the URL changes" and R6 agree.** A URL change performs one
 fetch. If retrying had already stopped and that fetch fails, nothing more is
 scheduled (R6). This also holds when the user corrects a mistyped URL after
 retries stopped: the corrected URL gets one attempt, plus R1 on the next panel
-open. Mentioned because it may surprise; it is the user's decision.
+open. Mentioned because it may surprise; it is the user's decision.~~
+**Resolved by R10 (Decided by the user (2026-11-04)):** a saved URL change
+resets the backoff, so a corrected URL whose fetch fails gets the full
+1, 2, 4, 8, 16, 32 minute sequence even after retrying had stopped. R6 now
+applies to the panel-open retry only.
 
 F7. **wx's Windows `Choice` reports no "drop-down closed" event to Python.**
 C7 therefore polls the native combo box's dropped state (§10.2). The Win32
@@ -185,8 +193,8 @@ message `CB_GETDROPPEDSTATE` is not defined anywhere in NVDA's source (grep of
 (`/workspace/nvda/source/winUser.py:597`). This works only on Windows and is a
 manual item (§15.6).
 
-None of these makes a user decision unworkable. F1 needs the user's
-confirmation of C8.
+None of these makes a user decision unworkable. The user confirmed C8 (R7)
+and resolved F6 (R10).
 
 ## 6. What NVDA users hear and see
 
@@ -196,8 +204,8 @@ confirmation of C8.
   user stops getting the U7 dialog once the list arrives. No speech unless the
   WordBridge settings panel is open.
 - **Offline for more than about an hour:** retrying stops. The next attempts
-  are on opening the WordBridge panel, on changing the URL, or after restarting
-  NVDA.
+  are on opening the WordBridge panel (one attempt), on changing the URL (the
+  full schedule again if that fetch fails, R10), or after restarting NVDA.
 - **Opening the WordBridge panel after a failure:** a fetch starts at once. The
   status line says the list is loading (RC §13.3 row 3) when no cache is in
   use. With a cache in use there is no status line while loading, as today.
@@ -205,8 +213,10 @@ confirmation of C8.
   dialog is the active window:** the Service Provider and model choices, the
   API key box for the selected provider, the status line and the
   dropped-entries line update. Focus stays where it is. NVDA then says "Model
-  list updated." or "Model list update failed." without interrupting what it
-  is already saying.
+  list updated." without interrupting what it is already saying. A failure
+  says "Model list update failed." only for a fetch the user caused: the one
+  started by opening the panel, or by saving a new URL (R8). A failed
+  background retry only updates the status line.
 - **The drop-down list of a choice is open (Alt+Down):** nothing changes
   until it closes. Then the update happens and the message is spoken.
 - **Typing in the API key field of a provider the new list no longer
@@ -215,7 +225,7 @@ confirmation of C8.
   cache or to Coseeing only (RC D8), silently. When the fetch for the new URL
   finishes, the update and the message follow.
 
-## 7. Retry schedule (R5, R6, C1–C4)
+## 7. Retry schedule (R5, R6, R10, C1–C4)
 
 ### 7.1 Constants and injection
 
@@ -252,7 +262,9 @@ see retry timers in `wx.timers`, which other tests count
 New main-thread-only state on `CatalogUpdater`: `_retry_count` (int, 0),
 `_retries_stopped` (bool, only for logging once), `_retry_timer` (handle or
 `None`), `_current_url` (the URL given to the last `initial_catalog()` or
-`refresh()`), `_closed` (bool), `_listeners` (list).
+`refresh()`), `_user_initiated` (bool: whether the current generation's fetch
+was started by R1 or by a URL change, read for the failure event, §9, R8),
+`_closed` (bool), `_listeners` (list).
 
 **On a failure** (`_apply` with `catalog is None`, after the existing
 generation/shutdown check at `catalog_updater.py:301-302` and after recording
@@ -274,7 +286,10 @@ log "retry scheduled attempt=_retry_count delay=wait"
 pending, since the fetch start cancelled it).
 
 **On any fetch start or URL change** (`refresh()`, `:193-209`, whatever the
-trigger): cancel the timer first. The counter is kept.
+trigger): cancel the timer first. When the URL key differs from the live key
+(a saved URL change, including to an empty or invalid URL), also reset
+`_retry_count = 0` and `_retries_stopped = False` (R10). Otherwise (startup,
+timer, R1) the counter is kept.
 
 With the default constants and nothing but failures, the waits are 1, 2, 4, 8,
 16, 32 minutes (6 retries, 63 minutes of waiting plus fetch time). The 7th
@@ -296,12 +311,13 @@ installed, `:285-293`), stale or post-shutdown results (dropped at
 **Cache in use (C2).** `source=cache` with `fetch=failed` is retried like
 `source=none`. The cache may be stale, and the cost is the same.
 
-**Example of R6 continuation.** Start at t=0 fails → retry armed for t=1 min
-(count 1). The panel opens at t=0:30 → timer cancelled, fetch now. It fails →
-wait 2 min (count 2), so the next retry is at about t=2:30. The URL changes at
-t=2:00 → timer cancelled, D8 swap, fetch for the new URL. It fails → wait
-4 min (count 3). After the 6th scheduled wait has been used, any later failure
-(timer, panel or URL change) schedules nothing.
+**Example of R6 continuation and the R10 reset.** Start at t=0 fails → retry
+armed for t=1 min (count 1). The panel opens at t=0:30 → timer cancelled,
+fetch now. It fails → wait 2 min (count 2), so the next retry is at about
+t=2:30. The URL changes at t=2:00 → timer cancelled, counter reset (R10), D8
+swap, fetch for the new URL. It fails → wait 1 min (count 1). After the 6th
+scheduled wait has been used, a later timer or panel failure schedules
+nothing (R6); a later URL change starts again at 1 minute (R10).
 
 ### 7.3 Timer mechanism (C3)
 
@@ -349,9 +365,11 @@ user saves URL B.
 
 | Situation | Timer | Counter | Fetch |
 | --- | --- | --- | --- |
-| Valid URL B saved while a retry for A is pending | cancelled | kept | B now; a failure takes the next wait (R6) |
-| Empty or invalid URL saved | cancelled | kept | none (RC D5/U9) |
-| Later a valid URL saved after that | — | kept | once; a failure takes the next wait, or nothing if retrying stopped (R6) |
+| Valid URL B saved while a retry for A is pending | cancelled | reset to 0 (R10) | B now; a failure waits 1 minute |
+| Valid URL B saved after retrying for A had stopped | — | reset to 0, "stopped" cleared (R10) | B now; a failure starts the full schedule again |
+| Empty or invalid URL saved | cancelled | reset to 0 (R10) | none (RC D5/U9) |
+| Later a valid URL saved after that | — | reset to 0 (R10) | B now; a failure waits 1 minute |
+| Panel-open retry (R1) | cancelled | kept | now; a failure takes the next wait, or nothing if retrying stopped (R6) |
 | Any success | none pending | reset to 0 | — |
 
 ## 8. Panel-open retry (R1, C5)
@@ -373,7 +391,8 @@ user saves URL B.
 
 It runs whether or not retrying has stopped (R5). A pending timer does not
 block it: the timer is cancelled and the fetch happens now. The fetch's failure
-follows §7.2 (R6).
+follows §7.2 (R6: the counter continues; nothing is armed if retrying had
+stopped). Its fetch is user-initiated, so its failure is spoken (R8, §11).
 
 **Where it is called.** The first statement of `LLMSettingsPanel.makeSettings`
 (`dialogs.py:129`), before `registry.current()` (`:132`) and
@@ -393,6 +412,7 @@ the panel through §9.
 class CatalogChange:
 	catalog_changed: bool        # the live catalog was replaced
 	outcome: str | None          # "succeeded" / "failed" for a finished fetch, else None
+	user_initiated: bool = False # the finished fetch was started by R1 or a URL change (R8)
 
 def add_listener(self, listener) -> None      # main thread
 def remove_listener(self, listener) -> None   # main thread; unknown listener is a no-op
@@ -411,8 +431,12 @@ read `registry.current()` and `catalog_updater.status()`, the same sources
 | Where | Event |
 | --- | --- |
 | `refresh()`, after the status is set and after the D8 install if any (`:193-209`) | `CatalogChange(catalog_changed=<key changed>, outcome=None)` |
-| `_apply()`, success, after `install` and the status update (`:304-314`) | `CatalogChange(True, "succeeded")` |
-| `_apply()`, failure, after the status update (`:315-320`) | `CatalogChange(False, "failed")` |
+| `_apply()`, success, after `install` and the status update (`:304-314`) | `CatalogChange(True, "succeeded", <user_initiated>)` |
+| `_apply()`, failure, after the status update (`:315-320`) | `CatalogChange(False, "failed", <user_initiated>)` |
+
+`<user_initiated>` is `True` when the current generation's fetch was started
+by `retry_on_panel_open()` or by a `refresh()` whose URL key changed (a saved
+URL change), `False` for the startup fetch and timer retries (R8).
 | `initial_catalog()` | none (no listener can exist yet) |
 
 The updater iterates over a copy of the list. Each call is in its own
@@ -438,8 +462,10 @@ In `makeSettings`, after the existing controls are built:
 
 1. If the panel's C++ object is gone (`not self`), call
    `catalog_updater.remove_listener(self._onCatalogChange)` and return.
-2. If `change.outcome` is not `None`, store it as `_pendingAnnouncement`
-   (only the latest is kept, C11).
+2. If the change is speakable (`outcome == "succeeded"`, or
+   `outcome == "failed"` and `change.user_initiated`, R8), store its outcome
+   as `_pendingAnnouncement` (only the latest is kept, C11). A background
+   failure leaves `_pendingAnnouncement` unchanged.
 3. If `change.catalog_changed` is true, or a rebuild is already pending, set
    `_pendingRebuild = True`.
 4. Update the status line now (§10.5). It is never focusable and never inside
@@ -570,7 +596,10 @@ Spoken from `_applyPendingUpdate()` (main thread) when **all** of these hold:
 
 1. `_pendingAnnouncement` is `"succeeded"` or `"failed"`, i.e. a fetch of the
    current generation finished while this panel existed. Fetch starts, the D8
-   swap after Apply, and R1's own start are silent.
+   swap after Apply, and R1's own start are silent. A failure is only stored
+   for a user-initiated fetch (R1 or a saved URL change); failures of the
+   startup fetch and of timer retries are never spoken (R8, Decided by the
+   user (2026-11-04)).
 2. The panel is alive and is the shown category: `self.IsShown()`. Inactive
    categories are hidden (`/workspace/nvda/source/gui/settingsDialogs.py:426-430`).
 3. Its top-level dialog is the active window
@@ -689,13 +718,18 @@ unstopped ("no stacked timers").
 - **Cache in use (C2):** `source=cache`, failure → retry armed.
 - **The timer fetches the current URL:** arm for A; `refresh(B)` → the handle
   is stopped. Firing the stopped handle anyway (stale delivery) → no request,
-  no thread. B fails → the next wait (count continues). Firing it → the request
-  goes to B (`Harness.requests`).
+  no thread. B fails → 1 minute (the URL change reset the count, R10). Firing
+  it → the request goes to B (`Harness.requests`).
 - **URL change to empty or invalid while pending:** stopped, no thread, no
-  timer. A later valid URL failing continues the count.
-- **R6 after stop:** exhaust the schedule. Then `retry_on_panel_open()` fetches
-  and its failure arms nothing; `refresh(new URL)` fetches and its failure arms
-  nothing.
+  timer. A later valid URL failing waits 1 minute (R10).
+- **R6 after stop (panel-open only):** exhaust the schedule. Then
+  `retry_on_panel_open()` fetches and its failure arms nothing.
+- **R10 after stop:** exhaust the schedule. Then `refresh(new URL)` fetches and
+  its failure arms 1 minute; continuing to fail yields the full
+  `[1, 2, 4, 8, 16, 32]` again and a second "retries stopped" line.
+- **R10 reset mid-schedule:** three failures (next wait 8 min); `refresh(B)`
+  fails → 1 min. `refresh` with the same key (startup, a timer) keeps the
+  count.
 - **R6 continuation:** 1 min armed; `retry_on_panel_open()` → stopped and
   fetched; failure → 2 min.
 - **Never two fetches:** `retry_on_panel_open()` while `running` → `False`,
@@ -754,11 +788,13 @@ active-dialog check are seams the tests set.
 - **Lines (C10):** each RC §13.3 row updates live. The dropped-entries count
   follows the new catalog. Both lines exist from `makeSettings` and are hidden
   when empty. The layout event is sent only when visibility changed.
-- **Announcements (C11):** success → `ui.message("Model list updated.")`.
-  Failure → `ui.message("Model list update failed.")`. Each is called with the
-  text only (default priority). Silent for: refresh start, D8 swap after
-  Apply, hidden category, inactive dialog, panel destroyed. Two outcomes behind
-  one deferral → only the latest is spoken.
+- **Announcements (C11, R8):** success → `ui.message("Model list updated.")`,
+  whatever started the fetch. A user-initiated failure (R1, saved URL change)
+  → `ui.message("Model list update failed.")`. Each is called with the text
+  only (default priority). Silent for: refresh start, D8 swap after Apply,
+  a timer-retry or startup failure, hidden category, inactive dialog, panel
+  destroyed. Two speakable outcomes behind one deferral → only the latest is
+  spoken; a background failure behind a deferral leaves the pending one.
 - **Lifecycle:** a destroy event from a child does not unregister; one from
   the panel does, and stops the poll. A notification after the panel's object
   is gone unregisters and does nothing else.
@@ -783,6 +819,8 @@ active-dialog check are seams the tests set.
 - A retry that succeeds makes `_needs_catalog_choice()` false for a stored
   local user (`__init__.py:288-300`): the next NVDA+Alt+O starts the
   correction without the U7 dialog.
+- R9: showing the U7 dialog starts no fetch and arms no timer (no new thread,
+  no `retry_on_panel_open` call), while `fetch == failed`.
 
 ### 15.4 Translations
 
@@ -811,7 +849,11 @@ network.
    shows no further requests.
 3. After item 2, open the WordBridge panel: one request, the status line says
    loading (no cache) and then failed. NVDA says "Model list update failed."
-   No further timed requests.
+   No further timed requests (R6).
+3a. After item 2, save a different URL (for example `http://localhost:8001`,
+   also stopped): the log shows `retry scheduled attempt=1 delay=1min` again
+   and the full schedule follows (R10). NVDA says "Model list update failed."
+   once for the saved change, and nothing for the timed retries (R8).
 4. Panel open with focus on "Service Provider" (closed) while the server comes
    back: the providers appear, the selected value stays, focus stays, and NVDA
    says "Model list updated." once without cutting off its current speech.
@@ -835,7 +877,7 @@ network.
     choosing a provider does.
 12. Braille: the two messages flash on the display.
 
-## 16. Open questions (user-visible, not decided here)
+## 16. Open questions (answered by the user, 2026-11-04)
 
 ### OQ1. Should a repeated failure be announced each time while the panel stays open?
 
@@ -853,6 +895,8 @@ With the panel left open on a failing network, timed retries finish at about
 
 **Recommended: A.** It is what R3 says, and the number is small and bounded.
 
+**Answer: C** (R8). — Decided by the user (2026-11-04)
+
 ### OQ2. Should a correction that hits the U7 dialog also trigger an immediate fetch?
 
 A local-model user without a list presses NVDA+Alt+O and gets the Yes/No
@@ -863,6 +907,8 @@ dialog (RC §12.5). R1 covers the settings panel only.
 - **B. Yes, as with R1:** when `fetch == failed`, the dialog's appearance
   starts a fetch. The dialog itself is unchanged, and a later NVDA+Alt+O may
   find the list.
+
+**Answer: A** (R9). — Decided by the user (2026-11-04)
 
 **Recommended: A.** It keeps the dialog's behaviour, which the user decided
 twice (U7, N2), free of a race, and the background schedule already retries
@@ -913,15 +959,17 @@ msgfmt --check -o /dev/null addon/locale/zh_TW/LC_MESSAGES/nvda.po
    while a fetch for the current generation is running.
 3. Opening the WordBridge panel when the last fetch failed starts exactly one
    fetch. In any other state it starts none.
-4. Panel-open and URL-change failures continue the step counter (R6). After
-   retrying stopped they schedule nothing.
+4. Panel-open failures continue the step counter and, after retrying
+   stopped, schedule nothing (R6). A saved URL change resets the counter, so
+   its failure waits 1 minute even after retrying stopped (R10).
 5. A fetch finishing while the panel is open updates the choices, the account
    box, the status line and the dropped-entries line without any `SetFocus`,
    without showing a hidden panel, and never while a drop-down is open.
 6. The selection follows R4 as read by C8, and D12 still protects an
    unresolved stored selection on an untouched save.
 7. "Model list updated." / "Model list update failed." are spoken only under
-   §11's conditions, at the default priority.
+   §11's conditions, at the default priority; a failure only for a
+   user-initiated fetch (R8).
 8. No log line contains a URL path or query, or exception text.
 9. The full non-integration suites are green at every commit. prek passes.
    `git diff --check` is clean. `msgfmt --check` passes.
