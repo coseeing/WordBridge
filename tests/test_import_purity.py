@@ -15,7 +15,7 @@ ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
 # ModuleNotFoundError and takes the whole add-on down. Every other internal
 # import in the tree is relative; this scan is the gate that catches the next
 # one before it ships.
-TOP_LEVEL_INTERNAL_NAMES = frozenset({"lib", "dialogs", "configManager", "dictionary", "settings_repository"})
+TOP_LEVEL_INTERNAL_NAMES = frozenset({"lib", "dialogs", "configManager", "dictionary", "settings_repository", "catalog_updater"})
 
 
 def _internal_python_files():
