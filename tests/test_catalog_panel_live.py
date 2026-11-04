@@ -343,3 +343,135 @@ def test_choices_are_replaced_only_when_their_labels_change(monkeypatch):
 
 	rebuild_with(f, panel, _bundled_only(f))
 	assert panel.providerList.set_items_calls == 1
+
+
+# --- Task 10: account boxes on demand (C9) and the dropped-entries line --
+
+def _windows_as_children(f, panel):
+	"""The stub panel's GetChildren(): every window created so far."""
+	panel.GetChildren = lambda: list(f.plugin.panel_added_controls)
+
+
+def _shown_boxes(panel):
+	return [group for group, box in panel.accountGroupSizerMap.items() if panel.settingsSizer.IsShown(box)]
+
+
+def test_a_new_provider_gets_its_box_after_the_model_choice_in_tab_order(monkeypatch):
+	f = live_fixture(monkeypatch)
+	f.box["catalog"] = _bundled_only(f)
+	panel = f.make_panel()
+	_windows_as_children(f, panel)
+	coseeing_box = panel.accountGroupSizerMap["Coseeing"]
+
+	rebuild_with(f, panel, _shipped(f))
+
+	new_groups = [group for group in _shipped(f).provider_groups if group != "Coseeing"]
+	assert set(panel.accountGroupSizerMap) == set(new_groups) | {"Coseeing"}
+	children = panel.settingsSizer.children
+	for group in new_groups:
+		assert panel.accountTextCtrlMap[group].moved_after is panel.modelList
+		box = panel.accountGroupSizerMap[group]
+		assert children.index(coseeing_box) < children.index(box) < children.index(panel.languageList)
+	order = [children.index(panel.accountGroupSizerMap[group]) for group in new_groups]
+	assert order == sorted(order)
+
+
+def test_typed_api_keys_survive_a_rebuild(monkeypatch):
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
+	panel = f.make_panel()
+	field = panel.accountTextCtrlMap["OpenAI"]
+	field.SetValue("typed")
+
+	rebuild_with(f, panel, _shipped_without("deepseek-flash&DeepSeek")(f))
+
+	assert panel.accountTextCtrlMap["OpenAI"] is field
+	assert field.GetValue() == "typed"
+	assert _shown_boxes(panel) == ["OpenAI"]
+
+
+def _without_group(f, group):
+	catalog = f.plugin.catalog
+	return dataclasses.replace(catalog, models=tuple(m for m in catalog.models if m.provider != group))
+
+
+def test_a_vanished_providers_box_is_hidden_and_its_key_saved_unchanged(monkeypatch):
+	f = live_fixture(monkeypatch, api_key={"DeepSeek": "k"})
+	panel = f.make_panel()
+	touch(panel, "DeepSeek", 0)
+
+	rebuild_with(f, panel, _without_group(f, "DeepSeek"))
+	panel.onSave()
+
+	assert panel.settingsSizer.IsShown(panel.accountGroupSizerMap["DeepSeek"]) is False
+	assert f.settings["api_key"]["DeepSeek"] == "k"
+
+
+@pytest.mark.parametrize("steps", [
+	("bundled", "shipped"),
+	("shipped", "bundled"),
+	("without-Anthropic", "without-Google"),
+], ids=["gain", "lose", "swap"])
+def test_refreshing_account_info_never_raises_for_any_group_change(monkeypatch, steps):
+	f = live_fixture(monkeypatch)
+	catalogs = {
+		"bundled": _bundled_only, "shipped": _shipped,
+		"without-Anthropic": lambda f: _without_group(f, "Anthropic"),
+		"without-Google": lambda f: _without_group(f, "Google"),
+	}
+	f.box["catalog"] = catalogs[steps[0]](f)
+	panel = f.make_panel()
+
+	rebuild_with(f, panel, catalogs[steps[1]](f))
+
+	for index in range(len(panel.catalog.provider_groups)):
+		panel.providerList.SetSelection(index)
+		panel.onChangeProviderChoice(None)
+		assert _shown_boxes(panel) == [panel.catalog.provider_groups[index]]
+
+
+def test_a_changed_provider_label_updates_the_box_caption(monkeypatch):
+	f = live_fixture(monkeypatch)
+	panel = f.make_panel()
+	catalog = _shipped(f)
+	relabelled = dataclasses.replace(
+		catalog, providers={**catalog.providers, "OpenAI": dataclasses.replace(catalog.providers["OpenAI"], label="OpenAI EU")},
+	)
+
+	rebuild_with(f, panel, relabelled)
+
+	assert panel.accountGroupSizerMap["OpenAI"].GetStaticBox().label == "OpenAI EU Authentication"
+
+
+def test_the_layout_event_is_sent_only_when_the_shown_box_changes(monkeypatch):
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
+	panel = f.make_panel()
+
+	rebuild_with(f, panel, _shipped_without("deepseek-flash&DeepSeek")(f))
+	assert getattr(panel, "layout_events", 0) == 0
+
+	rebuild_with(f, panel, _without_group(f, "OpenAI"))
+	assert _shown_boxes(panel) == ["Coseeing"]
+	assert panel.layout_events == 1
+
+
+def test_the_dropped_entries_line_follows_the_new_catalog(monkeypatch):
+	from lib.catalog.model import CatalogIssue
+
+	f = live_fixture(monkeypatch)
+	panel = f.make_panel()
+	first = CatalogIssue("unreadable_file", "ai/x.json", "ValueError")
+	second = CatalogIssue("duplicate_entry", "models[3]", "already defined")
+	catalog = _shipped(f)
+
+	rebuild_with(f, panel, dataclasses.replace(catalog, issues=(first, second)))
+	assert panel.catalogIssuesText.label == "2 catalog entries could not be loaded; see the NVDA log for details."
+	assert panel.settingsSizer.IsShown(panel.catalogIssuesText) is True
+	assert panel.layout_events == 1
+
+	rebuild_with(f, panel, dataclasses.replace(catalog, issues=(first,)))
+	assert panel.catalogIssuesText.label == "1 catalog entry could not be loaded; see the NVDA log for details."
+	assert panel.layout_events == 1
+
+	rebuild_with(f, panel, dataclasses.replace(catalog, issues=()))
+	assert panel.settingsSizer.IsShown(panel.catalogIssuesText) is False
+	assert panel.layout_events == 2

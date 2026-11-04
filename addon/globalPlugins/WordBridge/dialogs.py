@@ -205,31 +205,15 @@ class LLMSettingsPanel(SettingsPanel):
 		self.modelList.SetToolTip(wx.ToolTip(_("Choose the large language model for the Word Bridge")))
 		self.modelList.SetSelection(self.selection.model_index)
 
-		# For setting account information
+		# For setting account information. A box exists for every group the
+		# panel has shown; one a live update adds is created then (C9).
 		self.accountGroupSizerMap = {}
 		self.accountTextCtrlMap = {}
+		self._accountCaptions = {}
+		self._shownAccountGroup = None
+		self._settingsSizerHelper = settingsSizerHelper
 		for group in self.catalog.provider_groups:
-			accountBoxSizer = wx.StaticBoxSizer(
-				wx.VERTICAL,
-				self,
-				label=_provider_group_label(self.catalog, group) + " " + _("Authentication")
-			)
-			self.accountGroupSizerMap[group] = accountBoxSizer
-			self.accountGroupSizerHelper = guiHelper.BoxSizerHelper(self, sizer=accountBoxSizer)
-			settingsSizerHelper.addItem(self.accountGroupSizerHelper)
-			if group == COSEEING_GROUP:
-				self.coseeingCleanButton = wx.Button(self, label=_("clean"))
-				self.coseeingCleanButton.Enable(has_saved_coseeing_refresh_token())
-				self.coseeingCleanButton.Bind(wx.EVT_BUTTON, self.onCleanCoseeingAuth)
-				self.accountGroupSizerHelper.addItem(self.coseeingCleanButton)
-				continue
-
-			self.accountTextCtrlMap[group] = self.accountGroupSizerHelper.addLabeledControl(
-				_("API Key:"),
-				wx.TextCtrl,
-				size=(self.scaleSize(375), -1),
-				value=self.settings.api_key(group),
-			)
+			self._ensureAccountBox(group, live=False)
 
 		self._refreshAccountInfo()
 
@@ -379,7 +363,11 @@ class LLMSettingsPanel(SettingsPanel):
 			self.modelList.SetItems(modelLabels)
 		self.providerList.SetSelection(selection.provider_group_index)
 		self.modelList.SetSelection(selection.model_index)
-		return False
+		for group in new.provider_groups:
+			self._ensureAccountBox(group, live=True)
+		accountChanged = self._refreshAccountInfo()
+		droppedChanged = self._setLine(self.catalogIssuesText, _dropped_entries_message(new))
+		return accountChanged or droppedChanged
 
 	def _storedBaseline(self, catalog) -> tuple:
 		"""(stored, storedResolved, restored SelectionState) for `catalog`: the
@@ -429,16 +417,83 @@ class LLMSettingsPanel(SettingsPanel):
 		self.panelDescription = message or ""
 		return self._setLine(self.catalogStatusText, message)
 
+	def _accountCaption(self, group):
+		return _provider_group_label(self.catalog, group) + " " + _("Authentication")
+
+	def _ensureAccountBox(self, group, *, live) -> None:
+		"""Create the account box of `group` once; later calls only update its
+		caption. A box made by a live update goes right after the last
+		account box, and its windows move after the model choice in the Tab
+		order (and the window order NVDA reads labels and groups from):
+		otherwise they would come after "Model list URL:", because wx orders
+		windows by creation."""
+		if group in self.accountGroupSizerMap:
+			self._updateAccountCaption(group)
+			return
+		caption = self._accountCaption(group)
+		before = list(self.GetChildren()) if live else []
+		accountBoxSizer = wx.StaticBoxSizer(wx.VERTICAL, self, label=caption)
+		accountGroupSizerHelper = guiHelper.BoxSizerHelper(self, sizer=accountBoxSizer)
+		if live:
+			index = self._accountBoxInsertIndex()
+			self.settingsSizer.InsertSpacer(index, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS)
+			self.settingsSizer.Insert(index + 1, accountBoxSizer, flag=wx.EXPAND)
+		else:
+			self._settingsSizerHelper.addItem(accountGroupSizerHelper)
+		self.accountGroupSizerMap[group] = accountBoxSizer
+		self._accountCaptions[group] = caption
+		if group == COSEEING_GROUP:
+			self.coseeingCleanButton = wx.Button(self, label=_("clean"))
+			self.coseeingCleanButton.Enable(has_saved_coseeing_refresh_token())
+			self.coseeingCleanButton.Bind(wx.EVT_BUTTON, self.onCleanCoseeingAuth)
+			accountGroupSizerHelper.addItem(self.coseeingCleanButton)
+		else:
+			self.accountTextCtrlMap[group] = accountGroupSizerHelper.addLabeledControl(
+				_("API Key:"),
+				wx.TextCtrl,
+				size=(self.scaleSize(375), -1),
+				value=self.settings.api_key(group),
+			)
+		if live:
+			previous = self.modelList
+			for window in self.GetChildren():
+				if any(window is known for known in before):
+					continue
+				window.MoveAfterInTabOrder(previous)
+				previous = window
+
+	def _accountBoxInsertIndex(self) -> int:
+		"""The sizer index right after the last existing account box."""
+		boxes = list(self.accountGroupSizerMap.values())
+		children = list(self.settingsSizer.GetChildren())
+		last = None
+		for index, child in enumerate(children):
+			if child.IsSizer() and any(child.GetSizer() is box for box in boxes):
+				last = index
+		return len(children) if last is None else last + 1
+
+	def _updateAccountCaption(self, group) -> None:
+		caption = self._accountCaption(group)
+		if caption != self._accountCaptions.get(group):
+			self.accountGroupSizerMap[group].GetStaticBox().SetLabel(caption)
+			self._accountCaptions[group] = caption
+
 	def _refreshModelChoice(self):
 		self.modelList.SetItems(list(_display_labels(self.catalog, self.selection.provider_group)))
 		self.modelList.SetSelection(0)
 
-	def _refreshAccountInfo(self):
-		for group in self.catalog.provider_groups:
-			if group == self.selection.provider_group:
-				self.settingsSizer.Show(self.accountGroupSizerMap[group], recursive=True)
+	def _refreshAccountInfo(self) -> bool:
+		"""Show only the selected group's box, including over boxes of groups
+		the catalog no longer offers (C9). True when the shown box changed."""
+		shownGroup = self.selection.provider_group
+		for group, box in self.accountGroupSizerMap.items():
+			if group == shownGroup:
+				self.settingsSizer.Show(box, recursive=True)
 			else:
-				self.settingsSizer.Hide(self.accountGroupSizerMap[group], recursive=True)
+				self.settingsSizer.Hide(box, recursive=True)
+		changed = shownGroup != self._shownAccountGroup
+		self._shownAccountGroup = shownGroup
+		return changed
 
 	def onCleanCoseeingAuth(self, event) -> None:
 		self.coseeingCleanButton.Disable()

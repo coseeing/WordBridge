@@ -188,6 +188,7 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 		VERTICAL = 3
 		HORIZONTAL = 4
 		ALL = 5
+		EXPAND = 9
 		EVT_CHOICE = object()
 		EVT_BUTTON = object()
 		EVT_WINDOW_DESTROY = object()
@@ -214,6 +215,7 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 		guiHelper=SimpleNamespace(
 			BoxSizerHelper=type("BoxSizerHelper", (), {}),
 			BORDER_FOR_DIALOGS=0,
+			SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS=10,
 		),
 		nvdaControls=SimpleNamespace(SelectOnFocusSpinCtrl=object),
 		mainFrame=SimpleNamespace(),
@@ -1099,7 +1101,6 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 def _make_panel(monkeypatch, dialogs, Sizer):
 	panel = object.__new__(dialogs.LLMSettingsPanel)
 	panel.scaleSize = lambda value: value
-	panel._refreshAccountInfo = lambda: None
 	panel.makeSettings(Sizer())
 	return panel
 
