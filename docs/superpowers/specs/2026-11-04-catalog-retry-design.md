@@ -81,6 +81,7 @@ invisible until the panel is closed and reopened.
 | R9 | **OQ2 → A.** The U7 / RC §12.5 dialog does not trigger a fetch; its behaviour is unchanged. — Decided by the user (2026-11-04) |
 | R10 | **F6 → a URL change resets the backoff.** A saved URL change resets the retry step to the first wait (1 minute). Even if background retrying had already stopped, a failure for the new URL schedules the full 1, 2, 4, 8, 16, 32 minute sequence again. A panel-open (R1) fetch that fails still continues the existing interval and, if retrying had stopped, schedules nothing (R6 now applies to panel-open only). — Decided by the user (2026-11-04) |
 | R11 | **Status line as the panel's accessible description** (the coordinator's message called it "R7"; renumbered because R7 is the C8 confirmation above). Whenever the status line is set — in `makeSettings` and on every live update (R2) — the panel's `panelDescription` is set to the same status message, or to `""` (the class default) when there is none. NVDA's `SettingsPanelAccessible.GetDescription()` returns `Window.panelDescription` on each request (`/workspace/nvda/source/gui/settingsDialogs.py:386`, `:504-505`; attached at `:682`), so the status in force is what NVDA reports the next time focus enters the panel. The visible StaticText stays. A description change forces no announcement beyond R3/C11 and R8. — Decided by the user (2026-11-04) |
+| R12 | **Model list URL through a "Change..." dialog** (the coordinator's message called it "R8"; renumbered because R8 is the OQ1 answer above). The editable "Model list URL:" field is replaced by NVDA's update-mirror pattern: a group with a read-only, focusable box showing the current URL and a "Change..." button; Enter in the box or the button opens a small dialog (General panel `/workspace/nvda/source/gui/settingsDialogs.py:938-968`, `:979-1004`, `:1125-1133`; Add-on Store panel `:3915-3935`; dialog `/workspace/nvda/source/gui/_SetURLDialog.py`). The URL is saved when that dialog's OK is pressed, not at the settings dialog's OK/Apply, and cancelling the settings dialog afterwards does not revert it. Saving triggers what a saved URL change triggers today: the D8 switch and refresh, and the R10 backoff reset. Section 20. — Decided by the user (2026-11-04) |
 
 ### 4.2 Decided by orchestrator with the recommended default; user may override before merge
 
@@ -105,6 +106,12 @@ before merge`.
 | C13 | Logging: one info line when a retry is scheduled (attempt number and wait), one when retrying stops, one when a panel-open fetch starts. Host only, never path, query or `str(error)` (RC D15). | §12 |
 | C14 | A panel that is destroyed, or whose window is already gone, ignores and unregisters itself; `terminate()` stops the timer and drops all listeners through `catalog_updater.uninstall()`. | §14 |
 | C15 | The two zh_TW strings end with a full-width period, like every other zh_TW sentence in `nvda.po` (for example `:206`, `:528`): 「模型清單已更新。」, 「模型清單更新失敗。」. | §13 |
+| C16 | NVDA's private `_SetURLDialog` is not reused: it is a private API, and its test is `requests.get(url)` with no timeout, no size cap and redirects followed (`_SetURLDialog.py:174-177`), against RC D4/§8.2. WordBridge has its own `CatalogUrlDialog` that mirrors its UX. "Test..." runs the existing fetch and acceptance path (`fetch_payload` with the D4 limits, RC §8.3 document checks, the provider host allowlist, at least one usable local model) off the UI thread, with a progress dialog and categorised result messages. A test neither installs the catalog nor writes the cache; saving does the normal fetch. | §20.3 |
+| C17 | URL validation (`validate_catalog_url`) moves to the dialog's OK (invalid → error message, the dialog stays open, focus returns to the URL field). The panel's `isValid` URL check is removed with the editable field. "Changed" is decided with the existing `_url_identity` rule (`dialogs.py:95-99`), not NVDA's `url_normalize`; the text is saved stripped, as typed, as today (`dialogs.py:410-412`). | §20.2 |
+| C18 | An empty URL stays allowed (remote catalog off). The read-only box then shows "No model list URL" (zh_TW 「未設定模型清單網址」). "Test..." is enabled only when the field has non-blank text. The group stays the last item of the panel (RC D16), box first, then the button. | §20.1 |
+| C19 | Strings and zh_TW translations as in §20.5, with `# Translators:` comments; terms follow existing WordBridge entries (「模型清單網址」, 「錯誤」) and NVDA's zh_TW (`/workspace/nvda/source/locale/zh_TW/LC_MESSAGES/nvda.po`: 「變更...」, 「測試(&T)...」, 「警告」, 「成功」). | §20.5 |
+| C20 | Interaction with R1/R2/R11: R1 still runs at `makeSettings`; every live update also refreshes the read-only box from the stored URL; while the URL dialog is open a live update never touches the dialog, and nothing is spoken because the settings dialog is not the active window (§11 condition 3). | §20.4 |
+| C21 | A test result applies only to the text it tested: if the field changed while the test ran, the result is still shown but the test status stays "untested". The probe thread is a daemon; its result is dropped if the dialog is already gone. | §20.3 |
 
 ### 4.3 What this changes in the predecessor spec
 
@@ -930,6 +937,152 @@ dialog (RC §12.5). R1 covers the settings panel only.
 twice (U7, N2), free of a race, and the background schedule already retries
 within a minute.
 
+## 20. Model list URL dialog (R12, C16–C21)
+
+Supersedes for the URL field: RC D16's "The panel field is the last control …
+Validation uses NVDA's `isValid()`" (the group is last instead; validation is
+in the dialog), RC §13.2 (the editable field and `isValid`), and the URL part
+of `onSave` (`dialogs.py:407-413`): the settings panel's OK/Apply no longer
+saves or refreshes the URL.
+
+### 20.1 Panel (C18)
+
+The last item of `makeSettings` (where `catalogUrlCtrl` is today,
+`dialogs.py:311-322`) becomes a `wx.StaticBoxSizer` labelled "Model list URL"
+(existing msgid, `nvda.po:552`) holding a read-only `ExpandoTextCtrl`
+(`wx.lib.expando`, `style=wx.TE_READONLY`, as NVDA does because a standard
+read-only `TextCtrl` takes no keyboard focus, `settingsDialogs.py:944-949`) and
+a "Change..." button, placed together with `guiHelper.associateElements`. The
+box shows `settings.catalog_url()` or "No model list URL". Enter in the box
+(`EVT_CHAR_HOOK`, `WXK_RETURN`; other keys `Skip()`) and the button call
+`onChangeCatalogUrl`. The tooltip moves to the dialog's field.
+
+`onChangeCatalogUrl`: show `CatalogUrlDialog` modally; when it returns OK and
+it saved a URL, call `catalog_updater.request_refresh(savedUrl)` at once (the
+modal loop has ended, so the D8 swap rebuilds a panel whose dialog is active
+again). Then refresh the box.
+
+### 20.2 Dialog OK (C17)
+
+`CatalogUrlDialog(SettingsDialog)` (NVDA's public `gui.settingsDialogs.SettingsDialog`,
+as `dictionary/dialog.py:81` uses), new module `catalog_url_dialog.py`.
+`makeSettings`: "Model list URL:" field (existing msgid) with the stored URL
+and the existing tooltip, and a "&Test..." button next to it. `postInit` puts
+focus on the field. `EVT_TEXT` enables "Test..." only for non-blank text and
+sets the test status to untested.
+
+`onOk`, in order (mirrors `_SetURLDialog.py:97-131`):
+
+1. `text = field.strip()`; `check = validate_catalog_url(text)`. On an error,
+   show an error message (the two existing `isValid` texts, `dialogs.py:363-370`,
+   title "Error"), focus the field, and return (the dialog stays open).
+2. If `_url_identity(text) == _url_identity(settings.catalog_url())`: close
+   without saving.
+3. If `text` is non-empty and the test status is not "passed": a Warning
+   Yes/No/Cancel message (`gui.message.MessageDialog`, `DefaultButtonSet.YES_NO_CANCEL`,
+   default focus and Escape on Cancel), with the "failed" or "not tested" text.
+   Yes → save; No → close without saving; Cancel → return (dialog stays open).
+4. Save: `settings.save_catalog_url(text)`, record `savedUrl = text`, update the
+   panel's read-only box **before** closing (so NVDA does not report the old
+   value when focus returns, `_SetURLDialog.py:127-129`), then close with OK.
+
+### 20.3 Test (C16, C21)
+
+`CatalogUpdater.probe(url) -> ProbeResult` (thread-safe: it touches no updater
+state) and module `probe_url(url)` (a `ProbeResult` of kind `"unavailable"`
+without an installed updater). `ProbeResult(kind: str, detail: str = "",
+models: int = 0)`, never raises:
+
+| Kind | When |
+| --- | --- |
+| `ok` | fetched, parsed and accepted; `models` = number of selectable local items |
+| `invalid` / `insecure_scheme` | `validate_catalog_url` error (no request) |
+| `empty` | blank URL (no request) |
+| `network` | `remote_request_failed`, `remote_timeout` |
+| `http_status` | `remote_http_status`; `detail` = the status code |
+| `not_a_list` | `remote_too_large`, `remote_malformed`, `remote_schema_version`, any other document-check code |
+| `disallowed_hosts` | `remote_no_models` and the overlaid payload dropped at least one provider for `disallowed_provider_url` |
+| `no_models` | any other `remote_no_models` |
+| `failed` | anything else, including an unexpected exception |
+
+The dialog's "Test..." validates first (an invalid URL shows the §20.2 error,
+no request), then shows `gui.IndeterminateProgressDialog` ("Validating the
+model list URL...") and starts a daemon thread running `probe_url(text)`. The
+result is posted with `wx.CallAfter`; on the main thread the progress dialog
+is closed, the status becomes "passed"/"failed" only if the field still holds
+the tested text, and a message is shown ("Success" or "Error" caption). The
+probe logs nothing beyond what `fetch_payload` and the acceptance code already
+return; no cache write, no `install`.
+
+### 20.4 Live update and lifecycle (C20)
+
+`_onCatalogChange` also calls `_updateCatalogUrlBox()`. The dialog is modal
+on the settings dialog, so `IsActive()` of the settings dialog is false while
+it is open and nothing is spoken (§11). Plugin terminate while the dialog or
+a probe is open: the probe thread is a daemon and its posted result returns
+at once when the dialog is gone (`not self`).
+
+### 20.5 Strings (C19)
+
+| English | zh_TW |
+| --- | --- |
+| `Model list URL` (group; existing) | `模型清單網址` |
+| `No model list URL` | `未設定模型清單網址` |
+| `Change...` | `變更...` |
+| `Set Model List URL` (dialog title) | `設定模型清單網址` |
+| `Model list URL:` (field; existing) | `模型清單網址：` |
+| `&Test...` | `測試(&T)...` |
+| `Validating the model list URL...` | `正在驗證模型清單網址...` |
+| `Success` | `成功` |
+| `Error` (existing) | `錯誤` |
+| `Warning` | `警告` |
+| `The model list loaded. It offers {count} model.` / `… {count} models.` | `已載入模型清單，共有 {count} 個模型。` (both) |
+| `The model list URL failed the test. {tip}` | `模型清單網址測試失敗。{tip}` |
+| tip network: `There was a network error. Check that you are connected to the internet and try again.` | `發生網路錯誤。請確認已連上網際網路，然後再試一次。` |
+| tip http_status: `The server answered with HTTP status {status}. Check that the URL is correct.` | `伺服器回應 HTTP 狀態碼 {status}。請確認網址是否正確。` |
+| tip not_a_list: `The server's answer is not a WordBridge model list. Check that the URL is correct.` | `伺服器的回應不是 WordBridge 模型清單。請確認網址是否正確。` |
+| tip no_models: `The model list offers no model WordBridge can use.` | `這份模型清單沒有 WordBridge 可以使用的模型。` |
+| tip disallowed_hosts: `The model list names only provider addresses WordBridge does not allow.` | `這份模型清單列出的服務提供者網址都不在 WordBridge 允許的範圍內。` |
+| tip other: `Make sure you are connected to the internet and the URL is correct.` | `請確認已連上網際網路，且網址正確。` |
+| `The model list URL failed the test. Save it anyway?` | `模型清單網址測試失敗。仍要儲存嗎？` |
+| `The model list URL has not been tested. Save it without testing it first?` | `模型清單網址尚未測試。確定不先測試就儲存嗎？` |
+
+The two invalid-URL texts and the field tooltip keep their existing msgids.
+The "Invalid configuration" option name `Model list URL` is reused as the
+group label.
+
+### 20.6 Tests
+
+- Panel: no editable URL control; the group's read-only box (value = stored
+  URL or "No model list URL") and "Change..." button are the last controls;
+  Enter in the box and the button open the dialog; other keys are skipped; a
+  live update refreshes the box; `onSave` no longer saves or refreshes the URL;
+  the panel has no URL `isValid` check.
+- Dialog OK table: unchanged (including different spelling of the same key) →
+  no save, no refresh; valid and passed → save, box updated before close,
+  `request_refresh` once (and R10: a later failure waits 1 minute); untested
+  or failed → warning (text per status, Cancel default) with Yes → save,
+  No → closed without saving, Cancel → dialog stays open; invalid → error,
+  stays open, field focused; empty → saved without a warning.
+- Test: the probe uses `fetch_payload` with the D4 arguments and the acceptance
+  path (fake `http_get`): one row per `ProbeResult` kind; nothing installed or
+  cached; it runs on a started thread, not inline, and the result is posted
+  back with `wx.CallAfter`; "Test..." disabled for blank text; a result for
+  text that has since changed leaves the status untested.
+
+### 20.7 Windows/NVDA manual checks
+
+14. Tab to the "Model list URL" group: NVDA reads the group name, the
+    read-only box with the URL (or "No model list URL") and then "Change...".
+15. Enter in the box opens "Set Model List URL" with focus in the field; Test
+    shows the progress dialog ("Validating the model list URL...") and then
+    the result, both spoken; OK after a passed test closes the dialog and
+    focus returns to the box, which already reads the new URL.
+16. OK with an untested URL: the Warning Yes/No/Cancel dialog is spoken with
+    focus on Cancel; Escape returns to the URL dialog.
+17. After saving a new URL, Cancel in the NVDA settings dialog: the new URL
+    stays saved (NVDA+Alt+W again shows it).
+
 ## 17. Verification and baseline
 
 Baseline at `102b007` in `/workspace/WordBridge-catalog-retry` (measured
@@ -987,6 +1140,10 @@ msgfmt --check -o /dev/null addon/locale/zh_TW/LC_MESSAGES/nvda.po
    §11's conditions, at the default priority; a failure only for a
    user-initiated fetch (R8).
 8. No log line contains a URL path or query, or exception text.
+8b. The model list URL is changed only through the "Change..." dialog and is
+   saved on that dialog's OK, which triggers the D8 switch, a refresh and the
+   R10 reset; "Test..." follows RC D4/§8.3 and never installs or caches (R12,
+   §20).
 8a. The panel's `panelDescription` always equals the status line's text (or
    `""` without one), at open and after every live update (R11).
 9. The full non-integration suites are green at every commit. prek passes.
