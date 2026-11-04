@@ -369,6 +369,10 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	# at the seeded copy, and record fetch threads instead of starting them.
 	plugin.started_catalog_threads = []
 	monkeypatch.setattr(plugin, "CATALOG_CACHE_PATH", seeded_catalog_cache_path(), raising=False)
+	# The seed is shared by every plugin-level test, so it must stay
+	# read-only whatever a test does to NVDAState.
+	plugin.real_can_write_catalog_cache = getattr(plugin, "_can_write_catalog_cache", None)
+	monkeypatch.setattr(plugin, "_can_write_catalog_cache", lambda: False, raising=False)
 	monkeypatch.setattr(
 		plugin,
 		"_start_catalog_thread",

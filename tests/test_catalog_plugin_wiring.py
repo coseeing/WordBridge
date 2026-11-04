@@ -223,7 +223,7 @@ def test_no_test_path_performs_real_http(monkeypatch):
 def test_the_cache_is_never_written_without_nvda_state(monkeypatch):
 	plugin, _queued, _auth = _load(monkeypatch)
 
-	assert plugin._can_write_catalog_cache() is False
+	assert plugin.real_can_write_catalog_cache() is False
 
 
 @pytest.mark.parametrize("should_write", [True, False])
@@ -233,7 +233,7 @@ def test_the_cache_write_check_follows_nvda_state(monkeypatch, should_write):
 	plugin, _queued, _auth = _load(monkeypatch)
 	monkeypatch.setitem(sys.modules, "NVDAState", SimpleNamespace(shouldWriteToDisk=lambda: should_write))
 
-	assert plugin._can_write_catalog_cache() is should_write
+	assert plugin.real_can_write_catalog_cache() is should_write
 
 
 def test_the_cache_path_is_under_the_workspace_root(monkeypatch):
@@ -314,4 +314,15 @@ def test_the_wired_fetch_sends_exactly_the_specified_request(monkeypatch):
 		"headers": {"Accept": "application/json"},
 	})]
 	assert "verify" not in calls[0][1]
+	instance.terminate()
+
+
+def test_the_harness_seed_cache_is_never_writable(monkeypatch):
+	import sys
+
+	plugin, _queued, _auth = _load(monkeypatch)
+	monkeypatch.setitem(sys.modules, "NVDAState", SimpleNamespace(shouldWriteToDisk=lambda: True))
+	instance = plugin.GlobalPlugin()
+
+	assert instance._catalog_updater._cache._can_write() is False
 	instance.terminate()
