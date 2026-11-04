@@ -309,3 +309,25 @@ probe v3。這類以**正規名稱**在全域解析，因為共用的 `coseeing_
 
 已列於上方**範圍**一節：`package/coseeing_auth/` 原始碼變更、auth stack 延遲載入
 （R16）、bundle 精簡（R15），以及移除過時的 `systemConfig` 安裝。
+
+## 更新（2026-11-04）：cryptography 改用宿主的副本並補齊缺檔
+
+本文原先把 `cryptography` 列在第二類（加上前綴），英文版之後又改成「以正式名稱
+shadow 宿主的副本」。這兩種做法現在都已撤回。shadow 會弄壞 NVDA 本身：NVDA 在
+載入任何 add-on 之前就已匯入 cryptography（`bdDetect` → `handyTech` →
+`globalCommands` → `_remoteClient.server`），而且會一直持有那些模組物件。一旦正式
+名稱改指向我們的副本，NVDA 的 `_rust` 就拿我們的類別來檢查 NVDA 自己的
+`hashes.SHA256()`，於是遠端控制產生本機中繼伺服器憑證時丟出 `TypeError`。這個
+例外發生在 `doPortcheck` 的 `try` 之外，所以「取得外部 IP」會一直卡住。
+
+現在的做法：
+- `cryptography` 改列 `HOST_ONLY`，不再隨 add-on 捆綁。
+- NVDA 的 py2exe 建置漏掉 6 個檔（`kdf` 的 4 個、`keywrap`、`padding`），改由
+  `install_cryptography_gapfill()` 從 `package/_cryptography_gapfill/` 補上。它的
+  finder 接在 `sys.meta_path` 最後面，只有在 NVDA 沒有該檔時才會回應，不會替換或
+  移除任何已載入的模組。
+- 補缺檔取自 cryptography 48.0.1：它的 `keywrap.py` 是純 Python，48.x 和 50.x 的
+  宿主都能用。
+
+NVDA（cryptography 50.0.0）實機探測結果確認 `_rust` 具備所有需要的符號。詳見英文
+版 Resolution 段落之後的更新，以及 `package/_cryptography_gapfill/README.md`。

@@ -6,7 +6,8 @@ inserting a directory on ``sys.path`` -- or by deleting the host's modules from
 module loads them under a ``_wb_vendor`` prefix instead, so nothing the host or
 another add-on imports is affected.
 
-``cryptography`` is the one exception, and it is deliberate: see ``SHADOWED``.
+``cryptography`` is not vendored at all: it comes from the host, with the few
+files NVDA's build leaves out filled in.  See ``install_cryptography_gapfill``.
 
 See docs/superpowers/specs/2026-09-20-r03-import-isolation-design.md.
 """
@@ -34,11 +35,24 @@ ISOLATED = frozenset({
 	"chinese_converter",
 })
 
-# Must come from the host.  We ship copies, but they are never loaded: NVDA
-# preloads all of these and sys.path insertion cannot displace a loaded module,
-# so our copies have never run in production.  There is deliberately no
-# fallback to them -- if NVDA ever stops shipping one, that must fail loudly
-# rather than silently switch to an untested copy.
+# Must come from the host, and deliberately not shipped: NVDA preloads all of
+# these.  The bundle used to carry copies that were never loaded; they were
+# removed as dead weight, and tests/test_vendor_sandbox.py now fails if one is
+# added back.  There is deliberately no fallback -- if NVDA ever stops shipping
+# one, that must fail loudly rather than silently switch to an untested copy.
+#
+# `cryptography` is here for a stronger reason than dead weight: a second copy
+# in the process breaks NVDA itself.  Its `_rust` extension resolves Python
+# classes by ABSOLUTE module name at call time, so two copies cannot coexist --
+# whichever one answers to `cryptography.hazmat.primitives.hashes` in
+# sys.modules, the other copy's `_rust` rejects its own objects with a
+# TypeError.  NVDA imports cryptography before any add-on loads (bdDetect ->
+# handyTech -> globalCommands -> _remoteClient.server), and
+# _remoteClient.server keeps those module objects.  Giving the name to our own
+# copy -- as WordBridge 2026.9.1 did -- left NVDA Remote unable to build its
+# local relay certificate, and "Get external IP" hung forever.  The host copy
+# has everything we need except six files py2exe omits; those are gap-filled,
+# never replaced.
 HOST_ONLY = frozenset({
 	"requests",
 	"urllib3",
@@ -48,40 +62,27 @@ HOST_ONLY = frozenset({
 	"cffi",
 	"_cffi_backend",
 	"pycparser",
+	"cryptography",
 })
 
-# Must come from us, but CANNOT be prefixed -- it has to answer to its own
-# canonical name, which means shadowing the host's copy for the whole process.
-#
-# `cryptography`'s work is done by `hazmat/bindings/_rust`, a PyO3 extension.
-# When it type-checks an argument it resolves the expected Python class by
-# ABSOLUTE module name -- it asks the interpreter for
-# `cryptography.hazmat.primitives.hashes` and reads `HashAlgorithm` off it.
-# That is a C-level import; it never passes through the `__import__` that
-# `_SandboxLoader` installs, so the prefix rewrite cannot reach it.  A copy
-# loaded as `_wb_vendor.cryptography` therefore checks its own `SHA256()`
-# against whatever else is registered under the canonical name:
-#
-#   host copy loaded  -> TypeError: Expected instance of hashes.HashAlgorithm
-#   nothing loaded    -> KeyError: 'cryptography.hazmat.primitives.asymmetric.utils'
-#
-# Both were reproduced off-NVDA; the first is what NVDA 2026 actually hit, in
-# PyJWT's `algorithms.py` RS256 `verify`, which broke Coseeing login outright.
-#
-# Using the host's copy instead is not available either: NVDA ships a trimmed
-# cryptography 48.0.1 in library.zip.  It is complete enough for PyJWT, but
-# `hazmat.primitives.kdf`, `.keywrap` and `.padding` are absent, and without
-# them `joserfc` -- and therefore `authlib.integrations.requests_client`, which
-# imports it transitively -- will not import at all (measured; see
-# docs/superpowers/spikes/2026-09-22-host-cryptography-probe-output.txt).
-#
-# So exactly one name is shadowed, by `install_shadowed()`, and the cost is
-# stated rather than hidden: for the life of the process, everything in it
-# resolves `cryptography` to our copy.  That is the same exposure the add-on
-# had before the sandbox existed, reduced from eleven packages to this one.
-SHADOWED = frozenset({"cryptography"})
-
 STDLIB_GAPFILL_DIRNAME = "_stdlib_gapfill"
+CRYPTOGRAPHY_GAPFILL_DIRNAME = "_cryptography_gapfill"
+
+# The parts of `cryptography` that NVDA's py2exe build leaves out of
+# library.zip -- py2exe only collects modules something imports statically,
+# and nothing in NVDA imports these -- while `_rust.pyd`, being one binary,
+# still carries the symbols behind them (measured on NVDA with cryptography
+# 50.0.0: docs/superpowers/spikes/2026-09-22-host-rust-symbols-probe.py).
+# joserfc imports all of them at import time, and authlib's requests_client
+# imports joserfc, so Coseeing auth cannot load without them.
+CRYPTOGRAPHY_GAPFILL = frozenset({
+	"cryptography.hazmat.primitives.kdf",
+	"cryptography.hazmat.primitives.kdf.concatkdf",
+	"cryptography.hazmat.primitives.kdf.hkdf",
+	"cryptography.hazmat.primitives.kdf.pbkdf2",
+	"cryptography.hazmat.primitives.keywrap",
+	"cryptography.hazmat.primitives.padding",
+})
 
 
 def _make_sandbox_import(prefix, isolated, real_import):
@@ -162,16 +163,6 @@ class _SandboxFinder(importlib.abc.MetaPathFinder):
 	def find_spec(self, fullname, path=None, target=None):
 		if not fullname.startswith(self._prefix_dot):
 			return None
-		if fullname[len(self._prefix_dot):].partition(".")[0] in SHADOWED:
-			# The bytes are on our roots, so PathFinder would happily load a
-			# SHADOWED package under the prefix -- recreating exactly the
-			# second cryptography instance that install_shadowed() exists to
-			# prevent. Nothing imports it this way today; this is the guard
-			# that keeps it that way.
-			raise ModuleNotFoundError(
-				f"{fullname!r} is shadowed under its canonical name, not the prefix",
-				name=fullname,
-			)
 		spec = PathFinder.find_spec(fullname, path, target)
 		if spec is None:
 			return None
@@ -183,22 +174,19 @@ class _SandboxFinder(importlib.abc.MetaPathFinder):
 			# _coseeing_auth_deps, __pycache__ or a *.dist-info tree as into a
 			# real vendored package.  Every actual category 2 package (and
 			# every real subpackage of one) ships an __init__.py and never
-			# reaches this branch; the one bundled exception --
-			# cryptography/hazmat/bindings/_rust, a .pyi-only stub dir -- is
-			# shadowed by the sibling _rust.pyd, which FileFinder resolves
-			# first, so it never gets here either.  Failing outright (rather
-			# than returning the inert namespace spec) is what keeps a
-			# HOST_ONLY copy such as requests from ever loading through
-			# _wb_vendor._coseeing_auth_deps.requests, even though the bytes
-			# are right there on disk.  ``importlib.util.find_spec()`` surfaces
+			# reaches this branch.  Failing outright (rather
+			# than returning the inert namespace spec) is what keeps a stray
+			# directory such as _coseeing_auth_deps, _cryptography_gapfill
+			# or a *.dist-info tree from ever loading as _wb_vendor.<name>.  ``importlib.util.find_spec()`` surfaces
 			# this as a raised ``ModuleNotFoundError`` rather than returning
 			# ``None``, which Task 8's self-check should expect if it ever
 			# enumerates prefix submodules this way.
 			raise ModuleNotFoundError(f"No module named {fullname!r}", name=fullname)
 		if isinstance(spec.loader, ExtensionFileLoader):
-			# Native extensions resolve no Python names; cryptography 50.0.1's
-			# _rust exposes its submodules as attributes and registers nothing
-			# in sys.modules.  Leave its loader alone.
+			# A native extension has no Python source to give a sandboxed
+			# __import__ to.  No bundled package ships one today -- the one
+			# that did, cryptography, now comes from the host -- but leave
+			# such a loader alone rather than wrap it.
 			return spec
 		spec.loader = _SandboxLoader(spec.loader, self._sandbox_import)
 		return spec
@@ -255,91 +243,65 @@ def install(roots, *, prefix=PREFIX, isolated=None):
 	return namespace
 
 
-class _ShadowFinder(importlib.abc.MetaPathFinder):
-	"""Resolves a few exact top-level names from our roots, and nothing else.
+class _GapFillFinder(importlib.abc.MetaPathFinder):
+	"""Serves a fixed set of dotted names from a directory, as a last resort.
 
-	It answers only for the top-level name.  Once ``cryptography`` itself is
-	loaded from our root, its ``__path__`` points into that root, so the
-	ordinary machinery finds every submodule there -- the finder does not need
-	to (and must not) claim ``cryptography.*``, which keeps its reach as small
-	as the shadowing requires.
+	It sits at the END of ``sys.meta_path``, so the import system asks it only
+	after every finder before it -- the host's -- has come up empty.  That is
+	what makes it a gap-fill rather than a shadow: it cannot outrank a module
+	the host can supply, needs no probe to find out whether the host has one,
+	and never touches ``sys.modules``.
 	"""
 
-	def __init__(self, shadowed, roots):
-		self.shadowed = frozenset(shadowed)
-		self.roots = [str(root) for root in roots]
+	def __init__(self, names, root):
+		self.names = frozenset(names)
+		self.root = str(root)
 
 	def find_spec(self, fullname, path=None, target=None):
-		if fullname not in self.shadowed:
+		if fullname not in self.names:
 			return None
-		return PathFinder.find_spec(fullname, self.roots, target)
+		location = os.path.join(self.root, *fullname.split("."))
+		if os.path.isdir(location):
+			init = os.path.join(location, "__init__.py")
+			if not os.path.isfile(init):
+				return None
+			return importlib.util.spec_from_file_location(
+				fullname, init, submodule_search_locations=[location]
+			)
+		source = location + ".py"
+		if not os.path.isfile(source):
+			return None
+		return importlib.util.spec_from_file_location(fullname, source)
 
 
-def _resolved_from(module, roots):
-	"""Did this already-loaded module come out of one of our roots?"""
-	spec = getattr(module, "__spec__", None)
-	origin = getattr(spec, "origin", None) or getattr(module, "__file__", None)
-	if not origin:
-		# A module with no origin -- frozen, a test stub, a namespace portion
-		# -- cannot be shown to be ours, so it counts as the host's and gets
-		# evicted.  Erring this way costs a reload; erring the other way would
-		# leave the host's copy in place and reintroduce the two-instance
-		# TypeError this whole mechanism exists to prevent.
-		return False
-	origin = os.path.abspath(str(origin))
-	return any(origin.startswith(os.path.abspath(root) + os.sep) for root in roots)
+def install_cryptography_gapfill(package_path, *, names=CRYPTOGRAPHY_GAPFILL):
+	"""Let the host's ``cryptography`` resolve the files its build left out.
 
+	Appends one ``_GapFillFinder`` for ``names`` to the end of
+	``sys.meta_path``.  The host's copy keeps its canonical name, keeps every
+	module it has already loaded, and wins for every module it can supply;
+	ours answers only where the host has nothing.  A host that ships the whole
+	package therefore never runs a line of ours.
 
-def install_shadowed(roots, *, shadowed=SHADOWED):
-	"""Make ``SHADOWED`` names resolve to our copies, process-wide.
+	Every missing name is listed explicitly rather than inferred from its
+	parent, so a host that ships part of ``kdf`` still resolves the rest: a
+	submodule of a host-supplied package is looked up on the host's
+	``__path__`` first and reaches this finder only if that fails.
 
-	Two steps, in this order: install the finder, then evict the host's copies
-	from ``sys.modules``.  ``sys.modules`` wins over every finder, so eviction
-	is what actually makes the next import re-resolve -- and doing it second
-	means there is no window where the name is evicted but unresolvable.
-
-	Nothing is evicted for a name our roots cannot supply.  Off Windows, or
-	with the runtime bundle missing, that is the whole of ``SHADOWED``: the
-	host keeps the copy it has, which is the only working outcome available,
-	rather than losing it to a shadow that cannot be provided.  Our own copy is
-	never evicted either, so a repeat call cannot load it a second time and
-	recreate the duplicate-instance state.
-
-	``sys.path`` is not touched, and no name outside ``shadowed`` changes
-	resolution.
-
-	Never raises: this runs at add-on import, before NVDA's ``log`` exists, and
-	a failure here must not take the add-on -- or the screen reader -- down.
-	Returns ``(shadowed, evicted, skipped)`` for the caller to log: the names
-	now served from our roots, the ``sys.modules`` entries dropped to make that
-	happen, and the names our roots could not supply.
+	Never raises (it runs at add-on import, before NVDA's ``log`` exists).
+	Returns True when the finder is in place, False when there was nothing to
+	install or installing failed.
 	"""
-	roots = [str(root) for root in roots if os.path.isdir(str(root))]
-	resolvable = []
-	for name in sorted(shadowed):
-		try:
-			spec = PathFinder.find_spec(name, roots)
-		except Exception:
-			spec = None
-		if spec is not None and spec.loader is not None:
-			resolvable.append(name)
-	skipped = sorted(set(shadowed) - set(resolvable))
-	if not resolvable:
-		return [], [], skipped
-	if not any(isinstance(finder, _ShadowFinder) for finder in sys.meta_path):
-		sys.meta_path.insert(0, _ShadowFinder(resolvable, roots))
-	evicted = []
-	for name in sorted(sys.modules):
-		if name.partition(".")[0] not in resolvable:
-			continue
-		try:
-			if _resolved_from(sys.modules[name], roots):
-				continue
-			del sys.modules[name]
-		except Exception:
-			continue
-		evicted.append(name)
-	return resolvable, evicted, skipped
+	try:
+		root = os.path.join(str(package_path), CRYPTOGRAPHY_GAPFILL_DIRNAME)
+		if not os.path.isdir(root):
+			return False
+		if any(isinstance(finder, _GapFillFinder) for finder in sys.meta_path):
+			return True
+		sys.meta_path.append(_GapFillFinder(names, root))
+		return True
+	except Exception:
+		return False
 
 
 def install_stdlib_gapfill(package_path):

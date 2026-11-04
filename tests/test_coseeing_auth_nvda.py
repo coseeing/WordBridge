@@ -4,6 +4,7 @@ import importlib
 import importlib.util
 import ctypes
 import json
+import os
 from threading import Event, RLock, Thread, current_thread
 from types import SimpleNamespace
 from pathlib import Path
@@ -387,20 +388,7 @@ def test_global_plugin_starts_normalized_coseeing_auth_and_guards_queued_callbac
 	assert config.conf["WordBridge"]["settings"]["execution_channel"] == "Coseeing"
 
 
-_SHADOW_WARNING = "WordBridge: vendored packages not shadowed under their canonical names"
-
-
-def _without_shadow_warning(warnings):
-	"""Drop the shadow warning these tests always provoke.
-
-	`install_shadowed()` finds no Windows runtime bundle on this host, so it
-	stands down and `__init__.py` says so at load. That is correct behaviour
-	off-Windows, and orthogonal to what the auth-reason tests below assert --
-	but it is asserted in its own right by
-	`test_plugin_load_warns_when_nothing_can_be_shadowed`, so filtering it here
-	cannot hide its disappearance.
-	"""
-	return [warning for warning in warnings if _SHADOW_WARNING not in str(warning)]
+_GAPFILL_WARNING = "WordBridge: cryptography gap-fill not installed"
 
 
 def test_plugin_load_logs_the_unavailable_auth_reason(monkeypatch):
@@ -422,7 +410,7 @@ def test_plugin_load_logs_the_unavailable_auth_reason(monkeypatch):
 		auth_available=False, log_warnings=warnings,
 	)
 
-	assert _without_shadow_warning(warnings) == [_STUB_UNAVAILABLE_REASON]
+	assert warnings == [_STUB_UNAVAILABLE_REASON]
 
 
 def test_plugin_load_does_not_log_when_auth_is_available(monkeypatch):
@@ -440,14 +428,19 @@ def test_plugin_load_does_not_log_when_auth_is_available(monkeypatch):
 		auth_available=True, log_warnings=warnings,
 	)
 
-	assert _without_shadow_warning(warnings) == []
+	assert warnings == []
 
 
-def test_plugin_load_warns_when_nothing_can_be_shadowed(monkeypatch):
-	"""The shadow standing down is what breaks Coseeing login, and it is
-	otherwise silent -- the only later evidence is a TypeError deep inside
-	PyJWT. Loading on a host with no runtime bundle must say so at load.
+def test_plugin_load_warns_when_the_cryptography_gapfill_is_missing(monkeypatch):
+	"""Without the gap-fill, joserfc cannot import on NVDA's trimmed
+	cryptography and Coseeing login is unavailable -- loading must say why
+	rather than leave only the generic unavailable-auth reason behind.
 	"""
+	real_isdir = os.path.isdir
+	monkeypatch.setattr(
+		os.path, "isdir",
+		lambda path: False if str(path).endswith("_cryptography_gapfill") else real_isdir(path),
+	)
 	warnings = []
 	settings = {
 		"corrector_config_id": "gemini-3.1-pro-preview&Google",
@@ -457,8 +450,8 @@ def test_plugin_load_warns_when_nothing_can_be_shadowed(monkeypatch):
 
 	_load_nvda_plugin(monkeypatch, settings, [], [], log_warnings=warnings)
 
-	assert [w for w in warnings if _SHADOW_WARNING in str(w)] == [
-		_SHADOW_WARNING + ": %s -- Coseeing authentication will not work on this runtime",
+	assert [w for w in warnings if _GAPFILL_WARNING in str(w)] == [
+		_GAPFILL_WARNING + " -- Coseeing authentication may not work on this runtime",
 	]
 
 

@@ -255,14 +255,14 @@ def test_finder_declines_every_namespace_portion_under_the_prefix(sandbox_root, 
 	vendored package.  All three must fail here, while an ordinary
 	category-2-style package under the same prefix still resolves.
 	"""
-	for dirname in (vendor.STDLIB_GAPFILL_DIRNAME, "_coseeing_auth_deps", "__pycache__"):
+	for dirname in (vendor.STDLIB_GAPFILL_DIRNAME, vendor.CRYPTOGRAPHY_GAPFILL_DIRNAME, "_coseeing_auth_deps", "__pycache__"):
 		namespace_dir = sandbox_root / dirname
 		namespace_dir.mkdir()
 		(namespace_dir / "stub.py").write_text("VALUE = 'stub'\n", encoding="utf8")
 
 	install_sandbox([str(sandbox_root)], "_wb_t6", {"alpha"})
 
-	for dirname in (vendor.STDLIB_GAPFILL_DIRNAME, "_coseeing_auth_deps", "__pycache__"):
+	for dirname in (vendor.STDLIB_GAPFILL_DIRNAME, vendor.CRYPTOGRAPHY_GAPFILL_DIRNAME, "_coseeing_auth_deps", "__pycache__"):
 		with pytest.raises(ModuleNotFoundError):
 			importlib.import_module(f"_wb_t6.{dirname}")
 
@@ -297,7 +297,8 @@ def test_finder_still_resolves_a_real_package_and_a_real_subpackage(install_sand
 
 
 def test_finder_leaves_extension_loaders_unwrapped_but_wraps_source_loaders(monkeypatch):
-	"""Production hits this branch: cryptography's ``_rust`` ships a real .pyd.
+	"""No bundled package ships a native extension today (cryptography, the one
+	that did, now comes from the host), but a future dependency could.
 
 	Deleting the ``ExtensionFileLoader`` check would still pass every other
 	test here, so this test exists to give that branch its own failure.
@@ -355,7 +356,7 @@ def test_every_bundled_top_level_name_is_classified():
 	HOST_ONLY copy -- must fail here."""
 	deps_root = PACKAGE_ROOT / "_coseeing_auth_deps"
 	roots = [PACKAGE_ROOT] + sorted(entry for entry in deps_root.glob("*") if entry.is_dir())
-	skip = {"__pycache__", "_stdlib_gapfill", "_coseeing_auth_deps"}
+	skip = {"__pycache__", "_stdlib_gapfill", "_cryptography_gapfill", "_coseeing_auth_deps"}
 	names = []
 	for root in roots:
 		for entry in root.iterdir():
@@ -369,8 +370,9 @@ def test_every_bundled_top_level_name_is_classified():
 			elif entry.name.endswith(".pyd"):
 				names.append(entry.name.split(".")[0])
 
-	assert set(names) == vendor.ISOLATED | vendor.SHADOWED
-	# HOST_ONLY copies are never loaded, so shipping them is dead weight.
+	assert set(names) == vendor.ISOLATED
+	# HOST_ONLY copies are never loaded, so shipping them is dead weight -- and
+	# for cryptography, actively harmful: see test_no_cryptography_is_bundled.
 	assert not set(names) & vendor.HOST_ONLY
 	# The same top-level name present in more than one root is the precondition
 	# for a namespace __path__ that spans both -- vendor.install() would then
@@ -382,8 +384,6 @@ def test_every_bundled_top_level_name_is_classified():
 
 def test_categories_do_not_overlap():
 	assert not (vendor.ISOLATED & vendor.HOST_ONLY)
-	assert not (vendor.ISOLATED & vendor.SHADOWED)
-	assert not (vendor.HOST_ONLY & vendor.SHADOWED)
 
 
 def test_category_sizes_and_spot_membership():
@@ -395,11 +395,9 @@ def test_category_sizes_and_spot_membership():
 	nothing here to catch it.
 	"""
 	assert len(vendor.ISOLATED) == 8
-	assert len(vendor.HOST_ONLY) == 8
-	assert len(vendor.SHADOWED) == 1
+	assert len(vendor.HOST_ONLY) == 9
 	assert {"coseeing_auth", "authlib", "joserfc", "jwt"} <= vendor.ISOLATED
-	assert {"requests", "_cffi_backend"} <= vendor.HOST_ONLY
-	assert vendor.SHADOWED == {"cryptography"}
+	assert {"requests", "_cffi_backend", "cryptography"} <= vendor.HOST_ONLY
 
 
 def test_gapfill_skips_a_module_the_host_already_provides(tmp_path):
@@ -820,212 +818,264 @@ def test_plugin_entry_point_installs_the_sandbox_before_importing_coseeing_auth(
 	assert install_index < hanzidentifier_import_index
 
 
+
+
+# --- cryptography: the host's copy, with the files py2exe left out filled in ---
+
+# The six files NVDA's py2exe build leaves out of library.zip, pinned to the
+# cryptography 48.0.1 wheel they are copied from verbatim (each digest matches
+# that wheel's RECORD). 48.0.1 rather than a newer release because its
+# keywrap.py is pure Python over Cipher/AES/ECB, while 50.x's calls
+# `_rust.openssl.keywrap`, which a 48.x host does not have; the other five are
+# byte-identical across 48.0.1, 50.0.0 and 50.0.1.
+_CRYPTOGRAPHY_GAPFILL_SHA256 = {
+	"cryptography/hazmat/primitives/kdf/__init__.py": "bf7ca2601194dbbd84a233576f07d865d6db7c8f5c54e0821b79d78530dd6b79",
+	"cryptography/hazmat/primitives/kdf/concatkdf.py": "0459ce292ef6b71285d3242f012af435aeee873bcb1e95027242b988d002fda4",
+	"cryptography/hazmat/primitives/kdf/hkdf.py": "33494011f468738929a78fa7c038fdc81faf359ba420e60442b5255ac04d9fda",
+	"cryptography/hazmat/primitives/kdf/pbkdf2.py": "5dc86493df6cf8c93a6fa2920a8baa764f0557288d54e48521e9e69d6ded2e04",
+	"cryptography/hazmat/primitives/keywrap.py": "508fb4504490c415d3294d47aeb4685300e216cad689ff35ab25e55757bb9326",
+	"cryptography/hazmat/primitives/padding.py": "413f94f8dbd5d9e4063b5c153db0e234635273d91e4434be8a0e5c40eacbcf41",
+}
+
+
 @pytest.fixture
-def shadow_root(tmp_path):
-	"""A package that exists in our roots, plus one that only the host has."""
-	ours = tmp_path / "shadowme"
-	ours.mkdir()
-	(ours / "__init__.py").write_text("ORIGIN = 'bundle'\n", encoding="utf8")
-	(ours / "inner.py").write_text("VALUE = 'bundle-inner'\n", encoding="utf8")
+def host_gap_root(tmp_path):
+	"""A fake host package with one submodule present and the rest missing,
+	plus a gap-fill directory that carries copies of all of them."""
+	host = tmp_path / "host"
+	(host / "wbhost").mkdir(parents=True)
+	(host / "wbhost" / "__init__.py").write_text("", encoding="utf8")
+	(host / "wbhost" / "present.py").write_text("ORIGIN = 'host'\n", encoding="utf8")
+
+	gap = tmp_path / "package" / vendor.CRYPTOGRAPHY_GAPFILL_DIRNAME / "wbhost"
+	(gap / "sub").mkdir(parents=True)
+	(gap / "present.py").write_text("ORIGIN = 'gapfill'\n", encoding="utf8")
+	(gap / "absent.py").write_text("ORIGIN = 'gapfill'\n", encoding="utf8")
+	(gap / "sub" / "__init__.py").write_text("ORIGIN = 'gapfill'\n", encoding="utf8")
+	(gap / "sub" / "leaf.py").write_text("ORIGIN = 'gapfill-leaf'\n", encoding="utf8")
 	return tmp_path
 
 
 @pytest.fixture
-def install_shadow():
-	"""Install a disposable shadow, then put sys.modules and meta_path back."""
+def install_host_gapfill(host_gap_root, monkeypatch):
+	"""Install a disposable gap-fill over the fake host, then undo it."""
+	monkeypatch.syspath_prepend(str(host_gap_root / "host"))
 	before = dict(sys.modules)
-	yield vendor.install_shadowed
-	sys.meta_path[:] = [
-		finder for finder in sys.meta_path if not isinstance(finder, vendor._ShadowFinder)
-	]
+	meta_before = list(sys.meta_path)
+	names = frozenset({"wbhost.present", "wbhost.absent", "wbhost.sub", "wbhost.sub.leaf"})
+
+	def install():
+		return vendor.install_cryptography_gapfill(host_gap_root / "package", names=names)
+
+	yield install
+	sys.meta_path[:] = meta_before
 	for name in set(sys.modules) - set(before):
 		del sys.modules[name]
-	sys.modules.update(before)
 
 
-def test_cryptography_is_shadowed_rather_than_prefixed():
-	"""The one package a private prefix cannot isolate.
+def test_cryptography_comes_from_the_host():
+	"""Regression for NVDA Remote's "Get external IP" hanging forever.
 
-	`cryptography`'s `_rust` extension resolves Python types by ABSOLUTE module
-	name through a C-level import that never sees the sandbox's `__import__`,
-	so a copy loaded as `_wb_vendor.cryptography` type-checks its own
-	`hashes.SHA256()` against whatever is registered as
-	`cryptography.hazmat.primitives.hashes` -- the host's copy, or nothing.
-	Measured on NVDA 2026 (cryptography 48.0.1 in library.zip): RS256
-	verification died with `TypeError: Expected instance of
-	hashes.HashAlgorithm` in PyJWT's `algorithms.py`.
+	NVDA imports its own cryptography before any add-on loads
+	(bdDetect -> handyTech -> globalCommands -> _remoteClient.server), and
+	_remoteClient.server keeps those module objects. Replacing the canonical
+	name with a second copy -- what install_shadowed() did -- made the host's
+	`_rust` type-check NVDA's own `hashes.SHA256()` against our classes, so
+	LocalRelayServer's certificate generation raised TypeError outside the
+	portcheck thread's try block and the progress dialog never closed.
 	"""
-	assert "cryptography" in vendor.SHADOWED
+	assert "cryptography" in vendor.HOST_ONLY
 	assert "cryptography" not in vendor.ISOLATED
-	assert "cryptography" not in vendor.HOST_ONLY
+	assert not hasattr(vendor, "SHADOWED")
+	assert not hasattr(vendor, "install_shadowed")
 
 
-def test_a_shadowed_name_is_delegated_by_the_sandbox_import(recording_import):
-	"""A shadowed name must NOT be rewritten to the prefix: the whole point is
-	that it answers to its canonical name."""
-	sandbox_import = _make_sandbox_import("_wb_t6", vendor.ISOLATED, recording_import)
-	sandbox_import("cryptography.hazmat.primitives", fromlist=("hashes",))
-	assert [(call[0], call[3]) for call in recording_import.calls] == [
-		("cryptography.hazmat.primitives", ("hashes",)),
-	]
+def test_no_cryptography_is_bundled():
+	for root in [PACKAGE_ROOT, *sorted((PACKAGE_ROOT / "_coseeing_auth_deps").glob("*"))]:
+		assert not (root / "cryptography").exists(), root
+		assert not list(root.glob("cryptography-*.dist-info")), root
 
 
-def test_install_shadowed_resolves_the_name_from_our_roots(shadow_root, install_shadow):
-	shadowed, evicted, skipped = install_shadow([str(shadow_root)], shadowed={"shadowme"})
-	assert (shadowed, evicted, skipped) == (["shadowme"], [], [])
-	module = importlib.import_module("shadowme")
-	assert module.ORIGIN == "bundle"
-	# Submodules resolve through the parent's __path__, so they land in our
-	# copy too without the finder having to answer for them.
-	assert importlib.import_module("shadowme.inner").VALUE == "bundle-inner"
+def test_the_cryptography_gapfill_ships_verbatim():
+	root = PACKAGE_ROOT / vendor.CRYPTOGRAPHY_GAPFILL_DIRNAME
+	shipped = {
+		path.relative_to(root).as_posix()
+		for path in root.rglob("*.py")
+		if "__pycache__" not in path.parts
+	}
+	assert shipped == set(_CRYPTOGRAPHY_GAPFILL_SHA256)
+	for relative, expected in _CRYPTOGRAPHY_GAPFILL_SHA256.items():
+		normalized = (root / relative).read_bytes().replace(b"\r\n", b"\n")
+		assert hashlib.sha256(normalized).hexdigest() == expected, relative
+	for license_name in ("LICENSE", "LICENSE.APACHE", "LICENSE.BSD"):
+		assert (root / license_name).is_file(), license_name
 
 
-def test_install_shadowed_evicts_a_host_copy_already_loaded(shadow_root, install_shadow):
-	host = types.ModuleType("shadowme")
-	host.ORIGIN = "host"
-	host.__file__ = "/somewhere/else/shadowme/__init__.py"
-	sys.modules["shadowme"] = host
-	sys.modules["shadowme.inner"] = types.ModuleType("shadowme.inner")
-
-	shadowed, evicted, skipped = install_shadow([str(shadow_root)], shadowed={"shadowme"})
-
-	assert shadowed == ["shadowme"]
-	assert evicted == ["shadowme", "shadowme.inner"]
-	assert importlib.import_module("shadowme").ORIGIN == "bundle"
+def test_the_default_gapfill_names_match_the_shipped_files():
+	expected = {
+		relative[: -len("/__init__.py")] if relative.endswith("/__init__.py") else relative[: -len(".py")]
+		for relative in _CRYPTOGRAPHY_GAPFILL_SHA256
+	}
+	assert vendor.CRYPTOGRAPHY_GAPFILL == {name.replace("/", ".") for name in expected}
 
 
-def test_install_shadowed_leaves_our_own_copy_loaded(shadow_root, install_shadow):
-	"""Evicting our own copy on a second call would load it a SECOND time --
-	the very duplicate-instance state this exists to prevent."""
-	install_shadow([str(shadow_root)], shadowed={"shadowme"})
-	first = importlib.import_module("shadowme")
-
-	shadowed, evicted, skipped = install_shadow([str(shadow_root)], shadowed={"shadowme"})
-
-	assert evicted == []
-	assert sys.modules["shadowme"] is first
+def test_gapfill_serves_a_module_the_host_lacks(install_host_gapfill):
+	assert install_host_gapfill() is True
+	assert importlib.import_module("wbhost.absent").ORIGIN == "gapfill"
 
 
-def test_install_shadowed_skips_a_name_the_bundle_does_not_have(shadow_root, install_shadow):
-	"""Off-Windows, or with the runtime bundle absent, there is nothing to
-	shadow WITH -- so the host's copy must be left exactly as it was rather
-	than evicted and then unresolvable."""
-	host = types.ModuleType("absentee")
-	host.ORIGIN = "host"
-	sys.modules["absentee"] = host
-
-	shadowed, evicted, skipped = install_shadow([str(shadow_root)], shadowed={"absentee"})
-
-	assert (shadowed, evicted, skipped) == ([], [], ["absentee"])
-	assert sys.modules["absentee"] is host
-	assert not [f for f in sys.meta_path if isinstance(f, vendor._ShadowFinder)]
+def test_gapfill_never_replaces_a_module_the_host_has(install_host_gapfill):
+	install_host_gapfill()
+	assert importlib.import_module("wbhost.present").ORIGIN == "host"
 
 
-def test_shadow_finder_declines_every_other_name(shadow_root, install_shadow):
-	install_shadow([str(shadow_root)], shadowed={"shadowme"})
-	finder = next(f for f in sys.meta_path if isinstance(f, vendor._ShadowFinder))
+def test_gapfill_serves_a_missing_subpackage_and_its_children(install_host_gapfill):
+	install_host_gapfill()
+	assert importlib.import_module("wbhost.sub").ORIGIN == "gapfill"
+	assert importlib.import_module("wbhost.sub.leaf").ORIGIN == "gapfill-leaf"
+
+
+def test_gapfill_evicts_nothing(install_host_gapfill):
+	host = importlib.import_module("wbhost")
+	present = importlib.import_module("wbhost.present")
+	modules_before = dict(sys.modules)
+
+	install_host_gapfill()
+
+	assert dict(sys.modules) == modules_before
+	assert sys.modules["wbhost"] is host
+	assert sys.modules["wbhost.present"] is present
+
+
+def test_gapfill_finder_runs_last_and_declines_every_other_name(install_host_gapfill):
+	"""Appended, not inserted: it is only ever asked after every host finder
+	has already come up empty, so it cannot outrank the host by construction."""
+	install_host_gapfill()
+	finder = sys.meta_path[-1]
+	assert isinstance(finder, vendor._GapFillFinder)
 	assert finder.find_spec("json") is None
-	assert finder.find_spec("shadowme.inner") is None  # parent __path__ handles it
-	assert finder.find_spec("shadowmenot") is None
+	assert finder.find_spec("wbhost") is None
+	assert finder.find_spec("wbhost.absentnot") is None
 
 
-def test_install_shadowed_inserts_exactly_one_finder(shadow_root, install_shadow):
-	install_shadow([str(shadow_root)], shadowed={"shadowme"})
-	install_shadow([str(shadow_root)], shadowed={"shadowme"})
-	assert len([f for f in sys.meta_path if isinstance(f, vendor._ShadowFinder)]) == 1
+def test_gapfill_inserts_exactly_one_finder(install_host_gapfill):
+	install_host_gapfill()
+	install_host_gapfill()
+	assert len([f for f in sys.meta_path if isinstance(f, vendor._GapFillFinder)]) == 1
 
 
-def test_install_shadowed_never_raises_on_an_unusable_root(install_shadow):
-	shadowed, evicted, skipped = install_shadow(["/nonexistent/root"], shadowed={"shadowme"})
-	assert (shadowed, evicted) == ([], [])
-	assert skipped == ["shadowme"]
+def test_gapfill_is_a_no_op_without_its_directory(tmp_path):
+	meta_before = list(sys.meta_path)
+	assert vendor.install_cryptography_gapfill(tmp_path) is False
+	assert sys.meta_path == meta_before
 
 
-def test_the_bundled_cryptography_is_reachable_under_its_canonical_name():
-	"""Structural gate: whatever runtime bundles exist must carry cryptography
-	where install_shadowed() looks for it, or the shadow silently stands down
-	and login breaks again exactly as it did on NVDA."""
-	deps_root = PACKAGE_ROOT / "_coseeing_auth_deps"
-	runtimes = sorted(entry for entry in deps_root.glob("*") if entry.is_dir())
-	assert runtimes, "no runtime bundle to check"
-	for runtime in runtimes:
-		roots = vendor.default_roots(PACKAGE_ROOT)
-		assert (runtime / "cryptography" / "__init__.py").is_file(), runtime.name
-		assert str(runtime) in roots or sys.platform != "win32"
+def test_gapfill_never_raises(monkeypatch, tmp_path):
+	(tmp_path / vendor.CRYPTOGRAPHY_GAPFILL_DIRNAME).mkdir()
+	meta_before = list(sys.meta_path)
+
+	class Exploding(list):
+		def append(self, item):
+			raise RuntimeError("boom")
+
+	monkeypatch.setattr(sys, "meta_path", Exploding(meta_before))
+	assert vendor.install_cryptography_gapfill(tmp_path) is False
 
 
-def test_the_prefix_refuses_a_shadowed_package(sandbox_root, install_sandbox):
-	"""Importing a SHADOWED name under the prefix would build the second
-	instance the shadow exists to prevent, so the finder refuses it outright
-	even though the bytes are sitting on its roots."""
-	crypto = sandbox_root / "cryptography"
-	crypto.mkdir()
-	(crypto / "__init__.py").write_text("VALUE = 'prefixed'\n", encoding="utf8")
-	install_sandbox([str(sandbox_root)], "_wb_t7", {"alpha"})
+def test_nvda_remote_certificate_survives_coseeing_auth_loading(tmp_path):
+	"""End-to-end regression on a real cryptography standing in for NVDA's.
 
-	with pytest.raises(ModuleNotFoundError, match="shadowed under its canonical name"):
-		importlib.import_module("_wb_t7.cryptography")
-
-
-def test_rs256_verification_survives_a_host_cryptography_already_loaded(tmp_path):
-	"""Regression for the NVDA 2026 Coseeing login failure.
-
-	The add-on loads into a process where NVDA has already imported its own
-	`cryptography`. With our copy behind the `_wb_vendor` prefix, PyJWT's RS256
-	`verify` died with `TypeError: Expected instance of hashes.HashAlgorithm`:
-	`_rust` type-checks against whatever answers to the ABSOLUTE name
-	`cryptography.hazmat.primitives.hashes`, which was the host's copy.
-
-	Run in a subprocess because it deliberately loads the same extension twice
-	under two paths -- state the test process must not inherit. The host copy
-	is copied (not symlinked) so the second load is a genuinely separate
-	library, which is what makes the two instances distinguishable at all.
+	The host copy is trimmed the way py2exe trims it (the six gap-fill files
+	removed), NVDA's _remoteClient.server imports are replayed first, and only
+	then is the add-on's import setup run and the whole Coseeing auth stack
+	(authlib -> joserfc -> the gap-filled modules, plus PyJWT) imported.
+	Afterwards NVDA's own module objects must still be the registered ones,
+	and LocalRelayServer's certificate generation -- which raised TypeError
+	under install_shadowed() -- must succeed.
 	"""
 	host = pytest.importorskip("cryptography")
+	pytest.importorskip("requests")
 	runtimes = sorted(entry for entry in (PACKAGE_ROOT / "_coseeing_auth_deps").glob("*") if entry.is_dir())
-	assert runtimes, "no runtime bundle to take the vendored jwt from"
+	assert runtimes, "no runtime bundle to take authlib/joserfc/jwt from"
 
-	bundle = tmp_path / "bundle"
-	bundle.mkdir()
-	shutil.copytree(Path(host.__file__).parent, bundle / "cryptography")
-	(bundle / "jwt").symlink_to(runtimes[0] / "jwt")
+	trimmed = tmp_path / "host"
+	shutil.copytree(Path(host.__file__).parent, trimmed / "cryptography")
+	primitives = trimmed / "cryptography" / "hazmat" / "primitives"
+	shutil.rmtree(primitives / "kdf")
+	(primitives / "keywrap.py").unlink()
+	(primitives / "padding.py").unlink()
 
 	code = textwrap.dedent("""
-		import importlib, sys
-		addon_lib, bundle = sys.argv[1], sys.argv[2]
+		import datetime, importlib, importlib.util, sys
+		addon_lib, package, runtime, trimmed = sys.argv[1:5]
+		sys.path.insert(0, trimmed)
 
-		import cryptography.hazmat.primitives.asymmetric.rsa  # as NVDA does, first
-		host_hashes = importlib.import_module("cryptography.hazmat.primitives.hashes")
+		# NVDA startup: _remoteClient/server.py:40-43, before any add-on loads.
+		from cryptography import x509
+		from cryptography.hazmat.primitives import hashes, serialization
+		from cryptography.hazmat.primitives.asymmetric import rsa
+		from cryptography.x509.oid import NameOID
+		assert importlib.util.find_spec("cryptography.hazmat.primitives.padding") is None
+		host_modules = {n: m for n, m in sys.modules.items() if n.split(".")[0] == "cryptography"}
 
+		# Add-on load, in __init__.py's order.
 		sys.path.insert(0, addon_lib)
 		import vendor
-		vendor.install([bundle])
-		shadowed, evicted, skipped = vendor.install_shadowed([bundle], shadowed={"cryptography"})
-		assert shadowed == ["cryptography"], shadowed
-		assert skipped == [], skipped
-		assert evicted, "the host's already-loaded copy was not evicted"
+		vendor.install([package, runtime])
+		assert vendor.install_cryptography_gapfill(package) is True
 
+		auth = importlib.import_module("_wb_vendor.coseeing_auth")
 		jwt = importlib.import_module("_wb_vendor.jwt")
-		assert "_wb_vendor.cryptography" not in sys.modules
-		ours = sys.modules["cryptography"]
-		assert ours is not host_hashes, "canonical name still points at the host copy"
-		assert ours.__file__.startswith(bundle), ours.__file__
+		jwe = importlib.import_module("_wb_vendor.joserfc.jwe")
+		jwk = importlib.import_module("_wb_vendor.joserfc.jwk")
+		importlib.import_module("_wb_vendor.authlib.integrations.requests_client")
 
-		from cryptography.hazmat.primitives.asymmetric import rsa
+		for name, module in host_modules.items():
+			assert sys.modules[name] is module, "host module replaced: " + name
+		copies = [n for n, m in sys.modules.items()
+			if n.split(".")[0] == "cryptography" and runtime in (getattr(m, "__file__", None) or "")]
+		assert not copies, copies
+		for name in ("kdf", "kdf.concatkdf", "keywrap", "padding"):
+			module = sys.modules["cryptography.hazmat.primitives." + name]
+			assert module.__file__.startswith(package), (name, module.__file__)
+
+		# ID-token verification path.
 		key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-		token = jwt.encode({"sub": "s", "iss": "https://sso.example.org"}, key, algorithm="RS256")
-		claims = jwt.decode(token, key.public_key(), algorithms=["RS256"], issuer="https://sso.example.org")
-		assert claims["sub"] == "s", claims
+		token = jwt.encode({"sub": "s"}, key, algorithm="RS256")
+		assert jwt.decode(token, key.public_key(), algorithms=["RS256"])["sub"] == "s"
 
-		# The JWKS path coseeing_auth/verification.py actually takes.
-		numbers = key.public_key().public_numbers()
-		jwk = jwt.algorithms.RSAAlgorithm.to_jwk(rsa.RSAPublicNumbers(numbers.e, numbers.n).public_key())
-		rebuilt = jwt.algorithms.RSAAlgorithm.from_jwk(jwk)
-		assert jwt.decode(token, rebuilt, algorithms=["RS256"], issuer="https://sso.example.org")["sub"] == "s"
+		# joserfc on the gap-filled modules: keywrap, concatkdf, padding.
+		ec = jwk.ECKey.generate_key("P-256")
+		for alg, enc, k in (
+			("A128KW", "A128CBC-HS256", jwk.OctKey.generate_key(128)),
+			("ECDH-ES+A128KW", "A128GCM", ec),
+		):
+			sealed = jwe.encrypt_compact({"alg": alg, "enc": enc}, b"hi", k)
+			assert jwe.decrypt_compact(sealed, k).plaintext == b"hi", alg
+
+		# NVDA Remote: RemoteCertificateManager._generateSelfSignedCert.
+		private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+		name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "NVDA Remote Access Service")])
+		now = datetime.datetime.now(datetime.timezone.utc)
+		cert = (
+			x509.CertificateBuilder().subject_name(name).issuer_name(name)
+			.public_key(private.public_key()).serial_number(x509.random_serial_number())
+			.not_valid_before(now).not_valid_after(now + datetime.timedelta(days=365))
+			.sign(private, hashes.SHA256())
+		)
+		assert cert.fingerprint(hashes.SHA256())
+		private.private_bytes(
+			encoding=serialization.Encoding.PEM,
+			format=serialization.PrivateFormat.PKCS8,
+			encryption_algorithm=serialization.NoEncryption(),
+		)
 		print("ok")
 	""")
 	result = subprocess.run(
-		[sys.executable, "-c", code, str(ADDON_ROOT / "lib"), str(bundle)],
+		[
+			sys.executable, "-c", code,
+			str(ADDON_ROOT / "lib"), str(PACKAGE_ROOT), str(runtimes[0]), str(trimmed),
+		],
 		check=False, capture_output=True, text=True,
 	)
 	assert result.returncode == 0, f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"

@@ -38,10 +38,8 @@ def test_an_unmapped_failure_keeps_the_stage_it_happened_in():
 	"""
 	_run("""
 		import sys
-		# The runtime bundle also carries a Windows-only cryptography, which
-		# would shadow the host's the moment that directory goes on sys.path.
-		# Importing the host copy first pins the canonical name to it; every
-		# submodule then resolves through its __path__.
+		# cryptography is never bundled -- it comes from the host -- so this
+		# is the only copy; importing it first just makes that explicit.
 		import cryptography
 		sys.path.insert(0, sys.argv[2])  # the vendored authlib/jwt/joserfc
 		sys.path.insert(0, sys.argv[1])  # package/
@@ -60,10 +58,8 @@ def test_the_existing_stage_codes_are_unchanged():
 	"""The fix adds a stage; it must not renumber the ones already in use."""
 	_run("""
 		import sys
-		# The runtime bundle also carries a Windows-only cryptography, which
-		# would shadow the host's the moment that directory goes on sys.path.
-		# Importing the host copy first pins the canonical name to it; every
-		# submodule then resolves through its __path__.
+		# cryptography is never bundled -- it comes from the host -- so this
+		# is the only copy; importing it first just makes that explicit.
 		import cryptography
 		sys.path.insert(0, sys.argv[2])  # the vendored authlib/jwt/joserfc
 		sys.path.insert(0, sys.argv[1])  # package/

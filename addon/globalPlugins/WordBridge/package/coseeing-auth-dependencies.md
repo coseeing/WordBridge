@@ -10,22 +10,17 @@ The add-on supports the range declared in `buildVars.py`: NVDA 2026.1 through
 | PyJWT | 2.14.0 | `pyjwt-2.14.0-py3-none-any.whl` | MIT |
 | joserfc | 1.7.5 | `joserfc-1.7.5-py3-none-any.whl` | BSD-3-Clause |
 
-The CPython 3.13 x64 directory contains the package versions and pure Python
-wheels, with this runtime-specific native wheel:
+The CPython 3.13 x64 directory contains only those three pure Python wheels
+and their `.dist-info` metadata (installed versions and licenses). It has no
+native code.
 
-| Package | Wheel |
-| --- | --- |
-| cryptography | `cryptography-50.0.1-cp311-abi3-win_amd64.whl` |
-
-The package directory and `.dist-info` metadata contain the installed versions
-and license metadata. No Linux `.so` files are included.
-
-`requests`, `urllib3`, `certifi`, `idna`, `charset-normalizer`, `cffi`
-(with `_cffi_backend`) and `pycparser` are resolved by `pip` as dependencies
-of the packages above but are **not shipped**: they come from NVDA (see
-"must come from the host" below). Remove them after regenerating the bundle;
+`cryptography`, `requests`, `urllib3`, `certifi`, `idna`,
+`charset-normalizer`, `cffi` (with `_cffi_backend`) and `pycparser` are
+resolved by `pip` as dependencies of the packages above but are **not
+shipped**: they come from NVDA (see "must come from the host" below). Remove
+them after regenerating the bundle;
 `tests/test_vendor_sandbox.py::test_every_bundled_top_level_name_is_classified`
-fails if one is left behind.
+and `::test_no_cryptography_is_bundled` fail if one is left behind.
 
 The Windows import test runs the private `_wb_vendor` sandbox against the
 real bundle and asserts the contract in the table below: the nine "must come
@@ -58,13 +53,20 @@ modifying `sys.path` or `sys.modules`. See
 | Category | Members | Resolution |
 | --- | --- | --- |
 | stdlib NVDA removed | `secrets` | canonical name, registered only when the host lacks it, sources in `package/_stdlib_gapfill/` |
-| must come from us | `cryptography`, `authlib`, `joserfc`, `jwt`, `coseeing_auth`, `pypinyin`, `zhon`, `hanzidentifier`, `chinese_converter` | `_wb_vendor.*` only; never a global top-level name |
-| must come from the host | `requests`, `urllib3`, `certifi`, `idna`, `charset_normalizer`, `cffi`, `_cffi_backend`, `pycparser` | NVDA's copies only; not shipped in the bundle, and there is no fallback |
+| must come from us | `authlib`, `joserfc`, `jwt`, `coseeing_auth`, `pypinyin`, `zhon`, `hanzidentifier`, `chinese_converter` | `_wb_vendor.*` only; never a global top-level name |
+| must come from the host | `cryptography`, `requests`, `urllib3`, `certifi`, `idna`, `charset_normalizer`, `cffi`, `_cffi_backend`, `pycparser` | NVDA's copies only; not shipped in the bundle, and there is no fallback |
+| missing from the host's `cryptography` | `cryptography.hazmat.primitives.kdf{,.concatkdf,.hkdf,.pbkdf2}`, `.keywrap`, `.padding` | canonical name, served from `package/_cryptography_gapfill/` only when NVDA has no copy; never replaces or evicts a loaded module |
 
-`cryptography` needs isolating because NVDA ships a trimmed 48.0.1 that lacks
-the six modules `authlib`'s joserfc import pulls in:
-`hazmat.primitives.kdf{,.concatkdf,.hkdf,.pbkdf2}`, `hazmat.primitives.keywrap`
-and `hazmat.primitives.padding`.
+`cryptography` must never have a second copy in the NVDA process. Its `_rust`
+extension resolves Python classes by absolute module name, so two copies
+reject each other's objects with a `TypeError`. WordBridge 2026.9.1 shipped
+cryptography 50.0.1 and evicted NVDA's copy, and that broke NVDA Remote: the
+local relay server could not build its certificate, so "Get external IP" hung.
+
+NVDA's py2exe build leaves out the six modules that `authlib`'s joserfc import
+pulls in, but `_rust.pyd` still carries the symbols behind them. Those modules
+are gap-filled from the cryptography 48.0.1 wheel. See
+`package/_cryptography_gapfill/README.md`.
 
 Adding a package to this directory without adding it to a category list fails
 `tests/test_vendor_sandbox.py::test_every_bundled_top_level_name_is_classified`.

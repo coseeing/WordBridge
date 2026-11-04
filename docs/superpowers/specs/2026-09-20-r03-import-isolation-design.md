@@ -124,6 +124,25 @@ measures exactly that), they can be gap-filled under their canonical names the
 way `secrets` is, and the bundled cryptography — 11 MB, 9.5 MB of it `_rust.pyd`
 — dropped entirely.
 
+**Update 2026-11-04 — the follow-up is done, and it was not optional.** Shadowing
+broke NVDA itself. NVDA imports cryptography before any add-on loads
+(`bdDetect` → `handyTech` → `globalCommands` → `_remoteClient.server`), and
+`_remoteClient.server` keeps those module objects. Once our copy owned the
+canonical name, NVDA's `_rust` type-checked NVDA's own `hashes.SHA256()`
+against our classes. `RemoteCertificateManager._generateSelfSignedCert` then
+raised `TypeError` inside `LocalRelayServer.__init__`, which sits outside the
+`try` in `dialogs.doPortcheck`, so the remote dialog's "Get external IP" hung
+forever. WordBridge 2026.9.1 already did this through its `del sys.modules`
+loop; `install_shadowed()` kept the same behaviour. The probe ran on NVDA with
+cryptography 50.0.0 and reported every needed symbol present. `SHADOWED` and
+`install_shadowed()` are removed, and `cryptography` is now `HOST_ONLY`.
+`install_cryptography_gapfill()` serves the six files from the cryptography
+48.0.1 wheel through a finder appended to the end of `sys.meta_path`, so it
+answers only when NVDA has no copy of a file. 48.0.1 is used because its
+`keywrap.py` is pure Python; 50.x's needs a `_rust` symbol that 48.x lacks.
+See `package/_cryptography_gapfill/README.md` and the
+`test_nvda_remote_certificate_survives_coseeing_auth_loading` regression test.
+
 ### Withdrawn finding
 
 `review-claude-2.md` T2 requirement 1 — "delete `package/secrets.py` (Python 3.6+

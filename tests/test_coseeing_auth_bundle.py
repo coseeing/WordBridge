@@ -16,14 +16,15 @@ PACKAGE_ROOT = (
 )
 RUNTIME_BUNDLES = {
 	"py313-win_amd64": {
-		"cryptography/hazmat/bindings/_rust.pyd",
+		"authlib/__init__.py",
+		"joserfc/__init__.py",
+		"jwt/__init__.py",
 	},
 }
 EXPECTED_PACKAGE_VERSIONS = {
 	"Authlib": "1.8.0",
 	"PyJWT": "2.14.0",
 	"joserfc": "1.7.5",
-	"cryptography": "50.0.1",
 }
 
 
@@ -126,12 +127,17 @@ assert Path(coseeing_auth.__file__).resolve().is_relative_to(bundle)
 		)
 
 
-def test_runtime_bundles_contain_native_backend_for_each_supported_runtime():
-	for runtime, native_files in RUNTIME_BUNDLES.items():
+def test_runtime_bundles_contain_the_auth_packages_and_no_native_code():
+	"""cryptography -- the only native package the bundle ever carried -- now
+	comes from NVDA (see HOST_ONLY in lib/vendor.py), so the bundle is pure
+	Python; a .pyd reappearing means a second native copy is back."""
+	for runtime, expected_files in RUNTIME_BUNDLES.items():
 		bundle = PACKAGE_ROOT / "_coseeing_auth_deps" / runtime
-		for relative_path in native_files:
+		for relative_path in expected_files:
 			assert (bundle / relative_path).is_file()
 		assert any(bundle.glob("*.dist-info/METADATA"))
+		assert not list(bundle.rglob("*.pyd")), runtime
+		assert not list(bundle.rglob("*.so")), runtime
 
 
 def test_runtime_bundle_contains_resolved_package_versions():
@@ -155,7 +161,6 @@ import sys
 import struct
 import os
 import builtins
-from importlib.machinery import ExtensionFileLoader
 from pathlib import Path
 
 bundle = Path(sys.argv[1]).resolve()
@@ -175,13 +180,12 @@ vendor.install(vendor.default_roots(bundle))
 # way to prove this call on a machine where it never has anything to do --
 # do not "fix" this with an assertion, it can only fail.
 vendor.install_stdlib_gapfill(bundle)
+assert vendor.install_cryptography_gapfill(bundle) is True
 
 import _wb_vendor.authlib
 import _wb_vendor.coseeing_auth
 import _wb_vendor.joserfc
 import _wb_vendor.jwt
-import _wb_vendor.cryptography
-import _wb_vendor.cryptography.hazmat.bindings._rust as wb_rust
 import _wb_vendor.pypinyin
 import _wb_vendor.zhon
 import _wb_vendor.hanzidentifier
@@ -192,7 +196,7 @@ from _wb_vendor.jwt.algorithms import RSAAlgorithm
 assert callable(OAuth2Session)
 assert callable(RSAAlgorithm)
 
-for name in ("authlib", "joserfc", "jwt", "cryptography"):
+for name in ("authlib", "joserfc", "jwt"):
     module = sys.modules["_wb_vendor." + name]
     assert Path(module.__file__).resolve().is_relative_to(deps), name
 for name in ("coseeing_auth", "pypinyin", "zhon", "hanzidentifier", "chinese_converter"):
@@ -253,15 +257,12 @@ for name, module in list(sys.modules.items()):
 # above, so this must never be zero on a healthy run.
 assert checked > 0
 
-# (b) cryptography/hazmat/bindings/_rust/ ships only .pyi stubs and has no
-# __init__.py, so it is a PEP 420 namespace portion unless the sibling
-# _rust.pyd shadows it -- which is only true because FileFinder prefers an
-# extension module over a namespace portion of the same name. That ordering
-# is unprovable off Windows; here it is proven for real, on the real
-# runtime. If it ever broke, _SandboxFinder would raise ModuleNotFoundError
-# for this name instead of the import quietly degrading.
-assert isinstance(wb_rust.__loader__, ExtensionFileLoader), type(wb_rust.__loader__)
-assert wb_rust.__spec__.origin.endswith(".pyd"), wb_rust.__spec__.origin
+# (b) cryptography is the host's: one copy, under its canonical name, from
+# outside the bundle -- never a second one under the prefix.
+import cryptography
+
+assert "_wb_vendor.cryptography" not in sys.modules
+assert not Path(cryptography.__file__).resolve().is_relative_to(bundle)
 """
 	result = subprocess.run(
 		[sys.executable, "-I", "-c", code, str(bundle)],
