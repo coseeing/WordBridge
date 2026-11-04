@@ -423,3 +423,10 @@ Linux 上只驗了注入的邊界（假的 scheduler、假的 `winUser.sendMessa
 | `msgfmt --check` | 通過 |
 
 附註：修 m4 之前確認 U10／U11 存活的那兩次突變執行，誤把 `tests` 整個傳進去，收進了 `tests/test_integration_*`；24 個整合測試全部在 credentials fixture 因為沒有 `TEST_*_API_KEY` 而 skip，沒有呼叫任何 provider。其餘每次執行都帶了 `--ignore-glob`。pytest 一律單一 worker，MemAvailable 全程高於 4.3 GB；沒有留下背景程序。
+
+### 修正 review（Opus 5.5，2026-11-04）
+
+- 範圍 `792a966..2ab3c1c`（11 個 commit）。I1、m1–m7 都確實修好：在拋棄式 worktree 把各修正 commit 的 `addon/` 變更反向套用（測試保留 HEAD 的），對應的新測試都失敗（I1 2 個；m1、m2、m3、m5 各 1 個；m6 8 個）；m7 先裝一個失敗狀態的 updater 再跑，兩個 `[no-updater]` 列拿掉 `uninstall()` 都會失敗。I1 另用 7 個探針確認 C22、D12（未解析的 stored，以及套用後被下一份清單拿掉的選擇）、R13 金鑰、套用後取消、延後重建期間按套用、連按兩次套用都正常。
+- 突變：在拋棄式 worktree 重跑審閱者的 233 個突變（`b3/mut.py`、`mut_b2.py`、`mutants_crv1.py`、`fable_mut*.py`），先前殺掉的沒有一個存活，U10、U11 現在被殺；被這輪修正改到原文的 10 個（D19、U05、R19、R20、R04、R06、L01、L02、L15、M15）改寫成新程式碼的版本後全部被殺，S18 的突變形式現在就是正式程式碼，改用「舊順序」突變驗證（被殺）。另做 20 個針對修正的突變，只有 1 個存活（下面第 (1) 條）。
+- 驗證：附加元件 1048 passed、1 skipped；伺服器 103 passed；`prek` Passed；`git diff --check 792a966..HEAD` 乾淨；`msgfmt --check` 通過；本分支動到的 20 條 `#:` 都指到正確行號；NVDA 2026.1 有 `MessageDialog`、`DialogType.ERROR`、`DefaultButton.OK`，`MessageDialog.alert()` 本身就是同一個呼叫，只是沒有 `dialogType`。Ruling 1–5 都合理。
+- 沒有新的 Critical 或 Important。新的 Minor 有兩條，修正前就存在：(1) `_onTest` 在網址無效的錯誤之後把焦點放回欄位（`catalog_url_dialog.py:140`），沒有測試釘住，這個突變在 `792a966` 也存活；(2) `refresh()` 的 `_start_thread` 丟例外時，updater 停在 `running`，沒有 thread 也沒有重試 timer（`catalog_updater.py:268-287`）。m1 之後面板打得開，但狀態列會一直顯示「仍在載入」，之後開面板也不會重試。
