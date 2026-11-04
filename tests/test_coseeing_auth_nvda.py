@@ -276,6 +276,9 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 		def _sendLayoutUpdatedEvent(self):
 			self._count("layout_events")
 
+		def Layout(self):
+			self._count("layout_calls")
+
 		def GetChildren(self):
 			return list(self.__dict__.get("children", []))
 

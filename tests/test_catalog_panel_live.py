@@ -141,6 +141,48 @@ def test_one_update_is_applied_in_one_freeze_with_at_most_one_layout_event(monke
 	assert (panel.freeze_count, panel.thaw_count) == (1, 1)
 
 
+def test_a_hidden_panel_sends_no_layout_event_and_lays_out_when_activated(monkeypatch):
+	# Batch-2 review I1: NVDA lays out and re-scrolls the container all
+	# categories share, so an event from the hidden WordBridge panel would
+	# scroll the category the user is reading back to the top.
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
+	f.box["catalog"] = _bundled_only(f)
+	panel = f.make_panel()
+	panel.shown = False
+
+	set_status(f, "none", "failed")
+	f.fake.emit(change(f))
+	set_status(f, "fetched", "succeeded")
+	rebuild_with(f, panel, _shipped(f))
+	assert _shown_boxes(panel) == ["OpenAI"]
+	assert getattr(panel, "layout_events", 0) == 0
+	assert getattr(panel, "layout_calls", 0) == 0
+
+	panel.onPanelActivated()
+	assert panel.shown is True
+	assert panel.layout_calls == 1
+	panel.onPanelActivated()
+	assert panel.layout_calls == 1
+
+	set_status(f, "none", "failed")
+	f.fake.emit(change(f))
+	assert panel.layout_events == 1
+
+
+def test_a_hidden_panel_retrying_with_the_cache_sends_no_layout_event(monkeypatch):
+	# The reviewer's probe: two layout events per retry while hidden.
+	f = live_fixture(monkeypatch)
+	set_status(f, "cache", "failed")
+	panel = f.make_panel()
+	panel.shown = False
+
+	for source, fetch, outcome in [("cache", "running", None), ("cache", "failed", "failed")] * 2:
+		set_status(f, source, fetch)
+		f.fake.emit(change(f, False, outcome))
+
+	assert getattr(panel, "layout_events", 0) == 0
+
+
 def test_a_destroy_event_from_a_child_keeps_the_listener(monkeypatch):
 	f = live_fixture(monkeypatch)
 	panel = f.make_panel()

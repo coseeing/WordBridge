@@ -309,6 +309,7 @@ class LLMSettingsPanel(SettingsPanel):
 		self._pendingRebuild = False
 		self._pendingAnnouncement = None
 		self._deferTimer = None
+		self._layoutPending = False
 		catalog_updater.add_listener(self._onCatalogChange)
 		# Destroy events bubble up from child windows, see _onPanelDestroy.
 		self.Bind(wx.EVT_WINDOW_DESTROY, self._onPanelDestroy)
@@ -358,7 +359,27 @@ class LLMSettingsPanel(SettingsPanel):
 		finally:
 			self.Thaw()
 		if layoutChanged:
+			self._requestLayout()
+
+	def _requestLayout(self) -> None:
+		"""A layout event now, or a layout when the panel is shown again.
+
+		NVDA answers the event by laying out and re-scrolling the container
+		every category shares (gui/settingsDialogs.py:722-728), so one sent
+		while another category is shown would scroll that category back to
+		the top (batch-2 review I1)."""
+		if self.IsShown():
 			self._sendLayoutUpdatedEvent()
+		else:
+			self._layoutPending = True
+
+	def onPanelActivated(self):
+		super().onPanelActivated()
+		# NVDA lays out the container on the switch back (_doCategoryChange);
+		# the panel's own sizer only needs the layout a hidden update skipped.
+		if getattr(self, "_layoutPending", False):
+			self._layoutPending = False
+			self.Layout()
 
 	def _rebuild(self) -> bool:
 		"""Replace the choices for the live catalog; True when the set of shown
