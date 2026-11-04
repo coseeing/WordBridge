@@ -22,8 +22,9 @@ LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 MAX_PAYLOAD_BYTES = 1_048_576
 # (connect, read) seconds, as requests takes them.
 FETCH_TIMEOUT = (5, 10)
-# Checked between chunks, so a server dripping bytes cannot hold the fetch
-# thread for long.
+# Checked after every socket read (catalog_updater reads with raw.read1()),
+# so a server dripping bytes holds the fetch thread for at most this plus one
+# read timeout.
 FETCH_DEADLINE_SECONDS = 20
 CHUNK_BYTES = 65536
 

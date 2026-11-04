@@ -19,6 +19,7 @@ from lib.catalog.remote import ProviderUrlRule, parse_remote_payload
 from lib.catalog.selection import SelectionState
 from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
+from fake_http import BodyResponse
 from plugin_modules import load_plugin_module
 from shipped_catalog import ADDON_SETTING_DIR, SERVER_CATALOG_PATH, bundled_document, server_document
 
@@ -35,25 +36,8 @@ class InMemorySource:
 		return self.document, self.issues
 
 
-class FakeResponse:
-	def __init__(self, body):
-		self.status_code = 200
-		self.headers = {"Content-Length": str(len(body))}
-		self.body = body
-
-	def __enter__(self):
-		return self
-
-	def __exit__(self, *exc):
-		return False
-
-	def iter_content(self, chunk_size):
-		for start in range(0, len(self.body), chunk_size):
-			yield self.body[start:start + chunk_size]
-
-
 def _serve(body):
-	return lambda url, **kwargs: FakeResponse(body)
+	return lambda url, **kwargs: BodyResponse(body)
 
 
 def fetched_catalog(body: bytes):

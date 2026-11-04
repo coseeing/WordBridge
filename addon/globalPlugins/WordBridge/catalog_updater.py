@@ -72,14 +72,24 @@ def fetch_payload(url: str, *, http_get, clock=time.monotonic) -> FetchResult:
 			declared = _declared_length(response.headers)
 			if declared is not None and declared > MAX_PAYLOAD_BYTES:
 				return _failed("remote_too_large", f"limit {MAX_PAYLOAD_BYTES}")
+			# raw.read1() returns as soon as one socket read delivers data
+			# (b"" only at the end of the body), so the deadline is checked
+			# after every read. iter_content() would not do: on a
+			# Content-Length or close-delimited body each of its chunks waits
+			# for CHUNK_BYTES bytes or EOF, so a server sending one byte every
+			# few seconds never trips the deadline and holds this thread for
+			# as long as it likes. decode_content matches iter_content().
+			read1 = response.raw.read1
 			chunks = []
 			total = 0
-			for chunk in response.iter_content(CHUNK_BYTES):
-				if chunk:
-					total += len(chunk)
-					if total > MAX_PAYLOAD_BYTES:
-						return _failed("remote_too_large", f"limit {MAX_PAYLOAD_BYTES}")
-					chunks.append(chunk)
+			while True:
+				chunk = read1(CHUNK_BYTES, decode_content=True)
+				if not chunk:
+					break
+				total += len(chunk)
+				if total > MAX_PAYLOAD_BYTES:
+					return _failed("remote_too_large", f"limit {MAX_PAYLOAD_BYTES}")
+				chunks.append(chunk)
 				if past_deadline():
 					return _failed("remote_timeout", f"deadline {FETCH_DEADLINE_SECONDS}s")
 			return FetchResult(body=b"".join(chunks), issue=None)

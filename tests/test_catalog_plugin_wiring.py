@@ -151,20 +151,9 @@ def test_a_posted_fetch_result_is_installed_on_the_ui_queue(monkeypatch):
 	document["models"] = document["models"][:1]
 	body = json.dumps(document).encode("utf8")
 
-	class Response:
-		status_code = 200
-		headers = {}
+	from fake_http import BodyResponse
 
-		def __enter__(self):
-			return self
-
-		def __exit__(self, *exc):
-			return False
-
-		def iter_content(self, chunk_size):
-			yield body
-
-	instance._catalog_updater._http_get = lambda url, **kwargs: Response()
+	instance._catalog_updater._http_get = lambda url, **kwargs: BodyResponse(body)
 	queued.clear()
 	instance._start_catalog_fetch()
 	target, args = plugin.started_catalog_threads[0]

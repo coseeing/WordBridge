@@ -3,6 +3,7 @@ import threading
 
 import pytest
 
+from fake_http import BodyResponse
 from plugin_modules import load_plugin_module
 
 
@@ -33,20 +34,8 @@ class BundledSentinel:
 		return {"schema_version": 1, "coseeings": [{"model": "default", "label": "default"}]}, ()
 
 
-class FakeResponse:
-	def __init__(self, status_code=200, body=b""):
-		self.status_code = status_code
-		self.headers = {}
-		self.body = body
-
-	def __enter__(self):
-		return self
-
-	def __exit__(self, *exc):
-		return False
-
-	def iter_content(self, chunk_size):
-		yield self.body
+def FakeResponse(status_code=200, body=b""):
+	return BodyResponse(body, status_code=status_code, headers={})
 
 
 class FakeThread:
@@ -117,7 +106,8 @@ class Harness:
 		response = self.responses[url]
 		if isinstance(response, Exception):
 			raise response
-		return response
+		# A streamed body can be read once; every request gets its own.
+		return response.fresh()
 
 	def start_thread(self, target, args):
 		thread = FakeThread(target, args)

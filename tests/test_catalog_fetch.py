@@ -9,18 +9,50 @@ LIMIT = 1_048_576
 CHUNK = 65536
 
 
+class FakeRaw:
+	"""urllib3's HTTPResponse as requests exposes it on response.raw.
+
+	read1() returns what one socket read delivered -- here, the next chunk --
+	and b"" at the end of the body, which is what lets the fetch check its
+	deadline after every read however slowly a server sends.
+	"""
+
+	def __init__(self, response):
+		self.response = response
+
+	def read1(self, amt, decode_content=False):
+		response = self.response
+		response.iterated = True
+		response.chunk_sizes.append(amt)
+		response.decode_flags.append(decode_content)
+		index = response.consumed
+		if index >= len(response.chunks):
+			return b""
+		if response.raise_on_iter is not None and index == 1:
+			raise response.raise_on_iter
+		if index in response.tick_at:
+			response.clock.now += response.tick_at[index]
+		if response.drip_seconds:
+			response.clock.now += response.drip_seconds
+		response.consumed += 1
+		return response.chunks[index]
+
+
 class FakeResponse:
-	def __init__(self, status_code=200, headers=None, chunks=(), raise_on_iter=None, clock=None, tick_at=None):
+	def __init__(self, status_code=200, headers=None, chunks=(), raise_on_iter=None, clock=None, tick_at=None, drip_seconds=0):
 		self.status_code = status_code
 		self.headers = headers if headers is not None else {}
 		self.chunks = list(chunks)
 		self.raise_on_iter = raise_on_iter
 		self.clock = clock
 		self.tick_at = tick_at or {}
+		self.drip_seconds = drip_seconds
 		self.closed = False
 		self.iterated = False
 		self.consumed = 0
 		self.chunk_sizes = []
+		self.decode_flags = []
+		self.raw = FakeRaw(self)
 
 	def __enter__(self):
 		return self
@@ -30,15 +62,20 @@ class FakeResponse:
 		return False
 
 	def iter_content(self, chunk_size):
-		self.iterated = True
-		self.chunk_sizes.append(chunk_size)
-		for index, chunk in enumerate(self.chunks):
-			if self.raise_on_iter is not None and index == 1:
-				raise self.raise_on_iter
-			if index in self.tick_at:
-				self.clock.now += self.tick_at[index]
-			self.consumed += 1
-			yield chunk
+		"""What requests' iter_content does on a Content-Length or
+		close-delimited body: each item waits for chunk_size bytes or the end
+		of the body, so a slow server's gaps add up inside one item.
+		"""
+		while True:
+			buffered = b""
+			while len(buffered) < chunk_size:
+				piece = self.raw.read1(chunk_size - len(buffered), decode_content=True)
+				if not piece:
+					break
+				buffered += piece
+			if not buffered:
+				return
+			yield buffered
 
 
 class FakeClock:
@@ -78,7 +115,7 @@ def test_status_200_returns_the_body():
 
 	assert result.body == b"abcd"
 	assert result.issue is None
-	assert response.chunk_sizes == [CHUNK]
+	assert set(response.chunk_sizes) == {CHUNK}
 
 
 @pytest.mark.parametrize("status", [301, 304, 404, 500])
@@ -148,6 +185,7 @@ def test_a_slow_connect_counts_toward_the_deadline():
 
 	assert result.issue.code == "remote_timeout"
 	assert response.closed is True
+	assert response.iterated is False
 
 
 def test_an_exception_from_http_get_gives_request_failed_with_the_type_only():
@@ -195,5 +233,38 @@ def test_unusable_content_length_falls_back_to_the_streamed_limit(length):
 	assert big.consumed == 17
 
 
-def test_empty_keepalive_chunks_are_skipped():
-	assert _fetch(FakeResponse(chunks=[b"", b"{}", b""])).body == b"{}"
+def test_an_empty_read_ends_the_body():
+	# raw.read1() returns b"" only at the end of the body.
+	response = FakeResponse(chunks=[b"{}", b"", b"never read"])
+
+	assert _fetch(response).body == b"{}"
+	assert response.consumed == 2  # the data, then the empty end-of-body read
+
+
+@pytest.mark.parametrize("headers", [
+	{"Content-Length": "100000"},
+	{},
+	{"Transfer-Encoding": "chunked"},
+], ids=["content-length", "close-delimited", "chunked"])
+def test_a_dripping_server_times_out_at_the_deadline(headers):
+	# One byte per read, 0.4 s apart: every gap is far below the 10 s socket
+	# read timeout, so only the overall deadline can stop it.
+	clock = FakeClock()
+	start = clock.now
+	response = FakeResponse(headers=headers, chunks=[b"a"] * 100000, clock=clock, drip_seconds=0.4)
+
+	result = _fetch(response, clock=clock)
+
+	assert (result.issue.code, result.issue.detail) == ("remote_timeout", "deadline 20s")
+	# The deadline is checked after every read: never more than one read
+	# past it.
+	assert clock.now - start <= 20 + 0.4
+	assert response.closed is True
+
+
+def test_reads_decode_content_like_iter_content():
+	response = FakeResponse(chunks=[b"{}"])
+
+	_fetch(response)
+
+	assert response.decode_flags and all(response.decode_flags)
