@@ -386,7 +386,7 @@ Linux 上只驗了注入的邊界。以下項目需要在 Windows 用這支分�
 | m4 快取 key（M35） | `d1d7d71` | 用 `DEFAULT_CATALOG_URL` 與大寫 host 做「儲存 → 重新啟動讀回」；M35（`store(check.url, …)`）現在 2 failed。 |
 | m5 有界讀取（M36） | `d361092` | spy 斷言 `read(MAX_CACHE_BYTES + 1)`；M36（`handle.read()`）現在 1 failed。 |
 | m6 `schema_version` 1.0／true | `163e62b` | `check_remote_document` 改為 `type(version) is not int or version != 1`；表格加 1.0、true、"1" 三列。`build_catalog()` 不改（Ruling：它只看 bundled 檔與 overlay 文件，且伺服器副本要保持一致）。 |
-| m7 對話框開著時清單到達 | `4f4493f` | 按 Yes 時重查 `_needs_catalog_choice()`：清單已到就用使用者自己存的模型校正、不改設定。No／Escape 仍然什麼都不送（Ruling：審閱的草稿在 Yes/No 之前重查，會在使用者按 No 之後送出文字，違背 No 的承諾）。 |
+| m7 對話框開著時清單到達 | `4f4493f`（Yes 的部分已由 N2 `accc779` 撤回） | 按 Yes 時重查 `_needs_catalog_choice()`：清單已到就用使用者自己存的模型校正、不改設定。No／Escape 仍然什麼都不送（Ruling：審閱的草稿在 Yes/No 之前重查，會在使用者按 No 之後送出文字，違背 No 的承諾）。 |
 | m8 孤立代理字元 | `d6820ea` | 寫入改用 `encode("utf8", "surrogatepass")`（`json.loads(bytes)` 本來就用 surrogatepass 解碼）；往返測試。 |
 | m9 快取記錄格式 | `d99a9fe` | 快取 detail 改為短代碼（`too_large` 等）；快取 payload 未通過接受檢查時記成 `code=unreadable_cache type=<接受檢查的代碼>`（spec §10）；bundled 來源丟例外時 `accept_remote_document` 回 `bundled_source_failed`，不再誤報 `remote_no_models`。 |
 | m10 記錄目前來源 | `f60f472` | 啟動與 D8 切換網址時記 `WordBridge: catalog source=%s fetch=%s host=%s`（info；關閉或無效時 host 為 `(none)`）。§六第 6、7 項現在可以從記錄核對。 |
@@ -402,10 +402,11 @@ Linux 上只驗了注入的邊界。以下項目需要在 Windows 用這支分�
 
 **新增、尚待使用者確認的使用者可見預設**（補充 §七）：
 
-1. m7：§12.5 對話框開著時清單到達，按 Yes 會用使用者自己存的本機模型校正，設定不改成 Coseeing；按 No／Escape 仍不送出。
-2. m2：URL 含空白或控制字元的遠端 provider 會被丟掉（以前會顯示但每次都失敗）。
-3. m10：每次啟動與每次改網址各多一行 info 記錄。
-4. m1：記錄中的目錄 issue 位置與內容超過 200 字元會被截斷，控制字元以跳脫形式顯示。
+1. m2：URL 含空白或控制字元的遠端 provider 會被丟掉（以前會顯示但每次都失敗）。
+2. m10：每次啟動與每次改網址各多一行 info 記錄。
+3. m1：記錄中的目錄 issue 位置與內容超過 200 字元會被截斷，控制字元以跳脫形式顯示。
+
+（原本列在這裡的 m7 項目已由使用者決定，見下方 N2。）
 
 ### 修正 review（Opus 5.5，2026-11-04）
 
@@ -413,3 +414,12 @@ Linux 上只驗了注入的邊界。以下項目需要在 Windows 用這支分�
 - 16 個 commit 每個都綠（721→774 passed / 1 skipped）；HEAD：附加元件 774 passed / 1 skipped，伺服器 96 passed，`prek` 全部 Passed，`git diff --check` 乾淨，`msgfmt --check` 通過，新條目的 `#:` 和 xgettext 一致，沒有 `Co-Authored-By`。
 - 沒有新的 Critical 或 Important，只有兩個 Minor。**N1**：Ruling 1 說半空的 pair 只會來自手改 nvda.ini，這個前提不成立。NVDA 不會寫入和目前值（含預設值）相同的設定（`/workspace/nvda/source/config/__init__.py:1363-1367`），而 2026.9.3（`47aa41f`）的預設是 `("deepseek-v4-flash&DeepSeek", "Coseeing")`，所以當時選了 Coseeing GPT-5.6 Luna 的使用者升級後會是 `("gpt-5.6-luna&OpenAI", "")`。這種使用者沒動選單就按「確定」，分支不存也不登入，`main` 則會存 `("default","Coseeing")` 並登入（探針已在兩邊各跑一次證實）。影響不大：這些人在 2026.9.3 已經走過登入，校正也仍走 Coseeing 預設。建議把「stored channel 為空」也算成已解析，並補一個測試（目前沒有測試釘住半空的情形）。**N2**：m7 的 Ruling 7 和 U7 的字面、以及對話框的文案（「用 Coseeing 校正」「設定會改成 Coseeing 預設」）不一致，只在清單於對話框開著時到達才會發生。這個做法合理，但應請使用者明確確認，不要只當成一個新的預設值。
 - Ruling 2–6 合理；Ruling 1 的結論可以接受，但理由要改（N1）；Ruling 7 需要使用者確認（N2）。
+
+### N1、N2 修正（修正代理，2026-11-04）
+
+| 發現 | Commit | 說明 |
+| --- | --- | --- |
+| N1 只存了 id、channel 沒存的升級使用者 | `5ed6003` | `dialogs.py` 改為 `resolved == stored or not stored[1]`：stored channel 為空（全新安裝，或 2026.9.3 的預設 channel `Coseeing` 從未寫進 nvda.ini）就算已解析，未動面板按「確定」會像 `main` 一樣存 `("default","Coseeing")` 並登入 Coseeing；stored channel 為 `local`（含 `("", "local")`）仍受 D12／U7 保護。新測試 `test_an_upgrader_with_only_a_stored_id_saves_the_default_and_signs_in`（`("gpt-5.6-luna&OpenAI","")`，shipped／bundled-only）修正前 2 failed；`test_an_upgrader_with_only_a_stored_local_channel_keeps_it`（`("", "local")`）修正前後都通過。突變 `== ("", "")`、`not all(...)`、`not any(...)` 現在各 2 failed。帳本 Ruling 1 的理由已更正。 |
+| N2 對話框開著時清單到達，按 Yes | `accc779` | 使用者決定（2026-11-04）：Yes 一律存 `("default","Coseeing")` 並用 Coseeing 校正（spec §12.5 第 3 步、U7、對話框文案）。撤回 m7 在 Yes 的重查；No／Escape 仍不送出（包括清單已到達的情形，`test_no_after_the_model_list_arrived_still_sends_nothing` 保留）。`test_yes_after_the_model_list_arrived_still_switches_to_coseeing` 斷言 `startCorrection` 被呼叫時設定已是 Coseeing 預設，修正前 1 failed。取消句的 po `#:` 行號跟著改為 `__init__.py:347`。spec §12.5 已標為「Decided by the user (2026-11-04)」（docs commit `768c2c0`），帳本 Ruling 7 標為被使用者決定取代。 |
+
+**最後結果**：附加元件 778 passed / 1 skipped（3 subtests passed）；伺服器 96 passed；`prek run --all-files` 全部 Passed；`git diff --check` 乾淨；`msgfmt --check` 通過。沒有執行 `tests/test_integration_*`。
