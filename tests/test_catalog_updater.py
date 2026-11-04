@@ -80,7 +80,7 @@ class SpyCache:
 
 
 class Harness:
-	def __init__(self, tmp_path, responses=None):
+	def __init__(self, tmp_path, responses=None, schedule=None):
 		self.responses = responses if responses is not None else {}
 		self.requests = []
 		self.threads = []
@@ -99,6 +99,7 @@ class Harness:
 			shutdown=self.shutdown,
 			log=self.log,
 			start_thread=self.start_thread,
+			schedule=schedule,
 		)
 
 	def http_get(self, url, **kwargs):

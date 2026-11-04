@@ -6,6 +6,7 @@ no side effects and tests never touch the network.
 """
 
 from dataclasses import dataclass
+import functools
 import threading
 import time
 
@@ -24,6 +25,11 @@ from .lib.catalog.remote import (
 
 
 _FETCH = "fetch"
+
+# The first wait after a failed fetch, and the longest wait still performed
+# (R5). Waits double: 1, 2, 4, 8, 16, 32 minutes, then retrying stops.
+RETRY_FIRST_WAIT_MINUTES = 1
+RETRY_MAX_WAIT_MINUTES = 32
 
 
 @dataclass(frozen=True)
@@ -137,6 +143,12 @@ class CatalogUpdater:
 	cache or post a catalog, so a stale or abandoned thread can do no harm.
 	The live catalog itself is only ever swapped on the main thread, through
 	the injected install().
+
+	After a failed fetch a retry is armed through the injected
+	schedule(delay_ms, callback) (wx.CallLater in production), so the timer,
+	its callback and all retry state live on the main thread too and need no
+	lock. At most one timer exists: every fetch start cancels it, and only a
+	failure arms it.
 	"""
 
 	def __init__(
@@ -152,6 +164,7 @@ class CatalogUpdater:
 		log,
 		clock=time.monotonic,
 		start_thread=start_daemon_thread,
+		schedule=None,
 	):
 		self._bundled_source = bundled_source
 		self._cache = cache
@@ -170,6 +183,12 @@ class CatalogUpdater:
 		self._fetch = FETCH_OFF
 		self._thread = None
 		self._logged_invalid = set()
+		# Retry state: main thread only (spec section 7.2).
+		self._schedule = schedule
+		self._retry_count = 0
+		self._retries_stopped = False
+		self._retry_timer = None
+		self._current_url = ""
 
 	@property
 	def thread(self):
@@ -182,6 +201,7 @@ class CatalogUpdater:
 	def initial_catalog(self, url: str):
 		"""Bundled ⊕ (cache for this URL, if accepted). Main thread."""
 		check = self._check(url)
+		self._current_url = url
 		catalog, source = self._local_catalog(check)
 		with self._lock:
 			self._live_key = check.key
@@ -193,6 +213,8 @@ class CatalogUpdater:
 	def refresh(self, url: str) -> None:
 		"""Fetch for `url`; on a URL change, switch to its cache at once (D8). Main thread."""
 		check = self._check(url)
+		self._cancel_retry_timer()
+		self._current_url = url
 		with self._lock:
 			self._generation += 1
 			generation = self._generation
@@ -207,6 +229,39 @@ class CatalogUpdater:
 			self._install(catalog)
 		if check.enabled:
 			self._thread = self._start_thread(self._run, (generation, check))
+
+	def _cancel_retry_timer(self) -> None:
+		timer, self._retry_timer = self._retry_timer, None
+		if timer is not None:
+			timer.Stop()
+
+	def _schedule_retry(self) -> None:
+		"""Main thread, after a failure of the current generation (spec section 7.2)."""
+		if self._shutdown.is_set() or self._schedule is None:
+			return
+		wait = RETRY_FIRST_WAIT_MINUTES * 2 ** self._retry_count
+		if wait > RETRY_MAX_WAIT_MINUTES:
+			if not self._retries_stopped:
+				self._retries_stopped = True
+				self._log.info("WordBridge: catalog fetch retries stopped attempts=%d", self._retry_count)
+			return
+		self._retry_count += 1
+		with self._lock:
+			generation = self._generation
+		self._retry_timer = self._schedule(wait * 60_000, functools.partial(self._on_retry_timer, generation))
+		self._log.info("WordBridge: catalog fetch retry scheduled attempt=%d delay=%dmin", self._retry_count, wait)
+
+	def _on_retry_timer(self, armed_generation) -> None:
+		"""Main thread. wx can deliver a timer after Stop(), so a stale or
+		post-shutdown delivery, or one while a fetch runs, does nothing."""
+		if self._shutdown.is_set():
+			return
+		with self._lock:
+			current = armed_generation == self._generation and self._fetch == FETCH_FAILED
+		if not current:
+			return
+		self._retry_timer = None
+		self.refresh(self._current_url)
 
 	def _check(self, url):
 		check = validate_catalog_url(url)
@@ -311,6 +366,9 @@ class CatalogUpdater:
 				"WordBridge: catalog fetched host=%s bytes=%d models=%d",
 				host, size, len(catalog.models),
 			)
+			self._retry_count = 0
+			self._retries_stopped = False
+			self._cancel_retry_timer()
 			return
 		with self._lock:
 			self._fetch = FETCH_FAILED
@@ -318,6 +376,7 @@ class CatalogUpdater:
 			"WordBridge: catalog fetch failed host=%s code=%s type=%s",
 			host, issue.code, loggable(issue.detail),
 		)
+		self._schedule_retry()
 
 
 _UPDATER = None
