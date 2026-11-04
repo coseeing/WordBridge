@@ -35,11 +35,17 @@ addonHandler.initTranslation()
 # sending them through here would make a future remote payload a channel for
 # rewriting the interface's own wording.
 LABEL_DICT = {
+	# Translators: An item of the Language choice in the WordBridge settings panel.
 	"zh_traditional": _("Traditional Chinese"),
+	# Translators: An item of the Language choice in the WordBridge settings panel.
 	"zh_simplified": _("Simplified Chinese"),
+	# Translators: An item of the Correction Mode choice in the WordBridge settings panel.
 	"standard": _("Standard"),
+	# Translators: An item of the Correction Mode choice in the WordBridge settings panel.
 	"lite": _("Lite"),
+	# Translators: Name of the kind of account that uses the user's own API key for a provider.
 	"personal_api_key": _("Personal API Key"),
+	# Translators: Name of the kind of account that signs in to Coseeing.
 	"coseeing_account": _("Coseeing Account"),
 }
 LANGUAGE_LABELS = [LABEL_DICT[value] for value in LANGUAGE_VALUES]
@@ -64,6 +70,7 @@ DEFERRED_UPDATE_POLL_MS = 300
 # the client itself defines, not by whatever string a catalog document
 # happens to carry.
 MODEL_LABEL_TRANSLATIONS = {
+	# Translators: The model label of the Coseeing default in the WordBridge settings panel's model choice.
 	SENTINEL_ID: _("default"),
 }
 
@@ -139,8 +146,11 @@ def _dropped_entries_message(catalog):
 	"""
 	count = sum(1 for issue in catalog.issues if is_dropped_issue(issue))
 	if count == 1:
+		# Translators: Line in the WordBridge settings panel when one entry of the model list could not be loaded.
 		return _("{count} catalog entry could not be loaded; see the NVDA log for details.").format(count=count)
 	if count > 1:
+		# Translators: Line in the WordBridge settings panel when several entries of the model list could not be loaded;
+		# {count} is their number.
 		return _("{count} catalog entries could not be loaded; see the NVDA log for details.").format(count=count)
 	return None
 
@@ -223,23 +233,27 @@ class LLMSettingsPanel(SettingsPanel):
 		self.panelDescription = statusMessage or ""
 
 		# For selecting provider
+		# Translators: Label of the choice of the service provider in the WordBridge settings panel.
 		providerLabelText = _("Service Provider:")
 		self.providerList = settingsSizerHelper.addLabeledControl(
 			providerLabelText,
 			wx.Choice,
 			choices=[_provider_group_label(self.catalog, group) for group in self.catalog.provider_groups],
 		)
+		# Translators: Tooltip of the service provider choice in the WordBridge settings panel.
 		self.providerList.SetToolTip(wx.ToolTip(_("Choose the service provider for the WordBridge")))
 		self.providerList.Bind(wx.EVT_CHOICE, self.onChangeProviderChoice)
 		self.providerList.SetSelection(self.selection.provider_group_index)
 
 		# For selecting LLM
+		# Translators: Label of the choice of the large language model in the WordBridge settings panel.
 		modelLabelText = _("Large Language Model:")
 		self.modelList = settingsSizerHelper.addLabeledControl(
 			modelLabelText,
 			wx.Choice,
 			choices=list(_display_labels(self.catalog, self.selection.provider_group)),
 		)
+		# Translators: Tooltip of the large language model choice in the WordBridge settings panel.
 		self.modelList.SetToolTip(wx.ToolTip(_("Choose the large language model for the Word Bridge")))
 		self.modelList.SetSelection(self.selection.model_index)
 
@@ -255,28 +269,33 @@ class LLMSettingsPanel(SettingsPanel):
 		self._refreshAccountInfo()
 
 		# For selecting language
+		# Translators: Label of the choice of the correction language in the WordBridge settings panel.
 		languageLabelText = _("Language:")
 		self.languageList = settingsSizerHelper.addLabeledControl(
 			languageLabelText,
 			wx.Choice,
 			choices=LANGUAGE_LABELS
 		)
+		# Translators: Tooltip of the language choice in the WordBridge settings panel.
 		self.languageList.SetToolTip(wx.ToolTip(_("Choose the language for the Word Bridge")))
 		self.languageList.SetSelection(LANGUAGE_VALUES.index(self.settings.language()))
 
 		# For selecting typo correction mode
+		# Translators: Label of the choice of the correction mode in the WordBridge settings panel.
 		typoCorrectionModeLabelText = _("Correction Mode:")
 		self.typoCorrectionModeList = settingsSizerHelper.addLabeledControl(
 			typoCorrectionModeLabelText,
 			wx.Choice,
 			choices=TYPO_CORRECTION_MODE_LABELS
 		)
+		# Translators: Tooltip of the correction mode choice in the WordBridge settings panel.
 		self.typoCorrectionModeList.SetToolTip(wx.ToolTip(_("Choose the typo correction mode for the Word Bridge")))
 		self.typoCorrectionModeList.SetSelection(
 			TYPO_CORRECTION_MODE_VALUES.index(self.settings.typo_correction_mode())
 		)
 
 		# For setting upper bound of correction character count
+		# Translators: Label of the field for the largest number of characters WordBridge corrects at once.
 		maxTokensLabelText = _("Max character count")
 		maxCharCountlowerBound, maxCharCountUpperBound = self.settings.max_char_count_bounds()
 		maxCharCount = self.settings.max_char_count()
@@ -290,12 +309,14 @@ class LLMSettingsPanel(SettingsPanel):
 
 		# For setting auto display typo report
 		self.autoDisplayReportEnable = settingsSizerHelper.addItem(
+			# Translators: Check box in the WordBridge settings panel: show the typo report after each correction.
 			wx.CheckBox(self, label=_("Auto display typo report"))
 		)
 		self.autoDisplayReportEnable.SetValue(self.settings.auto_display_report())
 
 		# For setting custom dictionary
 		self.customizedWordEnable = settingsSizerHelper.addItem(
+			# Translators: Check box in the WordBridge settings panel: use the user's own dictionary in corrections.
 			wx.CheckBox(self, label=_("Apply personal dictionary"))
 		)
 		self.customizedWordEnable.SetValue(self.settings.customized_words_enable())
@@ -303,6 +324,7 @@ class LLMSettingsPanel(SettingsPanel):
 		self.wordDictionaryCtrl = settingsSizerHelper.addItem(
 			wx.Button(
 				self,
+				# Translators: Button in the WordBridge settings panel that opens the personal dictionary.
 				label=_("Edit dictionary"),
 			)
 		)
@@ -310,6 +332,7 @@ class LLMSettingsPanel(SettingsPanel):
 
 		# For setting sound effects
 		self.soundEffectsEnable = settingsSizerHelper.addItem(
+			# Translators: Check box in the WordBridge settings panel: play sounds while a correction runs.
 			wx.CheckBox(self, label=_("Enable sound effect cues"))
 		)
 		self.soundEffectsEnable.SetValue(self.settings.sound_effects_enable())
@@ -317,6 +340,7 @@ class LLMSettingsPanel(SettingsPanel):
 		self.soundEffectsCtrl = settingsSizerHelper.addItem(
 			wx.Button(
 				self,
+				# Translators: Button in the WordBridge settings panel that opens the web page crediting the sound effects.
 				label=_("Sound effect credits"),
 			)
 		)
@@ -532,6 +556,8 @@ class LLMSettingsPanel(SettingsPanel):
 		return self._setLine(self.catalogStatusText, message)
 
 	def _accountCaption(self, group):
+		# Translators: The end of an account box's caption in the WordBridge settings panel, after the provider name,
+		# for example "OpenAI Authentication".
 		return _provider_group_label(self.catalog, group) + " " + _("Authentication")
 
 	def _makeAccountBox(self, settingsSizerHelper, group) -> None:
@@ -543,12 +569,14 @@ class LLMSettingsPanel(SettingsPanel):
 		self.accountGroupSizerMap[group] = accountBoxSizer
 		self._accountCaptions[group] = caption
 		if group == COSEEING_GROUP:
+			# Translators: Button in the Coseeing account box that signs out and removes the saved Coseeing sign-in.
 			self.coseeingCleanButton = wx.Button(self, label=_("clean"))
 			self.coseeingCleanButton.Enable(has_saved_coseeing_refresh_token())
 			self.coseeingCleanButton.Bind(wx.EVT_BUTTON, self.onCleanCoseeingAuth)
 			accountGroupSizerHelper.addItem(self.coseeingCleanButton)
 		else:
 			self.accountTextCtrlMap[group] = accountGroupSizerHelper.addLabeledControl(
+				# Translators: Label of the field for a provider's API key in the WordBridge settings panel.
 				_("API Key:"),
 				wx.TextCtrl,
 				size=(self.scaleSize(375), -1),
@@ -684,13 +712,14 @@ class FeedbackDialog(
 	helpId = "FeedbackCoseeing"
 
 	def __init__(self, parent, request, response):
-		# This is the label for the feedback dialog for Coseeing.
+		# Translators: This is the label for the feedback dialog for Coseeing.
 		super().__init__(parent, title=_("Feedback Coseeing"))
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
 		sHelper = guiHelper.BoxSizerHelper(self, orientation=wx.VERTICAL)
 
 		# Here are text Controls for request, response and feedback. Only feedback can be editable.
 		self.requestTextCtrl = sHelper.addLabeledControl(
+			# Translators: Label of the read-only field with the text sent for correction in the Coseeing feedback dialog.
 			_("Request:"),
 			wx.TextCtrl,
 			style=wx.TE_READONLY | wx.TE_MULTILINE,
@@ -698,6 +727,7 @@ class FeedbackDialog(
 		)
 		self.requestTextCtrl.SetValue(request)
 		self.responseTextCtrl = sHelper.addLabeledControl(
+			# Translators: Label of the read-only field with the corrected text in the Coseeing feedback dialog.
 			_("Response:"),
 			wx.TextCtrl,
 			style=wx.TE_READONLY | wx.TE_MULTILINE,
@@ -705,6 +735,7 @@ class FeedbackDialog(
 		)
 		self.responseTextCtrl.SetValue(response)
 		self.feedbackTextCtrl = sHelper.addLabeledControl(
+			# Translators: Label of the field where the user writes feedback in the Coseeing feedback dialog.
 			_("Feedback:"),
 			wx.TextCtrl,
 			style=wx.TE_MULTILINE,
