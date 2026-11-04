@@ -122,6 +122,21 @@ class UpdaterStatus:
 	fetch: str
 
 
+@dataclass(frozen=True)
+class CatalogChange:
+	"""What a listener is told after a state change (spec section 9).
+
+	catalog_changed: the live catalog was replaced. outcome: "succeeded" or
+	"failed" for a finished fetch, else None (a fetch start). user_initiated:
+	the finished fetch was started by the panel-open retry or a URL change,
+	the only failures the settings panel speaks (R8).
+	"""
+
+	catalog_changed: bool
+	outcome: str | None
+	user_initiated: bool = False
+
+
 def start_daemon_thread(target, args):
 	thread = threading.Thread(target=target, args=args, name=THREAD_NAME, daemon=True)
 	thread.start()
@@ -189,6 +204,9 @@ class CatalogUpdater:
 		self._retries_stopped = False
 		self._retry_timer = None
 		self._current_url = ""
+		self._user_initiated = False
+		self._closed = False
+		self._listeners = []
 
 	@property
 	def thread(self):
@@ -234,8 +252,10 @@ class CatalogUpdater:
 				self._source = source
 			self._log_source(check, source)
 			self._install(catalog)
+		self._user_initiated = changed
 		if check.enabled:
 			self._thread = self._start_thread(self._run, (generation, check))
+		self._notify(CatalogChange(catalog_changed=changed, outcome=None))
 
 	def retry_on_panel_open(self) -> bool:
 		"""Main thread. Fetch now when the last fetch failed (R1, spec section 8).
@@ -244,7 +264,7 @@ class CatalogUpdater:
 		continues the retry schedule (R6). Any other state starts nothing, so
 		two fetches never overlap.
 		"""
-		if self._shutdown.is_set():
+		if self._closed or self._shutdown.is_set():
 			return False
 		with self._lock:
 			if self._fetch != FETCH_FAILED:
@@ -254,7 +274,37 @@ class CatalogUpdater:
 			redact_url(validate_catalog_url(self._current_url).url),
 		)
 		self.refresh(self._current_url)
+		self._user_initiated = True
 		return True
+
+	def add_listener(self, listener) -> None:
+		"""Main thread. `listener(change)` is called after every state change."""
+		self._listeners.append(listener)
+
+	def remove_listener(self, listener) -> None:
+		"""Main thread. Removes an equal listener (a fresh bound method of the
+		same object counts); an unknown one is ignored."""
+		for index, known in enumerate(self._listeners):
+			if known == listener:
+				del self._listeners[index]
+				return
+
+	def close(self) -> None:
+		"""Main thread; idempotent and never raises. Stops the retry timer and
+		drops every listener (plugin terminate, spec section 14)."""
+		self._closed = True
+		self._listeners = []
+		try:
+			self._cancel_retry_timer()
+		except Exception:
+			pass
+
+	def _notify(self, change) -> None:
+		for listener in list(self._listeners):
+			try:
+				listener(change)
+			except Exception as error:
+				self._log.warning("WordBridge: catalog listener failed type=%s", type(error).__name__)
 
 	def _cancel_retry_timer(self) -> None:
 		timer, self._retry_timer = self._retry_timer, None
@@ -263,7 +313,7 @@ class CatalogUpdater:
 
 	def _schedule_retry(self) -> None:
 		"""Main thread, after a failure of the current generation (spec section 7.2)."""
-		if self._shutdown.is_set() or self._schedule is None:
+		if self._closed or self._shutdown.is_set() or self._schedule is None:
 			return
 		wait = RETRY_FIRST_WAIT_MINUTES * 2 ** self._retry_count
 		if wait > RETRY_MAX_WAIT_MINUTES:
@@ -280,7 +330,7 @@ class CatalogUpdater:
 	def _on_retry_timer(self, armed_generation) -> None:
 		"""Main thread. wx can deliver a timer after Stop(), so a stale or
 		post-shutdown delivery, or one while a fetch runs, does nothing."""
-		if self._shutdown.is_set():
+		if self._closed or self._shutdown.is_set():
 			return
 		with self._lock:
 			current = armed_generation == self._generation and self._fetch == FETCH_FAILED
@@ -395,6 +445,7 @@ class CatalogUpdater:
 			self._retry_count = 0
 			self._retries_stopped = False
 			self._cancel_retry_timer()
+			self._notify(CatalogChange(catalog_changed=True, outcome=FETCH_SUCCEEDED, user_initiated=self._user_initiated))
 			return
 		with self._lock:
 			self._fetch = FETCH_FAILED
@@ -403,6 +454,7 @@ class CatalogUpdater:
 			host, issue.code, loggable(issue.detail),
 		)
 		self._schedule_retry()
+		self._notify(CatalogChange(catalog_changed=False, outcome=FETCH_FAILED, user_initiated=self._user_initiated))
 
 
 _UPDATER = None
@@ -415,8 +467,14 @@ def install(updater) -> None:
 
 
 def uninstall() -> None:
+	"""Close the installed updater (timer, listeners) and drop it. Never raises."""
 	global _UPDATER
-	_UPDATER = None
+	updater, _UPDATER = _UPDATER, None
+	if updater is not None:
+		try:
+			updater.close()
+		except Exception:
+			pass
 
 
 def request_refresh(url: str) -> None:
@@ -424,6 +482,20 @@ def request_refresh(url: str) -> None:
 	updater = _UPDATER
 	if updater is not None:
 		updater.refresh(url)
+
+
+def add_listener(listener) -> None:
+	"""Main thread. A no-op when no updater is installed."""
+	updater = _UPDATER
+	if updater is not None:
+		updater.add_listener(listener)
+
+
+def remove_listener(listener) -> None:
+	"""Main thread. A no-op when no updater is installed."""
+	updater = _UPDATER
+	if updater is not None:
+		updater.remove_listener(listener)
 
 
 def retry_on_panel_open() -> bool:

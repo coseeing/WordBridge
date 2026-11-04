@@ -543,3 +543,233 @@ def test_module_retry_on_panel_open(tmp_path, installed):
 		updater_module.uninstall()
 
 	assert len(h.threads) - threads == (1 if installed else 0)
+
+
+# --- Task 4: change events, listeners and close (C6, C14, R8) --------------
+
+def C(*args):
+	return updater_module.CatalogChange(*args)
+
+
+class Recorder:
+	def __init__(self):
+		self.events = []
+
+	def __call__(self, change):
+		self.events.append(change)
+
+
+def _listen(h):
+	recorder = Recorder()
+	h.updater.add_listener(recorder)
+	return recorder
+
+
+def _event_refresh_same_key(h):
+	h.updater.initial_catalog(URL_A)
+	recorder = _listen(h)
+	h.updater.refresh(URL_A)
+	return recorder
+
+
+def _event_refresh_new_key(h):
+	h.updater.initial_catalog(URL_A)
+	recorder = _listen(h)
+	h.updater.refresh(URL_B)
+	return recorder
+
+
+def _event_refresh_empty(h):
+	h.updater.initial_catalog(URL_A)
+	recorder = _listen(h)
+	h.updater.refresh("")
+	return recorder
+
+
+def _event_startup(response):
+	def scenario(h):
+		h.responses[URL_A] = response()
+		h.updater.initial_catalog(URL_A)
+		recorder = _listen(h)
+		h.updater.refresh(URL_A)
+		finish(h)
+		return recorder
+	return scenario
+
+
+def _event_timer_failure(h):
+	start(h)
+	recorder = _listen(h)
+	fire_and_finish(h)
+	return recorder
+
+
+def _event_panel_failure(h):
+	start(h)
+	recorder = _listen(h)
+	h.updater.retry_on_panel_open()
+	finish(h)
+	return recorder
+
+
+def _event_url_change(response):
+	def scenario(h):
+		h.responses[URL_B] = response()
+		start(h)
+		recorder = _listen(h)
+		h.updater.refresh(URL_B)
+		finish(h)
+		return recorder
+	return scenario
+
+
+EVENT_ROWS = [
+	("refresh-same-key", _event_refresh_same_key, [(False, None)]),
+	("refresh-new-key", _event_refresh_new_key, [(True, None)]),
+	("refresh-empty-url", _event_refresh_empty, [(True, None)]),
+	("startup-success", _event_startup(lambda: _ok(_payload("fresh"))), [(False, None), (True, "succeeded", False)]),
+	("startup-failure", _event_startup(failing), [(False, None), (False, "failed", False)]),
+	("timer-failure", _event_timer_failure, [(False, None), (False, "failed", False)]),
+	("panel-failure", _event_panel_failure, [(False, None), (False, "failed", True)]),
+	("url-change-failure", _event_url_change(failing), [(True, None), (False, "failed", True)]),
+	("url-change-success", _event_url_change(lambda: _ok(_payload("b"))), [(True, None), (True, "succeeded", True)]),
+]
+
+
+@pytest.mark.parametrize("scenario, expected", [row[1:] for row in EVENT_ROWS], ids=[row[0] for row in EVENT_ROWS])
+def test_change_events_table(tmp_path, scenario, expected):
+	h = retry_harness(tmp_path, {URL_A: failing()})
+
+	recorder = scenario(h)
+
+	assert recorder.events == [C(*event) for event in expected]
+
+
+@pytest.mark.parametrize("response, expected", [
+	(lambda: _ok(_payload("fresh")), ("succeeded", ("fetched", "succeeded"), 1, 0)),
+	(failing, ("failed", ("none", "failed"), 0, 1)),
+], ids=["success", "failure"])
+def test_listeners_see_the_new_state_when_notified(tmp_path, response, expected):
+	h = retry_harness(tmp_path, {URL_A: response()})
+	h.updater.initial_catalog(URL_A)
+	seen = []
+
+	def listener(change):
+		status = h.updater.status()
+		seen.append((change.outcome, (status.source, status.fetch), len(h.installed), len(h.scheduler.live())))
+
+	h.updater.add_listener(listener)
+	h.updater.refresh(URL_A)
+	finish(h)
+
+	assert seen[-1] == expected
+
+
+def test_a_raising_listener_is_logged_by_type_and_the_next_still_runs(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	h.updater.initial_catalog(URL_A)
+
+	def broken(change):
+		raise ValueError("secret detail")
+
+	h.updater.add_listener(broken)
+	recorder = _listen(h)
+	h.updater.refresh(URL_A)
+
+	assert recorder.events == [C(False, None)]
+	assert ("warning", "WordBridge: catalog listener failed type=%s", "ValueError") in h.log.records
+	assert "secret" not in h.log.text()
+
+
+def test_remove_listener_accepts_an_equal_bound_method_and_ignores_unknown(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	h.updater.initial_catalog(URL_A)
+
+	class Panel:
+		def __init__(self):
+			self.events = []
+
+		def on_change(self, change):
+			self.events.append(change)
+
+	panel = Panel()
+	h.updater.add_listener(panel.on_change)
+	h.updater.remove_listener(panel.on_change)
+	h.updater.remove_listener(lambda change: None)
+	h.updater.refresh(URL_A)
+
+	assert panel.events == []
+
+
+def test_close_stops_the_timer_clears_listeners_and_is_idempotent(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	start(h)
+	[armed] = h.scheduler.live()
+	recorder = _listen(h)
+
+	h.updater.close()
+	h.updater.close()
+
+	assert armed.stopped is True
+	h.updater.refresh(URL_A)
+	assert recorder.events == []
+
+
+def test_after_close_nothing_is_armed_or_started(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	start(h)
+	[armed] = h.scheduler.live()
+	h.updater.close()
+	threads = len(h.threads)
+
+	# Same generation and still failed: only the closed check stops it.
+	armed.fire()
+	assert len(h.threads) == threads
+
+	other = retry_harness(tmp_path, {URL_A: failing()})
+	other.updater.initial_catalog(URL_A)
+	other.updater.refresh(URL_A)
+	other.threads[-1].run()
+	other.updater.close()
+	other.deliver()
+	assert other.status() == ("none", "failed")
+	assert other.scheduler.timers == []
+	assert other.updater.retry_on_panel_open() is False
+
+
+def test_close_never_raises_when_stop_raises(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	start(h)
+	[armed] = h.scheduler.live()
+
+	def broken():
+		raise RuntimeError("wx is gone")
+
+	armed.Stop = broken
+	recorder = _listen(h)
+
+	h.updater.close()
+
+	h.updater.refresh(URL_A)
+	assert recorder.events == []
+
+
+def test_module_listener_functions_without_an_updater_are_no_ops():
+	updater_module.uninstall()
+
+	updater_module.add_listener(print)
+	updater_module.remove_listener(print)
+
+	assert updater_module.status() is None
+
+
+def test_uninstall_closes_the_installed_updater(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	start(h)
+	[armed] = h.scheduler.live()
+	updater_module.install(h.updater)
+
+	updater_module.uninstall()
+
+	assert armed.stopped is True
+	assert updater_module.status() is None
