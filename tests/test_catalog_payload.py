@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from lib.catalog.overlay import accept_remote_document, has_local_items
-from lib.catalog.remote import parse_remote_payload
+from lib.catalog.remote import check_remote_document, parse_remote_payload
 from lib.llm import SUPPORTED_PROVIDERS
 
 
@@ -104,3 +104,45 @@ def test_only_disallowed_hosts_is_rejected():
 
 	assert catalog is None
 	assert [issue.code for issue in issues] == ["remote_no_models"]
+
+
+# (id, document, code). The cache hands accept_remote_document() an already
+# parsed dict, so the section 8.3 document checks must live on that path too.
+ACCEPT_DOCUMENT_TABLE = [
+	("schema-2", {"schema_version": 2, "providers": {}, "models": []}, "remote_schema_version"),
+	("schema-missing", {"providers": {}, "models": []}, "remote_schema_version"),
+	("schema-text", {"schema_version": "v2", "providers": {}, "models": []}, "remote_schema_version"),
+	("providers-list", {"schema_version": 1, "providers": [], "models": []}, "remote_malformed"),
+	("models-missing", {"schema_version": 1, "providers": {}}, "remote_malformed"),
+	("not-a-dict", ["schema_version", 1], "remote_malformed"),
+]
+
+
+@pytest.mark.parametrize(
+	"document, code",
+	[row[1:] for row in ACCEPT_DOCUMENT_TABLE],
+	ids=[row[0] for row in ACCEPT_DOCUMENT_TABLE],
+)
+def test_accept_applies_the_document_checks(document, code):
+	if isinstance(document, dict):
+		# Fill the keys a row keeps well-formed with the real server data, so
+		# only the row's own defect stands between it and a local model.
+		good = _server_document()
+		document = dict(document)
+		for key in ("providers", "models"):
+			if isinstance(document.get(key), type(good[key])):
+				document[key] = good[key]
+
+	catalog, issues = _accept(document)
+
+	assert catalog is None
+	assert [(issue.code, issue.location) for issue in issues] == [(code, "payload")]
+
+
+@pytest.mark.parametrize("document, code", [row[1:] for row in ACCEPT_DOCUMENT_TABLE], ids=[row[0] for row in ACCEPT_DOCUMENT_TABLE])
+def test_check_remote_document_matches_the_accept_path(document, code):
+	assert [issue.code for issue in check_remote_document(document)] == [code]
+
+
+def test_check_remote_document_passes_a_valid_document():
+	assert check_remote_document(_server_document()) == ()

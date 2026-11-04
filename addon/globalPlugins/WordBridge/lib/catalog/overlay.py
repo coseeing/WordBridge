@@ -11,7 +11,7 @@ of the remote payload ships in the add-on" structural.
 from .document import SCHEMA_VERSION, build_catalog
 from .fallback import FALLBACK_DOCUMENT, load_catalog
 from .model import COSEEING_GROUP, LOCAL_CHANNEL, CatalogIssue
-from .remote import filter_provider_urls
+from .remote import check_remote_document, filter_provider_urls
 
 
 def overlay_documents(bundled, remote) -> tuple:
@@ -105,8 +105,13 @@ def accept_remote_document(bundled_source, document, *, runnable_providers) -> t
 	A payload is accepted as a whole or not at all: it must leave at least
 	one selectable local model once overlaid on the bundled file. The same
 	rule is applied to a cached payload, so a later add-on version with a
-	different allowlist or provider set re-filters an old cache.
+	different allowlist or provider set re-filters an old cache. The
+	document-level checks run first, because overlay_documents() always
+	writes schema_version 1 and build_catalog() would never see a wrong one.
 	"""
+	issues = check_remote_document(document)
+	if issues:
+		return None, issues
 	catalog = load_overlay_catalog(bundled_source, document, runnable_providers=runnable_providers)
 	if has_local_items(catalog):
 		return catalog, ()

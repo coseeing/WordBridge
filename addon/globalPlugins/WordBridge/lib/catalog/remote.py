@@ -206,32 +206,44 @@ def filter_provider_urls(providers) -> tuple:
 	return kept, tuple(issues)
 
 
-def _malformed(detail: str) -> tuple:
-	return None, (CatalogIssue("remote_malformed", "payload", detail),)
+def _issue(code: str, detail: str) -> tuple:
+	return (CatalogIssue(code, "payload", detail),)
+
+
+def check_remote_document(document) -> tuple:
+	"""The document-level checks of a remote payload; () when it passes.
+
+	An object with schema_version 1, a providers mapping and a models list.
+	Entry-level problems are build_catalog()'s, and only drop entries. Both
+	a freshly fetched payload and a cached one go through this, by way of
+	overlay.accept_remote_document().
+	"""
+	if not isinstance(document, dict):
+		return _issue("remote_malformed", f"expected an object, got {type(document).__name__}")
+	version = document.get("schema_version")
+	if version != SCHEMA_VERSION:
+		shown = repr(version) if version is None or type(version) in (int, float, bool) else type(version).__name__
+		return _issue("remote_schema_version", f"expected {SCHEMA_VERSION}, got {shown}")
+	if not isinstance(document.get("providers"), dict):
+		return _issue("remote_malformed", "providers must be a mapping")
+	if not isinstance(document.get("models"), list):
+		return _issue("remote_malformed", "models must be a list")
+	return ()
 
 
 def parse_remote_payload(body) -> tuple:
 	"""Returns (document, issues); document is None when the payload is rejected.
 
-	Only the document level is checked here -- an object with schema_version
-	1, a providers mapping and a models list. Entry-level problems are
-	build_catalog()'s, and only drop entries. Issue details carry type names,
-	never any part of the body.
+	JSON decoding plus check_remote_document(). Issue details carry type
+	names, never any part of the body.
 	"""
 	try:
 		document = json.loads(body)
 	except Exception as error:
 		# ValueError and UnicodeDecodeError for bad text, RecursionError for
 		# deep nesting: every one of them is a malformed payload.
-		return _malformed(type(error).__name__)
-	if not isinstance(document, dict):
-		return _malformed(f"expected an object, got {type(document).__name__}")
-	version = document.get("schema_version")
-	if version != SCHEMA_VERSION:
-		shown = repr(version) if version is None or type(version) in (int, float, bool) else type(version).__name__
-		return None, (CatalogIssue("remote_schema_version", "payload", f"expected {SCHEMA_VERSION}, got {shown}"),)
-	if not isinstance(document.get("providers"), dict):
-		return _malformed("providers must be a mapping")
-	if not isinstance(document.get("models"), list):
-		return _malformed("models must be a list")
+		return None, _issue("remote_malformed", type(error).__name__)
+	issues = check_remote_document(document)
+	if issues:
+		return None, issues
 	return document, ()
