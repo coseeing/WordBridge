@@ -177,6 +177,38 @@ def test_a_failing_replace_keeps_the_old_file_and_leaves_no_temp_file(tmp_path, 
 	assert sorted(path.name for path in _path(tmp_path).parent.iterdir()) == ["remote-catalog.json"]
 
 
+def test_store_fsyncs_and_closes_the_temp_file_before_replacing(tmp_path, monkeypatch):
+	# Windows cannot replace onto a file through a handle that is still open,
+	# and without fsync a crash could leave an empty file behind the rename.
+	events = []
+	handles = []
+	real_named_temporary_file = cache_module.tempfile.NamedTemporaryFile
+	real_fsync = cache_module.os.fsync
+	real_replace = cache_module.os.replace
+
+	def named_temporary_file(*args, **kwargs):
+		handle = real_named_temporary_file(*args, **kwargs)
+		handles.append(handle)
+		return handle
+
+	def fsync(fd):
+		events.append(("fsync", fd == handles[0].fileno()))
+		real_fsync(fd)
+
+	def replace(source, target):
+		events.append(("replace", source == handles[0].name, handles[0].closed))
+		real_replace(source, target)
+
+	monkeypatch.setattr(cache_module.tempfile, "NamedTemporaryFile", named_temporary_file)
+	monkeypatch.setattr(cache_module.os, "fsync", fsync)
+	monkeypatch.setattr(cache_module.os, "replace", replace)
+
+	assert _cache(tmp_path).store(KEY, DOCUMENT) == ()
+
+	assert events == [("fsync", True), ("replace", True, True)]
+	assert _cache(tmp_path).load(KEY) == (DOCUMENT, ())
+
+
 def test_can_write_false_writes_nothing(tmp_path):
 	assert _cache(tmp_path, can_write=lambda: False).store(KEY, DOCUMENT) == ()
 	assert not _path(tmp_path).parent.exists()

@@ -139,3 +139,19 @@ def test_the_input_is_not_mutated():
 
 def test_rules_cover_exactly_the_supported_providers():
 	assert set(PROVIDER_URL_RULES) == SUPPORTED_PROVIDERS
+
+
+def test_the_whole_rules_table_is_pinned():
+	# A change to any provider's schemes, hosts or port rule must be a
+	# deliberate edit here too: users' API keys are sent to these hosts.
+	assert {
+		name: (set(rule.schemes), set(rule.hosts), rule.any_port)
+		for name, rule in PROVIDER_URL_RULES.items()
+	} == {
+		"Anthropic": ({"https"}, {"api.anthropic.com"}, False),
+		"DeepSeek": ({"https"}, {"api.deepseek.com"}, False),
+		"Google": ({"https"}, {"generativelanguage.googleapis.com"}, False),
+		"OpenAI": ({"https"}, {"api.openai.com"}, False),
+		"OpenRouter": ({"https"}, {"openrouter.ai"}, False),
+		"Ollama": ({"http", "https"}, {"localhost", "127.0.0.1"}, True),
+	}

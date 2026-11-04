@@ -21,28 +21,30 @@ def _body(**document):
 	return json.dumps(document).encode("utf8")
 
 
-# (id, body, code) -- code None means the payload parses.
+# (id, body, code, detail) -- code None means the payload parses.
 PARSE_TABLE = [
-	("valid", SERVER_BYTES, None),
-	("utf8-bom", b"\xef\xbb\xbf" + SERVER_BYTES, None),
-	("not-json", b"{not json", "remote_malformed"),
-	("array", b"[]", "remote_malformed"),
-	("schema-2", _body(schema_version=2, providers={}, models=[]), "remote_schema_version"),
-	("schema-missing", _body(providers={}, models=[]), "remote_schema_version"),
+	("valid", SERVER_BYTES, None, None),
+	("utf8-bom", b"\xef\xbb\xbf" + SERVER_BYTES, None, None),
+	("not-json", b"{not json", "remote_malformed", "JSONDecodeError"),
+	("array", b"[]", "remote_malformed", "expected an object, got list"),
+	("schema-2", _body(schema_version=2, providers={}, models=[]), "remote_schema_version", "expected 1, got 2"),
+	("schema-missing", _body(providers={}, models=[]), "remote_schema_version", "expected 1, got None"),
 	# 1.0 == 1 and True == 1 in Python; the version must be the integer 1.
-	("schema-float", _body(schema_version=1.0, providers={}, models=[]), "remote_schema_version"),
-	("schema-true", _body(schema_version=True, providers={}, models=[]), "remote_schema_version"),
-	("schema-string", _body(schema_version="1", providers={}, models=[]), "remote_schema_version"),
-	("providers-list", _body(schema_version=1, providers=[], models=[]), "remote_malformed"),
-	("providers-missing", _body(schema_version=1, models=[]), "remote_malformed"),
-	("models-missing", _body(schema_version=1, providers={}), "remote_malformed"),
-	("deep-nesting", b"[" * 100000, "remote_malformed"),
-	("bad-utf8", b"\xff\xfe\x00{", "remote_malformed"),
+	("schema-float", _body(schema_version=1.0, providers={}, models=[]), "remote_schema_version", "expected 1, got 1.0"),
+	("schema-true", _body(schema_version=True, providers={}, models=[]), "remote_schema_version", "expected 1, got True"),
+	("schema-string", _body(schema_version="1", providers={}, models=[]), "remote_schema_version", "expected 1, got str"),
+	("providers-list", _body(schema_version=1, providers=[], models=[]), "remote_malformed", "providers must be a mapping"),
+	("providers-missing", _body(schema_version=1, models=[]), "remote_malformed", "providers must be a mapping"),
+	("models-missing", _body(schema_version=1, providers={}), "remote_malformed", "models must be a list"),
+	("deep-nesting", b"[" * 100000, "remote_malformed", "RecursionError"),
+	# A UTF-16 BOM: json.loads() decodes it as UTF-16, then fails to parse.
+	("bad-utf8", b"\xff\xfe\x00{", "remote_malformed", "JSONDecodeError"),
+	("invalid-utf8", b'{"a": "\xff"}', "remote_malformed", "UnicodeDecodeError"),
 ]
 
 
-@pytest.mark.parametrize("body, code", [row[1:] for row in PARSE_TABLE], ids=[row[0] for row in PARSE_TABLE])
-def test_parse_remote_payload_table(body, code):
+@pytest.mark.parametrize("body, code, detail", [row[1:] for row in PARSE_TABLE], ids=[row[0] for row in PARSE_TABLE])
+def test_parse_remote_payload_table(body, code, detail):
 	document, issues = parse_remote_payload(body)
 
 	if code is None:
@@ -50,7 +52,8 @@ def test_parse_remote_payload_table(body, code):
 		assert issues == ()
 	else:
 		assert document is None
-		assert [(issue.code, issue.location) for issue in issues] == [(code, "payload")]
+		# The detail is a type name or a fixed sentence, never body text.
+		assert [(issue.code, issue.location, issue.detail) for issue in issues] == [(code, "payload", detail)]
 
 
 def test_a_bom_payload_parses_to_the_same_document():
