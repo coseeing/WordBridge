@@ -10,7 +10,7 @@ import functools
 import threading
 import time
 
-from .lib.catalog.model import CatalogIssue
+from .lib.catalog.model import COSEEING_GROUP, CatalogIssue
 from .lib.catalog.overlay import accept_remote_document, load_overlay_catalog
 from .lib.catalog.remote import (
 	CHUNK_BYTES,
@@ -135,6 +135,34 @@ class CatalogChange:
 	catalog_changed: bool
 	outcome: str | None
 	user_initiated: bool = False
+
+
+@dataclass(frozen=True)
+class ProbeResult:
+	"""The outcome of testing a model list URL without installing it (spec 20.3).
+
+	kind: ok, invalid, insecure_scheme, empty, network, http_status,
+	not_a_list, disallowed_hosts, no_models, failed, or unavailable (no
+	updater installed). detail: the issue detail (the HTTP status for
+	http_status), never shown in the log. models: selectable local items.
+	"""
+
+	kind: str
+	detail: str = ""
+	models: int = 0
+
+
+_PROBE_NETWORK_CODES = frozenset({"remote_request_failed", "remote_timeout"})
+
+
+def _probe_failure(issue) -> ProbeResult:
+	if issue.code in _PROBE_NETWORK_CODES:
+		return ProbeResult("network", issue.detail)
+	if issue.code == "remote_http_status":
+		return ProbeResult("http_status", issue.detail)
+	if issue.code.startswith("remote_"):
+		return ProbeResult("not_a_list", issue.detail)
+	return ProbeResult("failed", issue.code)
 
 
 def start_daemon_thread(target, args):
@@ -305,6 +333,40 @@ class CatalogUpdater:
 				listener(change)
 			except Exception as error:
 				self._log.warning("WordBridge: catalog listener failed type=%s", type(error).__name__)
+
+	def probe(self, url: str) -> ProbeResult:
+		"""Fetch, parse and accept `url` the way a refresh would, but install,
+		cache, log and change nothing (the URL dialog's Test, C16). Safe on
+		any thread; never raises."""
+		try:
+			return self._probe(url)
+		except Exception as error:
+			return ProbeResult("failed", type(error).__name__)
+
+	def _probe(self, url) -> ProbeResult:
+		check = validate_catalog_url(url)
+		if check.error is not None:
+			return ProbeResult(check.error)
+		if not check.enabled:
+			return ProbeResult("empty")
+		result = fetch_payload(check.url, http_get=self._http_get, clock=self._clock)
+		if result.issue is not None:
+			return _probe_failure(result.issue)
+		document, issues = parse_remote_payload(result.body)
+		if document is None:
+			return _probe_failure(issues[0])
+		catalog, issues = accept_remote_document(
+			self._bundled_source, document, runnable_providers=self._runnable_providers,
+		)
+		if catalog is not None:
+			models = sum(len(catalog.items_for(group)) for group in catalog.provider_groups if group != COSEEING_GROUP)
+			return ProbeResult("ok", models=models)
+		if issues[0].code == "remote_no_models":
+			overlaid = load_overlay_catalog(self._bundled_source, document, runnable_providers=self._runnable_providers)
+			if any(issue.code == "disallowed_provider_url" for issue in overlaid.issues):
+				return ProbeResult("disallowed_hosts")
+			return ProbeResult("no_models")
+		return _probe_failure(issues[0])
 
 	def _cancel_retry_timer(self) -> None:
 		timer, self._retry_timer = self._retry_timer, None
@@ -502,6 +564,12 @@ def retry_on_panel_open() -> bool:
 	"""Main thread. False when no updater is installed (plugin not running)."""
 	updater = _UPDATER
 	return updater.retry_on_panel_open() if updater is not None else False
+
+
+def probe_url(url: str) -> ProbeResult:
+	"""Any thread. ProbeResult("unavailable") when no updater is installed."""
+	updater = _UPDATER
+	return updater.probe(url) if updater is not None else ProbeResult("unavailable")
 
 
 def status():

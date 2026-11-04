@@ -773,3 +773,94 @@ def test_uninstall_closes_the_installed_updater(tmp_path):
 
 	assert armed.stopped is True
 	assert updater_module.status() is None
+
+
+# --- Task 5: the URL probe behind the dialog's "Test..." (C16) ------------
+
+def P(*args, **kwargs):
+	return updater_module.ProbeResult(*args, **kwargs)
+
+
+def _raise_in_accept(monkeypatch):
+	def broken(*args, **kwargs):
+		raise RuntimeError("payload https://a.test/catalog?token=secret-a")
+
+	monkeypatch.setattr(updater_module, "accept_remote_document", broken)
+
+
+PROBE_ROWS = [
+	# id, url, response(h, monkeypatch) or None (no request expected), kind, detail, models
+	("ok", URL_A, lambda h, mp: _ok(_payload("fresh")), "ok", "", 1),
+	("invalid", "ftp://x", None, "invalid", "", 0),
+	("insecure", "http://example.com", None, "insecure_scheme", "", 0),
+	("empty", "  ", None, "empty", "", 0),
+	("network-raise", URL_A, lambda h, mp: OSError("connect failed"), "network", "OSError", 0),
+	("network-timeout", URL_A, lambda h, mp: setattr(h.updater, "_clock", _deadline_clock()) or _ok(_payload()), "network", None, 0),
+	("http-404", URL_A, lambda h, mp: FakeResponse(status_code=404), "http_status", "404", 0),
+	("non-json", URL_A, lambda h, mp: BodyResponse(b"<html>"), "not_a_list", None, 0),
+	("schema-2", URL_A, lambda h, mp: _ok(dict(_payload(), schema_version=2)), "not_a_list", None, 0),
+	("too-large", URL_A, lambda h, mp: BodyResponse(b"{}", headers={"Content-Length": str(TOO_MANY)}), "not_a_list", None, 0),
+	("disallowed", URL_A, lambda h, mp: _ok(_payload(url="https://evil.test/v1")), "disallowed_hosts", None, 0),
+	("no-models", URL_A, lambda h, mp: _ok(_payload(active=False)), "no_models", None, 0),
+	("build-exception", URL_A, lambda h, mp: _raise_in_accept(mp) or _ok(_payload()), "failed", "RuntimeError", 0),
+]
+
+
+@pytest.mark.parametrize("url, response, kind, detail, models", [row[1:] for row in PROBE_ROWS], ids=[row[0] for row in PROBE_ROWS])
+def test_probe_result_table(tmp_path, monkeypatch, url, response, kind, detail, models):
+	h = retry_harness(tmp_path)
+	if response is not None:
+		h.responses[url] = response(h, monkeypatch)
+
+	result = h.updater.probe(url)
+
+	assert (result.kind, result.models) == (kind, models)
+	if detail is not None:
+		assert result.detail == detail
+	if response is None:
+		assert h.requests == []
+
+
+def test_probe_sends_the_d4_request(tmp_path):
+	h = retry_harness(tmp_path)
+	calls = []
+
+	def http_get(url, **kwargs):
+		calls.append((url, kwargs))
+		return _ok(_payload("fresh")).fresh()
+
+	h.updater._http_get = http_get
+
+	h.updater.probe(URL_B)
+
+	assert calls == [(URL_B, {
+		"stream": True, "timeout": (5, 10), "allow_redirects": False, "headers": {"Accept": "application/json"},
+	})]
+
+
+def test_probe_installs_caches_and_changes_nothing(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing(), URL_B: _ok(_payload("b"))})
+	start(h)
+	recorder = _listen(h)
+	before = (h.status(), h.updater._generation, len(h.threads), len(h.scheduler.timers), len(h.log.records))
+	installed, stores = list(h.installed), list(h.cache.stores)
+
+	assert h.updater.probe(URL_B).kind == "ok"
+
+	assert (h.status(), h.updater._generation, len(h.threads), len(h.scheduler.timers), len(h.log.records)) == before
+	assert (h.installed, h.cache.stores, recorder.events) == (installed, stores, [])
+
+
+@pytest.mark.parametrize("installed", [False, True], ids=["no-updater", "installed"])
+def test_module_probe_url(tmp_path, installed):
+	h = retry_harness(tmp_path, {URL_B: _ok(_payload("b"))})
+	if installed:
+		updater_module.install(h.updater)
+	try:
+		result = updater_module.probe_url(URL_B)
+	finally:
+		updater_module.uninstall()
+
+	assert result.kind == ("ok" if installed else "unavailable")
+	if not installed:
+		assert result == P("unavailable")
