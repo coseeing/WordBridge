@@ -725,6 +725,11 @@ def test_settings_save_preserves_coseeing_refresh_token_and_starts_selected_chan
 	}
 	# Unchanged, so the save schedules no catalog refresh.
 	panel.catalogUrlCtrl = Control("https://wordbridge.coseeing.org")
+	# What makeSettings() records (D12): a resolved stored selection is
+	# always saved.
+	panel._storedSelection = ("old&OpenAI", "local")
+	panel._storedSelectionResolved = True
+	panel._restoredIndices = (0, 0)
 
 	panel.onSave()
 	assert config.conf["WordBridge"]["settings"]["execution_channel"] == "Coseeing"

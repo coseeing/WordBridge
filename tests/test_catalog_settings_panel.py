@@ -24,8 +24,9 @@ def _panel_fixture(monkeypatch, **settings_overrides):
 	)
 
 	queued = []
+	auth_calls = []
 	settings = _panel_settings(**settings_overrides)
-	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, [], queued)
+	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
 	dialogs = plugin.dialogs
 	helper_calls, _captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
@@ -36,7 +37,7 @@ def _panel_fixture(monkeypatch, **settings_overrides):
 		return _make_panel(monkeypatch, dialogs, Sizer)
 
 	return SimpleNamespace(
-		plugin=plugin, dialogs=dialogs, settings=settings, queued=queued,
+		plugin=plugin, dialogs=dialogs, settings=settings, queued=queued, auth_calls=auth_calls,
 		helper_calls=helper_calls, make_panel=make_panel,
 	)
 
@@ -182,3 +183,78 @@ def test_the_dropped_entries_line_is_silent_for_the_shipped_overlay(monkeypatch)
 	f = _panel_fixture(monkeypatch)
 
 	assert f.make_panel().catalogIssuesText is None
+
+
+def _bundled_only(f):
+	overlay = __import__(f.plugin.__name__ + ".lib.catalog.overlay", fromlist=["load_overlay_catalog"])
+	return overlay.load_overlay_catalog(
+		f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting"), None,
+		runnable_providers=f.plugin.SUPPORTED_PROVIDERS,
+	)
+
+
+def _run_queued(f):
+	for callback, args in list(f.queued):
+		callback(*args)
+	f.queued.clear()
+
+
+def test_an_unresolved_stored_selection_survives_an_untouched_save(monkeypatch):
+	# Offline with no cache: the stored local model is not in the catalog.
+	f = _panel_fixture(monkeypatch, corrector_config_id="gpt-6-luna&OpenAI", execution_channel="local")
+	catalog = _bundled_only(f)
+	monkeypatch.setattr(f.dialogs.registry, "current", lambda: catalog)
+	panel = f.make_panel()
+	panel.languageList.SetSelection(1)
+	f.queued.clear()
+
+	_save(panel)
+	_run_queued(f)
+
+	assert (f.settings["corrector_config_id"], f.settings["execution_channel"]) == ("gpt-6-luna&OpenAI", "local")
+	assert f.settings["language"] == "zh_simplified"
+	# The user's channel is still local: no Coseeing sign-in prompt.
+	assert f.auth_calls == []
+
+
+def test_a_changed_choice_overwrites_the_unresolved_selection(monkeypatch):
+	# A retired local model: unresolved, shown as the Coseeing default.
+	f = _panel_fixture(monkeypatch, corrector_config_id="gpt-retired&OpenAI", execution_channel="local")
+	panel = f.make_panel()
+	openai = f.plugin.catalog.provider_groups.index("OpenAI")
+	panel.providerList.SetSelection(openai)
+	panel.modelList.SetSelection(0)
+	f.queued.clear()
+
+	_save(panel)
+	_run_queued(f)
+
+	first_openai = f.plugin.catalog.items_for("OpenAI")[0]
+	assert (f.settings["corrector_config_id"], f.settings["execution_channel"]) == (
+		first_openai.corrector_config_id, "local",
+	)
+	assert f.auth_calls == []
+
+
+def test_choosing_coseeing_explicitly_saves_it_and_signs_in(monkeypatch):
+	f = _panel_fixture(monkeypatch, corrector_config_id="gpt-6.1-sol&OpenAI", execution_channel="local")
+	panel = f.make_panel()
+	panel.providerList.SetSelection(f.plugin.catalog.provider_groups.index("Coseeing"))
+	panel.modelList.SetSelection(0)
+	f.queued.clear()
+
+	_save(panel)
+	_run_queued(f)
+
+	assert (f.settings["corrector_config_id"], f.settings["execution_channel"]) == ("default", "Coseeing")
+	assert f.auth_calls == ["Coseeing"]
+
+
+def test_a_resolved_selection_is_saved_as_before(monkeypatch):
+	f = _panel_fixture(monkeypatch, corrector_config_id="gpt-6.1-sol&OpenAI", execution_channel="local")
+	panel = f.make_panel()
+	f.settings["corrector_config_id"] = "changed-behind-the-panel"
+
+	_save(panel)
+
+	assert (f.settings["corrector_config_id"], f.settings["execution_channel"]) == ("gpt-6.1-sol&OpenAI", "local")

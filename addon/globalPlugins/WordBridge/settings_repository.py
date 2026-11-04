@@ -70,6 +70,13 @@ class SettingsRepository:
 			self._settings.get("execution_channel", ""),
 		)
 
+	def stored_corrector_selection(self) -> tuple:
+		"""The stored (corrector_config_id, execution_channel), unresolved."""
+		return (
+			self._settings.get("corrector_config_id", ""),
+			self._settings.get("execution_channel", ""),
+		)
+
 	def save_corrector_selection(self, corrector_config_id: str, execution_channel: str) -> None:
 		self._settings["corrector_config_id"] = corrector_config_id
 		self._settings["execution_channel"] = execution_channel

@@ -337,3 +337,16 @@ def test_corrector_selection_uses_an_explicit_catalog_without_calling_the_callab
 	repo = SettingsRepository(settings, must_not_be_called)
 
 	assert repo.corrector_selection(catalog=catalog()) == ("gpt-x&OpenAI", "local")
+
+
+def test_stored_corrector_selection_is_the_raw_stored_pair():
+	repo, _ = repository(corrector_config_id="gone&OpenAI", execution_channel="local")
+
+	assert repo.stored_corrector_selection() == ("gone&OpenAI", "local")
+	assert repo.corrector_selection() == ("default", COSEEING_GROUP)
+
+
+def test_stored_corrector_selection_defaults_to_empty():
+	repo = SettingsRepository({"api_key": {}}, catalog)
+
+	assert repo.stored_corrector_selection() == ("", "")

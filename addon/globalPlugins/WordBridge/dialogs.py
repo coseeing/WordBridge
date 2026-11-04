@@ -130,7 +130,15 @@ class LLMSettingsPanel(SettingsPanel):
 
 		self.catalog = registry.current()
 		self.settings = SettingsRepository(config.conf["WordBridge"]["settings"], registry.current)
-		self.selection = SelectionState.restore(self.catalog, *self.settings.corrector_selection())
+		# D12: remember whether the stored selection resolved as stored. One the
+		# catalog cannot offer (offline with no model list, a retired model) is
+		# shown as the default, but it is only overwritten if the user actually
+		# changes the Service Provider or model choice.
+		self._storedSelection = self.settings.stored_corrector_selection()
+		resolved = self.settings.corrector_selection(catalog=self.catalog)
+		self._storedSelectionResolved = resolved == self._storedSelection
+		self.selection = SelectionState.restore(self.catalog, *resolved)
+		self._restoredIndices = (self.selection.provider_group_index, self.selection.model_index)
 
 		# Spec: "the settings panel shows a summary line" when catalog
 		# issues exist (Validation and degradation -> Visibility). The log
@@ -369,9 +377,16 @@ class LLMSettingsPanel(SettingsPanel):
 		self.selection.provider_group_index = self.providerList.GetSelection()
 		self.selection.model_index = self.modelList.GetSelection()
 		selected_item = self.selection.current_item()
-		self.settings.save_corrector_selection(
-			selected_item.corrector_config_id, selected_item.execution_channel
-		)
+		chosen = (self.selection.provider_group_index, self.selection.model_index)
+		if self._storedSelectionResolved or chosen != self._restoredIndices:
+			self.settings.save_corrector_selection(
+				selected_item.corrector_config_id, selected_item.execution_channel
+			)
+			signInChannel = selected_item.execution_channel
+		else:
+			# Nothing the user chose was saved, so their stored channel stands;
+			# a stored local model must not trigger a Coseeing sign-in (U7).
+			signInChannel = self._storedSelection[1]
 		self.settings.save_language(LANGUAGE_VALUES[self.languageList.GetSelection()])
 		self.settings.save_typo_correction_mode(
 			TYPO_CORRECTION_MODE_VALUES[self.typoCorrectionModeList.GetSelection()]
@@ -392,7 +407,7 @@ class LLMSettingsPanel(SettingsPanel):
 			self.settings.save_catalog_url(catalogUrl)
 			wx.CallAfter(catalog_updater.request_refresh, catalogUrl)
 
-		wx.CallAfter(lambda: start_coseeing_auth(selected_item.execution_channel, silent=False))
+		wx.CallAfter(lambda: start_coseeing_auth(signInChannel, silent=False))
 
 	def onChangeProviderChoice(self, evt):
 		self.selection.choose_provider_group(self.providerList.GetSelection())
