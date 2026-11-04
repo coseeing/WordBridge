@@ -283,9 +283,28 @@ class CatalogUpdater:
 			self._install(catalog)
 		# Before the thread starts: its result may be applied at once.
 		self._user_initiated = changed if user_initiated is None else user_initiated
+		started = True
 		if check.enabled:
-			self._thread = self._start_thread(self._run, (generation, check))
+			try:
+				self._thread = self._start_thread(self._run, (generation, check))
+			except Exception as error:
+				# Thread.start() raises when no thread can be started. Left
+				# "running", nothing would ever retry (fix review N2).
+				self._log.warning("WordBridge: catalog fetch could not start type=%s", type(error).__name__)
+				started = False
 		self._notify(CatalogChange(catalog_changed=changed, outcome=None))
+		if not started:
+			self._fail_current(generation)
+
+	def _fail_current(self, generation) -> None:
+		"""Main thread: record a failure of `generation` that never reached
+		_apply, then retry and notify as _apply does for a failed fetch."""
+		with self._lock:
+			if generation != self._generation:
+				return
+			self._fetch = FETCH_FAILED
+		self._schedule_retry()
+		self._notify(CatalogChange(catalog_changed=False, outcome=FETCH_FAILED, user_initiated=self._user_initiated))
 
 	def retry_on_panel_open(self) -> bool:
 		"""Main thread. Fetch now when the last fetch failed (R1, spec section 8).

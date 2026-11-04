@@ -874,6 +874,89 @@ def test_close_never_raises_when_stop_raises(tmp_path):
 
 
 SCHEDULE_FAILED = "WordBridge: catalog fetch retry could not be scheduled type=%s"
+START_FAILED = "WordBridge: catalog fetch could not start type=%s"
+
+
+def _raise_on_thread_start(h):
+	def start_thread(target, args):
+		raise RuntimeError("can't start new thread for https://a.test/catalog?token=secret-a")
+
+	working, h.updater._start_thread = h.updater._start_thread, start_thread
+	return working
+
+
+def _start_fail_startup(h):
+	h.updater.initial_catalog(URL_A)
+	_raise_on_thread_start(h)
+	recorder = _listen(h)
+	h.updater.refresh(URL_A)
+	return recorder
+
+
+def _start_fail_url_change(h):
+	start(h)
+	_raise_on_thread_start(h)
+	recorder = _listen(h)
+	h.updater.refresh(URL_B)
+	return recorder
+
+
+def _start_fail_panel_open(h):
+	start(h)
+	_raise_on_thread_start(h)
+	recorder = _listen(h)
+	assert h.updater.retry_on_panel_open() is True
+	return recorder
+
+
+def _start_fail_timer(h):
+	start(h)
+	_raise_on_thread_start(h)
+	recorder = _listen(h)
+	[timer] = h.scheduler.live()
+	timer.fire()
+	return recorder
+
+
+# (trigger, its two events, the next retry's delay in minutes): R8 speech
+# follows the trigger, R10 restarts the count on a URL change, R6 continues it.
+START_FAILURE_ROWS = [
+	("startup", _start_fail_startup, [(False, None), (False, "failed", False)], 1),
+	("url-change", _start_fail_url_change, [(True, None), (False, "failed", True)], 1),
+	("panel-open", _start_fail_panel_open, [(False, None), (False, "failed", True)], 2),
+	("timer", _start_fail_timer, [(False, None), (False, "failed", False)], 2),
+]
+
+
+@pytest.mark.parametrize(
+	"trigger, events, delay", [row[1:] for row in START_FAILURE_ROWS], ids=[row[0] for row in START_FAILURE_ROWS],
+)
+def test_a_fetch_thread_that_cannot_start_is_a_failure(tmp_path, trigger, events, delay):
+	# Fix review N2: Thread.start() raising left fetch=running with no timer,
+	# so the panel said "still loading" and never retried.
+	h = retry_harness(tmp_path, {URL_A: failing(), URL_B: failing()})
+
+	recorder = trigger(h)
+
+	assert h.status()[1] == "failed"
+	assert recorder.events == [C(*event) for event in events]
+	assert [timer.delay_ms for timer in h.scheduler.live()] == [delay * MINUTE_MS]
+	assert records(h, START_FAILED) == [("warning", START_FAILED, "RuntimeError")]
+	assert "secret" not in h.log.text()
+
+
+def test_after_a_thread_start_failure_the_panel_open_retry_fetches(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	h.updater.initial_catalog(URL_A)
+	working = _raise_on_thread_start(h)
+	h.updater.refresh(URL_A)
+	h.updater._start_thread = working
+	threads = len(h.threads)
+
+	assert h.updater.retry_on_panel_open() is True
+
+	assert len(h.threads) == threads + 1
+	assert h.status()[1] == "running"
 
 
 def test_a_raising_scheduler_keeps_the_count_and_still_notifies(tmp_path):
