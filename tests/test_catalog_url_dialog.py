@@ -341,12 +341,15 @@ def test_test_validates_first_without_a_request(monkeypatch, text, error):
 	_progress(f).clear()
 	dialog = f.make_dialog()
 	dialog.urlCtrl.SetValue(text)
+	# postInit focused the field already; the error must return focus to it.
+	dialog.urlCtrl.focused = False
 
 	dialog._onTest(None)
 
 	assert _errors() == [error]
 	assert threads == []
 	assert _progress(f) == []
+	assert dialog.urlCtrl.focused is True
 
 
 def test_test_runs_off_the_ui_thread_and_posts_the_result(monkeypatch):
