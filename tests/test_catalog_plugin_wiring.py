@@ -469,6 +469,53 @@ def test_yes_saves_the_coseeing_default_and_corrects_with_coseeing(monkeypatch):
 	f.instance.terminate()
 
 
+def _deliver_the_model_list(f):
+	"""What ShowModal()'s nested event loop can run: a fetch completing and
+	its result being installed."""
+	import json
+
+	from fake_http import BodyResponse
+	from shipped_catalog import server_document
+
+	body = json.dumps(server_document()).encode("utf8")
+	f.instance._catalog_updater._http_get = lambda url, **kwargs: BodyResponse(body)
+	f.instance._start_catalog_fetch()
+	target, args = f.plugin.started_catalog_threads[-1]
+	target(*args)
+	_run(f.queued)
+	assert f.plugin.catalog_updater.status().source == "fetched"
+
+
+def test_yes_after_the_model_list_arrived_keeps_the_users_model(monkeypatch):
+	# The premise of the question ("cannot be used") no longer holds when the
+	# user answers: their own model is used and the setting is left alone.
+	f = _choice_fixture(monkeypatch, answer=RETURN_CODE.YES, catalog_url=NO_CACHE_URL)
+	FakeMessageDialog.on_show = lambda: _deliver_the_model_list(f)
+
+	f.instance.script_correction(None)
+	_run(f.queued)
+
+	assert f.instance.settings.stored_corrector_selection() == ("gpt-6.1-sol&OpenAI", "local")
+	assert f.instance.settings.corrector_selection() == ("gpt-6.1-sol&OpenAI", "local")
+	assert f.started == ["原文"]
+	assert f.messages == []
+	f.instance.terminate()
+
+
+@pytest.mark.parametrize("answer", [RETURN_CODE.NO, RETURN_CODE.CANCEL], ids=["no", "escape-or-close"])
+def test_no_after_the_model_list_arrived_still_sends_nothing(monkeypatch, answer):
+	f = _choice_fixture(monkeypatch, answer=answer, catalog_url=NO_CACHE_URL)
+	FakeMessageDialog.on_show = lambda: _deliver_the_model_list(f)
+
+	f.instance.script_correction(None)
+	_run(f.queued)
+
+	assert f.instance.settings.stored_corrector_selection() == ("gpt-6.1-sol&OpenAI", "local")
+	assert f.started == []
+	assert f.messages == [CANCEL_MESSAGE]
+	f.instance.terminate()
+
+
 @pytest.mark.parametrize("answer", [RETURN_CODE.NO, RETURN_CODE.CANCEL], ids=["no", "escape-or-close"])
 def test_no_sends_nothing_and_keeps_the_stored_selection(monkeypatch, answer):
 	f = _choice_fixture(monkeypatch, answer=answer, catalog_url=NO_CACHE_URL)

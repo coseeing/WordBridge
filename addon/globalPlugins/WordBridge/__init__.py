@@ -331,7 +331,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if self._shutdown.is_set():
 			return
 		if answer == gui.message.ReturnCode.YES:
-			self.settings.save_corrector_selection(SENTINEL_ID, COSEEING_GROUP)
+			# The nested event loop may also have installed the model list:
+			# the user's own model is then usable, so it is used as stored
+			# and the setting is left alone.
+			if self._needs_catalog_choice():
+				self.settings.save_corrector_selection(SENTINEL_ID, COSEEING_GROUP)
 			self.startCorrection(text)
 			return
 		ui.message(self._catalog_choice_cancel_message())
