@@ -30,7 +30,7 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 
 	queued = []
 	plugin_module, config, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"corrector_config_id": "deepseek-flash&DeepSeek",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 		"language": "zh_traditional",
@@ -81,7 +81,7 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 		"headers": expected_headers,
 		"json": {
 			"request": "原文",
-			"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+			"corrector_config_id": "deepseek-flash&DeepSeek",
 			"language": "zh_traditional",
 			"typo_correction_mode": "standard",
 			"customized_words": [],
@@ -162,7 +162,7 @@ def test_proofreader_auth_failure_skips_post_and_queues_ui_notification(monkeypa
 
 	queued = []
 	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"corrector_config_id": "deepseek-flash&DeepSeek",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 		"language": "zh_traditional",
@@ -203,7 +203,7 @@ def test_proofreader_termination_before_worker_request_skips_post_and_ui(monkeyp
 
 	queued = []
 	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"corrector_config_id": "deepseek-flash&DeepSeek",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 		"language": "zh_traditional",
@@ -240,7 +240,7 @@ def test_proofreader_failures_use_stable_notification(monkeypatch, failure):
 
 	queued = []
 	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"corrector_config_id": "deepseek-flash&DeepSeek",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 		"language": "zh_traditional",
@@ -312,7 +312,7 @@ def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeyp
 
 	queued = []
 	plugin_module, _, gui = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"corrector_config_id": "deepseek-flash&DeepSeek",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 	}, [], queued)
@@ -369,7 +369,7 @@ def test_feedback_auth_failure_skips_post_and_notifies_on_ui(monkeypatch):
 
 	queued = []
 	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"corrector_config_id": "deepseek-flash&DeepSeek",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 	}, [], queued)
@@ -401,7 +401,7 @@ def _feedback_worker_fixture(monkeypatch, response, access_token="access"):
 
 	queued = []
 	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"corrector_config_id": "deepseek-flash&DeepSeek",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 	}, [], queued)
@@ -477,7 +477,7 @@ def test_feedback_timeout_notifies_on_ui(monkeypatch):
 
 	queued = []
 	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"corrector_config_id": "deepseek-flash&DeepSeek",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 	}, [], queued)
@@ -688,7 +688,7 @@ def _local_plugin_instance(monkeypatch, queued):
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "gpt-5.6-sol&OpenAI",
+		"corrector_config_id": "gpt-6.1-sol&OpenAI",
 		"execution_channel": "local",
 		"api_key": {"OpenAI": "key"},
 		"language": "zh_traditional",
@@ -751,7 +751,7 @@ def _coseeing_plugin_instance(monkeypatch, queued, messages):
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"corrector_config_id": "deepseek-flash&DeepSeek",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 		"language": "zh_traditional",

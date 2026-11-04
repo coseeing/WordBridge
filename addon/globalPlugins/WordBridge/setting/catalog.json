@@ -212,6 +212,30 @@
 		},
 		{
 			"provider": "OpenAI",
+			"model": "gpt-6.1-sol",
+			"label": "gpt-6.1-sol",
+			"active": true,
+			"pricing": {
+				"input_tokens": 2,
+				"output_tokens": 10,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
+		},
+		{
+			"provider": "OpenAI",
+			"model": "gpt-6.1-terra",
+			"label": "gpt-6.1-terra",
+			"active": true,
+			"pricing": {
+				"input_tokens": 1,
+				"output_tokens": 5,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
+		},
+		{
+			"provider": "OpenAI",
 			"model": "gpt-6-sol",
 			"label": "gpt-6-sol",
 			"active": true,
@@ -233,42 +257,6 @@
 				"base_unit": 1000000
 			},
 			"usage_key": "usage"
-		},
-		{
-			"provider": "OpenAI",
-			"model": "gpt-5.6-sol",
-			"label": "gpt-5.6-sol",
-			"active": true,
-			"pricing": {
-				"input_tokens": 4,
-				"output_tokens": 20,
-				"base_unit": 1000000
-			},
-			"usage_key": "usage"
-		},
-		{
-			"provider": "OpenAI",
-			"model": "gpt-5.6-terra",
-			"label": "gpt-5.6-terra",
-			"active": true,
-			"pricing": {
-				"input_tokens": 2,
-				"output_tokens": 12,
-				"base_unit": 1000000
-			},
-			"usage_key": "usage"
-		},
-		{
-			"provider": "OpenAI",
-			"model": "gpt-5.6-luna",
-			"label": "gpt-5.6-luna",
-			"active": true,
-			"pricing": {
-				"input_tokens": 0.2,
-				"output_tokens": 1.2,
-				"base_unit": 1000000
-			},
-			"usage_key": "usage"
 		}
 	],
 	"coseeings": [
@@ -278,8 +266,8 @@
 			"active": true
 		},
 		{
-			"model": "deepseek-v4-flash",
-			"label": "deepseek-v4-flash",
+			"model": "deepseek-flash",
+			"label": "deepseek-flash",
 			"active": true,
 			"provider": "DeepSeek"
 		},

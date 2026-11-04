@@ -132,5 +132,5 @@ def test_the_shipped_coseeing_labels_are_pinned():
 	# dialogs.py) substitutes a translated string for the sentinel's entry
 	# only; lib/catalog itself must never reach _() (spec decision 9).
 	assert shipped_catalog().labels_for("Coseeing") == (
-		"default", "deepseek-v4-flash", "gpt-6-luna", "gpt-5.6-luna",
+		"default", "deepseek-flash", "gpt-6-luna",
 	)

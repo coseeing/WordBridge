@@ -70,7 +70,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.adapter import get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("OpenAI", "gpt-5.6-sol", price_entry={})
+		adapter = get_provider_model_adapter("OpenAI", "gpt-6.1-sol", price_entry={})
 		payload = adapter.format_request(
 			PromptBundle(
 				messages=[{"role": "user", "content": "原始文字"}],
@@ -84,7 +84,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			},
 		)
 
-		self.assertEqual(payload["model"], "gpt-5.6-sol")
+		self.assertEqual(payload["model"], "gpt-6.1-sol")
 		self.assertEqual(payload["reasoning"], {"effort": "none"})
 		self.assertEqual(payload["temperature"], 0.0)
 		self.assertEqual(payload["top_p"], 0.0)
@@ -160,7 +160,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.prompt_bundle import PromptBundle
 
 		adapter = get_provider_model_adapter(
-			"OpenAI", "gpt-5.6-terra", price_entry=_price_entry("gpt-5.6-terra", "OpenAI")
+			"OpenAI", "gpt-6.1-terra", price_entry=_price_entry("gpt-6.1-terra", "OpenAI")
 		)
 		self.assertIsInstance(adapter, OpenAIAdapter)
 
@@ -177,7 +177,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			},
 		)
 
-		self.assertEqual(payload["model"], "gpt-5.6-terra")
+		self.assertEqual(payload["model"], "gpt-6.1-terra")
 		self.assertEqual(payload["instructions"], "系統提示")
 		self.assertEqual(
 			payload["input"],
@@ -222,7 +222,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.provider import OpenAIProvider
 
 		provider = OpenAIProvider({"api_key": "test"}, provider_entry=_provider_entry("OpenAI"))
-		payload = {"model": "gpt-5.6-sol", "input": "prepared payload"}
+		payload = {"model": "gpt-6.1-sol", "input": "prepared payload"}
 
 		with patch.object(provider, "send", return_value={"output_text": "ok"}) as send:
 			response = provider.chat_completion(payload)
@@ -372,7 +372,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.adapter import DeepSeekAdapter, get_provider_model_adapter
 		from lib.llm.prompt_bundle import PromptBundle
 
-		adapter = get_provider_model_adapter("DeepSeek", "deepseek-v4-flash", price_entry={})
+		adapter = get_provider_model_adapter("DeepSeek", "deepseek-flash", price_entry={})
 		self.assertIsInstance(adapter, DeepSeekAdapter)
 
 		payload = adapter.format_request(
@@ -388,7 +388,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			},
 		)
 
-		self.assertEqual(payload["model"], "deepseek-v4-flash")
+		self.assertEqual(payload["model"], "deepseek-flash")
 		self.assertEqual(payload["messages"][0], {"role": "system", "content": "系統提示"})
 		self.assertEqual(payload["messages"][1], {"role": "user", "content": "原始文字"})
 		self.assertFalse(payload["stream"])
@@ -409,7 +409,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.adapter import get_provider_model_adapter
 
 		adapter = get_provider_model_adapter(
-			"OpenAI", "gpt-5.6-terra", price_entry=_price_entry("gpt-5.6-terra", "OpenAI")
+			"OpenAI", "gpt-6.1-terra", price_entry=_price_entry("gpt-6.1-terra", "OpenAI")
 		)
 		usage_history = [
 			{"input_tokens": 10, "output_tokens": 5},
@@ -420,7 +420,8 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			adapter.get_total_usage(usage_history),
 			{"input_tokens": 11, "output_tokens": 7},
 		)
-		self.assertEqual(adapter.get_total_cost(usage_history), Decimal("0.000106"))
+		# gpt-6.1-terra: 11 x $1 + 7 x $5 per 1M tokens.
+		self.assertEqual(adapter.get_total_cost(usage_history), Decimal("0.000046"))
 
 	def test_workflow_uses_executor_for_format_parse_and_usage(self):
 		from lib.llm.executor import LLMExecutor

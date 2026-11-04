@@ -66,7 +66,7 @@ def _seed_interaction(db, *, cost, ip_address=None, user=None, age=timedelta(min
 		response_content="y",
 		ip_address=ip_address,
 		cost=cost,
-		model="deepseek-v4-flash&DeepSeek",
+		model="deepseek-flash&DeepSeek",
 		version="20260425",
 		user=user,
 	)
@@ -101,7 +101,7 @@ def test_guest_default_model_success(db, fake_run_typo_correction, monkeypatch):
 	assert body["interaction_id"] is not None
 
 	stored = db.query(Interaction).filter(Interaction.id == body["interaction_id"]).one()
-	assert stored.model == "deepseek-v4-flash&DeepSeek"
+	assert stored.model == "deepseek-flash&DeepSeek"
 	assert stored.user_id is None
 	assert stored.cost == Decimal("0.000001")
 
@@ -109,16 +109,16 @@ def test_guest_default_model_success(db, fake_run_typo_correction, monkeypatch):
 def test_explicit_model_success(db, fake_run_typo_correction, monkeypatch):
 	monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 	client = _client(db)
-	payload = dict(PAYLOAD, corrector_config_id="gpt-5.6-luna&OpenAI")
+	payload = dict(PAYLOAD, corrector_config_id="gpt-6-luna&OpenAI")
 
 	response = client.post("/proofreader", json=payload)
 
 	assert response.status_code == 200
 	assert fake_run_typo_correction[0]["provider_name"] == "OpenAI"
-	assert fake_run_typo_correction[0]["model_name"] == "gpt-5.6-luna"
+	assert fake_run_typo_correction[0]["model_name"] == "gpt-6-luna"
 
 	stored = db.query(Interaction).filter(Interaction.id == response.json()["interaction_id"]).one()
-	assert stored.model == "gpt-5.6-luna&OpenAI"
+	assert stored.model == "gpt-6-luna&OpenAI"
 
 
 def test_run_typo_correction_receives_all_expected_arguments(db, fake_run_typo_correction, monkeypatch):
@@ -132,7 +132,7 @@ def test_run_typo_correction_receives_all_expected_arguments(db, fake_run_typo_c
 	assert len(fake_run_typo_correction) == 1
 	call = fake_run_typo_correction[0]
 	assert call["provider_name"] == "DeepSeek"
-	assert call["model_name"] == "deepseek-v4-flash"
+	assert call["model_name"] == "deepseek-flash"
 	assert call["language"] == "zh_traditional"
 	assert call["corrector_mode"] == "standard"
 	assert call["template_name"] == "Standard_v1.json"

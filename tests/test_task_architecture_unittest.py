@@ -45,8 +45,8 @@ class TaskArchitectureTests(unittest.TestCase):
 		document, issues = BundledCatalogSource(ADDON_PATH / "setting").load()
 		catalog = build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
 
-		self.assertEqual(len(catalog.models), 16)
-		self.assertEqual(len({entry.corrector_config_id for entry in catalog.models}), 16)
+		self.assertEqual(len(catalog.models), 15)
+		self.assertEqual(len({entry.corrector_config_id for entry in catalog.models}), 15)
 
 	def test_plugin_local_correction_uses_endpoint_and_task_configs_with_unchanged_runner_interface(self):
 		"""Catches task-config reads, a local-routing regression, and provider/price
@@ -100,7 +100,7 @@ class TaskArchitectureTests(unittest.TestCase):
 			self.assertIs(plugin.requests.post, original_post)
 
 			expected_provider_entry = catalog.get_provider("OpenAI")
-			expected_price_entry = catalog.get_model("gpt-5.6-sol&OpenAI").price_entry()
+			expected_price_entry = catalog.get_model("gpt-6.1-sol&OpenAI").price_entry()
 
 		self.assertEqual(
 			nvda_stubs.corrector_task_loader_paths,
@@ -120,7 +120,7 @@ class TaskArchitectureTests(unittest.TestCase):
 				"request": "測試文字",
 				"batch_mode": True,
 				"provider_name": "OpenAI",
-				"model_name": "gpt-5.6-sol",
+				"model_name": "gpt-6.1-sol",
 				"credential": {"api_key": "test-key"},
 				"language": "zh_traditional",
 				"template_name": expected_task_config.template_name["lite"],
@@ -595,7 +595,7 @@ class _FakeConf(dict):
 	def __init__(self):
 		super().__init__({
 			"WordBridge": {"settings": {
-				"corrector_config_id": "gpt-5.6-sol&OpenAI",
+				"corrector_config_id": "gpt-6.1-sol&OpenAI",
 				"execution_channel": "local",
 				"language": "zh_traditional",
 				"typo_correction_mode": "standard",

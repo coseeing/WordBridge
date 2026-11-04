@@ -8,7 +8,7 @@ import pytest
 from test_coseeing_auth_nvda import _load_nvda_plugin
 
 SETTINGS = {
-	"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+	"corrector_config_id": "deepseek-flash&DeepSeek",
 	"execution_channel": "Coseeing",
 	"api_key": {},
 	"language": "zh_traditional",

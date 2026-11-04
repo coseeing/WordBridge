@@ -15,7 +15,7 @@ def _catalog_document():
 def test_catalog_models_and_coseeings_use_the_expected_entry_shapes():
 	document = _catalog_document()
 
-	assert len(document["models"]) == 16
+	assert len(document["models"]) == 15
 	for entry in document["models"]:
 		assert isinstance(entry["model"], str) and entry["model"]
 		assert isinstance(entry["provider"], str) and entry["provider"]
@@ -56,7 +56,7 @@ def test_corrector_task_config_is_the_only_prompt_setting_file():
 
 def test_provider_catalogs_preserve_approved_and_unaffected_models():
 	expected = {
-		"OpenAI": {"gpt-6-sol", "gpt-6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"},
+		"OpenAI": {"gpt-6.1-sol", "gpt-6.1-terra", "gpt-6-sol", "gpt-6-luna"},
 		"Anthropic": {"claude-opus-5-5", "claude-opus-5", "claude-sonnet-5"},
 		"DeepSeek": {"deepseek-flash", "deepseek-v4-pro"},
 		"Google": {

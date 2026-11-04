@@ -72,7 +72,7 @@ def _seed_interaction(db, *, user=None):
 		response_content="y",
 		ip_address="1.2.3.4",
 		cost=0,
-		model="deepseek-v4-flash&DeepSeek",
+		model="deepseek-flash&DeepSeek",
 		version="20260425",
 		user=user,
 	)

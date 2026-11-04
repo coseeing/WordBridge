@@ -33,7 +33,7 @@ def test_get_config_reads_explicit_wordbridge_settings():
         {
             "config": {
                 "provider_name": "OpenAI",
-                "model_name": "gpt-5.6-luna",
+                "model_name": "gpt-6-luna",
                 "language": "zh_traditional",
                 "template_name": "Standard_v3.json",
                 "corrector_mode": "standard",
@@ -46,7 +46,7 @@ def test_get_config_reads_explicit_wordbridge_settings():
     )
 
     assert config["provider_name"] == "OpenAI"
-    assert config["model_name"] == "gpt-5.6-luna"
+    assert config["model_name"] == "gpt-6-luna"
     assert config["language"] == "zh_traditional"
     assert config["template_name"] == "Standard_v3.json"
     assert config["corrector_mode"] == "standard"
@@ -60,7 +60,7 @@ def test_get_config_reads_explicit_wordbridge_settings():
 def test_get_config_requires_provider_and_model(missing_key):
     config = {
         "provider_name": "OpenAI",
-        "model_name": "gpt-5.6-luna",
+        "model_name": "gpt-6-luna",
     }
     del config[missing_key]
 
@@ -84,7 +84,7 @@ def test_call_api_forwards_provider_config_to_application_runner(monkeypatch):
         {
             "config": {
                 "provider_name": "OpenAI",
-                "model_name": "gpt-5.6-luna",
+                "model_name": "gpt-6-luna",
                 "language": "zh_traditional",
                 "template_name": "Standard_v3.json",
                 "corrector_mode": "standard",
@@ -99,7 +99,7 @@ def test_call_api_forwards_provider_config_to_application_runner(monkeypatch):
 
     catalog = _catalog()
     provider_entry = catalog.get_provider("OpenAI")
-    model_entry = catalog.get_model(make_corrector_config_id("gpt-5.6-luna", "OpenAI"))
+    model_entry = catalog.get_model(make_corrector_config_id("gpt-6-luna", "OpenAI"))
     price_entry = model_entry.price_entry() if model_entry is not None else {}
 
     assert result is not None
@@ -107,7 +107,7 @@ def test_call_api_forwards_provider_config_to_application_runner(monkeypatch):
         "request": "測試文字",
         "batch_mode": False,
         "provider_name": "OpenAI",
-        "model_name": "gpt-5.6-luna",
+        "model_name": "gpt-6-luna",
         "credential": {"api_key": "test-key"},
         "provider_entry": provider_entry,
         "price_entry": price_entry,

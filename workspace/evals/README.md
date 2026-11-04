@@ -85,7 +85,7 @@ python workspace/evals/generate_zhuyin_dataset.py
 
 ```bash
 npx promptfoo@0.120.19 eval \
-  -c workspace/evals/promptfooconfig/OpenAI_gpt-5.6-luna_smoke.yaml \
+  -c workspace/evals/promptfooconfig/OpenAI_gpt-6-luna_smoke.yaml \
   -j 1
 ```
 
@@ -109,7 +109,7 @@ providers:
   - id: "python:../provider.py"
     config:
       provider_name: "OpenAI"
-      model_name: "gpt-5.6-luna"
+      model_name: "gpt-6-luna"
       language: "zh_traditional"
       template_name: "Standard_v3.json"
       corrector_mode: "standard"
@@ -124,7 +124,7 @@ OpenAI 完整評估包含三份資料集，目前共 743 筆案例（單錯 249�
 
 ```bash
 npx promptfoo@0.120.19 eval \
-  -c workspace/evals/promptfooconfig/OpenAI_gpt-5.6-luna_full_error.yaml \
+  -c workspace/evals/promptfooconfig/OpenAI_gpt-6-luna_full_error.yaml \
   -j 1
 ```
 
@@ -152,10 +152,10 @@ npx promptfoo@0.120.19 eval -c workspace/evals/promptfooconfig/Ollama_qwen2_3_er
 | `Ollama_qwen2_2_error.yaml` | 本機 Ollama / qwen2 | 雙錯資料集 |
 | `Ollama_qwen2_3_error.yaml` | 本機 Ollama / qwen2 | 三錯資料集 |
 | `Ollama_qwen2_full_error.yaml` | 本機 Ollama / qwen2 | 單錯、雙錯、三錯 |
-| `OpenAI_gpt-5.6-luna_1_error.yaml` | OpenAI / gpt-5.6-luna | 單錯資料集 |
-| `OpenAI_gpt-5.6-luna_2_error.yaml` | OpenAI / gpt-5.6-luna | 雙錯資料集 |
-| `OpenAI_gpt-5.6-luna_3_error.yaml` | OpenAI / gpt-5.6-luna | 三錯資料集 |
-| `OpenAI_gpt-5.6-luna_full_error.yaml` | OpenAI / gpt-5.6-luna | 單錯、雙錯、三錯 |
+| `OpenAI_gpt-6-luna_1_error.yaml` | OpenAI / gpt-6-luna | 單錯資料集 |
+| `OpenAI_gpt-6-luna_2_error.yaml` | OpenAI / gpt-6-luna | 雙錯資料集 |
+| `OpenAI_gpt-6-luna_3_error.yaml` | OpenAI / gpt-6-luna | 三錯資料集 |
+| `OpenAI_gpt-6-luna_full_error.yaml` | OpenAI / gpt-6-luna | 單錯、雙錯、三錯 |
 | `Anthropic_claude-sonnet-5_1_error.yaml` | Anthropic / claude-sonnet-5 | 單錯資料集 |
 | `Anthropic_claude-sonnet-5_2_error.yaml` | Anthropic / claude-sonnet-5 | 雙錯資料集 |
 | `Anthropic_claude-sonnet-5_3_error.yaml` | Anthropic / claude-sonnet-5 | 三錯資料集 |
@@ -175,7 +175,7 @@ npx promptfoo@0.120.19 view
 
 ```bash
 npx promptfoo@0.120.19 eval \
-  -c workspace/evals/promptfooconfig/OpenAI_gpt-5.6-luna_smoke.yaml \
+  -c workspace/evals/promptfooconfig/OpenAI_gpt-6-luna_smoke.yaml \
   -j 1 \
   -o workspace/evals/report.json
 ```

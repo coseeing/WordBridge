@@ -371,7 +371,7 @@ def test_global_plugin_starts_normalized_coseeing_auth_and_guards_queued_callbac
 	instance.terminate()
 	assert auth_calls == ["shutdown"]
 
-	settings["corrector_config_id"] = "deepseek-v4-flash&DeepSeek"
+	settings["corrector_config_id"] = "deepseek-flash&DeepSeek"
 	instance = plugin.GlobalPlugin()
 	callback, args = queued.pop(0)
 	instance.terminate()
@@ -678,7 +678,7 @@ def test_settings_panel_uses_clean_button_without_legacy_credential_controls(mon
 	auth_calls = []
 	queued = []
 	settings = {
-		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"corrector_config_id": "deepseek-flash&DeepSeek",
 		"execution_channel": "Coseeing",
 		"api_key": {"Coseeing": "refresh-token"},
 		"language": "zh_traditional",
@@ -1160,7 +1160,7 @@ def test_clean_button_disables_on_success_and_reenables_on_failure(monkeypatch):
 	auth_calls = []
 	queued = []
 	settings = {
-		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"corrector_config_id": "deepseek-flash&DeepSeek",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 	}
@@ -1205,7 +1205,7 @@ def test_clean_button_stays_disabled_when_cleanup_fails_after_native_logout(monk
 	auth_calls = []
 	queued = []
 	settings = {
-		"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+		"corrector_config_id": "deepseek-flash&DeepSeek",
 		"execution_channel": "Coseeing",
 		"api_key": {},
 	}

@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_INIT = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge" / "__init__.py"
 
 SETTINGS = {
-	"corrector_config_id": "deepseek-v4-flash&DeepSeek",
+	"corrector_config_id": "deepseek-flash&DeepSeek",
 	"execution_channel": "Coseeing",
 	"api_key": {},
 	"language": "zh_traditional",

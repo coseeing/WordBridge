@@ -17,7 +17,7 @@ from .lib.llm import SUPPORTED_PROVIDERS
 
 SETTING_DIR = Path(__file__).parent / "setting"
 CORRECTOR_TASK_CONFIG_PATH = SETTING_DIR / "task" / "corrector.json"
-DEFAULT_CORRECTOR_CONFIG_ID_DEFAULT = "deepseek-v4-flash&DeepSeek"
+DEFAULT_CORRECTOR_CONFIG_ID_DEFAULT = "deepseek-flash&DeepSeek"
 
 
 @dataclass(frozen=True)

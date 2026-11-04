@@ -45,7 +45,7 @@ providers:
     config:
       provider_name: "OpenAI"
       local: false
-      model_name: "gpt-5.6-luna"
+      model_name: "gpt-6-luna"
       language: "zh_traditional"
       template_name: "Standard_v3.json"
       corrector_mode: "standard"
@@ -54,4 +54,4 @@ providers:
         keep_non_chinese_char: false
 
 tests:
-  - ../datasets/zhuyin_1_error_top1_seed0.csv
+  - ../datasets/zhuyin_3_error_weighted_seed0.csv

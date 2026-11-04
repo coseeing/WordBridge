@@ -94,7 +94,7 @@ def test_the_workflow_factory_requires_both_entries():
 	with pytest.raises(TypeError):
 		create_typo_workflow(
 			provider_name="OpenAI",
-			model_name="gpt-5.6-sol",
+			model_name="gpt-6.1-sol",
 			credential={"api_key": "test"},
 			language="zh_traditional",
 			template_name="Standard_v1.json",
