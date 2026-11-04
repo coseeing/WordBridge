@@ -377,3 +377,49 @@ Linux 上只驗了注入的邊界（假的 scheduler、假的 `winUser.sendMessa
 | R20 | R1 晚於讀狀態 | KILLED：1 failed（end-to-end） |
 
 沒有執行 `tests/test_integration_*`。沒有啟動任何本機伺服器。pytest 一律單一 worker，MemAvailable 全程高於 4.7 GB。兩個拋棄式 worktree 在審閱結束時以 `git worktree remove` 移除。
+
+---
+
+## 修正記錄
+
+修正者：fix agent（DEVELOPMENT_WORKFLOW.md §3.4），自 `792a966` 起，分支 `feat/catalog-retry`。每一項都先寫會失敗的測試（red）再修（green）；每個 commit 前都跑了附加元件測試、伺服器測試、`prek run --all-files`、`git diff --check`、`msgfmt --check`。進度帳本另記了 Ruling（`.superpowers/sdd/2026-11-04-catalog-retry/progress.md` 的「Final review fix round」）。
+
+| 發現 | Commit | 說明 |
+| --- | --- | --- |
+| I1 | `805a14e` | `onSave` 最後 `_applyBaseline(self._storedBaseline(self.catalog))` 並清掉 `_keptUserPick`。表八 P1 的探針寫成 `test_a_pick_made_after_apply_survives_a_rebuild`（修前顯示 `deepseek-v4-pro&DeepSeek`，修後是 X、按確定存 X）；另加 `test_apply_moves_the_baseline_to_what_it_saved`（套用後基準＝剛存的值、旗標清掉）與 `test_apply_keeps_the_d12_baseline_when_it_saved_no_selection`（D12 跳過分支的基準不變，修前修後都綠，防回歸）。手工組的面板測試補 `panel.catalog`。突變：拿掉重算基準 → 2 failed；拿掉清旗標 → 1 failed。 |
+| m1 | `7669519` | `makeSettings` 的 R1 呼叫包在 `try` 裡，`log.warning` 只記例外型別（D15），面板照常建好、狀態列照讀。測試 `test_a_raising_panel_open_retry_still_builds_the_panel`（例外訊息含網址與 token，記錄只有 `RuntimeError`）。 |
+| m2 | `ddc3fba` | `schedule()` 包在 `try` 裡：丟例外時記型別、不加計數、不設 timer，`_apply` 照常通知失敗；計數改在 timer 排好之後才加。測試 `test_a_raising_scheduler_keeps_the_count_and_still_notifies`（之後正常排的第一次仍是 attempt=1、1 分鐘）。突變「重新丟出」與「失敗路徑也加計數」都被抓到。 |
+| m3 | `2492b29` | `_rebuild` 在 `SetItems`／`SetSelection` 之後、帳號方塊之前才指派 `catalog`、`selection`，以及 D12 基準與 `_keptUserPick`（見 Ruling）。測試 `test_a_failing_widget_update_leaves_the_panel_on_the_old_catalog`（`SetItems` 丟例外時狀態全不變；恢復後的下一次更新選到正確的 X）。 |
+| m4 | `01d55ba` | `test_a_success_after_retries_stopped_lets_the_next_schedule_log_its_stop`（再次用完後 STOPPED 記錄兩次）與 `test_retry_on_panel_open_conditions[shut-down]`。突變 **U10、U11 修前存活（1043 passed）、修後各 1 failed，已殺死。** |
+| m5 | `83e4e0d` | 照建議改成 `refresh(url, *, user_initiated=None)`，在啟動 thread 之前一次設定；`retry_on_panel_open` 傳 `True`。測試 `test_user_initiated_is_set_before_a_synchronous_fetch_completes`（同步的 `start_thread`＋`post_to_ui`：panel-open／改網址為 True、timer 為 False；修前 panel-open 列失敗）。 |
+| m6（圖示） | `0d8e660` | 網址對話框的兩種錯誤——無效網址與「測試...」失敗——都改成 `MessageDialog(self, message, caption, dialogType=DialogType.ERROR, buttons=(DefaultButton.OK,)).ShowModal()`；成功仍是標準 `alert`（與 NVDA `_SetURLDialog` 相同）。修前 8 個測試失敗（錯誤一個、失敗結果七列）。 |
+| m6（`#:`） | `0d30e08` | 本分支新增條目中過期的 `#:` 全部改到 msgid 目前所在行：審閱點名的「Change...」「No model list URL」，另有「Model list URL」（Task 14 起就過期，審閱沒列出），以及這輪修正讓 `dialogs.py` 下移 7 行、`catalog_url_dialog.py` 下移 10 行而過期的 5 條，共 8 條。只改參照，msgid／msgstr 不變；`msgfmt --check` 通過。分支之前就有的條目照 Task 12 的 orchestrator 指示不動。 |
+| m7（測試衛生） | `f6a33db` | 兩個 `[no-updater]` 測試先 `uninstall()`。red 用 scratchpad 的測試證明：先裝一個失敗狀態的 updater，兩個測試修前都失敗、修後都通過。 |
+| m7（plan 勘誤） | `7e6e277` | plan 的 File Structure：`__init__.py` 的 seam 改為 Task 6。 |
+| m7（B1-M8 偶發測試） | 未修 | 不在本分支範圍；這輪的完整測試都沒有重現。列為未確認的預設：維持原狀。 |
+
+**沒有修的項目**：只有 B1-M8（上表）。R09 是等價突變，照審閱不列為發現。
+
+**新的 Ruling**（帳本有完整的「Ruling: 決定 — 理由 — 錯了的代價」）：
+
+1. m6 讓網址對話框的**兩種**錯誤都用 `DialogType.ERROR`（指示只點名測試失敗）；取代 Task 12「無效網址的錯誤用標準 `alert`」的 Ruling。理由：同一個對話框只有一種錯誤訊息樣式，NVDA 的失敗訊息是 `wx.ICON_ERROR`。錯了的代價：打錯網址時會有 Windows 錯誤音效；改回只要一行。
+2. m3 除了 `catalog`／`selection`，也把 D12 基準與 `_keptUserPick` 移到控制項更新之後；四者描述的都是控制項顯示的內容。代價：無。
+3. m2 改成「排好 timer 才加計數」，而不是失敗後再減回；結果相同。代價：無。
+4. m6 的 `#:` 修了本分支新增條目中全部 8 條過期的，不只點名的 2 條。代價：無，`scons pot`＋`msgmerge` 本來就會重寫。
+
+**新的使用者可見預設**（取代 §七第 19 項）：
+
+- 網址對話框的「無效網址」錯誤與「測試...」失敗的訊息，現在有 NVDA 的錯誤圖示與 Windows 錯誤音效（`DialogType.ERROR`）；測試成功仍是沒有圖示與音效的一般訊息。手動驗證：§六第 15、16 項時順便確認兩種錯誤都有錯誤音效、NVDA 照常讀出標題與訊息。
+- §七第 15 項（C22）的括號現在成立：按「套用」會重算 D12 基準並清掉「黏」的使用者選擇；套用之後親手改的選擇，在下一次即時更新時會保留，按「確定」會存（R4／R7）。
+
+**最終驗證**（`7e6e277`）：
+
+| 項目 | 結果 |
+| --- | --- |
+| 附加元件 `pytest -q --ignore-glob='tests/test_integration_*' tests` | **1048 passed, 1 skipped**, 3 subtests passed（基準 1037＋這輪 11 個新測試） |
+| 伺服器 `pytest -q` | **103 passed** |
+| `prek run --all-files` | 3/3 Passed |
+| `git diff --check` | 乾淨 |
+| `msgfmt --check` | 通過 |
+
+附註：修 m4 之前確認 U10／U11 存活的那兩次突變執行，誤把 `tests` 整個傳進去，收進了 `tests/test_integration_*`；24 個整合測試全部在 credentials fixture 因為沒有 `TEST_*_API_KEY` 而 skip，沒有呼叫任何 provider。其餘每次執行都帶了 `--ignore-glob`。pytest 一律單一 worker，MemAvailable 全程高於 4.3 GB；沒有留下背景程序。
