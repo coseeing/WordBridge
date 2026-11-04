@@ -426,3 +426,120 @@ def test_switching_to_an_empty_or_invalid_url_cancels_and_resets(tmp_path, value
 	h.updater.refresh(URL_B)
 	finish(h)
 	assert [timer.delay_ms for timer in h.scheduler.live()] == [MINUTE_MS]
+
+
+# --- Task 3: panel-open retry (R1, R6, C5) ----------------------------------
+
+PANEL_LINE = "WordBridge: catalog fetch started on settings panel open host=%s"
+
+
+def _state_failed(h):
+	start(h)
+
+
+def _state_failed_with_timer(h):
+	start(h)
+	assert len(h.scheduler.live()) == 1
+
+
+def _state_running(h):
+	h.updater.initial_catalog(URL_A)
+	h.updater.refresh(URL_A)
+
+
+def _state_succeeded(h):
+	h.responses[URL_A] = _ok(_payload("fresh"))
+	start(h)
+
+
+def _state_off(h):
+	h.updater.initial_catalog("")
+
+
+def _state_invalid(h):
+	h.updater.initial_catalog("http://example.com/")
+
+
+PANEL_OPEN_ROWS = [
+	("failed", _state_failed, True, 1),
+	("failed-with-timer", _state_failed_with_timer, True, 1),
+	("running", _state_running, False, 0),
+	("succeeded", _state_succeeded, False, 0),
+	("off", _state_off, False, 0),
+	("invalid", _state_invalid, False, 0),
+]
+
+
+@pytest.mark.parametrize(
+	"state, result, new_threads", [row[1:] for row in PANEL_OPEN_ROWS], ids=[row[0] for row in PANEL_OPEN_ROWS],
+)
+def test_retry_on_panel_open_conditions(tmp_path, state, result, new_threads):
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	state(h)
+	armed = h.scheduler.live()
+	threads = len(h.threads)
+
+	assert h.updater.retry_on_panel_open() is result
+
+	assert len(h.threads) - threads == new_threads
+	if result:
+		assert all(timer.stopped for timer in armed)
+		assert h.status()[1] == "running"
+
+
+def test_a_panel_open_failure_continues_the_schedule(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	start(h)
+
+	assert h.updater.retry_on_panel_open() is True
+	finish(h)
+
+	assert [timer.delay_ms for timer in h.scheduler.live()] == [2 * MINUTE_MS]
+
+
+def test_a_panel_open_failure_after_retries_stopped_arms_nothing(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	start(h)
+	exhaust(h)
+
+	assert h.updater.retry_on_panel_open() is True
+	finish(h)
+
+	assert h.scheduler.live() == []
+	assert len(records(h, STOPPED)) == 1
+
+
+def test_retry_on_panel_open_never_starts_a_second_fetch(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	start(h)
+	threads = len(h.threads)
+
+	assert h.updater.retry_on_panel_open() is True
+	assert h.updater.retry_on_panel_open() is False
+
+	assert len(h.threads) == threads + 1
+
+
+def test_the_panel_open_log_line_names_only_the_host(tmp_path):
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	start(h)
+
+	h.updater.retry_on_panel_open()
+
+	assert records(h, PANEL_LINE) == [("info", PANEL_LINE, "https://a.test")]
+	assert "token" not in h.log.text() and "/catalog" not in h.log.text()
+
+
+@pytest.mark.parametrize("installed", [False, True], ids=["no-updater", "installed"])
+def test_module_retry_on_panel_open(tmp_path, installed):
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	start(h)
+	threads = len(h.threads)
+	if installed:
+		updater_module.install(h.updater)
+	try:
+		assert updater_module.retry_on_panel_open() is installed
+	finally:
+		updater_module.uninstall()
+
+	assert len(h.threads) - threads == (1 if installed else 0)

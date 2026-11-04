@@ -237,6 +237,25 @@ class CatalogUpdater:
 		if check.enabled:
 			self._thread = self._start_thread(self._run, (generation, check))
 
+	def retry_on_panel_open(self) -> bool:
+		"""Main thread. Fetch now when the last fetch failed (R1, spec section 8).
+
+		A pending retry is cancelled by refresh(), and a failure of this fetch
+		continues the retry schedule (R6). Any other state starts nothing, so
+		two fetches never overlap.
+		"""
+		if self._shutdown.is_set():
+			return False
+		with self._lock:
+			if self._fetch != FETCH_FAILED:
+				return False
+		self._log.info(
+			"WordBridge: catalog fetch started on settings panel open host=%s",
+			redact_url(validate_catalog_url(self._current_url).url),
+		)
+		self.refresh(self._current_url)
+		return True
+
 	def _cancel_retry_timer(self) -> None:
 		timer, self._retry_timer = self._retry_timer, None
 		if timer is not None:
@@ -405,6 +424,12 @@ def request_refresh(url: str) -> None:
 	updater = _UPDATER
 	if updater is not None:
 		updater.refresh(url)
+
+
+def retry_on_panel_open() -> bool:
+	"""Main thread. False when no updater is installed (plugin not running)."""
+	updater = _UPDATER
+	return updater.retry_on_panel_open() if updater is not None else False
 
 
 def status():
