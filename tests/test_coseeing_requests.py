@@ -7,6 +7,14 @@ import pytest
 from lib.coseeing import build_coseeing_headers
 
 
+def _plugin_load_catalog(plugin_module):
+	"""load_catalog from the loaded plugin package's own lib.catalog, so the
+	catalog it builds uses the same classes as the plugin."""
+	import importlib
+
+	return importlib.import_module(plugin_module.__name__ + ".lib.catalog.fallback").load_catalog
+
+
 def test_guest_has_no_authorization_header():
 	assert build_coseeing_headers(None) == {}
 
@@ -128,7 +136,7 @@ def test_degraded_catalog_announcement_fires_once_per_session(monkeypatch):
 	# A source whose load() raises always degrades to the sentinel rung (see
 	# lib/catalog/fallback.py's load_catalog) -- the exact shape correctTypo()
 	# would see in production the day the shipped setting/ tree can't be read.
-	instance.catalog = plugin_module.load_catalog(
+	instance.catalog = _plugin_load_catalog(plugin_module)(
 		BrokenSource(), runnable_providers=plugin_module.SUPPORTED_PROVIDERS
 	)
 	assert instance.catalog.degraded is True
@@ -544,7 +552,7 @@ def test_degraded_catalog_flag_is_set_only_after_the_notification_is_dispatched(
 		def load(self):
 			raise RuntimeError("setting tree unreadable")
 
-	instance.catalog = plugin_module.load_catalog(
+	instance.catalog = _plugin_load_catalog(plugin_module)(
 		BrokenSource(), runnable_providers=plugin_module.SUPPORTED_PROVIDERS
 	)
 	assert instance.catalog.degraded is True

@@ -49,7 +49,7 @@ from . import catalog_updater
 from .catalog_updater import CatalogUpdater
 from .lib.catalog import COSEEING_GROUP, LOCAL_CHANNEL, registry
 from .lib.catalog.cache import CatalogCache
-from .lib.catalog.fallback import SENTINEL_ID, load_catalog
+from .lib.catalog.fallback import SENTINEL_ID
 from .lib.catalog.remote import DEFAULT_CATALOG_URL, loggable
 from .lib.catalog.sources import BundledCatalogSource
 from .lib.llm import SUPPORTED_PROVIDERS
