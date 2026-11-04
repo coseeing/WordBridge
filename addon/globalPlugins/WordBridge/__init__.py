@@ -165,6 +165,13 @@ def _catalog_http_get(url, **kwargs):
 	return requests.get(url, **kwargs)
 
 
+def _schedule_catalog_retry(delay_ms, callback):
+	# The catalog retry timer (retry spec section 7.3): wx.CallLater runs the
+	# callback on the main thread. Looked up on every call, so tests can
+	# replace it.
+	return wx.CallLater(delay_ms, callback)
+
+
 def _start_catalog_thread(target, args):
 	return catalog_updater.start_daemon_thread(target, args)
 
@@ -277,6 +284,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			shutdown=self._shutdown,
 			log=log,
 			start_thread=_start_catalog_thread,
+			schedule=_schedule_catalog_retry,
 		)
 
 	def _start_catalog_fetch(self):

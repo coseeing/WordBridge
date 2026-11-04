@@ -622,3 +622,116 @@ def test_correct_typo_never_sends_a_local_users_text_to_coseeing_without_a_catal
 	assert posts == []
 	assert f.messages == [CANCEL_MESSAGE]
 	f.instance.terminate()
+
+
+# --- Catalog retry wiring (retry spec sections 7.1, 14, 15.3; R9) ----------
+
+def _fail_the_startup_fetch(plugin, queued):
+	"""Run the queued fetch start, its thread (the harness refuses the
+	network, so it fails) and the posted result."""
+	_run(queued)
+	target, args = plugin.started_catalog_threads[-1]
+	target(*args)
+	_run(queued)
+
+
+def test_a_failed_startup_fetch_arms_one_retry_through_the_seam(monkeypatch):
+	plugin, queued, _auth = _load(monkeypatch, _settings(catalog_url=NO_CACHE_URL))
+	instance = plugin.GlobalPlugin()
+
+	_fail_the_startup_fetch(plugin, queued)
+
+	assert plugin.catalog_updater.status().fetch == "failed"
+	assert [timer.delay_ms for timer in plugin.catalog_retry_timers] == [60_000]
+	assert plugin.wx.timers == []
+	instance.terminate()
+
+
+def test_the_retry_seam_uses_wx_call_later_at_call_time(monkeypatch):
+	plugin, _queued, _auth = _load(monkeypatch)
+	calls = []
+	monkeypatch.setattr(plugin.wx, "CallLater", lambda delay_ms, callback: calls.append((delay_ms, callback)) or "handle")
+
+	def callback():
+		pass
+
+	assert plugin.real_schedule_catalog_retry(5, callback) == "handle"
+	assert calls == [(5, callback)]
+
+
+def test_terminate_stops_a_pending_retry_and_a_late_firing_does_nothing(monkeypatch):
+	plugin, queued, _auth = _load(monkeypatch, _settings(catalog_url=NO_CACHE_URL))
+	instance = plugin.GlobalPlugin()
+	_fail_the_startup_fetch(plugin, queued)
+	[timer] = plugin.catalog_retry_timers
+	threads = len(plugin.started_catalog_threads)
+
+	instance.terminate()
+	timer.fire()
+
+	assert timer.stopped is True
+	assert len(plugin.started_catalog_threads) == threads
+
+
+def test_terminate_closes_the_updater_even_if_earlier_steps_raise(monkeypatch):
+	plugin, queued, _auth = _load(monkeypatch, _settings(catalog_url=NO_CACHE_URL))
+	instance = plugin.GlobalPlugin()
+	_fail_the_startup_fetch(plugin, queued)
+	[timer] = plugin.catalog_retry_timers
+
+	def broken():
+		raise RuntimeError("boom")
+
+	monkeypatch.setattr(instance, "_stop_progress_cue", broken)
+	monkeypatch.setattr(plugin, "shutdown_coseeing_auth", broken)
+	instance.terminate()
+
+	assert timer.stopped is True
+	assert plugin.catalog_updater.status() is None
+
+
+def test_a_successful_retry_lets_a_local_user_correct_without_the_dialog(monkeypatch):
+	import json
+
+	from fake_http import BodyResponse
+	from shipped_catalog import server_document
+
+	f = _choice_fixture(monkeypatch, catalog_url=NO_CACHE_URL)
+	f.instance._start_catalog_fetch()
+	target, args = f.plugin.started_catalog_threads[-1]
+	target(*args)
+	_run(f.queued)
+	[timer] = f.plugin.catalog_retry_timers
+	body = json.dumps(server_document()).encode("utf8")
+	f.instance._catalog_updater._http_get = lambda url, **kwargs: BodyResponse(body)
+
+	timer.fire()
+	target, args = f.plugin.started_catalog_threads[-1]
+	target(*args)
+	_run(f.queued)
+
+	assert f.instance._needs_catalog_choice() is False
+	f.instance.script_correction(None)
+	assert f.started == ["原文"]
+	assert FakeMessageDialog.instances == []
+	f.instance.terminate()
+
+
+def test_the_switch_dialog_starts_no_fetch(monkeypatch):
+	# R9 (OQ2 -> A): the U7 dialog keeps answering only its own question.
+	f = _choice_fixture(monkeypatch, catalog_url=NO_CACHE_URL)
+	f.instance._start_catalog_fetch()
+	target, args = f.plugin.started_catalog_threads[-1]
+	target(*args)
+	_run(f.queued)
+	[timer] = f.plugin.catalog_retry_timers
+	threads = len(f.plugin.started_catalog_threads)
+
+	f.instance.script_correction(None)
+	_run(f.queued)
+
+	assert len(FakeMessageDialog.instances) == 1
+	assert len(f.plugin.started_catalog_threads) == threads
+	assert timer.stopped is False
+	assert f.plugin.catalog_updater.status().fetch == "failed"
+	f.instance.terminate()

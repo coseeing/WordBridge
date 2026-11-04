@@ -385,6 +385,17 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 		),
 		raising=False,
 	)
+	# Catalog retry timers are recorded here, never in wx.timers (which the
+	# progress cue tests count).
+	plugin.catalog_retry_timers = []
+	plugin.real_schedule_catalog_retry = getattr(plugin, "_schedule_catalog_retry", None)
+
+	def record_catalog_retry(delay_ms, callback):
+		timer = wx_timer(delay_ms, callback, ())
+		plugin.catalog_retry_timers.append(timer)
+		return timer
+
+	monkeypatch.setattr(plugin, "_schedule_catalog_retry", record_catalog_retry, raising=False)
 	from shipped_catalog import server_document
 
 	overlay = importlib.import_module(f"{package_name}.lib.catalog.overlay")
