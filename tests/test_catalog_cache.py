@@ -90,6 +90,33 @@ def test_a_valid_file_one_byte_over_the_limit_is_ignored(tmp_path):
 	assert path.stat().st_size == MAX_CACHE_BYTES + 1
 
 
+def test_load_reads_at_most_one_byte_over_the_limit(tmp_path, monkeypatch):
+	# load() runs on the main thread: an oversized file must never be read
+	# into memory whole, only far enough to know it is too large.
+	_padded_cache_file(tmp_path, MAX_CACHE_BYTES + 10)
+	reads = []
+	real_open = cache_module.Path.open
+
+	def spying_open(self, *args, **kwargs):
+		handle = real_open(self, *args, **kwargs)
+		real_read = handle.read
+
+		def read(*read_args):
+			reads.append(read_args)
+			return real_read(*read_args)
+
+		handle.read = read
+		return handle
+
+	monkeypatch.setattr(cache_module.Path, "open", spying_open)
+
+	document, issues = _cache(tmp_path).load(KEY)
+
+	assert document is None
+	assert _codes(issues) == ["unreadable_cache"]
+	assert reads == [(MAX_CACHE_BYTES + 1,)]
+
+
 def test_a_payload_at_the_fetch_limit_with_the_longest_key_round_trips(tmp_path):
 	# The file wraps a re-serialised payload, so a payload at the fetch limit
 	# (and a url_key at the URL length limit) must still fit and load back.
