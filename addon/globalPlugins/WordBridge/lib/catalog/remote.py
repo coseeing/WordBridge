@@ -166,6 +166,11 @@ def _url_problem(name, url) -> str | None:
 		return f"no host is allowed for {name}"
 	if not isinstance(url, str):
 		return f"url is not a string for {name}"
+	# As in validate_catalog_url(): urlsplit() silently drops tab, CR, LF and
+	# leading control characters, so the host it reports would not be the
+	# URL requests is given.
+	if any(ch.isspace() or not ch.isprintable() for ch in url):
+		return f"url contains whitespace or control characters for {name}"
 	try:
 		parts, port = _split(url)
 	except ValueError:

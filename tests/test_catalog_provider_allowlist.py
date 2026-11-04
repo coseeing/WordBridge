@@ -70,6 +70,24 @@ RULES_TABLE = [
 	("bad-port", "OpenAI", "https://api.openai.com:abc/v1", True),
 	("url-int", "OpenAI", 5, True),
 	("url-list", "OpenAI", ["https://api.openai.com"], True),
+	# urlsplit() silently removes tab/CR/LF and leading C0 controls/spaces,
+	# so these would pass the host check while requests rejects the raw URL.
+	("tab-inside", "OpenAI", "https://api.openai.com\t/v1", True),
+	("tab-in-host", "OpenAI", "https://api.open\tai.com/v1", True),
+	("newline", "OpenAI", "https://api.openai.com/v1\n", True),
+	("carriage-return", "OpenAI", "https://api.openai.com\r/v1", True),
+	("leading-tab", "OpenAI", "\thttps://api.openai.com/v1", True),
+	("leading-c0", "OpenAI", "\x01https://api.openai.com/v1", True),
+	("leading-space", "OpenAI", " https://api.openai.com/v1", True),
+	("trailing-space", "OpenAI", "https://api.openai.com/v1 ", True),
+	("ideographic-space", "OpenAI", "https://api.openai.com/v1\u3000", True),
+	("escape", "OpenAI", "https://api.openai.com/v1\x1b", True),
+	("trailing-dot", "OpenAI", "https://api.openai.com./v1", True),
+	("ollama-lookalike", "Ollama", "http://localhost.evil.com:11434/v1", True),
+	("ollama-v6", "Ollama", "http://[::1]:11434/v1", True),
+	("no-scheme", "OpenAI", "//api.openai.com/v1", True),
+	("backslash-userinfo", "OpenAI", "https://evil\\@api.openai.com/v1", True),
+	("percent-dot", "OpenAI", "https://api%2eopenai.com/v1", True),
 ]
 
 
