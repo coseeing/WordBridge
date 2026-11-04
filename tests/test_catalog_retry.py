@@ -171,6 +171,24 @@ def test_a_success_resets_the_schedule(tmp_path, k):
 	assert [timer.delay_ms for timer in h.scheduler.live()] == [MINUTE_MS]
 
 
+def test_a_success_after_retries_stopped_lets_the_next_schedule_log_its_stop(tmp_path):
+	# Final review m4 (mutant U10): a success also resets "retries stopped",
+	# so a later schedule that runs out says so again.
+	h = retry_harness(tmp_path, {URL_A: failing()})
+	start(h)
+	exhaust(h)
+	h.responses[URL_A] = _ok(_payload("fresh"))
+	h.updater.refresh(URL_A)
+	finish(h)
+
+	h.responses[URL_A] = failing()
+	h.updater.refresh(URL_A)
+	finish(h)
+	exhaust(h)
+
+	assert records(h, STOPPED) == [("info", STOPPED, 6)] * 2
+
+
 def _deadline_clock():
 	values = itertools.chain([0], itertools.repeat(100))
 	return lambda: next(values)
@@ -470,6 +488,13 @@ def _state_invalid(h):
 	h.updater.initial_catalog("http://example.com/")
 
 
+def _state_failed_then_shut_down(h):
+	# Final review m4 (mutant U11): terminate() sets the shutdown event
+	# before it closes the updater.
+	start(h)
+	h.shutdown.set()
+
+
 PANEL_OPEN_ROWS = [
 	("failed", _state_failed, True, 1),
 	("failed-with-timer", _state_failed_with_timer, True, 1),
@@ -477,6 +502,7 @@ PANEL_OPEN_ROWS = [
 	("succeeded", _state_succeeded, False, 0),
 	("off", _state_off, False, 0),
 	("invalid", _state_invalid, False, 0),
+	("shut-down", _state_failed_then_shut_down, False, 0),
 ]
 
 
