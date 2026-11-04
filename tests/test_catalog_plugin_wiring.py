@@ -156,8 +156,14 @@ def test_a_posted_fetch_result_is_installed_on_the_ui_queue(monkeypatch):
 	instance._catalog_updater._http_get = lambda url, **kwargs: BodyResponse(body)
 	queued.clear()
 	instance._start_catalog_fetch()
+	before = instance.catalog
 	target, args = plugin.started_catalog_threads[0]
 	target(*args)
+
+	# D7: the fetch thread only posts; the swap happens on the wx queue.
+	assert instance.catalog is before
+	assert plugin.registry.current() is before
+	assert len(queued) == 1
 	for callback, callback_args in list(queued):
 		callback(*callback_args)
 
@@ -236,3 +242,76 @@ def test_the_cache_path_is_under_the_workspace_root(monkeypatch):
 
 	monkeypatch.undo()
 	assert plugin.CATALOG_CACHE_PATH == paths.user_workspace_root() / "catalog" / "remote-catalog.json"
+
+
+class StoreSpy:
+	def __init__(self, inner):
+		self.inner = inner
+		self.stores = []
+
+	def load(self, url_key):
+		return self.inner.load(url_key)
+
+	def store(self, url_key, document):
+		self.stores.append(url_key)
+		return ()
+
+
+def test_a_fetch_finishing_after_terminate_writes_and_posts_nothing(monkeypatch):
+	from fake_http import BodyResponse
+	from shipped_catalog import SERVER_CATALOG_PATH
+
+	plugin, queued, _auth = _load(monkeypatch)
+	instance = plugin.GlobalPlugin()
+	updater = instance._catalog_updater
+	assert updater._shutdown is instance._shutdown
+	spy = StoreSpy(updater._cache)
+	updater._cache = spy
+	updater._http_get = lambda url, **kwargs: BodyResponse(SERVER_CATALOG_PATH.read_bytes())
+	instance._start_catalog_fetch()
+	target, args = plugin.started_catalog_threads[0]
+	instance.terminate()
+	queued.clear()
+
+	target(*args)
+
+	assert spy.stores == []
+	assert queued == []
+
+
+def test_the_production_request_forwards_the_fetch_arguments_unchanged(monkeypatch):
+	calls = []
+	plugin, _queued, _auth = _load(monkeypatch)
+	monkeypatch.setattr(plugin.requests, "get", lambda *args, **kwargs: calls.append((args, kwargs)) or "response")
+	kwargs = {"stream": True, "timeout": (5, 10), "allow_redirects": False, "headers": {"Accept": "application/json"}}
+
+	assert plugin._catalog_http_get("https://h.test/", **kwargs) == "response"
+	assert calls == [(("https://h.test/",), kwargs)]
+
+
+def test_the_wired_fetch_sends_exactly_the_specified_request(monkeypatch):
+	from fake_http import BodyResponse
+	from shipped_catalog import SERVER_CATALOG_PATH
+
+	calls = []
+	plugin, queued, _auth = _load(monkeypatch)
+	instance = plugin.GlobalPlugin()
+	instance._catalog_updater._cache = StoreSpy(instance._catalog_updater._cache)
+
+	def get(*args, **kwargs):
+		calls.append((args, kwargs))
+		return BodyResponse(SERVER_CATALOG_PATH.read_bytes())
+
+	monkeypatch.setattr(plugin.requests, "get", get)
+	instance._start_catalog_fetch()
+	target, args = plugin.started_catalog_threads[0]
+	target(*args)
+
+	assert calls == [((DEFAULT_URL,), {
+		"stream": True,
+		"timeout": (5, 10),
+		"allow_redirects": False,
+		"headers": {"Accept": "application/json"},
+	})]
+	assert "verify" not in calls[0][1]
+	instance.terminate()
