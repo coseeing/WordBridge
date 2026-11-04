@@ -256,12 +256,13 @@ class CatalogUpdater:
 		self._log_source(check, source)
 		return catalog
 
-	def refresh(self, url: str) -> None:
+	def refresh(self, url: str, *, user_initiated=None) -> None:
 		"""Fetch for `url`; on a URL change, switch to its cache at once (D8). Main thread.
 
 		Cancels a pending retry. A URL change (a different key, including an
 		empty or invalid URL) also resets the retry schedule (R10); a refresh
-		with the same key (startup, a retry) keeps it.
+		with the same key (startup, a retry) keeps it. The fetch's outcome is
+		user-initiated (R8) for a URL change, or as `user_initiated` says.
 		"""
 		check = self._check(url)
 		self._cancel_retry_timer()
@@ -280,7 +281,8 @@ class CatalogUpdater:
 				self._source = source
 			self._log_source(check, source)
 			self._install(catalog)
-		self._user_initiated = changed
+		# Before the thread starts: its result may be applied at once.
+		self._user_initiated = changed if user_initiated is None else user_initiated
 		if check.enabled:
 			self._thread = self._start_thread(self._run, (generation, check))
 		self._notify(CatalogChange(catalog_changed=changed, outcome=None))
@@ -301,8 +303,7 @@ class CatalogUpdater:
 			"WordBridge: catalog fetch started on settings panel open host=%s",
 			redact_url(validate_catalog_url(self._current_url).url),
 		)
-		self.refresh(self._current_url)
-		self._user_initiated = True
+		self.refresh(self._current_url, user_initiated=True)
 		return True
 
 	def add_listener(self, listener) -> None:

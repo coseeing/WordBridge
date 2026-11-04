@@ -705,6 +705,45 @@ def test_change_events_table(tmp_path, scenario, expected):
 	assert recorder.events == [C(*event) for event in expected]
 
 
+def _synchronous(h):
+	"""The fetch runs inside start_thread and its result is applied at once:
+	nothing may depend on wx.CallAfter running later (final review m5)."""
+	def start_thread(target, args):
+		target(*args)
+
+	h.updater._start_thread = start_thread
+	h.updater._post_to_ui = lambda function, *args: function(*args)
+
+
+def _sync_panel_open(h):
+	h.updater.retry_on_panel_open()
+
+
+def _sync_url_change(h):
+	h.updater.refresh(URL_B)
+
+
+def _sync_timer(h):
+	[timer] = h.scheduler.live()
+	timer.fire()
+
+
+@pytest.mark.parametrize("action, user_initiated", [
+	(_sync_panel_open, True),
+	(_sync_url_change, True),
+	(_sync_timer, False),
+], ids=["panel-open", "url-change", "timer"])
+def test_user_initiated_is_set_before_a_synchronous_fetch_completes(tmp_path, action, user_initiated):
+	h = retry_harness(tmp_path, {URL_A: failing(), URL_B: failing()})
+	start(h)
+	_synchronous(h)
+	recorder = _listen(h)
+
+	action(h)
+
+	assert [event for event in recorder.events if event.outcome is not None] == [C(False, "failed", user_initiated)]
+
+
 @pytest.mark.parametrize("response, expected", [
 	(lambda: _ok(_payload("fresh")), ("succeeded", ("fetched", "succeeded"), 1, 0)),
 	(failing, ("failed", ("none", "failed"), 0, 1)),
