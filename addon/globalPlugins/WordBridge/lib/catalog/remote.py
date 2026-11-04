@@ -8,6 +8,8 @@ NVDA's own `requests` injected.
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
+from .model import CatalogIssue
+
 
 DEFAULT_CATALOG_URL = "https://wordbridge.coseeing.org"
 MAX_URL_LENGTH = 2048
@@ -117,3 +119,86 @@ def redact_url(url) -> str:
 	if port is not None:
 		text += f":{port}"
 	return text
+
+
+@dataclass(frozen=True)
+class ProviderUrlRule:
+	schemes: frozenset
+	hosts: frozenset
+	any_port: bool = False
+
+
+def _https_only(host: str) -> ProviderUrlRule:
+	return ProviderUrlRule(schemes=frozenset({"https"}), hosts=frozenset({host}))
+
+
+# Users' personal API keys are sent to these URLs (Google even puts the key
+# in the query), so a remote payload may only point a provider at the hosts
+# the committed catalog already used for it. tests/test_catalog_provider_allowlist.py
+# pins that every provider class has a rule.
+PROVIDER_URL_RULES = {
+	"Anthropic": _https_only("api.anthropic.com"),
+	"DeepSeek": _https_only("api.deepseek.com"),
+	"Google": _https_only("generativelanguage.googleapis.com"),
+	"OpenAI": _https_only("api.openai.com"),
+	"OpenRouter": _https_only("openrouter.ai"),
+	"Ollama": ProviderUrlRule(
+		schemes=frozenset({"http", "https"}),
+		hosts=frozenset({"localhost", "127.0.0.1"}),
+		any_port=True,
+	),
+}
+
+
+def _url_problem(name, url) -> str | None:
+	"""Why `url` may not be used for provider `name`, or None when it may.
+
+	The answer names the host at most -- never the path or query.
+	"""
+	rule = PROVIDER_URL_RULES.get(name)
+	if rule is None:
+		return f"no host is allowed for {name}"
+	if not isinstance(url, str):
+		return f"url is not a string for {name}"
+	try:
+		parts, port = _split(url)
+	except ValueError:
+		return f"url is not valid for {name}"
+	host = parts.hostname
+	if parts.username is not None or parts.password is not None:
+		return f"user info is not allowed for {name}"
+	if parts.scheme.lower() not in rule.schemes:
+		return f"scheme {parts.scheme.lower() or '(none)'} is not allowed for {name}"
+	if host not in rule.hosts:
+		return f"host {host or '(none)'} is not allowed for {name}"
+	if not rule.any_port and port is not None and port != _DEFAULT_PORTS[parts.scheme.lower()]:
+		return f"port {port} is not allowed for {name}"
+	return None
+
+
+def filter_provider_urls(providers) -> tuple:
+	"""Drop remote providers whose URL is not allowed for them.
+
+	Returns (providers, issues). A dropped provider's models are then dropped
+	by build_catalog()'s unknown_provider rule. A provider name with no rule
+	is always dropped. For a provider that has one, shapes build_catalog()
+	already reports -- a value that is not a mapping, a missing or empty url
+	-- are passed through for it to report. A non-mapping `providers` is
+	returned unchanged.
+	"""
+	if not isinstance(providers, dict):
+		return providers, ()
+	kept = {}
+	issues = []
+	for name, data in providers.items():
+		if name not in PROVIDER_URL_RULES:
+			problem = _url_problem(name, None)
+		elif isinstance(data, dict) and data.get("url") not in ("", None):
+			problem = _url_problem(name, data["url"])
+		else:
+			problem = None
+		if problem is not None:
+			issues.append(CatalogIssue("disallowed_provider_url", f"providers.{name}", problem))
+			continue
+		kept[name] = data
+	return kept, tuple(issues)
