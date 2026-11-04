@@ -50,7 +50,7 @@ from .catalog_updater import CatalogUpdater
 from .lib.catalog import COSEEING_GROUP, LOCAL_CHANNEL, registry
 from .lib.catalog.cache import CatalogCache
 from .lib.catalog.fallback import SENTINEL_ID, load_catalog
-from .lib.catalog.remote import DEFAULT_CATALOG_URL
+from .lib.catalog.remote import DEFAULT_CATALOG_URL, loggable
 from .lib.catalog.sources import BundledCatalogSource
 from .lib.llm import SUPPORTED_PROVIDERS
 from .dictionary import default_dictionary_repository
@@ -350,10 +350,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._log_catalog_issues(catalog)
 
 	def _log_catalog_issues(self, catalog):
+		# location and detail can carry remote text (a provider name, a host):
+		# escaped and bounded, so it can never forge a log line.
 		for issue in catalog.issues:
 			log.warning(
 				"WordBridge: catalog issue code=%s location=%s: %s",
-				issue.code, issue.location, issue.detail,
+				issue.code, loggable(issue.location), loggable(issue.detail),
 			)
 
 	def terminate(self, *args, **kwargs):

@@ -127,6 +127,33 @@ def redact_url(url) -> str:
 	return text
 
 
+LOG_TEXT_LIMIT = 200
+
+
+def loggable(value) -> str:
+	"""`value` as log text: one line of at most LOG_TEXT_LIMIT characters plus "...".
+
+	Catalog issue locations and details can carry remote text -- a provider
+	name, a host, a repr()'d value -- of up to the payload size. Every
+	character that is not printable (newline, ESC, ...) is escaped the way
+	repr() escapes it, so remote text can never start a forged log line, and
+	escapes count toward the limit. Never raises.
+	"""
+	try:
+		text = value if isinstance(value, str) else repr(value)
+	except Exception:
+		text = f"<{type(value).__name__}>"
+	pieces = []
+	length = 0
+	for ch in text:
+		piece = ch if ch.isprintable() else repr(ch)[1:-1]
+		if length + len(piece) > LOG_TEXT_LIMIT:
+			return "".join(pieces) + "..."
+		pieces.append(piece)
+		length += len(piece)
+	return "".join(pieces)
+
+
 @dataclass(frozen=True)
 class ProviderUrlRule:
 	schemes: frozenset

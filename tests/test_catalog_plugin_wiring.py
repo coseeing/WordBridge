@@ -142,6 +142,36 @@ def test_install_catalog_updates_registry_and_self_catalog(monkeypatch):
 	instance.terminate()
 
 
+def test_remote_text_in_catalog_issues_cannot_forge_a_log_line(monkeypatch):
+	import json
+
+	from fake_http import BodyResponse
+	from shipped_catalog import server_document
+
+	plugin, queued, _auth = _load(monkeypatch)
+	lines = []
+	monkeypatch.setattr(plugin.log, "warning", lambda message, *args, **kwargs: lines.append(message % args))
+	instance = plugin.GlobalPlugin()
+	document = server_document()
+	forged = "Evil\nWordBridge: catalog fetched host=https://fake\x1b[0m" + "x" * 5000
+	document["providers"][forged] = {"label": "x", "url": "https://evil.test/v1", "setting": {}}
+	body = json.dumps(document).encode("utf8")
+	instance._catalog_updater._http_get = lambda url, **kwargs: BodyResponse(body)
+	queued.clear()
+	instance._start_catalog_fetch()
+	target, args = plugin.started_catalog_threads[0]
+	target(*args)
+	for callback, callback_args in list(queued):
+		callback(*callback_args)
+
+	[issue_line] = [line for line in lines if "disallowed_provider_url" in line]
+	assert "\n" not in issue_line
+	assert "\x1b" not in issue_line
+	assert "Evil\\nWordBridge" in issue_line
+	assert len(issue_line) < 600
+	instance.terminate()
+
+
 def test_a_posted_fetch_result_is_installed_on_the_ui_queue(monkeypatch):
 	import json
 

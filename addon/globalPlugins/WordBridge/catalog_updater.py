@@ -16,6 +16,7 @@ from .lib.catalog.remote import (
 	FETCH_DEADLINE_SECONDS,
 	FETCH_TIMEOUT,
 	MAX_PAYLOAD_BYTES,
+	loggable,
 	parse_remote_payload,
 	redact_url,
 	validate_catalog_url,
@@ -232,7 +233,7 @@ class CatalogUpdater:
 
 	def _log_cache_problems(self, issues) -> None:
 		for issue in issues:
-			self._log.warning("WordBridge: catalog cache problem code=%s type=%s", issue.code, issue.detail)
+			self._log.warning("WordBridge: catalog cache problem code=%s type=%s", issue.code, loggable(issue.detail))
 
 	def _is_current(self, generation) -> bool:
 		with self._lock:
@@ -301,7 +302,7 @@ class CatalogUpdater:
 			self._fetch = FETCH_FAILED
 		self._log.warning(
 			"WordBridge: catalog fetch failed host=%s code=%s type=%s",
-			host, issue.code, issue.detail,
+			host, issue.code, loggable(issue.detail),
 		)
 
 

@@ -1,6 +1,13 @@
 import pytest
 
-from lib.catalog.remote import DEFAULT_CATALOG_URL, UrlCheck, redact_url, validate_catalog_url
+from lib.catalog.remote import (
+	DEFAULT_CATALOG_URL,
+	LOG_TEXT_LIMIT,
+	UrlCheck,
+	loggable,
+	redact_url,
+	validate_catalog_url,
+)
 
 
 DEFAULT_KEY = "https://wordbridge.coseeing.org/"
@@ -87,3 +94,27 @@ def test_default_catalog_url_is_valid_https():
 
 	assert check.enabled
 	assert check.key.startswith("https://")
+
+
+@pytest.mark.parametrize("value, logged", [
+	("plain text", "plain text"),
+	("模型", "模型"),
+	("a\nb", "a\\nb"),
+	("a\r\nb", "a\\r\\nb"),
+	("\x1b[0m", "\\x1b[0m"),
+	("tab\there", "tab\\there"),
+	("　", "\\u3000"),
+	("\ud800", "\\ud800"),
+	(None, "None"),
+	(5, "5"),
+], ids=["plain", "cjk", "newline", "crlf", "escape", "tab", "ideographic-space", "lone-surrogate", "none", "int"])
+def test_loggable_escapes_what_could_break_a_log_line(value, logged):
+	assert loggable(value) == logged
+
+
+def test_loggable_cuts_long_text_short():
+	assert loggable("a" * 1000) == "a" * LOG_TEXT_LIMIT + "..."
+	assert loggable("a" * LOG_TEXT_LIMIT) == "a" * LOG_TEXT_LIMIT
+	# Escapes count toward the limit, so the result is bounded whatever the input.
+	assert len(loggable("\n" * 1000)) <= LOG_TEXT_LIMIT + 3
+	assert len(loggable("\U0010ffff" * 1000)) <= LOG_TEXT_LIMIT + 3

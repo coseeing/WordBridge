@@ -545,3 +545,33 @@ def test_the_cache_is_stored_under_the_key_and_used_at_the_next_start(tmp_path, 
 	catalog = restarted.updater.initial_catalog(url)
 	assert _ids(catalog) == ["fresh&OpenAI"]
 	assert restarted.status() == ("cache", "running")
+
+
+def _logged_lines(h):
+	return [record[1] % record[2:] for record in h.log.records]
+
+
+def test_a_huge_remote_detail_is_logged_bounded_on_fetch_failure(tmp_path):
+	# A remote schema_version is repr()'d into the issue detail; JSON allows
+	# a 4000-digit integer.
+	body = b'{"schema_version": ' + b"9" * 4000 + b', "providers": {}, "models": []}'
+	h = Harness(tmp_path, {URL_A: FakeResponse(body=body)})
+	h.updater.initial_catalog(URL_A)
+	h.updater.refresh(URL_A)
+	h.threads[0].run()
+	h.deliver()
+
+	[failure] = [line for line in _logged_lines(h) if "catalog fetch failed" in line]
+	assert "code=remote_schema_version" in failure
+	assert len(failure) < 400
+
+
+def test_a_huge_cached_detail_is_logged_bounded(tmp_path):
+	h = Harness(tmp_path)
+	h.seed_cache(URL_A, dict(_payload("cached"), schema_version=int("9" * 4000)))
+
+	h.updater.initial_catalog(URL_A)
+
+	[problem] = [line for line in _logged_lines(h) if "catalog cache problem" in line]
+	assert "remote_schema_version" in problem
+	assert len(problem) < 400
