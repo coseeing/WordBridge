@@ -430,3 +430,16 @@ Linux 上只驗了注入的邊界（假的 scheduler、假的 `winUser.sendMessa
 - 突變：在拋棄式 worktree 重跑審閱者的 233 個突變（`b3/mut.py`、`mut_b2.py`、`mutants_crv1.py`、`fable_mut*.py`），先前殺掉的沒有一個存活，U10、U11 現在被殺；被這輪修正改到原文的 10 個（D19、U05、R19、R20、R04、R06、L01、L02、L15、M15）改寫成新程式碼的版本後全部被殺，S18 的突變形式現在就是正式程式碼，改用「舊順序」突變驗證（被殺）。另做 20 個針對修正的突變，只有 1 個存活（下面第 (1) 條）。
 - 驗證：附加元件 1048 passed、1 skipped；伺服器 103 passed；`prek` Passed；`git diff --check 792a966..HEAD` 乾淨；`msgfmt --check` 通過；本分支動到的 20 條 `#:` 都指到正確行號；NVDA 2026.1 有 `MessageDialog`、`DialogType.ERROR`、`DefaultButton.OK`，`MessageDialog.alert()` 本身就是同一個呼叫，只是沒有 `dialogType`。Ruling 1–5 都合理。
 - 沒有新的 Critical 或 Important。新的 Minor 有兩條，修正前就存在：(1) `_onTest` 在網址無效的錯誤之後把焦點放回欄位（`catalog_url_dialog.py:140`），沒有測試釘住，這個突變在 `792a966` 也存活；(2) `refresh()` 的 `_start_thread` 丟例外時，updater 停在 `running`，沒有 thread 也沒有重試 timer（`catalog_updater.py:268-287`）。m1 之後面板打得開，但狀態列會一直顯示「仍在載入」，之後開面板也不會重試。
+
+### N1、N2（修正 review 發現）
+
+修正者：fix agent，自 `5ab5d28` 起。規則同上：先 red 再 green，每個 commit 前都跑了附加元件測試（帶 `--ignore-glob='tests/test_integration_*'`）、伺服器測試、`prek`、`git diff --check`、`msgfmt --check`。
+
+| 發現 | Commit | 說明 |
+| --- | --- | --- |
+| N1 | `e8f53d2` | 只改測試。`test_test_validates_first_without_a_request` 先把 `dialog.urlCtrl.focused` 設成 False，最後斷言 `focused is True`。突變「拿掉 `_onTest` 的 `SetFocus()`」修前 41 個測試全綠，修後 `[invalid]`、`[insecure]` 兩列失敗，已殺死。 |
+| N2 | `37f686f` | `refresh()` 的 `_start_thread` 包在 `try` 裡：丟例外時記錄只寫型別（`catalog fetch could not start type=%s`，D15），先照常送出 refresh 自己的事件，再由 `_fail_current(generation)` 把同一個 generation 標成 `failed`、`_schedule_retry()`、送出帶 refresh 的 `user_initiated` 的失敗事件（R8）。例外不會離開 `refresh()`。red：`test_a_fetch_thread_that_cannot_start_is_a_failure` 四列（startup／url-change／panel-open／timer：狀態 `failed`、恰好一個 timer，延遲分別 1、1、2、2 分鐘，符合 R10 重設與 R6 延續；事件與 `user_initiated` 跟著觸發來源；記錄不含網址）與 `test_after_a_thread_start_failure_the_panel_open_retry_fetches`（之後 `retry_on_panel_open()` 回 True 並開 thread），修前 5 個全部因例外失敗。突變「不排重試」「失敗一律當背景」「不設 failed」各殺死（失敗 4、2、5 個）。 |
+
+新的 Ruling：無（N2 的記錄行沒有 host，只有型別，照指示）。新的使用者可見預設：無。N2 讓「thread 開不起來」時的行為和一般抓取失敗相同（狀態列顯示失敗、照退避重試、使用者觸發的才講「模型清單更新失敗。」），這是既有決定的延伸，不是新預設。
+
+最終驗證（`37f686f`）：附加元件 **1053 passed, 1 skipped**, 3 subtests passed（1048＋N2 的 5 個；N1 只加斷言）；伺服器 **103 passed**；`prek run --all-files` 3/3 Passed；`git diff --check` 乾淨；`msgfmt --check` 通過。沒有留下背景程序。
