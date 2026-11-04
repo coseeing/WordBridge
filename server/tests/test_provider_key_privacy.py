@@ -50,3 +50,58 @@ def test_google_send_posts_the_key_in_the_header_only():
 	(url,), kwargs = post.call_args
 	assert SECRET not in url
 	assert kwargs["headers"]["x-goog-api-key"] == SECRET
+
+
+def _connection_error():
+	# What requests raises when the host is unreachable: str() carries the
+	# full request URL, query string included.
+	error_type = type("ConnectionError", (Exception,), {})
+	return error_type(
+		"HTTPSConnectionPool(host='generativelanguage.googleapis.com', port=443): "
+		f"Max retries exceeded with url: /v1beta/models/gemini:generateContent?key={SECRET} "
+		"(Caused by NameResolutionError(\"Failed to resolve\"))"
+	)
+
+
+def _logged_text(log_mock):
+	return "\n".join(repr(c) for c in log_mock.mock_calls)
+
+
+@pytest.mark.parametrize("provider_name", ["Google", "OpenAI", "Anthropic"])
+def test_send_failure_logs_the_error_type_but_never_its_text(provider_name):
+	provider = provider_module.get_provider(
+		provider_name, {"api_key": SECRET}, retries=2, provider_entry=_entry(),
+	)
+	log = MagicMock()
+
+	with patch.object(provider_module.requests, "post", side_effect=_connection_error()), \
+			patch.object(provider_module.time, "sleep"), \
+			patch.object(provider_module, "log", log):
+		with pytest.raises(Exception) as raised:
+			provider.send({}, model_name="gemini-3.8-flash")
+
+	logged = _logged_text(log)
+	assert log.error.call_count == 2
+	assert SECRET not in logged
+	assert "key=" not in logged
+	assert "ConnectionError" in logged
+	assert provider.name in logged
+	assert SECRET not in str(raised.value)
+
+
+def test_try_connection_failure_logs_the_error_type_but_never_its_text():
+	provider = provider_module.GoogleProvider({"api_key": SECRET}, provider_entry=_entry())
+	log = MagicMock()
+
+	with patch.object(provider_module.requests, "get", side_effect=_connection_error()), \
+			patch.object(provider_module, "log", log):
+		with pytest.raises(Exception) as raised:
+			provider.try_connection(try_count=2)
+
+	logged = _logged_text(log)
+	assert log.error.call_count == 2
+	assert SECRET not in logged
+	assert "key=" not in logged
+	assert "ConnectionError" in logged
+	assert provider.name in logged
+	assert SECRET not in str(raised.value)

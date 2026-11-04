@@ -85,12 +85,11 @@ class Provider:
 				return
 			except Exception as e:
 				request_error = type(e).__name__
+				# Only the exception type: str() of a requests exception
+				# carries the request URL, and a URL may carry a credential.
 				log.error(
-					"Try = {try_index}, {request_error}, an error occurred when sending request: {e}".format(
-						try_index=(r + 1),
-						request_error=request_error,
-						e=e,
-					)
+					"Try = %d, %s, an error occurred when sending %s request",
+					r + 1, request_error, self.name,
 				)
 
 		raise Exception(
@@ -119,13 +118,10 @@ class Provider:
 				break
 			except Exception as e:
 				request_error = type(e).__name__
+				# Same rule as try_connection(): never str(e).
 				log.error(
-					"Try = {try_index}, {request_error}, an error occurred when sending {provider} request: {e}".format(
-						try_index=(r + 1),
-						request_error=request_error,
-						provider=self.name,
-						e=e,
-					)
+					"Try = %d, %s, an error occurred when sending %s request",
+					r + 1, request_error, self.name,
 				)
 				current_backoff = min(current_backoff * (1 + random.random()), 3)
 				time.sleep(current_backoff)
