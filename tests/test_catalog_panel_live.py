@@ -123,6 +123,24 @@ def test_a_status_visibility_change_sends_one_layout_event_and_a_text_change_non
 	assert panel.layout_events == 1
 
 
+def test_one_update_is_applied_in_one_freeze_with_at_most_one_layout_event(monkeypatch):
+	# Batch-2 review m2: a success that hides the status line and changes
+	# the shown box used to send two layout events (two scrolls to the top).
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
+	set_status(f, "none", "failed")
+	f.box["catalog"] = _bundled_only(f)
+	panel = f.make_panel()
+	assert _shown_boxes(panel) == ["Coseeing"]
+
+	set_status(f, "fetched", "succeeded")
+	rebuild_with(f, panel, _shipped(f))
+
+	assert panel.settingsSizer.IsShown(panel.catalogStatusText) is False
+	assert _shown_boxes(panel) == ["OpenAI"]
+	assert panel.layout_events == 1
+	assert (panel.freeze_count, panel.thaw_count) == (1, 1)
+
+
 def test_a_destroy_event_from_a_child_keeps_the_listener(monkeypatch):
 	f = live_fixture(monkeypatch)
 	panel = f.make_panel()

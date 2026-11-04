@@ -335,22 +335,30 @@ class LLMSettingsPanel(SettingsPanel):
 			self._pendingAnnouncement = change.outcome
 		if change.catalog_changed:
 			self._pendingRebuild = True
-		if self._updateStatusLine():
-			self._sendLayoutUpdatedEvent()
-		self._applyPendingUpdate()
+		self._applyPendingUpdate(change)
 
-	def _applyPendingUpdate(self):
+	def _applyPendingUpdate(self, change=None):
+		"""Apply a notification's status line (when `change` is given) and a
+		pending rebuild inside one Freeze, then send at most one layout event:
+		each one scrolls the panel back to the top."""
 		if not self:
 			return
-		if self._pendingRebuild:
-			self._pendingRebuild = False
-			self.Freeze()
-			try:
-				layoutChanged = self._rebuild()
-			finally:
-				self.Thaw()
-			if layoutChanged:
-				self._sendLayoutUpdatedEvent()
+		rebuild = self._pendingRebuild
+		if change is None and not rebuild:
+			return
+		self.Freeze()
+		try:
+			layoutChanged = False
+			if change is not None:
+				# Never focusable and never inside a drop-down: always now.
+				layoutChanged = self._updateStatusLine()
+			if rebuild:
+				self._pendingRebuild = False
+				layoutChanged = self._rebuild() or layoutChanged
+		finally:
+			self.Thaw()
+		if layoutChanged:
+			self._sendLayoutUpdatedEvent()
 
 	def _rebuild(self) -> bool:
 		"""Replace the choices for the live catalog; True when the set of shown
