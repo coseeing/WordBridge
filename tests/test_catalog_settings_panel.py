@@ -246,6 +246,45 @@ def test_a_fresh_install_untouched_save_stores_the_default_and_signs_in(monkeypa
 	assert f.auth_calls == ["Coseeing"]
 
 
+@pytest.mark.parametrize("catalog_kind", ["shipped", "bundled-only"])
+def test_an_upgrader_with_only_a_stored_id_saves_the_default_and_signs_in(monkeypatch, catalog_kind):
+	# NVDA does not write a value equal to the spec default, and 2026.9.3
+	# defaulted execution_channel to "Coseeing": a user who chose Coseeing
+	# GPT-5.6 Luna there is stored with an empty channel. As on main, OK on
+	# the untouched panel stores the shown default and signs in to Coseeing.
+	f = _panel_fixture(monkeypatch, corrector_config_id="gpt-5.6-luna&OpenAI", execution_channel="")
+	if catalog_kind == "bundled-only":
+		catalog = _bundled_only(f)
+		monkeypatch.setattr(f.dialogs.registry, "current", lambda: catalog)
+	panel = f.make_panel()
+	f.queued.clear()
+
+	_save(panel)
+	_run_queued(f)
+
+	assert (f.settings["corrector_config_id"], f.settings["execution_channel"]) == ("default", "Coseeing")
+	assert f.auth_calls == ["Coseeing"]
+
+
+@pytest.mark.parametrize("catalog_kind", ["shipped", "bundled-only"])
+def test_an_upgrader_with_only_a_stored_local_channel_keeps_it(monkeypatch, catalog_kind):
+	# 2026.9.3's default id was deepseek-v4-flash&DeepSeek, so a user who
+	# chose it on the local channel is stored as ("", "local"). That is a
+	# local user: D12 and U7 keep the stored selection and sign in to nothing.
+	f = _panel_fixture(monkeypatch, corrector_config_id="", execution_channel="local")
+	if catalog_kind == "bundled-only":
+		catalog = _bundled_only(f)
+		monkeypatch.setattr(f.dialogs.registry, "current", lambda: catalog)
+	panel = f.make_panel()
+	f.queued.clear()
+
+	_save(panel)
+	_run_queued(f)
+
+	assert (f.settings["corrector_config_id"], f.settings["execution_channel"]) == ("", "local")
+	assert f.auth_calls == []
+
+
 def test_a_changed_choice_overwrites_the_unresolved_selection(monkeypatch):
 	# A retired local model: unresolved, shown as the Coseeing default.
 	f = _panel_fixture(monkeypatch, corrector_config_id="gpt-retired&OpenAI", execution_channel="local")
