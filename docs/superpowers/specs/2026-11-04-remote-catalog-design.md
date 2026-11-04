@@ -627,10 +627,15 @@ send the text to the Coseeing default.
      — the same write the panel's `onSave` does, so NVDA persists it the same
      way as any panel change — then `self.startCorrection(text)`. The correction
      takes the Coseeing path, which requests its own access token
-     (`__init__.py:467`); no separate sign-in call is made.
+     (`__init__.py:467`); no separate sign-in call is made. Yes does this
+     **always**, even if the model list arrived and was installed while the
+     dialog was open (the nested event loop can run the fetch result): the
+     answer is to the question the dialog asked. — Decided by the user
+     (2026-11-04)
    - **No (or Escape, or closed):** nothing is sent anywhere, the stored
      selection is unchanged, and NVDA says "The text was not sent. Your model
-     selection was not changed."
+     selection was not changed." — also when the model list arrived while the
+     dialog was open.
 4. No new speech happens before the dialog: a `ui.message` would be cut off by
    the dialog's own focus announcement, so the information is the dialog's
    first sentence instead.
