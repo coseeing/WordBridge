@@ -26,13 +26,19 @@ class CatalogIssue:
 
 # Issue codes that flag a lint-level quirk in the source data -- legal,
 # nothing dropped -- rather than an entry, provider or document that was
-# actually rejected. "unreferenced_provider" (a provider no models entry
-# names) is the only one document.py, sources.py or fallback.py emit that
-# means this: every other code they emit means something was dropped. Kept
-# here, next to CatalogIssue, so a caller like the settings panel can ask
-# "was anything actually dropped" without hard-coding the validation
-# vocabulary itself (lib/catalog owns it, and may not reach _()).
-LINT_ISSUE_CODES = frozenset({"unreferenced_provider"})
+# actually rejected: "unreferenced_provider" (a provider no models entry
+# names), and overlay.py's two "key in the wrong document" codes -- a remote
+# payload carrying coseeings, or the bundled file carrying providers/models --
+# where the ignored keys were never meant to be used. Every other code
+# lib/catalog emits means something was dropped. Kept here, next to
+# CatalogIssue, so a caller like the settings panel can ask "was anything
+# actually dropped" without hard-coding the validation vocabulary itself
+# (lib/catalog owns it, and may not reach _()).
+LINT_ISSUE_CODES = frozenset({
+	"unreferenced_provider",
+	"ignored_remote_coseeings",
+	"ignored_bundled_local_entries",
+})
 
 
 def is_dropped_issue(issue: CatalogIssue) -> bool:
