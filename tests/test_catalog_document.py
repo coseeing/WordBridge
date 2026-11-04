@@ -284,7 +284,7 @@ def test_find_selection_reports_a_miss():
 
 
 CATALOG_DIR = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge" / "lib" / "catalog"
-STDLIB_ONLY = {"dataclasses", "json", "pathlib", "typing", "collections", "functools", "types", "copy", "urllib"}
+STDLIB_ONLY = {"dataclasses", "json", "pathlib", "typing", "collections", "functools", "types", "copy", "urllib", "os", "tempfile"}
 
 
 def test_the_catalog_package_imports_only_the_standard_library():
