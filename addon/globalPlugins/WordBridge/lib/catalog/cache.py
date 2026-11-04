@@ -18,7 +18,9 @@ from .remote import MAX_PAYLOAD_BYTES
 CACHE_VERSION = 1
 # The file is a re-serialisation of the payload plus a small wrapper (the
 # url_key alone may be 2048 characters), so it may legitimately be larger
-# than the payload limit itself.
+# than the payload limit itself. Re-serialisation is not bounded by any
+# fixed factor (floats can grow), so store() also refuses a body over this
+# limit: a file the next start could not read must never replace a good one.
 MAX_CACHE_BYTES = 2 * MAX_PAYLOAD_BYTES
 _LOCATION = "cache"
 
@@ -75,7 +77,10 @@ class CatalogCache:
 			body = json.dumps(
 				{"cache_version": CACHE_VERSION, "url_key": url_key, "document": document},
 				ensure_ascii=False,
+				separators=(",", ":"),
 			).encode("utf8")
+			if len(body) > MAX_CACHE_BYTES:
+				return (CatalogIssue("cache_write_failed", _LOCATION, "file would be larger than the limit"),)
 			self.path.parent.mkdir(parents=True, exist_ok=True)
 			with tempfile.NamedTemporaryFile(
 				dir=self.path.parent,
