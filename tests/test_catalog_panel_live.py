@@ -755,3 +755,151 @@ def test_the_dropped_entries_line_follows_the_new_catalog(monkeypatch):
 	rebuild_with(f, panel, dataclasses.replace(catalog, issues=()))
 	assert panel.settingsSizer.IsShown(panel.catalogIssuesText) is False
 	assert panel.layout_events == 2
+
+
+# --- Task 11: deferral while a drop-down is open or focus would be hidden --
+
+def _timers(f):
+	return f.plugin.wx.timers
+
+
+def _live_timers(f):
+	return [timer for timer in _timers(f) if not timer.stopped]
+
+
+@pytest.mark.parametrize("which", ["provider", "model"])
+def test_an_open_drop_down_defers_the_rebuild_and_polls(monkeypatch, which):
+	f = live_fixture(monkeypatch)
+	f.box["catalog"] = _bundled_only(f)
+	panel = f.make_panel()
+	target = panel.providerList if which == "provider" else panel.modelList
+	dropped = {"open": True}
+	panel._isDroppedDown = lambda choice: dropped["open"] and choice is target
+	items = list(panel.providerList.items)
+
+	rebuild_with(f, panel, _shipped(f))
+	assert panel.providerList.items == items
+	assert [timer.delay_ms for timer in _timers(f)] == [300]
+
+	# The status line is never inside a drop-down: it still follows at once.
+	set_status(f, "none", "failed")
+	f.fake.emit(change(f))
+	assert panel.catalogStatusText.label == _text("failed")
+	assert len(_timers(f)) == 1
+
+	dropped["open"] = False
+	_timers(f)[0].fire()
+	assert len(panel.providerList.items) == len(_shipped(f).provider_groups)
+	assert panel._deferTimer is None
+	assert len(_timers(f)) == 1
+
+
+def test_a_notification_after_the_drop_down_closes_runs_the_update_and_stops_the_poll(monkeypatch):
+	f = live_fixture(monkeypatch)
+	f.box["catalog"] = _bundled_only(f)
+	panel = f.make_panel()
+	dropped = {"open": True}
+	panel._isDroppedDown = lambda choice: dropped["open"]
+	rebuild_with(f, panel, _shipped(f))
+	timer = _timers(f)[0]
+
+	dropped["open"] = False
+	f.fake.emit(change(f))
+
+	assert len(panel.providerList.items) == len(_shipped(f).provider_groups)
+	assert timer.stopped is True
+	assert panel._deferTimer is None
+
+
+def _focus(panel, window):
+	panel._findFocus = lambda: window
+
+
+def test_focus_in_a_box_the_rebuild_hides_defers_it(monkeypatch):
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
+	panel = f.make_panel()
+	_focus(panel, panel.accountTextCtrlMap["OpenAI"])
+	catalog = panel.catalog
+
+	rebuild_with(f, panel, _without_group(f, "OpenAI"))
+	assert panel.catalog is catalog
+	assert _shown_boxes(panel) == ["OpenAI"]
+	assert len(_live_timers(f)) == 1
+
+	_focus(panel, panel.languageList)
+	_live_timers(f)[0].fire()
+	assert panel.catalog is f.box["catalog"]
+	assert _shown_boxes(panel) == ["Coseeing"]
+	assert panel._deferTimer is None
+	assert len(_timers(f)) == 1
+
+
+def test_focus_in_a_box_that_stays_does_not_defer(monkeypatch):
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
+	panel = f.make_panel()
+	field = panel.accountTextCtrlMap["OpenAI"]
+	field.SetValue("typing")
+	_focus(panel, field)
+
+	rebuild_with(f, panel, _shipped_without("deepseek-flash&DeepSeek")(f))
+
+	assert panel.catalog is f.box["catalog"]
+	assert _shown_boxes(panel) == ["OpenAI"]
+	assert field.GetValue() == "typing"
+	assert getattr(field, "focused", False) is False
+	assert _timers(f) == []
+
+
+def test_focus_on_the_clean_button_defers_when_coseeing_is_left(monkeypatch):
+	# F1: the untouched panel of an offline local user moves to their own
+	# model when the list arrives, which would hide the focused clean button.
+	f = live_fixture(monkeypatch, corrector_config_id="gpt-6-luna&OpenAI", execution_channel="local")
+	f.box["catalog"] = _bundled_only(f)
+	panel = f.make_panel()
+	_focus(panel, panel.coseeingCleanButton)
+	catalog = panel.catalog
+
+	rebuild_with(f, panel, _shipped(f))
+
+	assert panel.catalog is catalog
+	assert _shown_boxes(panel) == ["Coseeing"]
+	assert [timer.delay_ms for timer in _live_timers(f)] == [300]
+
+
+def test_the_poll_stops_when_the_panel_is_destroyed(monkeypatch):
+	f = live_fixture(monkeypatch)
+	f.box["catalog"] = _bundled_only(f)
+	panel = f.make_panel()
+	panel._isDroppedDown = lambda choice: True
+	items = list(panel.providerList.items)
+	rebuild_with(f, panel, _shipped(f))
+	timer = _timers(f)[0]
+
+	panel.bindings[f.plugin.wx.EVT_WINDOW_DESTROY](DestroyEvent(panel))
+	assert timer.stopped is True
+	panel.alive = False
+	timer.fire()
+
+	assert panel.providerList.items == items
+	assert f.fake.listeners == []
+
+
+@pytest.mark.parametrize("winuser, expected", [("absent", False), ("dropped", True), ("closed", False)])
+def test_the_drop_down_probe(monkeypatch, winuser, expected):
+	import sys
+
+	f = live_fixture(monkeypatch)
+	panel = f.make_panel()
+	calls = []
+	if winuser == "absent":
+		monkeypatch.delitem(sys.modules, "winUser", raising=False)
+	else:
+		def send_message(handle, message, wparam, lparam):
+			calls.append((handle, message, wparam, lparam))
+			return 1 if winuser == "dropped" else 0
+
+		monkeypatch.setitem(sys.modules, "winUser", SimpleNamespace(sendMessage=send_message))
+
+	assert f.dialogs.LLMSettingsPanel._isDroppedDown(panel, panel.providerList) is expected
+	if winuser != "absent":
+		assert calls == [(panel.providerList.GetHandle(), 0x0157, 0, 0)]

@@ -47,6 +47,12 @@ TYPO_CORRECTION_MODE_LABELS = [LABEL_DICT[value] for value in TYPO_CORRECTION_MO
 
 SOUND_EFFECTS_URL = "https://www.zapsplat.com/music/medium-underwater-movement-whoosh-pass-by-1/"
 
+# Win32 combo box message: nonzero while the drop-down list is open. NVDA's
+# source does not define it (retry spec F7).
+CB_GETDROPPEDSTATE = 0x0157
+# How often a deferred live update checks again whether it may run (10.2).
+DEFERRED_UPDATE_POLL_MS = 300
+
 # lib/catalog must never reach _() (spec decision 9), so the sentinel's label
 # ships plain -- SENTINEL_LABEL = "default" in lib/catalog/fallback.py
 # -- and is the *only* catalog label that is not simply an identity mapping of
@@ -368,22 +374,68 @@ class LLMSettingsPanel(SettingsPanel):
 		each one scrolls the panel back to the top."""
 		if not self:
 			return
-		rebuild = self._pendingRebuild
-		if change is None and not rebuild:
-			return
-		self.Freeze()
-		try:
-			layoutChanged = False
-			if change is not None:
-				# Never focusable and never inside a drop-down: always now.
-				layoutChanged = self._updateStatusLine(change)
-			if rebuild:
-				self._pendingRebuild = False
-				layoutChanged = self._rebuild() or layoutChanged
-		finally:
-			self.Thaw()
+		deferred = self._mustDefer()
+		rebuild = self._pendingRebuild and not deferred
+		layoutChanged = False
+		if change is not None or rebuild:
+			self.Freeze()
+			try:
+				if change is not None:
+					# Never focusable and never inside a drop-down: always now.
+					layoutChanged = self._updateStatusLine(change)
+				if rebuild:
+					self._pendingRebuild = False
+					layoutChanged = self._rebuild() or layoutChanged
+			finally:
+				self.Thaw()
 		if layoutChanged:
 			self._requestLayout()
+		if deferred:
+			if self._deferTimer is None:
+				self._deferTimer = wx.CallLater(DEFERRED_UPDATE_POLL_MS, self._onDeferTimer)
+			return
+		timer, self._deferTimer = self._deferTimer, None
+		if timer is not None:
+			timer.Stop()
+
+	def _onDeferTimer(self):
+		self._deferTimer = None
+		if not self:
+			return
+		self._applyPendingUpdate()
+
+	def _mustDefer(self) -> bool:
+		"""A pending rebuild waits while a choice's drop-down list is open
+		(its items would change under the user) or while focus is in the
+		shown account box and the rebuild would hide that box (retry spec
+		10.2). Focus anywhere else stays where it is."""
+		if not self._pendingRebuild:
+			return False
+		if self._isDroppedDown(self.providerList) or self._isDroppedDown(self.modelList):
+			return True
+		focus = self._findFocus()
+		if focus is None:
+			return False
+		shown = self._shownAccountGroup
+		control = self.coseeingCleanButton if shown == COSEEING_GROUP else self.accountTextCtrlMap.get(shown)
+		if control is None or focus is not control:
+			return False
+		selection, _keptUserPick = self._chooseSelection(registry.current())
+		return selection.provider_group != shown
+
+	def _isDroppedDown(self, choice) -> bool:
+		try:
+			import winUser
+
+			return winUser.sendMessage(choice.GetHandle(), CB_GETDROPPEDSTATE, 0, 0) != 0
+		except Exception:
+			return False
+
+	def _findFocus(self):
+		try:
+			return wx.Window.FindFocus()
+		except Exception:
+			return None
 
 	def _requestLayout(self) -> None:
 		"""A layout event now, or a layout when the panel is shown again.
