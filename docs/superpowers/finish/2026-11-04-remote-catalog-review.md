@@ -406,3 +406,10 @@ Linux 上只驗了注入的邊界。以下項目需要在 Windows 用這支分�
 2. m2：URL 含空白或控制字元的遠端 provider 會被丟掉（以前會顯示但每次都失敗）。
 3. m10：每次啟動與每次改網址各多一行 info 記錄。
 4. m1：記錄中的目錄 issue 位置與內容超過 200 字元會被截斷，控制字元以跳脫形式顯示。
+
+### 修正 review（Opus 5.5，2026-11-04）
+
+- 範圍 `d271851..ddc17ff`（16 個 commit）。I1、m1–m14 都已修好。我在拋棄式 worktree 做了 28 個還原或突變，24 個被抓到：I1、m1（三處 sink 的轉義與截斷）、m2（10 列）、m3、m4、m5、m6、m7（一律改設定、在 Yes/No 之前就重查、不存設定三種）、m8、m9（三處）、m10（兩處）、m11（fsync、在 `with` 內 replace）、m13。存活 4 個：1 個等價突變；`_log_cache_problems` 拿掉 `loggable()`（那裡只會收到代碼和型別名，屬於防禦性寫法，可接受）；重新加回未使用的 import（沒有 ruff hook，無害）；半空的 stored pair（見 N1）。
+- 16 個 commit 每個都綠（721→774 passed / 1 skipped）；HEAD：附加元件 774 passed / 1 skipped，伺服器 96 passed，`prek` 全部 Passed，`git diff --check` 乾淨，`msgfmt --check` 通過，新條目的 `#:` 和 xgettext 一致，沒有 `Co-Authored-By`。
+- 沒有新的 Critical 或 Important，只有兩個 Minor。**N1**：Ruling 1 說半空的 pair 只會來自手改 nvda.ini，這個前提不成立。NVDA 不會寫入和目前值（含預設值）相同的設定（`/workspace/nvda/source/config/__init__.py:1363-1367`），而 2026.9.3（`47aa41f`）的預設是 `("deepseek-v4-flash&DeepSeek", "Coseeing")`，所以當時選了 Coseeing GPT-5.6 Luna 的使用者升級後會是 `("gpt-5.6-luna&OpenAI", "")`。這種使用者沒動選單就按「確定」，分支不存也不登入，`main` 則會存 `("default","Coseeing")` 並登入（探針已在兩邊各跑一次證實）。影響不大：這些人在 2026.9.3 已經走過登入，校正也仍走 Coseeing 預設。建議把「stored channel 為空」也算成已解析，並補一個測試（目前沒有測試釘住半空的情形）。**N2**：m7 的 Ruling 7 和 U7 的字面、以及對話框的文案（「用 Coseeing 校正」「設定會改成 Coseeing 預設」）不一致，只在清單於對話框開著時到達才會發生。這個做法合理，但應請使用者明確確認，不要只當成一個新的預設值。
+- Ruling 2–6 合理；Ruling 1 的結論可以接受，但理由要改（N1）；Ruling 7 需要使用者確認（N2）。
