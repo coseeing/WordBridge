@@ -97,3 +97,17 @@ def load_overlay_catalog(bundled_source, remote_document, *, runnable_providers)
 
 def has_local_items(catalog) -> bool:
 	return any(item.execution_channel == LOCAL_CHANNEL for item in catalog.selectable_items)
+
+
+def accept_remote_document(bundled_source, document, *, runnable_providers) -> tuple:
+	"""Returns (catalog, ()) for an accepted payload, (None, issues) otherwise.
+
+	A payload is accepted as a whole or not at all: it must leave at least
+	one selectable local model once overlaid on the bundled file. The same
+	rule is applied to a cached payload, so a later add-on version with a
+	different allowlist or provider set re-filters an old cache.
+	"""
+	catalog = load_overlay_catalog(bundled_source, document, runnable_providers=runnable_providers)
+	if has_local_items(catalog):
+		return catalog, ()
+	return None, (CatalogIssue("remote_no_models", "payload", "the payload offers no selectable local model"),)

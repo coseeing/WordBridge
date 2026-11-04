@@ -6,8 +6,10 @@ NVDA's own `requests` injected.
 """
 
 from dataclasses import dataclass
+import json
 from urllib.parse import urlsplit
 
+from .document import SCHEMA_VERSION
 from .model import CatalogIssue
 
 
@@ -202,3 +204,34 @@ def filter_provider_urls(providers) -> tuple:
 			continue
 		kept[name] = data
 	return kept, tuple(issues)
+
+
+def _malformed(detail: str) -> tuple:
+	return None, (CatalogIssue("remote_malformed", "payload", detail),)
+
+
+def parse_remote_payload(body) -> tuple:
+	"""Returns (document, issues); document is None when the payload is rejected.
+
+	Only the document level is checked here -- an object with schema_version
+	1, a providers mapping and a models list. Entry-level problems are
+	build_catalog()'s, and only drop entries. Issue details carry type names,
+	never any part of the body.
+	"""
+	try:
+		document = json.loads(body)
+	except Exception as error:
+		# ValueError and UnicodeDecodeError for bad text, RecursionError for
+		# deep nesting: every one of them is a malformed payload.
+		return _malformed(type(error).__name__)
+	if not isinstance(document, dict):
+		return _malformed(f"expected an object, got {type(document).__name__}")
+	version = document.get("schema_version")
+	if version != SCHEMA_VERSION:
+		shown = repr(version) if version is None or type(version) in (int, float, bool) else type(version).__name__
+		return None, (CatalogIssue("remote_schema_version", "payload", f"expected {SCHEMA_VERSION}, got {shown}"),)
+	if not isinstance(document.get("providers"), dict):
+		return _malformed("providers must be a mapping")
+	if not isinstance(document.get("models"), list):
+		return _malformed("models must be a list")
+	return document, ()
