@@ -299,6 +299,46 @@ def test_a_kept_pick_equal_to_the_new_baseline_is_saved(monkeypatch):
 	assert f.auth_calls == ["Coseeing"]
 
 
+def test_a_fallback_rebuild_clears_the_kept_pick(monkeypatch):
+	# C22: a rebuild keeps the user's DeepSeek pick (flag set); the next list
+	# drops DeepSeek, so the panel falls back to the baseline and counts as
+	# untouched again. D12 must then protect the unresolved stored model.
+	f = live_fixture(monkeypatch, corrector_config_id="gpt-retired&OpenAI", execution_channel="local")
+	panel = f.make_panel()
+	touch(panel, "DeepSeek", 0)
+	rebuild_with(f, panel, _shipped(f))
+	assert panel._keptUserPick is True
+
+	rebuild_with(f, panel, _without_group(f, "DeepSeek"))
+	assert _item_ids(panel.selection.current_item()) == DEFAULT
+	f.queued.clear()
+	panel.onSave()
+	_run_queued(f)
+
+	assert panel._keptUserPick is False
+	assert _stored(f) == ("gpt-retired&OpenAI", "local")
+	assert f.auth_calls == []
+
+
+def test_a_second_rebuild_keeps_a_kept_pick_equal_to_the_baseline(monkeypatch):
+	# C22: the explicit Coseeing default pick is kept while it equals the
+	# baseline (the stored model is gone); when the stored model returns, the
+	# pick is still the user's and must not fall back to it.
+	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
+	panel = f.make_panel()
+	touch(panel, "Coseeing", 0)
+	rebuild_with(f, panel, _shipped_without(SOL[0])(f))
+
+	rebuild_with(f, panel, _shipped(f))
+	assert _item_ids(panel.selection.current_item()) == DEFAULT
+	f.queued.clear()
+	panel.onSave()
+	_run_queued(f)
+
+	assert _stored(f) == DEFAULT
+	assert f.auth_calls == ["Coseeing"]
+
+
 def test_the_baseline_is_reread_from_config_after_apply(monkeypatch):
 	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
 	panel = f.make_panel()
