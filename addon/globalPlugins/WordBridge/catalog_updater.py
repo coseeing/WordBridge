@@ -142,8 +142,9 @@ class ProbeResult:
 	"""The outcome of testing a model list URL without installing it (spec 20.3).
 
 	kind: ok, invalid, insecure_scheme, empty, network, http_status,
-	not_a_list, no_models, failed, or unavailable (no updater installed). detail: the issue detail (the HTTP status for
-	http_status), never shown in the log. models: selectable local items.
+	not_a_list, no_models, failed, or unavailable (no updater installed).
+	detail: the issue detail (the HTTP status for http_status), never shown
+	in the log. models: selectable local items.
 	"""
 
 	kind: str
