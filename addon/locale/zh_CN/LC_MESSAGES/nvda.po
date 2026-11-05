@@ -31,6 +31,10 @@ msgid ""
 "Switch to the Coseeing default and correct this text with Coseeing? Your "
 "WordBridge setting will be changed to the Coseeing default."
 msgstr ""
+"模型列表尚未获取，因此无法使用你选择的模型。\n"
+"\n"
+"要改用 Coseeing 默认，并使用 Coseeing 校正这段文本吗？你的 WordBridge 设置将"
+"改为 Coseeing 默认。"
 
 #. Translators: Title of the Yes/No dialog asking whether to switch to the Coseeing default; the
 #. add-on name.
@@ -47,7 +51,7 @@ msgstr "WordBridge"
 #. to the Coseeing default because the model list is not available.
 #: addon/globalPlugins/WordBridge/__init__.py:355
 msgid "The text was not sent. Your model selection was not changed."
-msgstr ""
+msgstr "文本未发送，模型选择未更改。"
 
 #: addon/globalPlugins/WordBridge/__init__.py:468
 msgid "This task's cost is unavailable."
@@ -226,7 +230,7 @@ msgstr "Coseeing 反馈响应无效，请稍后重试。"
 msgid ""
 "The model list URL must start with https://. http:// is allowed only for "
 "localhost."
-msgstr ""
+msgstr "模型列表网址必须以 https:// 开头。只有 localhost 可以使用 http://。"
 
 #. Translators: Shown when the model list URL is not a complete web address.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:38
@@ -234,13 +238,14 @@ msgid ""
 "Enter a complete web address, such as https://wordbridge.coseeing.org, or "
 "leave the field empty."
 msgstr ""
+"请输入完整的网址，例如 https://wordbridge.coseeing.org，或将此字段留空。"
 
 #. Translators: Part of the message after a failed test of the model list URL: a network error.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:53
 msgid ""
 "There was a network error. Check that you are connected to the internet and "
 "try again."
-msgstr ""
+msgstr "发生网络错误。请检查是否已连接互联网，然后重试。"
 
 #. Translators: Part of the message after a failed test of the model list URL; {status} is the HTTP
 #. status code the server answered with, for example 404.
@@ -248,7 +253,7 @@ msgstr ""
 #, python-brace-format
 msgid ""
 "The server answered with HTTP status {status}. Check that the URL is correct."
-msgstr ""
+msgstr "服务器返回 HTTP 状态码 {status}。请检查网址是否正确。"
 
 #. Translators: Part of the message after a failed test of the model list URL: the address answered,
 #. but not with a model list.
@@ -256,67 +261,67 @@ msgstr ""
 msgid ""
 "The server's answer is not a WordBridge model list. Check that the URL is "
 "correct."
-msgstr ""
+msgstr "服务器的响应不是 WordBridge 模型列表。请检查网址是否正确。"
 
 #. Translators: Part of the message after a failed test of the model list URL: the list has no usable model.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:66
 msgid "The model list offers no model WordBridge can use."
-msgstr ""
+msgstr "该模型列表中没有 WordBridge 可以使用的模型。"
 
 #. Translators: Part of the message after a failed test of the model list URL, for any other failure.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:68
 msgid "Make sure you are connected to the internet and the URL is correct."
-msgstr ""
+msgstr "请确认已连接互联网，且网址正确。"
 
 #. Translators: Shown after a successful test of the model list URL; {count} is the number of models (1).
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:76
 #, python-brace-format
 msgid "The model list loaded. It offers {count} model."
-msgstr ""
+msgstr "已加载模型列表，共有 {count} 个模型。"
 
 #. Translators: Shown after a successful test of the model list URL; {count} is the number of models.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:79
 #, python-brace-format
 msgid "The model list loaded. It offers {count} models."
-msgstr ""
+msgstr "已加载模型列表，共有 {count} 个模型。"
 
 #. Translators: Shown after a failed test of the model list URL; {tip} says what went wrong and what to do.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:82
 #, python-brace-format
 msgid "The model list URL failed the test. {tip}"
-msgstr ""
+msgstr "模型列表网址测试失败。{tip}"
 
 #. Translators: Title of the dialog that changes the address the WordBridge model list is downloaded from.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:87
 msgid "Set Model List URL"
-msgstr ""
+msgstr "设置模型列表网址"
 
 #. Translators: Label of the edit field for the web address the WordBridge model list is downloaded from.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:102
 msgid "Model list URL:"
-msgstr ""
+msgstr "模型列表网址："
 
 #. Translators: Tooltip of the model list URL field in the WordBridge settings panel.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:109
 msgid ""
 "The address WordBridge downloads the model list from. Leave it empty to use "
 "only the Coseeing default."
-msgstr ""
+msgstr "WordBridge 下载模型列表的网址。留空则只使用 Coseeing 默认。"
 
 #. Translators: Button next to the model list URL field that checks whether the address offers a model list.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:112
 msgid "&Test..."
-msgstr ""
+msgstr "测试(&T)..."
 
 #. Translators: Shown while WordBridge tests the model list URL.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:142
 msgid "Validating the model list URL..."
-msgstr ""
+msgstr "正在验证模型列表网址..."
 
 #. Translators: Title of the message after a successful test of the model list URL.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:166
 msgid "Success"
-msgstr ""
+msgstr "成功"
 
 #. Translators: Title of the message after a failed test of the model list URL.
 #. Translators: Title of the message shown when the model list URL is not valid.
@@ -330,18 +335,18 @@ msgstr "错误"
 #. Translators: Asked when the user saves a model list URL whose test failed.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:216
 msgid "The model list URL failed the test. Save it anyway?"
-msgstr ""
+msgstr "模型列表网址测试失败。仍要保存吗？"
 
 #. Translators: Asked when the user saves a model list URL that was not tested.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:219
 msgid ""
 "The model list URL has not been tested. Save it without testing it first?"
-msgstr ""
+msgstr "模型列表网址尚未测试。确定不先测试就保存吗？"
 
 #. Translators: Title of the question asked before saving a model list URL that did not pass the test.
 #: addon/globalPlugins/WordBridge/catalog_url_dialog.py:224
 msgid "Warning"
-msgstr ""
+msgstr "警告"
 
 #. Translators: An item of the Language choice in the WordBridge settings panel.
 #: addon/globalPlugins/WordBridge/dialogs.py:42
@@ -381,26 +386,26 @@ msgstr "默认"
 #. Translators: Status line in the WordBridge settings panel when the model list URL is empty.
 #: addon/globalPlugins/WordBridge/dialogs.py:99
 msgid "The model list URL is empty, so only the Coseeing default is available."
-msgstr ""
+msgstr "模型列表网址为空，因此只能使用 Coseeing 默认。"
 
 #. Translators: Status line in the WordBridge settings panel when the stored model list URL is not a valid
 #. address, so no model list was downloaded.
 #: addon/globalPlugins/WordBridge/dialogs.py:103
 msgid "The model list URL is invalid, so no model list was loaded."
-msgstr ""
+msgstr "模型列表网址无效，因此未加载模型列表。"
 
 #. Translators: Status line in the WordBridge settings panel while the model list is still being downloaded.
 #: addon/globalPlugins/WordBridge/dialogs.py:106
 msgid ""
 "The model list is still loading. Until it loads, only the Coseeing default "
 "is available."
-msgstr ""
+msgstr "模型列表仍在加载中。加载完成前，只能使用 Coseeing 默认。"
 
 #: addon/globalPlugins/WordBridge/dialogs.py:111
 msgid ""
 "The model list could not be loaded, so only the Coseeing default is "
 "available. See the NVDA log for details."
-msgstr ""
+msgstr "无法加载模型列表，因此只能使用 Coseeing 默认。详情请查看 NVDA 日志。"
 
 #. Translators: Status line in the WordBridge settings panel when the model list could not be downloaded
 #. and the copy saved earlier is used instead.
@@ -408,19 +413,19 @@ msgstr ""
 msgid ""
 "The model list could not be updated. WordBridge is using the list it saved "
 "earlier."
-msgstr ""
+msgstr "无法更新模型列表。WordBridge 正在使用之前保存的列表。"
 
 #. Translators: Spoken when the open WordBridge settings panel has just shown a newly downloaded list of
 #. providers and models.
 #: addon/globalPlugins/WordBridge/dialogs.py:147
 msgid "Model list updated."
-msgstr ""
+msgstr "模型列表已更新。"
 
 #. Translators: Spoken when downloading the list of providers and models failed while the WordBridge settings
 #. panel is open.
 #: addon/globalPlugins/WordBridge/dialogs.py:150
 msgid "Model list update failed."
-msgstr ""
+msgstr "模型列表更新失败。"
 
 #. Translators: Line in the WordBridge settings panel when one entry of the model list could not be loaded.
 #: addon/globalPlugins/WordBridge/dialogs.py:164
@@ -498,7 +503,7 @@ msgstr "自动显示纠错报告"
 #. Translators: Label of the group in the WordBridge settings panel holding the personal dictionary settings.
 #: addon/globalPlugins/WordBridge/dialogs.py:334
 msgid "Personal dictionary"
-msgstr ""
+msgstr "个人词典"
 
 #. Translators: Check box in the WordBridge settings panel: use the user's own dictionary in corrections.
 #: addon/globalPlugins/WordBridge/dialogs.py:337
@@ -514,7 +519,7 @@ msgstr "编辑词典"
 #. Translators: Label of the group in the WordBridge settings panel holding the sound effect settings.
 #: addon/globalPlugins/WordBridge/dialogs.py:352
 msgid "Sound effects"
-msgstr ""
+msgstr "音效"
 
 #. Translators: Check box in the WordBridge settings panel: play sounds while a correction runs.
 #: addon/globalPlugins/WordBridge/dialogs.py:355
@@ -530,13 +535,13 @@ msgstr "音效鸣谢"
 #. downloaded from.
 #: addon/globalPlugins/WordBridge/dialogs.py:377
 msgid "Model list URL"
-msgstr ""
+msgstr "模型列表网址"
 
 #. Translators: Button in the model list URL group of the WordBridge settings panel that opens the dialog
 #. changing the address.
 #: addon/globalPlugins/WordBridge/dialogs.py:384
 msgid "Change..."
-msgstr ""
+msgstr "更改..."
 
 #. Translators: The end of an account box's caption in the WordBridge settings panel, after the provider name,
 #. for example "OpenAI Authentication".
@@ -557,7 +562,7 @@ msgstr "API 密钥："
 #. Translators: Shown in the model list URL group of the WordBridge settings panel when the URL is empty.
 #: addon/globalPlugins/WordBridge/dialogs.py:698
 msgid "No model list URL"
-msgstr ""
+msgstr "未设置模型列表网址"
 
 #. Translators: This is the label for the feedback dialog for Coseeing.
 #: addon/globalPlugins/WordBridge/dialogs.py:774
