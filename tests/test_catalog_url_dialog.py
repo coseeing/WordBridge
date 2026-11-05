@@ -246,12 +246,14 @@ def _po_entries():
 	}
 
 
-def _translation_calls(path):
-	"""(line number, has a Translators comment) for every `_(` call.
+def _translation_comment_blocks(path):
+	"""(line number, comment block, top line first) for every `_(` call.
 
-	xgettext --add-comments=Translators: semantics: the comment block (one
-	or more comment lines) must end on the line right before the line that
-	holds `_(`. Comments and strings mentioning `_()` are not calls.
+	The block is the run of comment lines ending on the line right before
+	the line that holds `_(`; xgettext --add-comments=Translators: (the
+	add-on's pot builder) takes it from its Translators line. Comments and
+	strings mentioning `_()`, and the definition of a fallback `_`, are not
+	calls.
 	"""
 	source = path.read_text(encoding="utf8")
 	lines = source.splitlines()
@@ -261,25 +263,47 @@ def _translation_calls(path):
 		following = tokens[index + 1]
 		if token.type == tokenize.NAME and token.string == "_" and following.string == "(":
 			previous = tokens[index - 1] if index else None
-			if previous is not None and previous.string == ".":
+			if previous is not None and previous.string in (".", "def"):
 				continue
 			line = token.start[0]
 			block = []
 			above = line - 2
 			while above >= 0 and lines[above].strip().startswith("#"):
-				block.append(lines[above].strip())
+				block.insert(0, lines[above].strip())
 				above -= 1
-			calls.append((line, any(comment.startswith("# Translators:") for comment in block)))
+			calls.append((line, block))
 	return calls
 
 
-@pytest.mark.parametrize("name", ["dialogs.py", "catalog_url_dialog.py"])
+def _translation_calls(path):
+	"""(line number, has a Translators comment) for every `_(` call."""
+	return [
+		(line, any(comment.startswith("# Translators:") for comment in block))
+		for line, block in _translation_comment_blocks(path)
+	]
+
+
+TRANSLATED_SOURCES = ["dialogs.py", "catalog_url_dialog.py", "lib/llm/provider.py", "lib/llm/executor.py"]
+
+
+@pytest.mark.parametrize("name", TRANSLATED_SOURCES)
 def test_every_translatable_string_has_a_translators_comment(name):
 	# C23: no tests/test_translator_comments.py exists in this repository.
 	calls = _translation_calls(ADDON / name)
 
 	assert calls
 	assert [line for line, commented in calls if not commented] == []
+
+
+def test_the_pot_takes_only_translators_comments():
+	# A bare -c would hand translators every comment block above a call,
+	# code comments included (a blank line does not end a block in Python
+	# sources); with the tag, a block is taken from its Translators line.
+	tool = Path(__file__).resolve().parents[1] / "site_scons" / "site_tools" / "gettexttool" / "__init__.py"
+	source = tool.read_text(encoding="utf8")
+
+	assert "--add-comments=Translators: " in source
+	assert "-c " not in source
 
 
 def _assert_translated(path, entries):

@@ -28,7 +28,7 @@ XGETTEXT_COMMON_ARGS = (
 	"--package-name='$gettext_package_name' "
 	"--package-version='$gettext_package_version' "
 	"--keyword=pgettext:1c,2 "
-	"-c -o $TARGET $SOURCES"
+	"--add-comments=Translators: -o $TARGET $SOURCES"
 )
 
 

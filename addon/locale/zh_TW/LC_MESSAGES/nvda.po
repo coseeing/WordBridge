@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 'WordBridge' '2026.9.3'\n"
 "Report-Msgid-Bugs-To: nvda-translations@groups.io\n"
-"POT-Creation-Date: 2026-11-05 12:34+0000\n"
+"POT-Creation-Date: 2026-11-05 12:42+0000\n"
 "PO-Revision-Date: 2026-09-23 19:08+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -34,7 +34,6 @@ msgstr ""
 #. Translators: Title of the Yes/No dialog asking whether to switch to the Coseeing default; the
 #. add-on name.
 #. Translators: Title of the WordBridge category in NVDA's settings dialog; the add-on name.
-#. Add-on summary/title, usually the user visible name of the add-on
 #. Translators: Summary/title for this add-on
 #. to be shown on installation and add-on information found in add-on store
 #: addon/globalPlugins/WordBridge/__init__.py:332
@@ -78,10 +77,6 @@ msgstr "未選取任何文字，無法分析。"
 msgid "The selected text does not contain Chinese characters, unable to analyze."
 msgstr "選取範圍不含中文字，無法分析。"
 
-#. Notify before marking announced: _run_on_ui() silently drops the
-#. message when self._shutdown is already set, and the old order
-#. (flag first) could mark this session's one-shot announcement
-#. "delivered" even when it never reached the user.
 #: addon/globalPlugins/WordBridge/__init__.py:592
 msgid "The model list could not be loaded. Coseeing will choose a model for you."
 msgstr "無法載入模型清單。Coseeing 將為您選擇模型。"
@@ -94,9 +89,6 @@ msgstr "所選模型已無法使用。請在 WordBridge 設定中選擇其他模
 msgid "The selected provider is no longer available. Please choose another one in WordBridge settings."
 msgstr "所選服務供應商已無法使用。請在 WordBridge 設定中選擇其他服務供應商。"
 
-#. The user has already been notified. Re-raising here only
-#. leaves an unhandled exception in a worker thread, which
-#. lands in the NVDA log with nothing to act on.
 #: addon/globalPlugins/WordBridge/__init__.py:627
 #: addon/globalPlugins/WordBridge/__init__.py:628
 #, python-brace-format
@@ -121,13 +113,17 @@ msgstr "Coseeing 要求失敗，請稍後再試。"
 msgid "Authentication error. Please sign in to Coseeing or check your account permissions."
 msgstr "驗證錯誤。請登入 Coseeing，或檢查您的帳戶權限。"
 
+#. Translators: First sentence reported when the AI service provider limits the user's requests
+#. (HTTP 429); the next sentence follows it directly, so keep the trailing space.
 #: addon/globalPlugins/WordBridge/__init__.py:669
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:66
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:71
 msgid "Rate limit reached for requests or you exceeded your current quota. "
 msgstr "請求已達到速率限制，或您已超出當前配額。"
 
+#. Translators: Second sentence reported when the AI service provider limits the user's requests
+#. (HTTP 429).
 #: addon/globalPlugins/WordBridge/__init__.py:670
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:67
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:74
 msgid "Please reduce the frequency of sending requests or check your account balance."
 msgstr "請降低傳送請求的頻率，或檢查您的帳戶餘額。"
 
@@ -397,7 +393,6 @@ msgstr "無法載入 {count} 個目錄項目；詳情請參閱 NVDA 記錄。"
 msgid "{count} catalog entries could not be loaded; see the NVDA log for details."
 msgstr "無法載入 {count} 個目錄項目；詳情請參閱 NVDA 記錄。"
 
-#. For selecting provider
 #. Translators: Label of the choice of the service provider in the WordBridge settings panel.
 #: addon/globalPlugins/WordBridge/dialogs.py:250
 msgid "Service Provider:"
@@ -408,7 +403,6 @@ msgstr "服務供應商："
 msgid "Choose the service provider for the WordBridge"
 msgstr "選擇 WordBridge 所使用的服務供應商"
 
-#. For selecting LLM
 #. Translators: Label of the choice of the large language model in the WordBridge settings panel.
 #: addon/globalPlugins/WordBridge/dialogs.py:263
 msgid "Large Language Model:"
@@ -419,7 +413,6 @@ msgstr "大型語言模型："
 msgid "Choose the large language model for the Word Bridge"
 msgstr "選擇 WordBridge 所使用的大型語言模型"
 
-#. For selecting language
 #. Translators: Label of the choice of the correction language in the WordBridge settings panel.
 #: addon/globalPlugins/WordBridge/dialogs.py:286
 msgid "Language:"
@@ -430,7 +423,6 @@ msgstr "語言："
 msgid "Choose the language for the Word Bridge"
 msgstr "選擇 WordBridge 所使用的語言"
 
-#. For selecting typo correction mode
 #. Translators: Label of the choice of the correction mode in the WordBridge settings panel.
 #: addon/globalPlugins/WordBridge/dialogs.py:298
 msgid "Correction Mode:"
@@ -441,7 +433,6 @@ msgstr "校正模式："
 msgid "Choose the typo correction mode for the Word Bridge"
 msgstr "選擇 WordBridge 所使用的錯字校正模式"
 
-#. For setting upper bound of correction character count
 #. Translators: Label of the field for the largest number of characters WordBridge corrects at once.
 #: addon/globalPlugins/WordBridge/dialogs.py:312
 msgid "Max character count"
@@ -452,9 +443,6 @@ msgstr "最大字元數"
 msgid "Auto display typo report"
 msgstr "自動顯示改錯字報告"
 
-#. A setting and its button share a group, as NVDA's "NVDA Development"
-#. group; the controls keep their full labels, as NVDA's do.
-#. For setting custom dictionary
 #. Translators: Label of the group in the WordBridge settings panel holding the personal dictionary settings.
 #: addon/globalPlugins/WordBridge/dialogs.py:334
 msgid "Personal dictionary"
@@ -470,7 +458,6 @@ msgstr "使用個人化辭典"
 msgid "Edit dictionary"
 msgstr "編輯辭典"
 
-#. For setting sound effects
 #. Translators: Label of the group in the WordBridge settings panel holding the sound effect settings.
 #: addon/globalPlugins/WordBridge/dialogs.py:352
 msgid "Sound effects"
@@ -563,33 +550,43 @@ msgstr "Coseeing 驗證失敗。"
 msgid "Coseeing authentication is unavailable on this installation."
 msgstr "此安裝版本無法使用 Coseeing 驗證。"
 
-#: addon/globalPlugins/WordBridge/lib/llm/executor.py:62
+#. Translators: Reported when the AI service provider's answer has an unexpected shape;
+#. {response} is that answer, shown as received.
+#: addon/globalPlugins/WordBridge/lib/llm/executor.py:64
 #, python-brace-format
 msgid "Parsing error. Unexpected server response. Response: {response}"
 msgstr "解析錯誤。伺服器回應異常。回應內容：{response}"
 
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:59
+#. Translators: Reported when the AI service provider rejects the user's API key (HTTP 401).
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:60
 msgid "Authentication error. Please check if the service provider's key is correct."
 msgstr "驗證錯誤。請檢查服務供應商的金鑰是否正確。"
 
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:61
+#. Translators: Reported when the AI service provider refuses requests from the user's location (HTTP 403).
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:63
 msgid "Country, region, or territory not supported."
 msgstr "不支援您所在的國家、地區或領土。"
 
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:63
+#. Translators: Reported when the AI service provider does not know the selected model (HTTP 404).
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:66
 msgid "Service does not exist. Please check if the model does not exist or has expired."
 msgstr "服務不存在。請檢查模型是否不存在或已過期。"
 
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:70
+#. Translators: Reported when the AI service provider is too busy to answer (HTTP 503).
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:78
 msgid "The server is currently overloaded, please try again later."
 msgstr "伺服器目前負載過重，請稍後再試。"
 
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:73
+#. Translators: Reported for any other error from the AI service provider; the HTTP status code
+#. and the provider's own (untranslated) message follow it, as "401, message".
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:83
 msgid "An error occurred, status code = "
 msgstr "發生錯誤，狀態碼 = "
 
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:96
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:131
+#. Translators: Reported when the AI service provider cannot be reached; {request_error} is the
+#. name of the network error, for example ConnectTimeout.
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:108
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:145
 #, python-brace-format
 msgid "HTTP request error ({request_error}). Please check the network setting."
 msgstr "HTTP 請求錯誤（{request_error}）。請檢查網路設定。"
@@ -715,13 +712,11 @@ msgstr "詞彙 \"%s\" 已存在。"
 msgid "Close"
 msgstr "關閉"
 
-#. Add-on description
 #. Translators: Long description to be shown for this add-on on add-on information from add-on store
 #: buildVars.py:24
 msgid "helps users identify and correct homophone-based typos in Chinese."
 msgstr "協助使用者辨識並修正中文同音錯字。"
 
-#. Brief changelog for this version
 #. Translators: what's new content for the add-on version to be shown in the add-on store
 #: buildVars.py:29
 msgid "Update models to GPT-5.6 and Claude 5"

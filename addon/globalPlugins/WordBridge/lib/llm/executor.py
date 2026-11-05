@@ -59,6 +59,8 @@ class LLMExecutor:
 		except KeyError:
 			log.error("%s", response_json)
 			raise Exception(
+				# Translators: Reported when the AI service provider's answer has an unexpected shape;
+				# {response} is that answer, shown as received.
 				_("Parsing error. Unexpected server response. Response: {response}").format(
 					response=response_json
 				)
