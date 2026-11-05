@@ -395,9 +395,9 @@ def _serve_the_server_catalog(url, **kwargs):
 	import json
 
 	from fake_http import BodyResponse
-	from shipped_catalog import server_document
+	from shipped_catalog import served_document
 
-	return BodyResponse(json.dumps(server_document()).encode("utf8"))
+	return BodyResponse(json.dumps(served_document()).encode("utf8"))
 
 
 @pytest.mark.parametrize("state, new_threads", [("failed", 1), ("succeeded", 0), ("running", 0)])
@@ -432,12 +432,12 @@ def _bundled_only(f):
 def test_account_box_captions_are_the_same_with_and_without_a_fetched_list(monkeypatch):
 	# Spec finding 10: captions come from the provider label or fall back to
 	# the group name, and every bundled label equals its key.
-	from shipped_catalog import server_document
+	from shipped_catalog import served_document
 
 	f = _panel_fixture(monkeypatch)
 	overlay = __import__(f.plugin.__name__ + ".lib.catalog.overlay", fromlist=["load_overlay_catalog"])
 	fetched = overlay.load_overlay_catalog(
-		f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting"), server_document(),
+		f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting"), served_document(),
 		runnable_providers=f.plugin.SUPPORTED_PROVIDERS,
 	)
 	bundled_only = _bundled_only(f)

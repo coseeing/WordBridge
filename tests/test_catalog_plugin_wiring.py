@@ -146,13 +146,13 @@ def test_remote_text_in_catalog_issues_cannot_forge_a_log_line(monkeypatch):
 	import json
 
 	from fake_http import BodyResponse
-	from shipped_catalog import server_document
+	from shipped_catalog import served_document
 
 	plugin, queued, _auth = _load(monkeypatch)
 	lines = []
 	monkeypatch.setattr(plugin.log, "warning", lambda message, *args, **kwargs: lines.append(message % args))
 	instance = plugin.GlobalPlugin()
-	document = server_document()
+	document = served_document()
 	forged = "Evil\nWordBridge: catalog fetched host=https://fake\x1b[0m" + "x" * 5000
 	# Remote text reaches issue details only through model fields (finding 9).
 	document["models"].append({"model": "m", "provider": forged, "label": "m"})
@@ -177,16 +177,11 @@ def test_a_fetched_payload_installs_the_bundled_provider_entries(monkeypatch):
 	import json
 
 	from fake_http import BodyResponse
-	from shipped_catalog import bundled_document, server_document
+	from shipped_catalog import bundled_document, served_document
 
 	plugin, queued, _auth = _load(monkeypatch)
 	instance = plugin.GlobalPlugin()
-	document = server_document()
-	document["providers"] = {
-		name: {"label": "Evil", "url": "https://evil.test/v1", "setting": {"evil": True}, "timeout0": 1, "timeout_max": 2}
-		for name in document["providers"]
-	}
-	body = json.dumps(document).encode("utf8")
+	body = json.dumps(served_document()).encode("utf8")
 	instance._catalog_updater._http_get = lambda url, **kwargs: BodyResponse(body)
 	queued.clear()
 	instance._start_catalog_fetch()
@@ -204,14 +199,37 @@ def test_a_fetched_payload_installs_the_bundled_provider_entries(monkeypatch):
 	instance.terminate()
 
 
-def test_a_posted_fetch_result_is_installed_on_the_ui_queue(monkeypatch):
+def test_a_fetched_payload_with_providers_keeps_the_current_catalog(monkeypatch):
 	import json
 
+	from fake_http import BodyResponse
 	from shipped_catalog import server_document
 
 	plugin, queued, _auth = _load(monkeypatch)
 	instance = plugin.GlobalPlugin()
-	document = server_document()
+	before = instance.catalog
+	body = json.dumps(server_document()).encode("utf8")
+	instance._catalog_updater._http_get = lambda url, **kwargs: BodyResponse(body)
+	queued.clear()
+	instance._start_catalog_fetch()
+	target, args = plugin.started_catalog_threads[0]
+	target(*args)
+	for callback, callback_args in list(queued):
+		callback(*callback_args)
+
+	assert instance.catalog is before
+	assert instance._catalog_updater.status().fetch == "failed"
+	instance.terminate()
+
+
+def test_a_posted_fetch_result_is_installed_on_the_ui_queue(monkeypatch):
+	import json
+
+	from shipped_catalog import served_document
+
+	plugin, queued, _auth = _load(monkeypatch)
+	instance = plugin.GlobalPlugin()
+	document = served_document()
 	document["models"] = document["models"][:1]
 	body = json.dumps(document).encode("utf8")
 
@@ -323,7 +341,7 @@ class StoreSpy:
 
 def test_a_fetch_finishing_after_terminate_writes_and_posts_nothing(monkeypatch):
 	from fake_http import BodyResponse
-	from shipped_catalog import SERVER_CATALOG_PATH
+	from shipped_catalog import served_bytes
 
 	plugin, queued, _auth = _load(monkeypatch)
 	instance = plugin.GlobalPlugin()
@@ -331,7 +349,7 @@ def test_a_fetch_finishing_after_terminate_writes_and_posts_nothing(monkeypatch)
 	assert updater._shutdown is instance._shutdown
 	spy = StoreSpy(updater._cache)
 	updater._cache = spy
-	updater._http_get = lambda url, **kwargs: BodyResponse(SERVER_CATALOG_PATH.read_bytes())
+	updater._http_get = lambda url, **kwargs: BodyResponse(served_bytes())
 	instance._start_catalog_fetch()
 	target, args = plugin.started_catalog_threads[0]
 	instance.terminate()
@@ -355,7 +373,7 @@ def test_the_production_request_forwards_the_fetch_arguments_unchanged(monkeypat
 
 def test_the_wired_fetch_sends_exactly_the_specified_request(monkeypatch):
 	from fake_http import BodyResponse
-	from shipped_catalog import SERVER_CATALOG_PATH
+	from shipped_catalog import served_bytes
 
 	calls = []
 	plugin, queued, _auth = _load(monkeypatch)
@@ -364,7 +382,7 @@ def test_the_wired_fetch_sends_exactly_the_specified_request(monkeypatch):
 
 	def get(*args, **kwargs):
 		calls.append((args, kwargs))
-		return BodyResponse(SERVER_CATALOG_PATH.read_bytes())
+		return BodyResponse(served_bytes())
 
 	monkeypatch.setattr(plugin.requests, "get", get)
 	instance._start_catalog_fetch()
@@ -507,9 +525,9 @@ def _deliver_the_model_list(f):
 	import json
 
 	from fake_http import BodyResponse
-	from shipped_catalog import server_document
+	from shipped_catalog import served_document
 
-	body = json.dumps(server_document()).encode("utf8")
+	body = json.dumps(served_document()).encode("utf8")
 	f.instance._catalog_updater._http_get = lambda url, **kwargs: BodyResponse(body)
 	f.instance._start_catalog_fetch()
 	target, args = f.plugin.started_catalog_threads[-1]
@@ -726,7 +744,7 @@ def test_a_successful_retry_lets_a_local_user_correct_without_the_dialog(monkeyp
 	import json
 
 	from fake_http import BodyResponse
-	from shipped_catalog import server_document
+	from shipped_catalog import served_document
 
 	f = _choice_fixture(monkeypatch, catalog_url=NO_CACHE_URL)
 	f.instance._start_catalog_fetch()
@@ -734,7 +752,7 @@ def test_a_successful_retry_lets_a_local_user_correct_without_the_dialog(monkeyp
 	target(*args)
 	_run(f.queued)
 	[timer] = f.plugin.catalog_retry_timers
-	body = json.dumps(server_document()).encode("utf8")
+	body = json.dumps(served_document()).encode("utf8")
 	f.instance._catalog_updater._http_get = lambda url, **kwargs: BodyResponse(body)
 
 	timer.fire()

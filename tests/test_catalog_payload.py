@@ -13,6 +13,7 @@ from shipped_catalog import bundled_document, served_document
 SERVER_CATALOG = Path(__file__).resolve().parents[1] / "server" / "app" / "setting" / "catalog.json"
 SERVER_BYTES = SERVER_CATALOG.read_bytes()
 SERVED_BYTES = json.dumps(served_document(), ensure_ascii=False).encode("utf8")
+PROVIDERS_NOT_ALLOWED = "providers are bundled with the add-on; the payload may not carry them"
 
 
 class BundledSentinel:
@@ -32,21 +33,23 @@ def _body(**document):
 
 # (id, body, code, detail) -- code None means the payload parses.
 PARSE_TABLE = [
-	("valid", SERVER_BYTES, None, None),
-	("served", SERVED_BYTES, None, None),
-	("utf8-bom", b"\xef\xbb\xbf" + SERVER_BYTES, None, None),
+	("valid", SERVED_BYTES, None, None),
+	# The server file itself carries providers for the server's own calls;
+	# as a payload it is refused (B4).
+	("server-file", SERVER_BYTES, "remote_providers_not_allowed", PROVIDERS_NOT_ALLOWED),
+	("utf8-bom", b"\xef\xbb\xbf" + SERVED_BYTES, None, None),
 	("not-json", b"{not json", "remote_malformed", "JSONDecodeError"),
 	("array", b"[]", "remote_malformed", "expected an object, got list"),
-	("schema-2", _body(schema_version=2, providers={}, models=[]), "remote_schema_version", "expected 1, got 2"),
-	("schema-missing", _body(providers={}, models=[]), "remote_schema_version", "expected 1, got None"),
+	("schema-2", _body(schema_version=2, models=[]), "remote_schema_version", "expected 1, got 2"),
+	("schema-missing", _body(models=[]), "remote_schema_version", "expected 1, got None"),
 	# 1.0 == 1 and True == 1 in Python; the version must be the integer 1.
-	("schema-float", _body(schema_version=1.0, providers={}, models=[]), "remote_schema_version", "expected 1, got 1.0"),
-	("schema-true", _body(schema_version=True, providers={}, models=[]), "remote_schema_version", "expected 1, got True"),
-	("schema-string", _body(schema_version="1", providers={}, models=[]), "remote_schema_version", "expected 1, got str"),
-	# The add-on does not read remote providers, so they decide nothing here.
-	("providers-list", _body(schema_version=1, providers=[], models=[]), None, None),
+	("schema-float", _body(schema_version=1.0, models=[]), "remote_schema_version", "expected 1, got 1.0"),
+	("schema-true", _body(schema_version=True, models=[]), "remote_schema_version", "expected 1, got True"),
+	("schema-string", _body(schema_version="1", models=[]), "remote_schema_version", "expected 1, got str"),
+	# Provider entries are bundled; any providers key refuses the payload (B4).
+	("providers-list", _body(schema_version=1, providers=[], models=[]), "remote_providers_not_allowed", PROVIDERS_NOT_ALLOWED),
 	("providers-missing", _body(schema_version=1, models=[]), None, None),
-	("models-missing", _body(schema_version=1, providers={}), "remote_malformed", "models must be a list"),
+	("models-missing", _body(schema_version=1), "remote_malformed", "models must be a list"),
 	("deep-nesting", b"[" * 100000, "remote_malformed", "RecursionError"),
 	# A UTF-16 BOM: json.loads() decodes it as UTF-16, then fails to parse.
 	("bad-utf8", b"\xff\xfe\x00{", "remote_malformed", "JSONDecodeError"),
@@ -68,7 +71,8 @@ def test_parse_remote_payload_table(body, code, detail):
 
 
 def test_a_bom_payload_parses_to_the_same_document():
-	assert parse_remote_payload(b"\xef\xbb\xbf" + SERVER_BYTES) == parse_remote_payload(SERVER_BYTES)
+	assert parse_remote_payload(b"\xef\xbb\xbf" + SERVED_BYTES) == parse_remote_payload(SERVED_BYTES)
+	assert parse_remote_payload(SERVED_BYTES)[0] is not None
 
 
 def test_malformed_details_never_contain_the_body():
@@ -82,9 +86,8 @@ def _accept(document, runnable_providers=SUPPORTED_PROVIDERS):
 
 
 def _server_document():
-	document = json.loads(SERVER_BYTES)
-	document.pop("coseeings", None)
-	return document
+	"""The payload the server serves: its catalog file without providers."""
+	return served_document()
 
 
 def test_a_valid_payload_is_accepted():
@@ -140,15 +143,16 @@ def _local_ids(catalog):
 
 
 def test_a_payload_without_providers_is_accepted():
+	from shipped_catalog import shipped_overlay
+
 	document = _server_document()
-	del document["providers"]
+	assert "providers" not in document
 
 	catalog, issues = _accept(document)
-	reference, _issues = _accept(_server_document())
 
 	assert issues == ()
-	assert catalog.providers == reference.providers
-	assert _local_ids(catalog) == _local_ids(reference)
+	assert catalog.providers == shipped_overlay().providers
+	assert _local_ids(catalog) == _local_ids(shipped_overlay())
 
 
 class StaticBundled:
@@ -211,6 +215,34 @@ def test_one_incomplete_bundled_provider_drops_only_its_models():
 	assert "unknown_provider" in codes
 
 
+PROVIDERS_VALUES = {
+	"null": None,
+	"list": [],
+	"string": "x",
+	"number": 7,
+	"empty-mapping": {},
+	"hostile-mapping": {"OpenAI": {"label": "Evil", "url": "https://evil.test/", "setting": {}, "timeout0": 1, "timeout_max": 2}},
+	"server-providers": json.loads(SERVER_BYTES)["providers"],
+}
+
+
+@pytest.mark.parametrize("row", list(PROVIDERS_VALUES))
+def test_any_remote_providers_key_rejects_the_payload(row):
+	# B4: nothing is released, so a payload in the old providers-carrying
+	# format is refused as a whole -- from a fetch or from a cache alike.
+	document = dict(served_document(), providers=PROVIDERS_VALUES[row])
+
+	catalog, issues = _accept(document)
+	parsed, parse_issues = parse_remote_payload(json.dumps(document).encode("utf8"))
+
+	assert catalog is None
+	assert [(issue.code, issue.location, issue.detail) for issue in issues] == [
+		("remote_providers_not_allowed", "payload", PROVIDERS_NOT_ALLOWED),
+	]
+	assert parsed is None
+	assert [issue.code for issue in parse_issues] == ["remote_providers_not_allowed"]
+
+
 def test_a_failing_bundled_source_is_reported_as_such():
 	# The bundled file, not the payload, is what failed: the fallback catalog
 	# has no local items, but remote_no_models would send the reader of the
@@ -230,10 +262,12 @@ def test_a_failing_bundled_source_is_reported_as_such():
 # (id, document, code). The cache hands accept_remote_document() an already
 # parsed dict, so the section 8.3 document checks must live on that path too.
 ACCEPT_DOCUMENT_TABLE = [
-	("schema-2", {"schema_version": 2, "providers": {}, "models": []}, "remote_schema_version"),
-	("schema-missing", {"providers": {}, "models": []}, "remote_schema_version"),
-	("schema-text", {"schema_version": "v2", "providers": {}, "models": []}, "remote_schema_version"),
-	("models-missing", {"schema_version": 1, "providers": {}}, "remote_malformed"),
+	("schema-2", {"schema_version": 2, "models": []}, "remote_schema_version"),
+	("schema-missing", {"models": []}, "remote_schema_version"),
+	("schema-text", {"schema_version": "v2", "models": []}, "remote_schema_version"),
+	# A cache written by a test build holds the server file, providers included (B4).
+	("providers-mapping", {"schema_version": 1, "providers": {}, "models": []}, "remote_providers_not_allowed"),
+	("models-missing", {"schema_version": 1}, "remote_malformed"),
 	("not-a-dict", ["schema_version", 1], "remote_malformed"),
 ]
 
@@ -249,9 +283,8 @@ def test_accept_applies_the_document_checks(document, code):
 		# only the row's own defect stands between it and a local model.
 		good = _server_document()
 		document = dict(document)
-		for key in ("providers", "models"):
-			if isinstance(document.get(key), type(good[key])):
-				document[key] = good[key]
+		if isinstance(document.get("models"), list):
+			document["models"] = good["models"]
 
 	catalog, issues = _accept(document)
 

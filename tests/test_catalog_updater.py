@@ -5,7 +5,7 @@ import pytest
 
 from fake_http import BodyResponse
 from plugin_modules import load_plugin_module
-from shipped_catalog import bundled_document, server_document, shipped_overlay
+from shipped_catalog import bundled_document, served_document, server_document, shipped_overlay
 
 
 updater_module = load_plugin_module("catalog_updater")
@@ -18,10 +18,10 @@ URL_A = "https://a.test/catalog?token=secret-a"
 URL_B = "https://b.test/catalog"
 
 
-def _payload(model="gpt-remote", provider="OpenAI", url="https://api.openai.com/v1/responses", active=True):
+def _payload(model="gpt-remote", provider="OpenAI", active=True):
+	# The served shape: models only; provider entries are bundled (B4).
 	return {
 		"schema_version": 1,
-		"providers": {provider: {"label": provider, "url": url, "setting": {}, "timeout0": 10, "timeout_max": 60}},
 		"models": [{"model": model, "provider": provider, "label": model, "active": active}],
 	}
 
@@ -158,9 +158,9 @@ def _local_ids(catalog):
 	return [item.corrector_config_id for item in catalog.selectable_items if item.execution_channel == "local"]
 
 
-def test_a_cache_of_the_server_file_loads_with_the_bundled_providers(tmp_path):
+def test_a_cache_of_the_served_document_loads_with_the_bundled_providers(tmp_path):
 	h = Harness(tmp_path)
-	h.seed_cache(URL_A, server_document())
+	h.seed_cache(URL_A, served_document())
 
 	catalog = h.updater.initial_catalog(URL_A)
 
@@ -173,35 +173,33 @@ def test_a_cache_of_the_server_file_loads_with_the_bundled_providers(tmp_path):
 	assert _local_ids(catalog) == _local_ids(shipped_overlay())
 
 
-def test_a_cache_with_hostile_providers_loads_the_bundled_entries(tmp_path):
+def test_a_cache_that_carries_providers_is_rejected(tmp_path):
+	# Caches written by the test builds hold the server file with its
+	# providers (B4): rejected as unreadable, no migration.
 	h = Harness(tmp_path)
-	document = server_document()
-	document["providers"] = {
-		name: {"label": "Evil", "url": "https://evil.test/", "setting": {"evil": True}, "timeout0": 1, "timeout_max": 2}
-		for name in document["providers"]
-	}
-	h.seed_cache(URL_A, document)
+	h.seed_cache(URL_A, server_document())
 
 	catalog = h.updater.initial_catalog(URL_A)
 
-	assert h.status()[0] == "cache"
-	for name, data in bundled_document()["providers"].items():
-		entry = catalog.get_provider(name)
-		assert (entry.label, entry.url, entry.setting, entry.timeout0, entry.timeout_max) == (
-			data["label"], data["url"], data["setting"], data["timeout0"], data["timeout_max"],
-		), name
+	assert h.status()[0] == "none"
+	assert _local_ids(catalog) == []
+	assert (
+		"warning", "WordBridge: catalog cache problem code=%s type=%s",
+		"unreadable_cache", "remote_providers_not_allowed",
+	) in h.log.records
 
 
-def test_a_cache_without_providers_loads(tmp_path):
-	h = Harness(tmp_path)
-	document = server_document()
-	del document["providers"]
-	h.seed_cache(URL_A, document)
+def test_a_fetched_payload_that_carries_providers_is_not_installed_or_cached(tmp_path):
+	h = Harness(tmp_path, {URL_A: _ok(server_document())})
+	h.updater.initial_catalog(URL_A)
 
-	catalog = h.updater.initial_catalog(URL_A)
+	h.updater.refresh(URL_A)
+	h.threads[0].run()
+	h.deliver()
 
-	assert h.status()[0] == "cache"
-	assert len(_local_ids(catalog)) == 16
+	assert h.installed == []
+	assert h.cache.stores == []
+	assert h.status() == ("none", "failed")
 
 
 class BundledWithoutProviders:

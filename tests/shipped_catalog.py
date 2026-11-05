@@ -36,6 +36,11 @@ def served_document() -> dict:
 	return document
 
 
+def served_bytes() -> bytes:
+	"""The served payload as bytes, the way load_catalog_bytes writes it."""
+	return (json.dumps(served_document(), ensure_ascii=False, indent="\t") + "\n").encode("utf8")
+
+
 def bundled_document() -> dict:
 	return json.loads((ADDON_SETTING_DIR / "catalog.json").read_text(encoding="utf8"))
 

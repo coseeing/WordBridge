@@ -77,7 +77,7 @@ def test_a_fetched_payload_behaves_exactly_like_the_same_documents_from_disk():
 
 
 def test_a_remote_document_can_add_a_model_with_no_code_change():
-	document = server_document()
+	document = served_document()
 	document["models"] = document["models"] + [{
 		"provider": "OpenAI",
 		"model": "gpt-9-future",
@@ -92,17 +92,10 @@ def test_a_remote_document_can_add_a_model_with_no_code_change():
 	assert catalog.get_model("gpt-9-future&OpenAI").price_entry()["pricing"]["input_tokens"] == 1
 
 
-def test_a_remote_provider_entry_cannot_add_a_provider():
-	# Providers are bundled: a Mistral entry in the payload is never read, so
-	# its model names a provider this release does not have.
-	document = server_document()
-	document["providers"] = dict(document["providers"], Mistral={
-		"label": "Mistral",
-		"url": "https://api.mistral.test/v1",
-		"setting": {},
-		"timeout0": 10,
-		"timeout_max": 20,
-	})
+def test_a_model_for_a_provider_this_release_does_not_bundle_is_dropped():
+	# Providers are bundled, so a remote document cannot add one: a model for
+	# a provider only a newer release has is dropped, its siblings kept.
+	document = served_document()
 	document["models"] = document["models"] + [{"provider": "Mistral", "model": "m-large", "label": "M Large"}]
 
 	catalog = fetched_catalog(_body(document))
@@ -113,10 +106,11 @@ def test_a_remote_provider_entry_cannot_add_a_provider():
 	assert "M Large" not in catalog.labels_for(COSEEING_GROUP)
 	assert "unknown_provider" in codes
 	assert "unsupported_provider" not in codes
+	assert len(catalog.models) == len(served_document()["models"])
 
 
 def test_a_bundled_provider_this_build_cannot_run_drops_its_models():
-	catalog = fetched_catalog(SERVER_CATALOG_PATH.read_bytes(), runnable_providers=SUPPORTED_PROVIDERS - {"DeepSeek"})
+	catalog = fetched_catalog(_body(served_document()), runnable_providers=SUPPORTED_PROVIDERS - {"DeepSeek"})
 
 	assert "DeepSeek" not in catalog.provider_groups
 	assert "unsupported_provider" in {issue.code for issue in catalog.issues}

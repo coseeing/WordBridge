@@ -88,14 +88,14 @@ def seeded_catalog_cache_path():
 	if _SEEDED_CATALOG_CACHE is None:
 		import tempfile
 
-		from shipped_catalog import server_document
+		from shipped_catalog import served_document
 
 		_SEEDED_CATALOG_CACHE = tempfile.TemporaryDirectory(prefix="wordbridge-catalog-cache-")
 		path = Path(_SEEDED_CATALOG_CACHE.name) / "remote-catalog.json"
 		path.write_text(json.dumps({
 			"cache_version": 1,
 			"url_key": DEFAULT_CATALOG_KEY,
-			"document": server_document(),
+			"document": served_document(),
 		}), encoding="utf8")
 	return Path(_SEEDED_CATALOG_CACHE.name) / "remote-catalog.json"
 
@@ -519,12 +519,12 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 		return timer
 
 	monkeypatch.setattr(plugin, "_schedule_catalog_retry", record_catalog_retry, raising=False)
-	from shipped_catalog import server_document
+	from shipped_catalog import served_document
 
 	overlay = importlib.import_module(f"{package_name}.lib.catalog.overlay")
 	plugin.catalog = overlay.load_overlay_catalog(
 		plugin.BundledCatalogSource(str(ADDON_PATH / "setting")),
-		server_document(),
+		served_document(),
 		runnable_providers=plugin.SUPPORTED_PROVIDERS,
 	)
 	plugin.registry.initialize(plugin.catalog)

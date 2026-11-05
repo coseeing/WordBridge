@@ -175,8 +175,10 @@ def test_a_broken_bundled_file_plus_a_good_remote_gives_the_sentinel_and_no_loca
 	assert is_dropped_issue(fallback[0]) is True
 	assert "unreadable_file" in _codes(catalog)
 	assert "unknown_provider" in _codes(catalog)
-	# As a payload, it is rejected, and the bundled file is named as the cause.
-	assert accept_remote_document(broken, _remote(), runnable_providers=SUPPORTED_PROVIDERS) == (
+	# As a payload (served without providers), it is rejected, and the
+	# bundled file is named as the cause.
+	served = {key: value for key, value in _remote().items() if key != "providers"}
+	assert accept_remote_document(broken, served, runnable_providers=SUPPORTED_PROVIDERS) == (
 		None, (CatalogIssue("bundled_source_failed", "bundled", "no_providers"),),
 	)
 
