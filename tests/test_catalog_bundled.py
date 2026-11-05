@@ -16,7 +16,6 @@ from shipped_catalog import bundled_document, server_document, shipped_overlay
 ADDON_PATH = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge"
 SETTING_DIR = ADDON_PATH / "setting"
 CATALOG_PATH = SETTING_DIR / "catalog.json"
-RUNNABLE = frozenset({"OpenAI", "Anthropic", "Google", "OpenRouter", "DeepSeek", "Ollama"})
 
 
 def shipped_document():
@@ -29,7 +28,7 @@ def shipped_catalog():
 	directly)."""
 	_document, issues = BundledCatalogSource(SETTING_DIR).load()
 	assert issues == ()
-	return load_overlay_catalog(BundledCatalogSource(SETTING_DIR), None, runnable_providers=RUNNABLE)
+	return load_overlay_catalog(BundledCatalogSource(SETTING_DIR), None, runnable_providers=SUPPORTED_PROVIDERS)
 
 
 def _write_catalog(root: Path, document: dict) -> Path:
@@ -150,7 +149,7 @@ def test_the_bundled_providers_build_completely():
 		"models": [{"model": f"m-{name}", "provider": name, "label": name} for name in providers],
 	}
 
-	catalog = build_catalog(document, runnable_providers=RUNNABLE)
+	catalog = build_catalog(document, runnable_providers=SUPPORTED_PROVIDERS)
 
 	assert set(catalog.providers) == set(providers)
 	assert catalog.issues == ()
