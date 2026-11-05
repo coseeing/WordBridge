@@ -266,3 +266,19 @@ spec §4.2 標為「Decided by orchestrator with the recommended default; user m
 10. **P6 allowlist 改成測試守門**：RC U2「使用者的 key 只送到允許的 host」現在由 `tests/test_catalog_bundled.py` 的 pinned URL 表與 RC9 host 表保證，執行期不再檢查；spec §4.2 已旗標供使用者反對。
 11. **finding 5 自架清單失去 provider 覆寫**：包括 Ollama 的 port；B1 已接受。
 12. **部署順序**（§六第 12 項）：伺服器先於附加元件。
+
+## 修正記錄
+
+修正輪（DEVELOPMENT_WORKFLOW.md §3.4），只處理 Minor，不需要修正審閱。每項一個 commit；每個 commit 後附加元件 1056 passed／1 skipped、伺服器 104 passed，測試數沒有變。
+
+| 項目 | 處理 | commit |
+| --- | --- | --- |
+| m1 plan 行尾空白 | 已修正；`git diff --check main..HEAD` 現在是空的 | `9368281` |
+| m2 `nvda.po` 的 `#:` 行號 | 已修正 11 條 `catalog_url_dialog.py` 參照，只改參照、不動 msgid／msgstr。每一條都用腳本對照原始碼，確認指到含該 msgid 的那一行；`msgfmt --check` 通過 | `20274f5` |
+| m3 `ProbeResult` docstring 118 字 | 已重新折行到 110 字以內 | `e706a56` |
+| m4 帳本 task 編號 | 已更正（帳本在 `.gitignore` 內，不 commit）：OQ1 → B 是 Task 6／`fef68ef`，B4 是 Task 4／`bbb129f`，並加了勘誤行 | — |
+| m5 plan Review Focus 4 | 已補充：B4 之後這種 payload 在 `check_remote_document()` 就被整份拒絕，這一項只檢查 overlay 層（縱深防禦） | `b4c3f46` |
+| m6 伺服器 `lib/catalog/model.py` 與附加元件不同 | **不修**：`main` 上就已經不同，超出本分支範圍；伺服器不做 overlay，也沒有呼叫 `is_dropped_issue()`，沒有行為影響。留作後續工作 | — |
+| m7 `test_catalog_bundled.py` 硬編 `RUNNABLE` | 已改用 `SUPPORTED_PROVIDERS`，刪掉 `RUNNABLE`。重新驗證：內建 provider 改名、缺 `setting` 兩個突變仍被 `test_the_bundled_providers_build_completely` 抓到 | `2f7cfd5` |
+| m8 `ProbeResult.kind` 與對話框 `RESULT_ROWS` 沒有對照測試 | **不修**：`main`（CR）上就是這樣，超出本分支範圍；本分支沒有讓它更糟 | — |
+| spec §17.4 第 1 項與部署順序 | 已修正第 1 項：從測試版升級並保留快取時，第一次啟動會記錄一行 `unreadable_cache type=remote_providers_not_allowed`，抓取成功後清單和升級前相同。第 2 項有同樣的錯誤（離線時舊快取也會被拒絕，只剩 Coseeing default，狀態列是「無法載入」而不是「無法更新」），一起修正。§12 與 §20 加上部署順序：先部署伺服器，再發布附加元件 | `4039654` |
