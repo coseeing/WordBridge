@@ -1150,11 +1150,13 @@ def _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config):
 
 	class Helper:
 		def __init__(self, owner, sizer=None, **kwargs):
+			self.owner = owner
 			self.sizer = sizer or Sizer()
 
 		def addLabeledControl(self, label, control_type, **kwargs):
 			helper_calls.append((label, control_type, kwargs))
-			control = control_type(None, **kwargs)
+			# As guiHelper: the control's parent is the helper's owner.
+			control = control_type(self.owner, **kwargs)
 			control.containing_sizer = self.sizer
 			added_controls.append(control)
 			self.sizer.children.append(control)

@@ -124,6 +124,10 @@ msgstr "最大字元數"
 msgid "Auto display typo report"
 msgstr "自動顯示改錯字報告"
 
+#: addon\globalPlugins\WordBridge\dialogs.py:334
+msgid "Personal dictionary"
+msgstr "個人化辭典"
+
 #: addon\globalPlugins\WordBridge\dialogs.py:247
 msgid "Apply personal dictionary"
 msgstr "使用個人化辭典"
@@ -131,6 +135,10 @@ msgstr "使用個人化辭典"
 #: addon\globalPlugins\WordBridge\dialogs.py:254
 msgid "Edit dictionary"
 msgstr "編輯辭典"
+
+#: addon\globalPlugins\WordBridge\dialogs.py:352
+msgid "Sound effects"
+msgstr "音效"
 
 #: addon\globalPlugins\WordBridge\dialogs.py:261
 msgid "Enable sound effect cues"

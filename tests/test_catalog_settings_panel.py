@@ -76,6 +76,44 @@ def test_the_url_group_is_last_with_a_read_only_box_and_a_change_button(monkeypa
 	assert not hasattr(panel, "catalogUrlCtrl")
 
 
+def _group_holding(panel, control):
+	return next(
+		child for child in panel.settingsSizer.children
+		if hasattr(child, "GetStaticBox") and control in child.children
+	)
+
+
+@pytest.mark.parametrize("caption, members, labels", [
+	("Personal dictionary", ("customizedWordEnable", "wordDictionaryCtrl"),
+		["Apply personal dictionary", "Edit dictionary"]),
+	("Sound effects", ("soundEffectsEnable", "soundEffectsCtrl"),
+		["Enable sound effect cues", "Sound effect credits"]),
+], ids=["dictionary", "sound"])
+def test_a_setting_and_its_button_share_a_group(monkeypatch, caption, members, labels):
+	# As NVDA's "NVDA Development" group: the controls keep their full
+	# labels and are children of the group's box.
+	f = _panel_fixture(monkeypatch)
+
+	panel = f.make_panel()
+
+	controls = [getattr(panel, name) for name in members]
+	group = _group_holding(panel, controls[0])
+	assert group.GetStaticBox().label == caption
+	assert group.children == controls
+	assert [control.label for control in controls] == labels
+	assert all(control.parent is group.GetStaticBox() for control in controls)
+
+
+def test_the_account_box_controls_are_children_of_their_box(monkeypatch):
+	f = _panel_fixture(monkeypatch)
+
+	panel = f.make_panel()
+
+	for group, sizer in panel.accountGroupSizerMap.items():
+		control = panel.coseeingCleanButton if group == "Coseeing" else panel.accountTextCtrlMap[group]
+		assert control.parent is sizer.GetStaticBox(), group
+
+
 class KeyEvent:
 	def __init__(self, key):
 		self.key = key
@@ -249,6 +287,15 @@ def test_the_url_group_strings_have_translator_comments_and_translations():
 		"No model list URL": "未設定模型清單網址",
 		"Change...": "變更...",
 		"Model list URL": "模型清單網址",
+	})
+
+
+def test_the_group_captions_have_translator_comments_and_translations():
+	from test_catalog_url_dialog import ADDON, _assert_translated
+
+	_assert_translated(ADDON / "dialogs.py", {
+		"Personal dictionary": "個人化辭典",
+		"Sound effects": "音效",
 	})
 
 

@@ -1,4 +1,5 @@
 from concurrent.futures import Future
+from types import SimpleNamespace
 
 import config
 import os
@@ -326,16 +327,20 @@ class LLMSettingsPanel(SettingsPanel):
 		)
 		self.autoDisplayReportEnable.SetValue(self.settings.auto_display_report())
 
+		# A setting and its button share a group, as NVDA's "NVDA Development"
+		# group; the controls keep their full labels, as NVDA's do.
 		# For setting custom dictionary
-		self.customizedWordEnable = settingsSizerHelper.addItem(
+		# Translators: Label of the group in the WordBridge settings panel holding the personal dictionary settings.
+		dictionaryBox = self._addGroup(settingsSizerHelper, _("Personal dictionary"))
+		self.customizedWordEnable = dictionaryBox.helper.addItem(
 			# Translators: Check box in the WordBridge settings panel: use the user's own dictionary in corrections.
-			wx.CheckBox(self, label=_("Apply personal dictionary"))
+			wx.CheckBox(dictionaryBox.box, label=_("Apply personal dictionary"))
 		)
 		self.customizedWordEnable.SetValue(self.settings.customized_words_enable())
 
-		self.wordDictionaryCtrl = settingsSizerHelper.addItem(
+		self.wordDictionaryCtrl = dictionaryBox.helper.addItem(
 			wx.Button(
-				self,
+				dictionaryBox.box,
 				# Translators: Button in the WordBridge settings panel that opens the personal dictionary.
 				label=_("Edit dictionary"),
 			)
@@ -343,15 +348,17 @@ class LLMSettingsPanel(SettingsPanel):
 		self.wordDictionaryCtrl.Bind(wx.EVT_BUTTON, self.onEditDictionary)
 
 		# For setting sound effects
-		self.soundEffectsEnable = settingsSizerHelper.addItem(
+		# Translators: Label of the group in the WordBridge settings panel holding the sound effect settings.
+		soundEffectsBox = self._addGroup(settingsSizerHelper, _("Sound effects"))
+		self.soundEffectsEnable = soundEffectsBox.helper.addItem(
 			# Translators: Check box in the WordBridge settings panel: play sounds while a correction runs.
-			wx.CheckBox(self, label=_("Enable sound effect cues"))
+			wx.CheckBox(soundEffectsBox.box, label=_("Enable sound effect cues"))
 		)
 		self.soundEffectsEnable.SetValue(self.settings.sound_effects_enable())
 
-		self.soundEffectsCtrl = settingsSizerHelper.addItem(
+		self.soundEffectsCtrl = soundEffectsBox.helper.addItem(
 			wx.Button(
-				self,
+				soundEffectsBox.box,
 				# Translators: Button in the WordBridge settings panel that opens the web page crediting the sound effects.
 				label=_("Sound effect credits"),
 			)
@@ -602,17 +609,27 @@ class LLMSettingsPanel(SettingsPanel):
 		# for example "OpenAI Authentication".
 		return _provider_group_label(self.catalog, group) + " " + _("Authentication")
 
+	def _addGroup(self, settingsSizerHelper, label):
+		"""Append a labelled group. Its controls are children of `box`, so
+		NVDA reads the group's label when focus enters it; `helper` is built
+		on the box, so a labelled control it adds is one too (as NVDA's
+		Magnifier panel)."""
+		sizer = wx.StaticBoxSizer(wx.VERTICAL, self, label=label)
+		box = sizer.GetStaticBox()
+		helper = guiHelper.BoxSizerHelper(box, sizer=sizer)
+		settingsSizerHelper.addItem(helper)
+		return SimpleNamespace(sizer=sizer, box=box, helper=helper)
+
 	def _makeAccountBox(self, settingsSizerHelper, group) -> None:
 		"""Append the account box of `group` (makeSettings only, R13)."""
 		caption = self._accountCaption(group)
-		accountBoxSizer = wx.StaticBoxSizer(wx.VERTICAL, self, label=caption)
-		accountGroupSizerHelper = guiHelper.BoxSizerHelper(self, sizer=accountBoxSizer)
-		settingsSizerHelper.addItem(accountGroupSizerHelper)
-		self.accountGroupSizerMap[group] = accountBoxSizer
+		accountBox = self._addGroup(settingsSizerHelper, caption)
+		accountGroupSizerHelper = accountBox.helper
+		self.accountGroupSizerMap[group] = accountBox.sizer
 		self._accountCaptions[group] = caption
 		if group == COSEEING_GROUP:
 			# Translators: Button in the Coseeing account box that signs out and removes the saved Coseeing sign-in.
-			self.coseeingCleanButton = wx.Button(self, label=_("clean"))
+			self.coseeingCleanButton = wx.Button(accountBox.box, label=_("clean"))
 			self.coseeingCleanButton.Enable(has_saved_coseeing_refresh_token())
 			self.coseeingCleanButton.Bind(wx.EVT_BUTTON, self.onCleanCoseeingAuth)
 			accountGroupSizerHelper.addItem(self.coseeingCleanButton)
