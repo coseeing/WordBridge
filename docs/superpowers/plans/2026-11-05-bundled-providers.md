@@ -296,6 +296,6 @@ separate from Tasks 1–5, so the decision is one revertable commit.
   - `test_the_lint_codes_are_pinned`: `{"unreferenced_provider", "ignored_bundled_models", "unknown_provider"}`.
   - `test_an_unknown_provider_issue_is_still_logged` (`tests/test_catalog_plugin_wiring.py`): a fetched server payload plus one `Mistral` model → exactly one warning line containing `code=unknown_provider` and `models[17]`.
 - [ ] **Step 2: Run to verify red**: the first test and the lint pin FAIL under A (message is "1 catalog entry could not be loaded; …"); the unsupported and logging tests pass already (they pin what B must not change).
-- [ ] **Step 3: Implement**: add `"unknown_provider"` to `LINT_ISSUE_CODES`; the comment says why (after B1 a model for a provider only a newer release bundles is expected; it is still logged). 
+- [ ] **Step 3: Implement**: add `"unknown_provider"` to `LINT_ISSUE_CODES`; the comment says why (after B1 a model for a provider only a newer release bundles is expected; it is still logged).
 - [ ] **Step 4: Verify** → T5 + 3 (three new tests; the lint pin is modified); server 104; prek; `git diff --check`.
 - [ ] **Step 5: Commit** `feat: stop counting models for an unbundled provider as dropped entries`
