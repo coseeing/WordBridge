@@ -192,6 +192,40 @@ def test_a_cache_with_hostile_providers_loads_the_bundled_entries(tmp_path):
 		), name
 
 
+def test_a_cache_without_providers_loads(tmp_path):
+	h = Harness(tmp_path)
+	document = server_document()
+	del document["providers"]
+	h.seed_cache(URL_A, document)
+
+	catalog = h.updater.initial_catalog(URL_A)
+
+	assert h.status()[0] == "cache"
+	assert len(_local_ids(catalog)) == 16
+
+
+class BundledWithoutProviders:
+	def load(self):
+		return {"schema_version": 1, "coseeings": [{"model": "default", "label": "default"}]}, ()
+
+
+def test_a_fetch_without_bundled_providers_is_logged_by_code(tmp_path):
+	h = Harness(tmp_path, {URL_A: _ok(_payload("fresh"))})
+	h.updater._bundled_source = BundledWithoutProviders()
+	h.updater.initial_catalog(URL_A)
+
+	h.updater.refresh(URL_A)
+	h.threads[0].run()
+	h.deliver()
+
+	assert h.installed == []
+	assert h.status() == ("none", "failed")
+	assert (
+		"warning", "WordBridge: catalog fetch failed host=%s code=%s type=%s",
+		"https://a.test", "bundled_source_failed", "no_providers",
+	) in h.log.records
+
+
 def test_startup_without_a_cache_is_bundled_only(tmp_path):
 	h = Harness(tmp_path)
 

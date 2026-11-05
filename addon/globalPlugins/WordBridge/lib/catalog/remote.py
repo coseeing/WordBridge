@@ -249,7 +249,8 @@ def _issue(code: str, detail: str) -> tuple:
 def check_remote_document(document) -> tuple:
 	"""The document-level checks of a remote payload; () when it passes.
 
-	An object with schema_version 1, a providers mapping and a models list.
+	An object with schema_version 1 and a models list. Provider entries are
+	bundled with the add-on, so the payload's providers are not checked here.
 	Entry-level problems are build_catalog()'s, and only drop entries. Both
 	a freshly fetched payload and a cached one go through this, by way of
 	overlay.accept_remote_document().
@@ -263,8 +264,6 @@ def check_remote_document(document) -> tuple:
 	if type(version) is not int or version != SCHEMA_VERSION:
 		shown = repr(version) if version is None or type(version) in (int, float, bool) else type(version).__name__
 		return _issue("remote_schema_version", f"expected {SCHEMA_VERSION}, got {shown}")
-	if not isinstance(document.get("providers"), dict):
-		return _issue("remote_malformed", "providers must be a mapping")
 	if not isinstance(document.get("models"), list):
 		return _issue("remote_malformed", "models must be a list")
 	return ()

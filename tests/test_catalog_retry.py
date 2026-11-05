@@ -15,6 +15,7 @@ from fake_http import BodyResponse
 from test_catalog_updater import (
 	URL_A,
 	URL_B,
+	BundledWithoutProviders,
 	FailingStoreCache,
 	FakeResponse,
 	Harness,
@@ -215,6 +216,7 @@ FAILURE_ROWS = {
 	"only-unknown-providers": lambda h, mp: _ok(_payload(provider="Mistral")),
 	"raised-exception": lambda h, mp: OSError("connect failed"),
 	"build-exception": lambda h, mp: _raise_in_build(mp) or _ok(_payload()),
+	"bundled-no-providers": lambda h, mp: setattr(h.updater, "_bundled_source", BundledWithoutProviders()) or _ok(_payload()),
 }
 
 
@@ -1035,6 +1037,9 @@ PROBE_ROWS = [
 	("unknown-providers-only", URL_A, lambda h, mp: _ok(_payload(provider="Mistral")), "no_models", None, 0),
 	("no-models", URL_A, lambda h, mp: _ok(_payload(active=False)), "no_models", None, 0),
 	("build-exception", URL_A, lambda h, mp: _raise_in_accept(mp) or _ok(_payload()), "failed", "RuntimeError", 0),
+	("bundled-no-providers", URL_A,
+		lambda h, mp: setattr(h.updater, "_bundled_source", BundledWithoutProviders()) or _ok(_payload()),
+		"failed", "bundled_source_failed", 0),
 ]
 
 

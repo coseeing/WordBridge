@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from lib.catalog.model import CatalogIssue
 from lib.catalog.overlay import accept_remote_document, has_local_items
 from lib.catalog.remote import check_remote_document, parse_remote_payload
 from lib.llm import SUPPORTED_PROVIDERS
@@ -40,8 +41,9 @@ PARSE_TABLE = [
 	("schema-float", _body(schema_version=1.0, providers={}, models=[]), "remote_schema_version", "expected 1, got 1.0"),
 	("schema-true", _body(schema_version=True, providers={}, models=[]), "remote_schema_version", "expected 1, got True"),
 	("schema-string", _body(schema_version="1", providers={}, models=[]), "remote_schema_version", "expected 1, got str"),
-	("providers-list", _body(schema_version=1, providers=[], models=[]), "remote_malformed", "providers must be a mapping"),
-	("providers-missing", _body(schema_version=1, models=[]), "remote_malformed", "providers must be a mapping"),
+	# The add-on does not read remote providers, so they decide nothing here.
+	("providers-list", _body(schema_version=1, providers=[], models=[]), None, None),
+	("providers-missing", _body(schema_version=1, models=[]), None, None),
 	("models-missing", _body(schema_version=1, providers={}), "remote_malformed", "models must be a list"),
 	("deep-nesting", b"[" * 100000, "remote_malformed", "RecursionError"),
 	# A UTF-16 BOM: json.loads() decodes it as UTF-16, then fails to parse.
@@ -122,6 +124,91 @@ def test_only_unknown_providers_is_rejected():
 	assert [issue.code for issue in issues] == ["remote_no_models"]
 
 
+def test_empty_models_is_rejected():
+	document = dict(_server_document(), models=[])
+
+	catalog, issues = _accept(document)
+
+	assert catalog is None
+	assert [(issue.code, issue.location) for issue in issues] == [("remote_no_models", "payload")]
+
+
+def _local_ids(catalog):
+	return [item.corrector_config_id for item in catalog.selectable_items if item.execution_channel == "local"]
+
+
+def test_a_payload_without_providers_is_accepted():
+	document = _server_document()
+	del document["providers"]
+
+	catalog, issues = _accept(document)
+	reference, _issues = _accept(_server_document())
+
+	assert issues == ()
+	assert catalog.providers == reference.providers
+	assert _local_ids(catalog) == _local_ids(reference)
+
+
+class StaticBundled:
+	def __init__(self, document, issues=()):
+		self.document = document
+		self.issues = issues
+
+	def load(self):
+		return self.document, self.issues
+
+
+def _bundled_with(providers):
+	document = {"schema_version": 1, "coseeings": [{"model": "default", "label": "default"}]}
+	if providers is not _ABSENT:
+		document["providers"] = providers
+	return StaticBundled(document)
+
+
+_ABSENT = object()
+NO_PROVIDERS_ROWS = {
+	"unreadable-file": lambda: StaticBundled(None, (CatalogIssue("unreadable_file", "catalog.json", "ValueError"),)),
+	"no-providers-key": lambda: _bundled_with(_ABSENT),
+	"empty-providers": lambda: _bundled_with({}),
+	"providers-list": lambda: _bundled_with([]),
+	"all-incomplete": lambda: _bundled_with({
+		name: {key: value for key, value in data.items() if key != "setting"}
+		for name, data in bundled_document()["providers"].items()
+	}),
+}
+
+
+@pytest.mark.parametrize("row", list(NO_PROVIDERS_ROWS))
+def test_a_bundled_file_without_usable_providers_is_reported_as_such(row):
+	# Providers come only from the bundled file, so a payload with good
+	# models that leaves no provider means a broken installation, not a bad
+	# payload: remote_no_models would send the reader of the log to the server.
+	catalog, issues = accept_remote_document(
+		NO_PROVIDERS_ROWS[row](), _server_document(), runnable_providers=SUPPORTED_PROVIDERS,
+	)
+
+	assert catalog is None
+	assert [(issue.code, issue.location, issue.detail) for issue in issues] == [
+		("bundled_source_failed", "bundled", "no_providers"),
+	]
+
+
+def test_one_incomplete_bundled_provider_drops_only_its_models():
+	providers = bundled_document()["providers"]
+	del providers["OpenAI"]["setting"]
+
+	catalog, issues = accept_remote_document(
+		_bundled_with(providers), _server_document(), runnable_providers=SUPPORTED_PROVIDERS,
+	)
+
+	assert issues == ()
+	assert "OpenAI" not in catalog.provider_groups
+	assert "Anthropic" in catalog.provider_groups
+	codes = [issue.code for issue in catalog.issues]
+	assert "incomplete_provider" in codes
+	assert "unknown_provider" in codes
+
+
 def test_a_failing_bundled_source_is_reported_as_such():
 	# The bundled file, not the payload, is what failed: the fallback catalog
 	# has no local items, but remote_no_models would send the reader of the
@@ -144,7 +231,6 @@ ACCEPT_DOCUMENT_TABLE = [
 	("schema-2", {"schema_version": 2, "providers": {}, "models": []}, "remote_schema_version"),
 	("schema-missing", {"providers": {}, "models": []}, "remote_schema_version"),
 	("schema-text", {"schema_version": "v2", "providers": {}, "models": []}, "remote_schema_version"),
-	("providers-list", {"schema_version": 1, "providers": [], "models": []}, "remote_malformed"),
 	("models-missing", {"schema_version": 1, "providers": {}}, "remote_malformed"),
 	("not-a-dict", ["schema_version", 1], "remote_malformed"),
 ]

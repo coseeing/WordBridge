@@ -6,7 +6,13 @@ import pytest
 
 from lib.catalog import COSEEING_GROUP, LINT_ISSUE_CODES, LOCAL_CHANNEL, CatalogIssue, is_dropped_issue
 from lib.catalog.document import build_catalog
-from lib.catalog.overlay import OverlaySource, has_local_items, load_overlay_catalog, overlay_documents
+from lib.catalog.overlay import (
+	OverlaySource,
+	accept_remote_document,
+	has_local_items,
+	load_overlay_catalog,
+	overlay_documents,
+)
 from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
 from shipped_catalog import bundled_document, server_document
@@ -169,6 +175,10 @@ def test_a_broken_bundled_file_plus_a_good_remote_gives_the_sentinel_and_no_loca
 	assert is_dropped_issue(fallback[0]) is True
 	assert "unreadable_file" in _codes(catalog)
 	assert "unknown_provider" in _codes(catalog)
+	# As a payload, it is rejected, and the bundled file is named as the cause.
+	assert accept_remote_document(broken, _remote(), runnable_providers=SUPPORTED_PROVIDERS) == (
+		None, (CatalogIssue("bundled_source_failed", "bundled", "no_providers"),),
+	)
 
 
 def test_inactive_only_bundled_coseeings_fall_back_to_the_sentinel():
