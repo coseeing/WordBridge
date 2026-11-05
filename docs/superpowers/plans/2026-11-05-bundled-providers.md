@@ -8,7 +8,8 @@
 entries (equal to the server's, pinned by a drift test), the remote catalog
 supplies only `models`, and the runtime provider host allowlist is replaced
 by test-level guards on the bundled file, with nothing a user sees or hears
-changing for the shipped files.
+changing for the shipped files; the server's `GET /` stops sending
+`providers` (B2), and models for an unbundled provider are lint (OQ1 → B).
 
 **Architecture:** `overlay_documents()` (`lib/catalog/overlay.py`) takes
 `providers` and `coseeings` from the bundled document and `models` from the
@@ -35,23 +36,23 @@ refers to the bundled-providers spec. Paths are relative to
 ## Global Constraints
 
 - Branch `feat/bundled-providers`, worktree `/workspace/WordBridge-bundled-providers`; never touch the main checkout `/workspace/WordBridge`.
-- Every commit is green: add-on `/tmp/claude-0/-workspace-WordBridge/9af55a63-c255-4088-9b3c-fe363afb236f/scratchpad/testvenv/bin/python -m pytest -q --ignore-glob='tests/test_integration_*' tests` (baseline **1053 passed, 1 skipped**); server `cd server && /workspace/WordBridge/server/.venv/bin/python -m pytest -q` (**103 passed**, unchanged by this plan, §12); `prek run --all-files` all Passed; `git diff --check` clean. Never run `tests/test_integration_*`. At most 3 pytest workers; stop pytest if MemAvailable < 3 GB.
+- Every commit is green: add-on `/tmp/claude-0/-workspace-WordBridge/9af55a63-c255-4088-9b3c-fe363afb236f/scratchpad/testvenv/bin/python -m pytest -q --ignore-glob='tests/test_integration_*' tests` (baseline **1053 passed, 1 skipped**); server `cd server && /workspace/WordBridge/server/.venv/bin/python -m pytest -q` (baseline **103 passed**; grows only in Task 3, §12 as amended by B2); `prek run --all-files` all Passed; `git diff --check` clean. Never run `tests/test_integration_*`. At most 3 pytest workers; stop pytest if MemAvailable < 3 GB.
 - NVDA runs Python 3.13: no 3.14-only syntax. `_load_nvda_plugin` and the widget stubs are imported at function scope only. No real HTTP in tests.
-- The server is unchanged: no edit under `server/` (§12, AC7). `schema_version` stays `1`; `cache_version` stays `1`; no cache migration (P8, §9.3–§9.4).
+- Server (B2, Decided by the user (2026-11-05)): `server/app/setting/catalog.json`, `correction_config.py` and the server `lib/catalog` are unchanged; only `server/app/main.py` `load_catalog_bytes()`/`GET /` and `server/tests/test_catalog_route.py` change, in Task 3 alone. `schema_version` stays `1`; `cache_version` stays `1`; no cache migration (P8, §9.3–§9.4).
 - Bundled file (§2.1): keys exactly `schema_version`, `providers`, `coseeings`; `providers` copied verbatim (tab-indented) from `server/app/setting/catalog.json:3-77`; `coseeings` unchanged.
 - Issue codes: new `ignored_bundled_models` at location `bundled.models`, detail `the bundled catalog may not carry models; they are ignored` (P3); new rejection `CatalogIssue("bundled_source_failed", "bundled", "no_providers")` (P4). Retired: `ignored_bundled_local_entries`, `ignored_remote_coseeings`, `disallowed_provider_url`; probe kind `disallowed_hosts`.
-- `LINT_ISSUE_CODES == {"unreferenced_provider", "ignored_bundled_models"}` after Task 1; Task 4 adds `"unknown_provider"` (OQ1 → B).
+- `LINT_ISSUE_CODES == {"unreferenced_provider", "ignored_bundled_models"}` after Task 1; Task 5 adds `"unknown_provider"` (OQ1 → B).
 - Remote `providers`, `coseeings` and every other key except `schema_version` and `models` are ignored silently: no issue, no log line (P2).
 - String removed (§13): `The model list names only provider addresses WordBridge does not allow.` and its zh_TW `這份模型清單列出的服務提供者網址都不在 WordBridge 允許的範圍內。`, deleted from `addon/locale/zh_TW/LC_MESSAGES/nvda.po` in the same commit; `msgfmt --check -o /dev/null addon/locale/zh_TW/LC_MESSAGES/nvda.po` clean. No new strings.
 - Logging (§14, RC D15): no new log lines; issue details reach the log only through `loggable()`.
-- OQ1, Decided by the user (2026-11-05): **B**. A remote model whose provider is not bundled is lint: still logged as `unknown_provider` through `loggable()`, not counted in the panel's dropped-entries line. `unsupported_provider` stays counted. Tasks 1–3 keep today's rule (A); everything OQ1-dependent is in Task 4.
+- OQ1, Decided by the user (2026-11-05): **B**. A remote model whose provider is not bundled is lint: still logged as `unknown_provider` through `loggable()`, not counted in the panel's dropped-entries line. `unsupported_provider` stays counted. Tasks 1–4 keep today's rule (A); everything OQ1-dependent is in Task 5.
 
 ## Review Focus
 
 1. **Remote `providers` of any shape, or none** (`null`, `"x"`, `7`, `[]`, `{}`, absent, hostile mapping) with good models — a self-hosted or older server. Expected: accepted, and the catalog's providers and local items equal those of the server file. Covered by Task 2 (`test_the_shape_of_remote_providers_does_not_matter`).
 2. **A remote model whose provider differs from a bundled name only by case or a trailing space** (`openai`, `OpenAI `) or names a provider only a newer release has (`Mistral`). Expected: that model dropped with `unknown_provider`, its siblings kept, the payload accepted. Covered by Task 1 (`test_a_remote_model_for_a_provider_the_bundled_file_lacks_is_dropped`).
 3. **A bundled file with one incomplete provider entry** (a hand-edited or badly merged release). Expected: only that provider's models are dropped (`incomplete_provider`, `unknown_provider`), the payload is accepted; when no entry is usable, `bundled_source_failed` / `no_providers`. Covered by Task 2 (`test_one_incomplete_bundled_provider_drops_only_its_models`, `test_a_bundled_file_without_usable_providers_is_reported_as_such[all-incomplete]`).
-4. **A payload carrying `providers`, `coseeings` and unknown top-level keys at once** (what every server sends, plus an older one's extras). Expected: the overlay adds no issue at all, so the NVDA log gains no warning line. Covered by Task 1 (`test_remote_extra_keys_add_no_issue`).
+4. **A payload carrying `providers`, `coseeings` and unknown top-level keys at once** (an old cache or a self-hosted server). Expected: the overlay adds no issue at all, so the NVDA log gains no warning line. Covered by Task 1 (`test_remote_extra_keys_add_no_issue`).
 5. **Drift where one side gains or loses a whole provider, or a value changes type** (`0.0` → `0`). Expected: the drift check fails and its message names that provider. Covered by Task 1 (`test_the_drift_message_names_the_first_differing_provider`).
 
 ---
@@ -62,22 +63,25 @@ refers to the bundled-providers spec. Paths are relative to
 | --- | --- | --- |
 | `setting/catalog.json` | bundled `providers` + `coseeings` | 1 |
 | `lib/catalog/overlay.py` | overlay rule (P1–P3), `no_providers` acceptance (P4), docstrings | 1, 2 |
-| `lib/catalog/model.py` | `LINT_ISSUE_CODES` and its comment | 1, 4 |
+| `lib/catalog/model.py` | `LINT_ISSUE_CODES` and its comment | 1, 5 |
 | `lib/catalog/cache.py` | module docstring ("stored as fetched") | 1 |
-| `lib/catalog/remote.py` | relaxed `check_remote_document()` (P5); allowlist removed (P6) | 2, 3 |
-| `catalog_updater.py` | `_probe()` without `disallowed_hosts`; `ProbeResult` docstring | 3 |
-| `catalog_url_dialog.py`, `addon/locale/zh_TW/LC_MESSAGES/nvda.po` | tip string removed | 3 |
-| `tests/test_catalog_bundled.py` | §10.2 guards, §11 drift, bundled-only via overlay, AC6 scan | 1, 3 |
+| `lib/catalog/remote.py` | relaxed `check_remote_document()` (P5); allowlist removed (P6) | 2, 4 |
+| `catalog_updater.py` | `_probe()` without `disallowed_hosts`; `ProbeResult` docstring | 4 |
+| `catalog_url_dialog.py`, `addon/locale/zh_TW/LC_MESSAGES/nvda.po` | tip string removed | 4 |
+| `tests/test_catalog_bundled.py` | §10.2 guards, §11 drift, bundled-only via overlay, AC6 scan | 1, 4 |
 | `tests/test_catalog_overlay.py`, `tests/test_ai_config_schema.py`, `tests/shipped_catalog.py` | overlay rule, shipped result | 1, 2 |
 | `tests/test_catalog_payload.py` | acceptance and parse tables | 1, 2 |
 | `tests/test_catalog_updater.py` | `BundledSentinel` with providers; cache loads | 1, 2 |
 | `tests/test_catalog_retry.py` | failure, non-failure and probe rows | 1, 2 |
-| `tests/test_catalog_source_seam.py`, `tests/test_catalog_plugin_wiring.py`, `tests/test_catalog_settings_panel.py` | seam, wiring, captions, OQ1 pin | 1, 4 |
-| `tests/test_catalog_provider_allowlist.py`, `tests/test_catalog_url_dialog.py` | removed / row removed | 3 |
+| `tests/test_catalog_source_seam.py`, `tests/test_catalog_plugin_wiring.py`, `tests/test_catalog_settings_panel.py` | seam, wiring, captions, OQ1 | 1, 5 |
+| `server/app/main.py`, `server/tests/test_catalog_route.py` | `GET /` without `providers` (B2) | 3 |
+| `tests/shipped_catalog.py` | `served_document()` = server file minus `providers` | 3 |
+| `tests/test_catalog_provider_allowlist.py`, `tests/test_catalog_url_dialog.py` | removed / row removed | 4 |
 
-Four tasks, one batch (fewer than 10). Task order is §16.1. Expected add-on
-counts (skipped stays 1, server stays 103): **T1 1074, T2 1092, T3 1049,
-T4 1052**. A task whose real count differs records it in the ledger; later
+Five tasks, one batch (fewer than 10). Task order is §16.1, with the server
+task (B2) after the add-on accepts a providers-less payload and OQ1 last.
+Expected add-on counts (skipped stays 1): **T1 1074, T2 1092, T3 1093,
+T4 1050, T5 1053**; server 103 until T3, **104** from T3 on. A task whose real count differs records it in the ledger; later
 numbers shift by the same amount.
 
 Test fixtures used by several tasks: `bundled_document()` and
@@ -95,7 +99,7 @@ Test fixtures used by several tasks: `bundled_document()` and
 - Test: `tests/test_catalog_bundled.py`, `tests/test_catalog_overlay.py`, `tests/test_ai_config_schema.py`, `tests/shipped_catalog.py`, `tests/test_catalog_payload.py`, `tests/test_catalog_updater.py`, `tests/test_catalog_retry.py`, `tests/test_catalog_source_seam.py`, `tests/test_catalog_plugin_wiring.py`, `tests/test_catalog_settings_panel.py`
 
 **Interfaces:**
-- Produces: `overlay_documents(bundled, remote) -> (document, issues)` with the §7.3 table; `filter_provider_urls` still exists in `remote.py` (removed in Task 3) but nothing calls it. Test helpers `_canonical(value) -> str` and `_first_differing_provider(bundled: dict, server: dict) -> str | None` (first name in sorted union of keys whose canonical values differ, or present on one side only) in `tests/test_catalog_bundled.py`.
+- Produces: `overlay_documents(bundled, remote) -> (document, issues)` with the §7.3 table; `filter_provider_urls` still exists in `remote.py` (removed in Task 4) but nothing calls it. Test helpers `_canonical(value) -> str` and `_first_differing_provider(bundled: dict, server: dict) -> str | None` (first name in sorted union of keys whose canonical values differ, or present on one side only) in `tests/test_catalog_bundled.py`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -198,7 +202,32 @@ Run: the add-on suite. Expected FAIL: the shape rows other than `hostile-mapping
 
 ---
 
-### Task 3: Remove the runtime host allowlist, the probe kind and its tip (P6, §13)
+### Task 3: The server's `GET /` stops sending `providers` (B2, §12)
+
+**Files:**
+- Modify: `server/app/main.py:43-62` (`load_catalog_bytes` and its docstring), `:164-171` (`catalog()` docstring); `tests/shipped_catalog.py` (docstring, `served_document()`, `shipped_overlay()` uses it)
+- Test: `server/tests/test_catalog_route.py`; `tests/test_catalog_source_seam.py`, `tests/test_catalog_payload.py`
+
+**Interfaces:**
+- Consumes: Task 2 (`check_remote_document()` accepts a document without `providers`).
+- Produces: `load_catalog_bytes(path) -> bytes` — validated as today, returns `(json.dumps(document_without_providers, ensure_ascii=False, indent="\t") + "\n").encode("utf8")`, keys in file order. `served_document() -> dict` in `tests/shipped_catalog.py` (server file minus `providers`).
+
+- [ ] **Step 1: Write the failing tests** (`server/tests/test_catalog_route.py`)
+  - `test_root_serves_the_catalog_without_providers` (replaces `test_root_serves_the_catalog_file_verbatim`): 200, `application/json`, `no-cache`; `"providers" not in body`; `body["models"] == file["models"]`; `set(body) == set(file) - {"providers"}`.
+  - `test_the_served_payload_is_a_schema_1_object_with_local_data`: `"providers" not in body` instead of the mapping check.
+  - `test_load_catalog_bytes_keeps_every_other_key_in_file_order` (replaces `..._returns_the_file_bytes_unchanged`): a file with `schema_version`, `providers`, `models`, `extra` → `list(json.loads(result)) == ["schema_version", "models", "extra"]`, values equal, non-ASCII label kept as UTF-8 text (not `\u` escapes).
+  - `test_load_catalog_bytes_accepts_a_file_without_providers`: returns the same document.
+  - `test_load_catalog_bytes_rejects_a_bad_file` unchanged (startup still fails loudly).
+  - Add-on: `test_a_fetched_payload_behaves_exactly_like_the_same_documents_from_disk` and the seam selection test fetch `served_document()`; `PARSE_TABLE` row `served` (the served bytes) parses.
+- [ ] **Step 2: Run to verify red**: `cd server && …/.venv/bin/python -m pytest -q tests/test_catalog_route.py` FAILS on `providers` present and file-order bytes; add-on: `ImportError: served_document`.
+- [ ] **Step 3: Implement** `load_catalog_bytes` as in Interfaces; docstrings say the served payload is the file without `providers` (the add-on bundles them); `served_document()`.
+- [ ] **Step 4: Verify**: server **104 passed** (two tests replaced, one added); add-on **1093 passed, 1 skipped** (one parse row added); prek; `git diff --check`.
+- [ ] **Step 5: Commit** `feat: stop sending provider entries from the catalog route`
+- [ ] **Step 6: Mutation check**: `load_catalog_bytes` returns the file bytes again → `test_root_serves_the_catalog_without_providers` FAILS.
+
+---
+
+### Task 4: Remove the runtime host allowlist, the probe kind and its tip (P6, §13)
 
 **Files:**
 - Modify: `lib/catalog/remote.py:8`, `:157-242` (remove `ProviderUrlRule`, `_https_only`, the comment, `PROVIDER_URL_RULES`, `_url_problem`, `filter_provider_urls`; drop the `dataclass` import if unused; keep `_split`, `_DEFAULT_PORTS`, `_host_text`); `catalog_updater.py:144-147`, `:384-388`; `catalog_url_dialog.py:67-70`; `addon/locale/zh_TW/LC_MESSAGES/nvda.po:619-622`
@@ -206,7 +235,7 @@ Run: the add-on suite. Expected FAIL: the shape rows other than `hostile-mapping
 - Test: `tests/test_catalog_bundled.py`, `tests/test_catalog_url_dialog.py`
 
 **Interfaces:**
-- Consumes: Tasks 1–2. `_probe()` keeps `if issues[0].code == "remote_no_models": return ProbeResult("no_models")` (finding 3); `ProbeResult` kinds: ok, invalid, insecure_scheme, empty, network, http_status, not_a_list, no_models, failed, unavailable.
+- Consumes: Tasks 1–3. `_probe()` keeps `if issues[0].code == "remote_no_models": return ProbeResult("no_models")` (finding 3); `ProbeResult` kinds: ok, invalid, insecure_scheme, empty, network, http_status, not_a_list, no_models, failed, unavailable.
 
 - [ ] **Step 1: Write the failing test** `test_no_provider_host_allowlist_remains` in `tests/test_catalog_bundled.py` (AC6): no `addon/**/*.py` file and not `nvda.po` contains any of `PROVIDER_URL_RULES`, `ProviderUrlRule`, `filter_provider_urls`, `disallowed_provider_url`, `disallowed_hosts`, `provider addresses WordBridge does not allow`. Remove the `disallowed_hosts` row from `RESULT_ROWS` in `tests/test_catalog_url_dialog.py`.
 
@@ -214,7 +243,7 @@ Run: the add-on suite. Expected FAIL: the shape rows other than `hostile-mapping
 
 - [ ] **Step 3: Implement**: remove the code above and `tests/test_catalog_provider_allowlist.py` (its supported-provider and host assertions already live in Task 1's guards); delete the `.po` entry with its comment and reference lines. `msgfmt --check -o /dev/null addon/locale/zh_TW/LC_MESSAGES/nvda.po`.
 
-- [ ] **Step 4: Run to verify green** → **1049 passed, 1 skipped** (43 allowlist tests and one dialog row removed, one scan added); server 103; prek; `git diff --check`; `msgfmt --check` clean; `grep -rn "allowlist" addon/` lists nothing stale.
+- [ ] **Step 4: Run to verify green** → **1050 passed, 1 skipped** (43 allowlist tests and one dialog row removed, one scan added); server 104; prek; `git diff --check`; `msgfmt --check` clean; `grep -rn "allowlist" addon/` lists nothing stale.
 
 - [ ] **Step 5: Commit** `refactor: remove the provider host allowlist now that providers are bundled`
 
@@ -222,13 +251,13 @@ Run: the add-on suite. Expected FAIL: the shape rows other than `hostile-mapping
 
 ---
 
-### Task 4: OQ1 → B — remote models for a provider this release lacks are lint (§18)
+### Task 5: OQ1 → B — remote models for a provider this release lacks are lint (§18)
 
 OQ1 was answered by the user on 2026-11-05 with **B**. Kept as the last task,
-separate from Tasks 1–3, so the decision is one revertable commit.
+separate from Tasks 1–4, so the decision is one revertable commit.
 
 **Files:**
-- Modify: `lib/catalog/model.py:30-42` (`LINT_ISSUE_CODES` and its comment); `docs/superpowers/specs/2026-11-05-bundled-providers-design.md` (P9 row, §8.2 table, §17.4 item 7, §18: `Decided by the user (2026-11-05)`)
+- Modify: `lib/catalog/model.py:30-42` (`LINT_ISSUE_CODES` and its comment). The spec already records B3 (committed with the plan amendment).
 - Test: `tests/test_catalog_settings_panel.py`, `tests/test_catalog_overlay.py` (`test_the_lint_codes_are_pinned`), `tests/test_catalog_plugin_wiring.py`
 
 **Interfaces:**
@@ -240,6 +269,6 @@ separate from Tasks 1–3, so the decision is one revertable commit.
   - `test_the_lint_codes_are_pinned`: `{"unreferenced_provider", "ignored_bundled_models", "unknown_provider"}`.
   - `test_an_unknown_provider_issue_is_still_logged` (`tests/test_catalog_plugin_wiring.py`): a fetched server payload plus one `Mistral` model → exactly one warning line containing `code=unknown_provider` and `models[17]`.
 - [ ] **Step 2: Run to verify red**: the first test and the lint pin FAIL under A (message is "1 catalog entry could not be loaded; …"); the unsupported and logging tests pass already (they pin what B must not change).
-- [ ] **Step 3: Implement**: add `"unknown_provider"` to `LINT_ISSUE_CODES`; the comment says why (after B1 a model for a provider only a newer release bundles is expected; it is still logged). Mark the spec.
-- [ ] **Step 4: Verify** → **1052 passed, 1 skipped** (three new tests; the lint pin is modified); server 103; prek; `git diff --check`.
-- [ ] **Step 5: Commit** `feat: stop counting models for an unbundled provider as dropped entries` (code and tests), then `docs: record the user's OQ1 answer in the bundled providers spec` (spec only).
+- [ ] **Step 3: Implement**: add `"unknown_provider"` to `LINT_ISSUE_CODES`; the comment says why (after B1 a model for a provider only a newer release bundles is expected; it is still logged). 
+- [ ] **Step 4: Verify** → **1053 passed, 1 skipped** (three new tests; the lint pin is modified); server 104; prek; `git diff --check`.
+- [ ] **Step 5: Commit** `feat: stop counting models for an unbundled provider as dropped entries`

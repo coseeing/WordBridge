@@ -71,11 +71,11 @@ costs safety:
 2. For the add-on, the remote payload supplies only `models` (with their
    labels, `active`, `pricing` and `usage_key`). Remote `providers` and
    `coseeings` are ignored.
-3. The server is unchanged: `server/app/setting/catalog.json` keeps its
-   `providers` (the server's own correction calls need them,
-   `server/app/correction_config.py:46-51`, `server/app/main.py:194-221`), and
-   `GET /` keeps serving the file verbatim (`server/app/main.py:62`,
-   `:164-168`).
+3. `server/app/setting/catalog.json` keeps its `providers` (the server's own
+   correction calls need them, `server/app/correction_config.py:46-51`,
+   `server/app/main.py:194-221`), but `GET /` stops sending them: it serves
+   the catalog document without the `providers` key (B2, §12). — Decided by
+   the user (2026-11-05); this replaces "the server is unchanged".
 4. A test keeps the two `providers` blocks equal (§11).
 5. With the shipped files, nothing the user sees or hears changes (§6).
 
@@ -83,7 +83,8 @@ costs safety:
 
 - Moving `models`, prices or labels into the add-on. They stay remote; that is
   the point of RC.
-- Changing the server, its `GET /` route or its catalog file (§12).
+- Changing the server's catalog file or its correction calls (§12). (`GET /`
+  does change, B2.)
 - Bumping `schema_version` (§9.3).
 - Changing the fetch, cache format, retry schedule, panel layout or the U7
   dialog (RC §8, §10, §12.5; CR §7–§11).
@@ -98,6 +99,8 @@ costs safety:
 
 | # | Decision |
 | --- | --- |
+| B2 | **The server stops sending `providers`.** `GET /` serves the catalog document without its `providers` key (`schema_version`, `models` and any other key), still validated once at startup, still `application/json` with `Cache-Control: no-cache`. The server file keeps `providers` for the server's own calls, and the drift test (§11) stays. The `2026.11.1-test-*` builds were never released, so their need for a `providers` mapping (finding 6) is not a constraint. — Decided by the user (2026-11-05) |
+| B3 | **OQ1 → B.** A remote model whose provider is not bundled is lint: still logged as `unknown_provider`, not counted in the panel's dropped-entries line (§18). — Decided by the user (2026-11-05) |
 | B1 | **Provider entries are bundled.** The per-provider `label`, `url`, `setting`, `timeout0` and `timeout_max` move back into the add-on's `setting/catalog.json`, next to `coseeings`. The remote catalog then supplies only `models` to the add-on. The server keeps its `providers` and `GET /` keeps serving them; the add-on ignores the remote `providers`. Accepted cost: tuning a provider parameter needs an add-on release. — Decided by the user (2026-11-04) |
 
 ### 4.2 Decided by orchestrator with the recommended default; user may override before merge
@@ -116,7 +119,7 @@ the shipped files; the reasoning is in the section named.
 | P6 | The runtime host allowlist is removed (`PROVIDER_URL_RULES`, `ProviderUrlRule`, `_https_only`, `_url_problem`, `filter_provider_urls`, the issue code `disallowed_provider_url`, the probe kind `disallowed_hosts` and its tip string). It is replaced by test-level guards on the bundled file. | §10 |
 | P7 | A drift test asserts that the add-on's bundled `providers` and the server's `providers` are equal, compared as canonical JSON text. It lives in the add-on suite (`tests/test_catalog_bundled.py`). | §11 |
 | P8 | Existing caches load unchanged; no migration; `cache_version` stays `1`; the cache keeps storing the payload as fetched, `providers` included. | §9.4 |
-| P9 | Remote models whose provider the bundled file does not have keep today's treatment (`unknown_provider`, counted in the panel's dropped-entries line) until the user answers OQ1. | §8.2, §18 |
+| P9 | ~~Remote models whose provider the bundled file does not have keep today's treatment until the user answers OQ1.~~ Superseded by B3 (OQ1 → B). | §8.2, §18 |
 | P10 | The amendment is recorded only in this spec; RC and CR are not edited. | §15 |
 
 P6 changes the **mechanism** of a user decision, RC U2 ("the add-on has a
@@ -163,14 +166,17 @@ flagged so the user can object; it changes nothing the user sees.
    shipped user is affected: the default server sends the same values (§11),
    and its only Ollama model is inactive (`server/app/setting/catalog.json`,
    `qwen2`, `"active": false`). This is the accepted cost in B1.
-6. **The server must keep sending `providers`.** The remote-catalog feature is
-   not released (`buildVars.py:26` on `main` is `2026.9.3`), but test builds
-   exist (`WordBridge-2026.11.1-test-remote-catalog-1`,
-   `WordBridge-2026.11.1-test-catalog-retry-1`, per the two handoff records),
-   and their `check_remote_document()` rejects a payload without a
-   `providers` mapping (`lib/catalog/remote.py:266-267`). That is a second
-   reason, beside the server's own calls, to leave the server file alone and
-   not bump `schema_version`.
+6. **~~The server must keep sending `providers`.~~** The remote-catalog
+   feature is not released (`buildVars.py:26` on `main` is `2026.9.3`); test
+   builds exist (`WordBridge-2026.11.1-test-remote-catalog-1`,
+   `WordBridge-2026.11.1-test-catalog-retry-1`), and their
+   `check_remote_document()` rejects a payload without a `providers` mapping
+   (`lib/catalog/remote.py:266-267`). **Amended (B2, Decided by the user
+   (2026-11-05)):** those builds were never released, so they are not a
+   constraint; `GET /` stops sending `providers`, and a tester on such a
+   build gets "could not be updated" until they install this release. The
+   server *file* still keeps `providers` for the server's own calls, and
+   `schema_version` is still not bumped (§9.3).
 7. **The server never sees add-on files.** The server image copies only
    `server/app`, `alembic` and `alembic.ini` (`server/Dockerfile:14-16`), and
    no server test reads `addon/`. The add-on suite already reads the server
@@ -249,8 +255,9 @@ For the add-on, the remote document is `schema_version` and `models`. Every
 other key is ignored without an issue, exactly like the unknown top-level keys
 RC §7.2 already ignores:
 
-- `providers`: the server always sends it (§12), so a lint issue would add a
-  warning line to the NVDA log on every start and every fetch
+- `providers`: the default server no longer sends it (B2), but older caches
+  and self-hosted catalogs carry it; a lint issue would add a warning line to
+  the NVDA log on every start and every fetch for those
   (`__init__.py:365-372` logs every catalog issue as a warning).
 - `coseeings`: the server stopped sending it in RC, and the bundled file is
   the only Coseeing source (RC U8). The informational lint
@@ -320,7 +327,7 @@ arms the retry, whatever the code.
 | A remote model whose `provider` … | Result | Panel line |
 | --- | --- | --- |
 | is a bundled provider and in `runnable_providers` | kept | — |
-| is not a bundled provider | dropped, `unknown_provider` (`lib/catalog/document.py:106-108`) | counted today (P9; see OQ1) |
+| is not a bundled provider | dropped, `unknown_provider` (`lib/catalog/document.py:106-108`) | logged, not counted (B3, OQ1 → B) |
 | is a bundled provider but not in `runnable_providers` | dropped, `unsupported_provider` (`:109-111`) | counted |
 
 In production `runnable_providers` is `SUPPORTED_PROVIDERS`
@@ -354,14 +361,15 @@ models. Its docstring and `parse_remote_payload()`'s are updated.
 ### 9.2 Why not keep requiring `providers`
 
 A document the add-on does not read should not decide whether the add-on
-accepts the payload. A self-hosted catalog may now omit `providers`. The
-server still sends it (§12), so nothing changes for the default URL.
+accepts the payload. A self-hosted catalog may now omit `providers`, and
+the default server omits it (B2, §12).
 
 ### 9.3 `schema_version`
 
-Stays `1`. The document shape the server serves does not change, and the
-add-on only reads less of it. A bump would make the released-to-testers
-builds reject the server payload (finding 6) and gains nothing.
+Stays `1`. The served document only loses a key this add-on ignores, and
+`check_remote_document()` no longer requires it (§9.1). A bump gains
+nothing; the tester builds of finding 6 reject the providers-less payload
+either way, which B2 accepts.
 
 ### 9.4 Existing caches (P8)
 
@@ -460,11 +468,24 @@ def test_the_bundled_providers_equal_the_server_providers():
 
 ## 12. Server
 
-Unchanged: `server/app/setting/catalog.json`, `server/app/main.py`
-(`GET /` at `:164-168`), `server/app/correction_config.py`, and the server's
-`lib/catalog` copy (`server/app/lib/catalog/fallback.py` and `document.py` are
-identical to the add-on's today and stay so; the overlay and remote modules
-are add-on-only, RC §3). The server suite stays at 103 passed.
+Amended by B2 (Decided by the user (2026-11-05)); this replaces "Unchanged".
+
+- **Unchanged:** `server/app/setting/catalog.json` (keeps `providers`),
+  `server/app/correction_config.py`, and the server's `lib/catalog` copy
+  (`server/app/lib/catalog/fallback.py` and `document.py` are identical to
+  the add-on's today and stay so; the overlay and remote modules are
+  add-on-only, RC §3).
+- **Changed:** `server/app/main.py` `load_catalog_bytes()` (`:43-59`) still
+  reads and validates the file once at startup (a JSON object with
+  `schema_version` 1, otherwise `ValueError`), and returns the bytes of the
+  document **without its `providers` key**; every other key is kept in file
+  order. `GET /` (`:164-171`) serves those bytes, `application/json`,
+  `Cache-Control: no-cache`. The docstrings no longer say "verbatim".
+- **Tests** (`server/tests/test_catalog_route.py`): the response has no
+  `providers`; its `models` equal the file's `models`; startup still rejects
+  a bad file; the other keys survive. The server count grows from 103.
+- The add-on suite's `tests/shipped_catalog.py` models the served payload as
+  the server file minus `providers`; `shipped_overlay()` uses it.
 
 ## 13. Strings
 
@@ -650,14 +671,16 @@ On an installed add-on built from the branch:
    nothing.
 6. The same server serving only models of a provider named `Mistral`:
    "Test..." says "The model list offers no model WordBridge can use."
-7. The same server serving the server file plus one `Mistral` model: the
-   panel's dropped-entries line says one entry could not be loaded (or
-   nothing, if OQ1 is answered B).
+7. The same server serving the server file plus one `Mistral` model: no
+   dropped-entries line (OQ1 → B); the NVDA log has one `unknown_provider`
+   warning.
 8. Account box captions and Tab order unchanged (CR §15.6 items 7a, 7b).
 
 ## 18. Open questions for the user
 
 ### OQ1. Should a remote model whose provider this add-on does not have be counted as "could not be loaded"?
+
+**Decided by the user (2026-11-05): B** (B3).
 
 With providers bundled, the server can serve models for a provider that only
 a **newer** add-on release has (that is now the only way to add a provider).
@@ -680,7 +703,8 @@ until they update, and cannot fix it otherwise.
 loaded did not"; models for a provider the installed release does not have
 are expected after B1. The log keeps the detail.
 
-Until answered, the spec follows A (P9), which changes nothing visible.
+~~Until answered, the spec follows A (P9), which changes nothing visible.~~
+Answered B: `unknown_provider` joins `LINT_ISSUE_CODES`.
 
 ## 19. Verification and baseline
 
@@ -700,7 +724,7 @@ git diff --check
   routine verification.
 - `server/app/package/coseeing_auth/storage` is a symlink to the main checkout
   and is never staged (RC §19).
-- The server count must stay 103 (§12). The add-on count changes by the
+- The server count grows from 103 by the `GET /` tests (§12, B2). The add-on count changes by the
   removed allowlist tests and the added guard, drift, overlay, acceptance and
   cache tests; the plan states the expected number per commit.
 
@@ -735,6 +759,7 @@ git diff --check
 6. `PROVIDER_URL_RULES`, `filter_provider_urls` and `disallowed_provider_url`
    no longer exist in `addon/`; the `disallowed_hosts` string is gone from the
    code and from `nvda.po`.
-7. The server is unchanged and its suite stays at 103 passed.
+7. The server file and correction calls are unchanged; `GET /` serves the
+   document without `providers` and the server suite is green (B2).
 8. The full non-integration suites are green at every commit; `prek` passes;
    `git diff --check` and `msgfmt --check` are clean.
