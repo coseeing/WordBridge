@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 'WordBridge' '2026.9.3'\n"
 "Report-Msgid-Bugs-To: nvda-translations@groups.io\n"
-"POT-Creation-Date: 2026-11-05 12:13+0000\n"
+"POT-Creation-Date: 2026-11-05 12:34+0000\n"
 "PO-Revision-Date: 2026-09-23 19:14+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -134,10 +134,12 @@ msgid ""
 msgstr "驗證錯誤。請登入 Coseeing，或檢查帳戶權限。"
 
 #: addon/globalPlugins/WordBridge/__init__.py:669
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:66
 msgid "Rate limit reached for requests or you exceeded your current quota. "
 msgstr "請求已達到速率限制，或已超出目前配額。"
 
 #: addon/globalPlugins/WordBridge/__init__.py:670
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:67
 msgid ""
 "Please reduce the frequency of sending requests or check your account "
 "balance."
@@ -600,6 +602,40 @@ msgstr "Coseeing 驗證失敗。"
 #: addon/globalPlugins/WordBridge/lib/coseeing_auth.py:711
 msgid "Coseeing authentication is unavailable on this installation."
 msgstr "此安裝無法使用 Coseeing 驗證。"
+
+#: addon/globalPlugins/WordBridge/lib/llm/executor.py:62
+#, python-brace-format
+msgid "Parsing error. Unexpected server response. Response: {response}"
+msgstr "解析錯誤。伺服器回應異常。回應內容：{response}"
+
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:59
+msgid ""
+"Authentication error. Please check if the service provider's key is correct."
+msgstr "驗證錯誤。請檢查服務供應商的金鑰是否正確。"
+
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:61
+msgid "Country, region, or territory not supported."
+msgstr "不支援你所在的國家、地區或領土。"
+
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:63
+msgid ""
+"Service does not exist. Please check if the model does not exist or has "
+"expired."
+msgstr "服務不存在。請檢查模型是否不存在或已過期。"
+
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:70
+msgid "The server is currently overloaded, please try again later."
+msgstr "伺服器目前負載過重，請稍後再試。"
+
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:73
+msgid "An error occurred, status code = "
+msgstr "發生錯誤，狀態碼 = "
+
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:96
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:131
+#, python-brace-format
+msgid "HTTP request error ({request_error}). Please check the network setting."
+msgstr "HTTP 請求錯誤（{request_error}）。請檢查網絡設定。"
 
 #: addon/globalPlugins/WordBridge/dictionary/dialog.py:12
 msgid ""

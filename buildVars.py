@@ -60,6 +60,7 @@ addon_info = AddonInfo(
 pythonSources: list[str] = [
 	"addon/globalPlugins/WordBridge/*.py",
 	"addon/globalPlugins/WordBridge/lib/*.py",
+	"addon/globalPlugins/WordBridge/lib/llm/*.py",
 	"addon/globalPlugins/WordBridge/dictionary/*.py",
 ]
 
