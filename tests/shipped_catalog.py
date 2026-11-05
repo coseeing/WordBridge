@@ -2,9 +2,10 @@
 
 The provider entries ship in the add-on's bundled file, next to the Coseeing
 channel; the models (labels, prices) live in the server's catalog file, which
-`GET /` serves as the remote payload. The server file also keeps a copy of the
-provider entries for the server's own calls, and
-tests/test_catalog_bundled.py keeps the two copies equal. Tests about prices
+`GET /` serves, without its provider entries, as the remote payload
+(served_document()). The server file keeps a copy of the provider entries for
+the server's own calls, and tests/test_catalog_bundled.py keeps the two
+copies equal. Tests about prices
 or local model lists read the server file through here, so the regression
 protection moves with the data.
 """
@@ -27,15 +28,23 @@ def server_document() -> dict:
 	return json.loads(SERVER_CATALOG_PATH.read_text(encoding="utf8"))
 
 
+def served_document() -> dict:
+	"""What the server's GET / serves: its catalog file without `providers`
+	(server/app/main.py, load_catalog_bytes)."""
+	document = server_document()
+	del document["providers"]
+	return document
+
+
 def bundled_document() -> dict:
 	return json.loads((ADDON_SETTING_DIR / "catalog.json").read_text(encoding="utf8"))
 
 
 def shipped_overlay():
-	"""The catalog a user sees after fetching the shipped server file."""
+	"""The catalog a user sees after fetching from the shipped server."""
 	return load_overlay_catalog(
 		BundledCatalogSource(ADDON_SETTING_DIR),
-		server_document(),
+		served_document(),
 		runnable_providers=SUPPORTED_PROVIDERS,
 	)
 

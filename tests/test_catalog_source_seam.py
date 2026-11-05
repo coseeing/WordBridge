@@ -20,7 +20,13 @@ from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
 from fake_http import BodyResponse
 from plugin_modules import load_plugin_module
-from shipped_catalog import ADDON_SETTING_DIR, SERVER_CATALOG_PATH, bundled_document, server_document
+from shipped_catalog import (
+	ADDON_SETTING_DIR,
+	SERVER_CATALOG_PATH,
+	bundled_document,
+	served_document,
+	server_document,
+)
 
 
 updater = load_plugin_module("catalog_updater")
@@ -57,8 +63,9 @@ def _body(document) -> bytes:
 
 
 def test_a_fetched_payload_behaves_exactly_like_the_same_documents_from_disk():
-	fetched = fetched_catalog(SERVER_CATALOG_PATH.read_bytes())
-	reference = in_memory_catalog(server_document())
+	# What GET / serves: the server file without its providers.
+	fetched = fetched_catalog(_body(served_document()))
+	reference = in_memory_catalog(served_document())
 
 	assert fetched.provider_groups == reference.provider_groups
 	assert fetched.selectable_items == reference.selectable_items
@@ -116,8 +123,8 @@ def test_a_bundled_provider_this_build_cannot_run_drops_its_models():
 
 
 def test_the_panel_facing_selection_is_identical_across_sources():
-	fetched = fetched_catalog(SERVER_CATALOG_PATH.read_bytes())
-	reference = in_memory_catalog(server_document())
+	fetched = fetched_catalog(_body(served_document()))
+	reference = in_memory_catalog(served_document())
 
 	from_fetched = SelectionState.restore(fetched, "", "")
 	from_reference = SelectionState.restore(reference, "", "")

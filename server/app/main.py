@@ -41,12 +41,17 @@ CORRECTION_SETTINGS = load_correction_settings()
 
 
 def load_catalog_bytes(path) -> bytes:
-	"""The catalog file's bytes, checked once: a JSON object with schema_version 1.
+	"""The payload GET / serves: the catalog file without its providers.
 
-	Served verbatim by GET /, so the remote payload the add-on downloads is
-	exactly this file. Raises ValueError for anything else, the same
-	fail-loud stance as load_correction_settings(): a broken deployment
-	stops at startup instead of serving a payload every add-on rejects.
+	Checked once: the file must be a JSON object with schema_version 1.
+	Raises ValueError for anything else, the same fail-loud stance as
+	load_correction_settings(): a broken deployment stops at startup instead
+	of serving a payload every add-on rejects.
+
+	The add-on bundles its own provider entries and rejects a payload that
+	carries them; the file keeps them for this server's own correction
+	calls. Every other key is served, in file order, as UTF-8 JSON text
+	indented like the file.
 	"""
 	content = path.read_bytes()
 	try:
@@ -55,7 +60,8 @@ def load_catalog_bytes(path) -> bytes:
 		raise ValueError(f"{path.name} is not valid JSON") from error
 	if not isinstance(document, dict) or document.get("schema_version") != 1:
 		raise ValueError(f"{path.name} must be a JSON object with schema_version 1")
-	return content
+	served = {key: value for key, value in document.items() if key != "providers"}
+	return (json.dumps(served, ensure_ascii=False, indent="\t") + "\n").encode("utf8")
 
 
 # The file only changes with a deployment, so it is read once.
@@ -163,7 +169,8 @@ def _enforce_quota(db: Session, *, user: Optional[UserModel], client_ip: str, te
 
 @app.get("/")
 def catalog():
-	"""The provider/model catalog the add-on downloads. Public data: no authentication."""
+	"""The model catalog the add-on downloads (no provider entries; the add-on
+	bundles them). Public data: no authentication."""
 	return Response(
 		content=CATALOG_BYTES,
 		media_type="application/json",

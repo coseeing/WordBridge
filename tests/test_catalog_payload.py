@@ -7,11 +7,12 @@ from lib.catalog.model import CatalogIssue
 from lib.catalog.overlay import accept_remote_document, has_local_items
 from lib.catalog.remote import check_remote_document, parse_remote_payload
 from lib.llm import SUPPORTED_PROVIDERS
-from shipped_catalog import bundled_document
+from shipped_catalog import bundled_document, served_document
 
 
 SERVER_CATALOG = Path(__file__).resolve().parents[1] / "server" / "app" / "setting" / "catalog.json"
 SERVER_BYTES = SERVER_CATALOG.read_bytes()
+SERVED_BYTES = json.dumps(served_document(), ensure_ascii=False).encode("utf8")
 
 
 class BundledSentinel:
@@ -32,6 +33,7 @@ def _body(**document):
 # (id, body, code, detail) -- code None means the payload parses.
 PARSE_TABLE = [
 	("valid", SERVER_BYTES, None, None),
+	("served", SERVED_BYTES, None, None),
 	("utf8-bom", b"\xef\xbb\xbf" + SERVER_BYTES, None, None),
 	("not-json", b"{not json", "remote_malformed", "JSONDecodeError"),
 	("array", b"[]", "remote_malformed", "expected an object, got list"),

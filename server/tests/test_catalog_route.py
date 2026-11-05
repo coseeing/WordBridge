@@ -10,22 +10,29 @@ from app.correction_config import SETTING_DIR
 CATALOG_PATH = SETTING_DIR / "catalog.json"
 
 
-def test_root_serves_the_catalog_file_verbatim():
+def test_root_serves_the_catalog_without_providers():
+	# The add-on bundles its provider entries; the file keeps them for the
+	# server's own correction calls, but they are never served (B2).
 	client = TestClient(main_module.app)
+	document = json.loads(CATALOG_PATH.read_bytes())
 
 	response = client.get("/")
 
 	assert response.status_code == 200
 	assert response.headers["content-type"].startswith("application/json")
 	assert response.headers["cache-control"] == "no-cache"
-	assert response.content == CATALOG_PATH.read_bytes()
+	body = json.loads(response.content)
+	assert "providers" in document
+	assert "providers" not in body
+	assert body["models"] == document["models"]
+	assert set(body) == set(document) - {"providers"}
 
 
 def test_the_served_payload_is_a_schema_1_object_with_local_data():
 	body = json.loads(TestClient(main_module.app).get("/").content)
 
 	assert body["schema_version"] == 1
-	assert isinstance(body["providers"], dict)
+	assert "providers" not in body
 	assert isinstance(body["models"], list)
 	# The Coseeing channel ships in the add-on; the servable Coseeing ids are
 	# the server's own list (COSEEING_MODEL_IDS), never part of the payload.
@@ -49,9 +56,27 @@ def test_load_catalog_bytes_rejects_a_bad_file(tmp_path, content):
 		main_module.load_catalog_bytes(path)
 
 
-def test_load_catalog_bytes_returns_the_file_bytes_unchanged(tmp_path):
+def test_load_catalog_bytes_keeps_every_other_key_in_file_order(tmp_path):
 	path = tmp_path / "catalog.json"
-	content = b'{\n\t"schema_version": 1, "providers": {}, "models": []\n}\n'
-	path.write_bytes(content)
+	models = [{"provider": "OpenAI", "model": "m", "label": "模型"}]
+	path.write_text(json.dumps({
+		"schema_version": 1,
+		"providers": {"OpenAI": {"url": "https://api.openai.com/v1/responses"}},
+		"models": models,
+		"extra": {"x": 1},
+	}, ensure_ascii=False), encoding="utf8")
 
-	assert main_module.load_catalog_bytes(path) == content
+	content = main_module.load_catalog_bytes(path)
+
+	served = json.loads(content)
+	assert list(served) == ["schema_version", "models", "extra"]
+	assert served == {"schema_version": 1, "models": models, "extra": {"x": 1}}
+	# UTF-8 text, as in the file, not \u escapes.
+	assert "模型".encode("utf8") in content
+
+
+def test_load_catalog_bytes_accepts_a_file_without_providers(tmp_path):
+	path = tmp_path / "catalog.json"
+	path.write_text('{"schema_version": 1, "models": []}', encoding="utf8")
+
+	assert json.loads(main_module.load_catalog_bytes(path)) == {"schema_version": 1, "models": []}
