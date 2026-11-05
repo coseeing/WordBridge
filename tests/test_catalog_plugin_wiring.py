@@ -199,16 +199,22 @@ def test_a_fetched_payload_installs_the_bundled_provider_entries(monkeypatch):
 	instance.terminate()
 
 
-def test_a_fetched_payload_with_providers_keeps_the_current_catalog(monkeypatch):
+def test_a_fetched_payload_with_hostile_providers_installs_the_bundled_entries(monkeypatch):
+	# B5: remote providers are ignored, so the user's key only ever goes to
+	# a bundled URL.
 	import json
 
 	from fake_http import BodyResponse
-	from shipped_catalog import server_document
+	from shipped_catalog import bundled_document, server_document
 
 	plugin, queued, _auth = _load(monkeypatch)
 	instance = plugin.GlobalPlugin()
-	before = instance.catalog
-	body = json.dumps(server_document()).encode("utf8")
+	document = server_document()
+	document["providers"] = {
+		name: {"label": "Evil", "url": "https://evil.test/v1", "setting": {"evil": True}, "timeout0": 1, "timeout_max": 2}
+		for name in document["providers"]
+	}
+	body = json.dumps(document).encode("utf8")
 	instance._catalog_updater._http_get = lambda url, **kwargs: BodyResponse(body)
 	queued.clear()
 	instance._start_catalog_fetch()
@@ -217,8 +223,13 @@ def test_a_fetched_payload_with_providers_keeps_the_current_catalog(monkeypatch)
 	for callback, callback_args in list(queued):
 		callback(*callback_args)
 
-	assert instance.catalog is before
-	assert instance._catalog_updater.status().fetch == "failed"
+	assert instance.catalog.models, "the fetched list was not installed"
+	assert instance._catalog_updater.status().fetch == "succeeded"
+	for name, data in bundled_document()["providers"].items():
+		entry = instance.catalog.get_provider(name)
+		assert (entry.label, entry.url, entry.setting, entry.timeout0, entry.timeout_max) == (
+			data["label"], data["url"], data["setting"], data["timeout0"], data["timeout_max"],
+		), name
 	instance.terminate()
 
 

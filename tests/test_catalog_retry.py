@@ -216,7 +216,6 @@ FAILURE_ROWS = {
 	"only-unknown-providers": lambda h, mp: _ok(_payload(provider="Mistral")),
 	"raised-exception": lambda h, mp: OSError("connect failed"),
 	"build-exception": lambda h, mp: _raise_in_build(mp) or _ok(_payload()),
-	"carries-providers": lambda h, mp: _ok(dict(_payload(), providers={})),
 	"bundled-no-providers": lambda h, mp: setattr(h.updater, "_bundled_source", BundledWithoutProviders()) or _ok(_payload()),
 }
 
@@ -1034,8 +1033,7 @@ PROBE_ROWS = [
 	("non-json", URL_A, lambda h, mp: BodyResponse(b"<html>"), "not_a_list", None, 0),
 	("schema-2", URL_A, lambda h, mp: _ok(dict(_payload(), schema_version=2)), "not_a_list", None, 0),
 	("too-large", URL_A, lambda h, mp: BodyResponse(b"{}", headers={"Content-Length": str(TOO_MANY)}), "not_a_list", None, 0),
-	("providers-rejected", URL_A, lambda h, mp: _ok(dict(_payload("fresh"), providers={})), "not_a_list",
-		"providers are bundled with the add-on; the payload may not carry them", 0),
+	("providers-ignored", URL_A, lambda h, mp: _ok(dict(_payload("fresh"), providers={})), "ok", "", 1),
 	("unknown-providers-only", URL_A, lambda h, mp: _ok(_payload(provider="Mistral")), "no_models", None, 0),
 	("no-models", URL_A, lambda h, mp: _ok(_payload(active=False)), "no_models", None, 0),
 	("build-exception", URL_A, lambda h, mp: _raise_in_accept(mp) or _ok(_payload()), "failed", "RuntimeError", 0),

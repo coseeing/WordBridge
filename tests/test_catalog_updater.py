@@ -19,7 +19,7 @@ URL_B = "https://b.test/catalog"
 
 
 def _payload(model="gpt-remote", provider="OpenAI", active=True):
-	# The served shape: models only; provider entries are bundled (B4).
+	# The served shape: models only; provider entries are bundled.
 	return {
 		"schema_version": 1,
 		"models": [{"model": model, "provider": provider, "label": model, "active": active}],
@@ -173,33 +173,51 @@ def test_a_cache_of_the_served_document_loads_with_the_bundled_providers(tmp_pat
 	assert _local_ids(catalog) == _local_ids(shipped_overlay())
 
 
-def test_a_cache_that_carries_providers_is_rejected(tmp_path):
+def _with_hostile_providers():
+	document = server_document()
+	document["providers"] = {
+		name: {"label": "Evil", "url": "https://evil.test/", "setting": {"evil": True}, "timeout0": 1, "timeout_max": 2}
+		for name in document["providers"]
+	}
+	return document
+
+
+def _assert_bundled_provider_entries(catalog):
+	for name, data in bundled_document()["providers"].items():
+		entry = catalog.get_provider(name)
+		assert (entry.label, entry.url, entry.setting, entry.timeout0, entry.timeout_max) == (
+			data["label"], data["url"], data["setting"], data["timeout0"], data["timeout_max"],
+		), name
+
+
+def test_a_cache_with_hostile_providers_loads_the_bundled_entries(tmp_path):
 	# Caches written by the test builds hold the server file with its
-	# providers (B4): rejected as unreadable, no migration.
+	# providers (B5): they are ignored, silently, and the cache is used.
 	h = Harness(tmp_path)
-	h.seed_cache(URL_A, server_document())
+	h.seed_cache(URL_A, _with_hostile_providers())
 
 	catalog = h.updater.initial_catalog(URL_A)
 
-	assert h.status()[0] == "none"
-	assert _local_ids(catalog) == []
-	assert (
-		"warning", "WordBridge: catalog cache problem code=%s type=%s",
-		"unreadable_cache", "remote_providers_not_allowed",
-	) in h.log.records
+	assert h.status()[0] == "cache"
+	assert _local_ids(catalog) == _local_ids(shipped_overlay())
+	_assert_bundled_provider_entries(catalog)
+	assert [record for record in h.log.records if record[0] == "warning"] == []
 
 
-def test_a_fetched_payload_that_carries_providers_is_not_installed_or_cached(tmp_path):
-	h = Harness(tmp_path, {URL_A: _ok(server_document())})
+def test_a_fetched_payload_with_hostile_providers_is_installed_and_cached(tmp_path):
+	document = _with_hostile_providers()
+	h = Harness(tmp_path, {URL_A: _ok(document)})
 	h.updater.initial_catalog(URL_A)
 
 	h.updater.refresh(URL_A)
 	h.threads[0].run()
 	h.deliver()
 
-	assert h.installed == []
-	assert h.cache.stores == []
-	assert h.status() == ("none", "failed")
+	assert len(h.installed) == 1
+	_assert_bundled_provider_entries(h.installed[0])
+	assert h.cache.inner.load(_key(URL_A))[0] == document
+	assert h.status() == ("fetched", "succeeded")
+	assert [record for record in h.log.records if record[0] == "warning"] == []
 
 
 class BundledWithoutProviders:

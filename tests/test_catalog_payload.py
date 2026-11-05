@@ -13,7 +13,6 @@ from shipped_catalog import bundled_document, served_document
 SERVER_CATALOG = Path(__file__).resolve().parents[1] / "server" / "app" / "setting" / "catalog.json"
 SERVER_BYTES = SERVER_CATALOG.read_bytes()
 SERVED_BYTES = json.dumps(served_document(), ensure_ascii=False).encode("utf8")
-PROVIDERS_NOT_ALLOWED = "providers are bundled with the add-on; the payload may not carry them"
 
 
 class BundledSentinel:
@@ -35,8 +34,8 @@ def _body(**document):
 PARSE_TABLE = [
 	("valid", SERVED_BYTES, None, None),
 	# The server file itself carries providers for the server's own calls;
-	# as a payload it is refused (B4).
-	("server-file", SERVER_BYTES, "remote_providers_not_allowed", PROVIDERS_NOT_ALLOWED),
+	# the add-on never reads them, so they decide nothing here (B5).
+	("server-file", SERVER_BYTES, None, None),
 	("utf8-bom", b"\xef\xbb\xbf" + SERVED_BYTES, None, None),
 	("not-json", b"{not json", "remote_malformed", "JSONDecodeError"),
 	("array", b"[]", "remote_malformed", "expected an object, got list"),
@@ -46,8 +45,8 @@ PARSE_TABLE = [
 	("schema-float", _body(schema_version=1.0, models=[]), "remote_schema_version", "expected 1, got 1.0"),
 	("schema-true", _body(schema_version=True, models=[]), "remote_schema_version", "expected 1, got True"),
 	("schema-string", _body(schema_version="1", models=[]), "remote_schema_version", "expected 1, got str"),
-	# Provider entries are bundled; any providers key refuses the payload (B4).
-	("providers-list", _body(schema_version=1, providers=[], models=[]), "remote_providers_not_allowed", PROVIDERS_NOT_ALLOWED),
+	# Provider entries are bundled; a providers key is ignored like any other (B5).
+	("providers-list", _body(schema_version=1, providers=[], models=[]), None, None),
 	("providers-missing", _body(schema_version=1, models=[]), None, None),
 	("models-missing", _body(schema_version=1), "remote_malformed", "models must be a list"),
 	("deep-nesting", b"[" * 100000, "remote_malformed", "RecursionError"),
@@ -227,20 +226,22 @@ PROVIDERS_VALUES = {
 
 
 @pytest.mark.parametrize("row", list(PROVIDERS_VALUES))
-def test_any_remote_providers_key_rejects_the_payload(row):
-	# B4: nothing is released, so a payload in the old providers-carrying
-	# format is refused as a whole -- from a fetch or from a cache alike.
+def test_any_remote_providers_key_is_ignored(row):
+	# B5: remote providers are never read, so any value -- hostile entries
+	# included -- leaves the payload accepted with the bundled entries, from
+	# a fetch or from a cache alike, and adds no issue.
+	from shipped_catalog import shipped_overlay
+
 	document = dict(served_document(), providers=PROVIDERS_VALUES[row])
 
 	catalog, issues = _accept(document)
 	parsed, parse_issues = parse_remote_payload(json.dumps(document).encode("utf8"))
 
-	assert catalog is None
-	assert [(issue.code, issue.location, issue.detail) for issue in issues] == [
-		("remote_providers_not_allowed", "payload", PROVIDERS_NOT_ALLOWED),
-	]
-	assert parsed is None
-	assert [issue.code for issue in parse_issues] == ["remote_providers_not_allowed"]
+	assert issues == ()
+	assert catalog.providers == shipped_overlay().providers
+	assert _local_ids(catalog) == _local_ids(shipped_overlay())
+	assert parsed == document
+	assert parse_issues == ()
 
 
 def test_a_failing_bundled_source_is_reported_as_such():
@@ -265,8 +266,6 @@ ACCEPT_DOCUMENT_TABLE = [
 	("schema-2", {"schema_version": 2, "models": []}, "remote_schema_version"),
 	("schema-missing", {"models": []}, "remote_schema_version"),
 	("schema-text", {"schema_version": "v2", "models": []}, "remote_schema_version"),
-	# A cache written by a test build holds the server file, providers included (B4).
-	("providers-mapping", {"schema_version": 1, "providers": {}, "models": []}, "remote_providers_not_allowed"),
 	("models-missing", {"schema_version": 1}, "remote_malformed"),
 	("not-a-dict", ["schema_version", 1], "remote_malformed"),
 ]
