@@ -276,3 +276,31 @@ def test_the_shipped_coseeing_labels_are_pinned():
 	# payload cannot add Coseeing entries (D1).
 	assert shipped_catalog().labels_for("Coseeing") == ("default",)
 	assert shipped_overlay().labels_for("Coseeing") == ("default",)
+
+
+# --- The runtime allowlist is gone (spec 10.1, AC6) ------------------------
+
+ALLOWLIST_TOKENS = (
+	"PROVIDER_URL_RULES",
+	"ProviderUrlRule",
+	"filter_provider_urls",
+	"disallowed_provider_url",
+	"disallowed_hosts",
+	"provider addresses WordBridge does not allow",
+)
+
+
+def test_no_provider_host_allowlist_remains():
+	# The guards above replace it; a runtime check of the bundled file would
+	# run on data that ships with the code that checks it.
+	addon = ADDON_PATH.parents[1]
+	files = sorted(addon.rglob("*.py")) + [addon / "locale" / "zh_TW" / "LC_MESSAGES" / "nvda.po"]
+
+	found = [
+		(path.relative_to(addon).as_posix(), token)
+		for path in files
+		for token in ALLOWLIST_TOKENS
+		if token in path.read_text(encoding="utf8")
+	]
+
+	assert found == []

@@ -616,11 +616,6 @@ msgstr "伺服器的回應不是 WordBridge 模型清單。請確認網址是否
 msgid "The model list offers no model WordBridge can use."
 msgstr "這份模型清單沒有 WordBridge 可以使用的模型。"
 
-#. Translators: Part of the message after a failed test of the model list URL: every provider in the list points at an address WordBridge refuses to send API keys to.
-#: addon\globalPlugins\WordBridge\catalog_url_dialog.py:70
-msgid "The model list names only provider addresses WordBridge does not allow."
-msgstr "這份模型清單列出的服務提供者網址都不在 WordBridge 允許的範圍內。"
-
 #. Translators: Part of the message after a failed test of the model list URL, for any other failure.
 #: addon\globalPlugins\WordBridge\catalog_url_dialog.py:72
 msgid "Make sure you are connected to the internet and the URL is correct."

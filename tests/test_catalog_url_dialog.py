@@ -415,8 +415,6 @@ RESULT_ROWS = [
 		"The model list URL failed the test. The server's answer is not a WordBridge model list. Check that the URL is correct.",
 		False),
 	("no_models", ("no_models", "", 0), "The model list URL failed the test. The model list offers no model WordBridge can use.", False),
-	("disallowed_hosts", ("disallowed_hosts", "", 0),
-		"The model list URL failed the test. The model list names only provider addresses WordBridge does not allow.", False),
 	("failed", ("failed", "", 0), "The model list URL failed the test. " + OTHER_TIP, False),
 	("unavailable", ("unavailable", "", 0), "The model list URL failed the test. " + OTHER_TIP, False),
 ]
@@ -509,8 +507,6 @@ TASK13_STRINGS = {
 	"The server's answer is not a WordBridge model list. Check that the URL is correct.":
 		"伺服器的回應不是 WordBridge 模型清單。請確認網址是否正確。",
 	"The model list offers no model WordBridge can use.": "這份模型清單沒有 WordBridge 可以使用的模型。",
-	"The model list names only provider addresses WordBridge does not allow.":
-		"這份模型清單列出的服務提供者網址都不在 WordBridge 允許的範圍內。",
 	OTHER_TIP: "請確認已連上網際網路，且網址正確。",
 }
 

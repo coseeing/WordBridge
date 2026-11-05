@@ -64,10 +64,6 @@ def _failure_tip(result) -> str:
 	if result.kind == "no_models":
 		# Translators: Part of the message after a failed test of the model list URL: the list has no usable model.
 		return _("The model list offers no model WordBridge can use.")
-	if result.kind == "disallowed_hosts":
-		# Translators: Part of the message after a failed test of the model list URL: every provider in the list
-		# points at an address WordBridge refuses to send API keys to.
-		return _("The model list names only provider addresses WordBridge does not allow.")
 	# Translators: Part of the message after a failed test of the model list URL, for any other failure.
 	return _("Make sure you are connected to the internet and the URL is correct.")
 
