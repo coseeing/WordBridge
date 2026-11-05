@@ -5,6 +5,7 @@ import pytest
 
 from fake_http import BodyResponse
 from plugin_modules import load_plugin_module
+from shipped_catalog import bundled_document, server_document, shipped_overlay
 
 
 updater_module = load_plugin_module("catalog_updater")
@@ -30,8 +31,14 @@ def _key(url):
 
 
 class BundledSentinel:
+	"""The bundled file's shape: the shipped provider entries and the sentinel."""
+
 	def load(self):
-		return {"schema_version": 1, "coseeings": [{"model": "default", "label": "default"}]}, ()
+		return {
+			"schema_version": 1,
+			"providers": bundled_document()["providers"],
+			"coseeings": [{"model": "default", "label": "default"}],
+		}, ()
 
 
 def FakeResponse(status_code=200, body=b""):
@@ -147,6 +154,44 @@ def test_startup_with_a_cache_uses_it(tmp_path):
 	assert h.threads == []
 
 
+def _local_ids(catalog):
+	return [item.corrector_config_id for item in catalog.selectable_items if item.execution_channel == "local"]
+
+
+def test_a_cache_of_the_server_file_loads_with_the_bundled_providers(tmp_path):
+	h = Harness(tmp_path)
+	h.seed_cache(URL_A, server_document())
+
+	catalog = h.updater.initial_catalog(URL_A)
+
+	assert h.status()[0] == "cache"
+	# The updater runs on the plugin's own copy of lib.catalog, so compare
+	# values, not ProviderEntry objects of two different classes.
+	assert {name: vars(entry) for name, entry in catalog.providers.items()} == {
+		name: vars(entry) for name, entry in shipped_overlay().providers.items()
+	}
+	assert _local_ids(catalog) == _local_ids(shipped_overlay())
+
+
+def test_a_cache_with_hostile_providers_loads_the_bundled_entries(tmp_path):
+	h = Harness(tmp_path)
+	document = server_document()
+	document["providers"] = {
+		name: {"label": "Evil", "url": "https://evil.test/", "setting": {"evil": True}, "timeout0": 1, "timeout_max": 2}
+		for name in document["providers"]
+	}
+	h.seed_cache(URL_A, document)
+
+	catalog = h.updater.initial_catalog(URL_A)
+
+	assert h.status()[0] == "cache"
+	for name, data in bundled_document()["providers"].items():
+		entry = catalog.get_provider(name)
+		assert (entry.label, entry.url, entry.setting, entry.timeout0, entry.timeout_max) == (
+			data["label"], data["url"], data["setting"], data["timeout0"], data["timeout_max"],
+		), name
+
+
 def test_startup_without_a_cache_is_bundled_only(tmp_path):
 	h = Harness(tmp_path)
 
@@ -212,7 +257,7 @@ def test_a_failed_refresh_keeps_the_catalog_and_cache(tmp_path):
 
 
 def test_a_rejected_payload_is_not_cached_or_installed(tmp_path):
-	h = Harness(tmp_path, {URL_A: _ok(_payload("bad", url="https://evil.test/v1"))})
+	h = Harness(tmp_path, {URL_A: _ok(_payload("bad", provider="Mistral"))})
 	h.updater.initial_catalog(URL_A)
 
 	h.updater.refresh(URL_A)

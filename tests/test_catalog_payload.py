@@ -6,6 +6,7 @@ import pytest
 from lib.catalog.overlay import accept_remote_document, has_local_items
 from lib.catalog.remote import check_remote_document, parse_remote_payload
 from lib.llm import SUPPORTED_PROVIDERS
+from shipped_catalog import bundled_document
 
 
 SERVER_CATALOG = Path(__file__).resolve().parents[1] / "server" / "app" / "setting" / "catalog.json"
@@ -13,8 +14,14 @@ SERVER_BYTES = SERVER_CATALOG.read_bytes()
 
 
 class BundledSentinel:
+	"""The bundled file's shape: the shipped provider entries and the sentinel."""
+
 	def load(self):
-		return {"schema_version": 1, "coseeings": [{"model": "default", "label": "default"}]}, ()
+		return {
+			"schema_version": 1,
+			"providers": bundled_document()["providers"],
+			"coseeings": [{"model": "default", "label": "default"}],
+		}, ()
 
 
 def _body(**document):
@@ -102,10 +109,12 @@ def test_only_unsupported_providers_is_rejected():
 	assert [issue.code for issue in issues] == ["remote_no_models"]
 
 
-def test_only_disallowed_hosts_is_rejected():
+def test_only_unknown_providers_is_rejected():
+	# Providers are bundled: a payload whose every model names a provider
+	# this release does not have offers nothing.
 	document = _server_document()
-	for provider in document["providers"].values():
-		provider["url"] = "https://evil.test/v1"
+	for model in document["models"]:
+		model["provider"] = "Mistral"
 
 	catalog, issues = _accept(document)
 

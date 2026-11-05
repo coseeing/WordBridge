@@ -1,9 +1,10 @@
 """The on-disk copy of the last accepted remote catalog.
 
 One file, keyed by the URL it was fetched from, so a payload from one URL is
-never shown for another. The payload is stored before allowlist filtering, so
-whichever add-on version loads it re-applies its own rules. A corrupt file is
-ignored, never deleted; the next successful fetch overwrites it.
+never shown for another. The payload is stored as fetched, so whichever
+add-on version loads it applies its own bundled providers and rules. A
+corrupt file is ignored, never deleted; the next successful fetch overwrites
+it.
 """
 
 import json

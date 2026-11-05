@@ -1,5 +1,80 @@
 {
 	"schema_version": 1,
+	"providers": {
+		"Anthropic": {
+			"label": "Anthropic",
+			"url": "https://api.anthropic.com/v1/messages",
+			"setting": {
+				"max_tokens": 4096,
+				"thinking": {
+					"type": "adaptive"
+				},
+				"output_config": {
+					"effort": "low"
+				}
+			},
+			"timeout0": 10,
+			"timeout_max": 20
+		},
+		"DeepSeek": {
+			"label": "DeepSeek",
+			"url": "https://api.deepseek.com/chat/completions",
+			"setting": {
+				"max_tokens": 4096,
+				"temperature": 0.0,
+				"reasoning_effort": "none"
+			},
+			"timeout0": 10,
+			"timeout_max": 20
+		},
+		"Google": {
+			"label": "Google",
+			"url": "https://generativelanguage.googleapis.com/v1beta",
+			"setting": {
+				"maxOutputTokens": 4096,
+				"thinkingConfig": {
+					"thinkingLevel": "low"
+				}
+			},
+			"timeout0": 10,
+			"timeout_max": 20
+		},
+		"Ollama": {
+			"label": "Ollama",
+			"url": "http://localhost:11434/v1/chat/completions",
+			"setting": {
+				"temperature": 0.0
+			},
+			"timeout0": 30,
+			"timeout_max": 60
+		},
+		"OpenAI": {
+			"label": "OpenAI",
+			"url": "https://api.openai.com/v1/responses",
+			"setting": {
+				"max_output_tokens": 4096,
+				"store": false,
+				"reasoning": {
+					"effort": "low"
+				},
+				"text": {
+					"verbosity": "low"
+				}
+			},
+			"timeout0": 10,
+			"timeout_max": 20
+		},
+		"OpenRouter": {
+			"label": "OpenRouter",
+			"url": "https://openrouter.ai/api/v1/chat/completions",
+			"setting": {
+				"max_tokens": 4096,
+				"temperature": 0.0
+			},
+			"timeout0": 10,
+			"timeout_max": 20
+		}
+	},
 	"coseeings": [
 		{
 			"model": "default",

@@ -10,19 +10,24 @@ SENTINEL = {"model": "default", "label": "default", "active": True}
 
 
 def _catalog_document():
-	"""The add-on's bundled catalog: the Coseeing channel only."""
+	"""The add-on's bundled catalog: the provider entries and the Coseeing channel."""
 	return json.loads(CATALOG_PATH.read_text(encoding="utf8"))
 
 
 def _server_document():
-	"""The remote payload: the only home of local providers and models."""
+	"""The server's catalog file: the home of the models (the remote payload)
+	and a copy of the provider entries for the server's own calls."""
 	from shipped_catalog import server_document
 
 	return server_document()
 
 
-def test_the_bundled_catalog_is_exactly_the_coseeing_sentinel():
-	assert _catalog_document() == {"schema_version": 1, "coseeings": [SENTINEL]}
+def test_the_bundled_catalog_is_the_sentinel_plus_the_server_providers():
+	assert _catalog_document() == {
+		"schema_version": 1,
+		"providers": _server_document()["providers"],
+		"coseeings": [SENTINEL],
+	}
 
 
 def test_catalog_models_and_coseeings_use_the_expected_entry_shapes():

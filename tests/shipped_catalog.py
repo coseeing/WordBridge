@@ -1,10 +1,12 @@
 """The shipped catalog data, as the add-on sees it after a successful fetch.
 
-Local-channel data (providers, models, prices) lives only in the server's
-catalog file, which is the remote payload `GET /` serves. The add-on's bundled
-file carries only the Coseeing channel. Tests about provider parameters,
-prices or local model lists read the server file through here, so the
-regression protection moves with the data.
+The provider entries ship in the add-on's bundled file, next to the Coseeing
+channel; the models (labels, prices) live in the server's catalog file, which
+`GET /` serves as the remote payload. The server file also keeps a copy of the
+provider entries for the server's own calls, and
+tests/test_catalog_bundled.py keeps the two copies equal. Tests about prices
+or local model lists read the server file through here, so the regression
+protection moves with the data.
 """
 
 import json

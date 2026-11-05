@@ -1,17 +1,21 @@
 """Bundled ⊕ remote: one catalog document from the two sources.
 
-Each channel comes from exactly one document. The local channel
-(`providers`, `models`) comes only from the remote payload and the Coseeing
-channel (`coseeings`) only from the bundled file, so there are no merge or
-precedence rules and every entry can be traced to one file. Keys found in the
-wrong document are ignored with a lint issue; that is what makes "no snapshot
-of the remote payload ships in the add-on" structural.
+Each key comes from exactly one document. The provider entries (`providers`)
+and the Coseeing channel (`coseeings`) come from the bundled file, which
+ships with the code that sends the user's key; the models (`models`) come
+only from the remote payload. There are no merge or precedence rules, and
+every entry can be traced to one file. Remote keys other than `models` are
+never read; a bundled `models` key is ignored with a lint issue, which is
+what makes "no snapshot of the remote model list ships in the add-on"
+structural. Without a remote document there are no models, so the provider
+entries are left out too: unused, they would only add one
+unreferenced_provider issue per provider to every offline start.
 """
 
 from .document import SCHEMA_VERSION, build_catalog
 from .fallback import FALLBACK_DOCUMENT, load_catalog
 from .model import COSEEING_GROUP, LOCAL_CHANNEL, CatalogIssue
-from .remote import check_remote_document, filter_provider_urls
+from .remote import check_remote_document
 
 
 def overlay_documents(bundled, remote) -> tuple:
@@ -20,24 +24,17 @@ def overlay_documents(bundled, remote) -> tuple:
 	remote = remote if isinstance(remote, dict) else None
 	issues = []
 
-	if "providers" in bundled or "models" in bundled:
+	if "models" in bundled:
 		issues.append(CatalogIssue(
-			"ignored_bundled_local_entries",
-			"bundled",
-			"the bundled catalog may not carry providers or models; they are ignored",
+			"ignored_bundled_models",
+			"bundled.models",
+			"the bundled catalog may not carry models; they are ignored",
 		))
 
 	if remote is None:
 		providers, models = {}, []
 	else:
-		if "coseeings" in remote:
-			issues.append(CatalogIssue(
-				"ignored_remote_coseeings",
-				"remote.coseeings",
-				"the remote catalog may not carry coseeings; they are ignored",
-			))
-		providers, provider_issues = filter_provider_urls(remote.get("providers", {}))
-		issues.extend(provider_issues)
+		providers = bundled.get("providers", {})
 		models = remote.get("models", [])
 
 	document = {

@@ -11,11 +11,10 @@ import json
 
 import pytest
 
-from lib.catalog import remote
 from lib.catalog.fallback import load_catalog
 from lib.catalog.model import COSEEING_GROUP, CatalogIssue
 from lib.catalog.overlay import load_overlay_catalog, overlay_documents
-from lib.catalog.remote import ProviderUrlRule, parse_remote_payload
+from lib.catalog.remote import parse_remote_payload
 from lib.catalog.selection import SelectionState
 from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
@@ -40,12 +39,12 @@ def _serve(body):
 	return lambda url, **kwargs: BodyResponse(body)
 
 
-def fetched_catalog(body: bytes):
+def fetched_catalog(body: bytes, runnable_providers=SUPPORTED_PROVIDERS):
 	result = updater.fetch_payload("https://wordbridge.coseeing.org", http_get=_serve(body))
 	assert result.issue is None
 	document, issues = parse_remote_payload(result.body)
 	assert issues == ()
-	return load_overlay_catalog(BundledCatalogSource(ADDON_SETTING_DIR), document, runnable_providers=SUPPORTED_PROVIDERS)
+	return load_overlay_catalog(BundledCatalogSource(ADDON_SETTING_DIR), document, runnable_providers=runnable_providers)
 
 
 def in_memory_catalog(remote_document):
@@ -86,12 +85,9 @@ def test_a_remote_document_can_add_a_model_with_no_code_change():
 	assert catalog.get_model("gpt-9-future&OpenAI").price_entry()["pricing"]["input_tokens"] == 1
 
 
-def test_a_remote_document_naming_an_unimplemented_provider_drops_its_models(monkeypatch):
-	# Mistral gets a temporary URL rule, so it is build_catalog()'s
-	# unsupported_provider rule that drops it, not the allowlist.
-	monkeypatch.setitem(remote.PROVIDER_URL_RULES, "Mistral", ProviderUrlRule(
-		schemes=frozenset({"https"}), hosts=frozenset({"api.mistral.test"}),
-	))
+def test_a_remote_provider_entry_cannot_add_a_provider():
+	# Providers are bundled: a Mistral entry in the payload is never read, so
+	# its model names a provider this release does not have.
 	document = server_document()
 	document["providers"] = dict(document["providers"], Mistral={
 		"label": "Mistral",
@@ -106,9 +102,17 @@ def test_a_remote_document_naming_an_unimplemented_provider_drops_its_models(mon
 
 	codes = {issue.code for issue in catalog.issues}
 	assert "Mistral" not in catalog.provider_groups
+	assert catalog.get_provider("Mistral") is None
 	assert "M Large" not in catalog.labels_for(COSEEING_GROUP)
-	assert "unsupported_provider" in codes
-	assert "disallowed_provider_url" not in codes
+	assert "unknown_provider" in codes
+	assert "unsupported_provider" not in codes
+
+
+def test_a_bundled_provider_this_build_cannot_run_drops_its_models():
+	catalog = fetched_catalog(SERVER_CATALOG_PATH.read_bytes(), runnable_providers=SUPPORTED_PROVIDERS - {"DeepSeek"})
+
+	assert "DeepSeek" not in catalog.provider_groups
+	assert "unsupported_provider" in {issue.code for issue in catalog.issues}
 
 
 def test_the_panel_facing_selection_is_identical_across_sources():

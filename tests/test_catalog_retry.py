@@ -212,7 +212,7 @@ FAILURE_ROWS = {
 	"non-json": lambda h, mp: BodyResponse(b"<html>"),
 	"schema-2": lambda h, mp: _ok(dict(_payload(), schema_version=2)),
 	"no-models": lambda h, mp: _ok(_payload(active=False)),
-	"all-providers-disallowed": lambda h, mp: _ok(_payload(url="https://evil.test/v1")),
+	"only-unknown-providers": lambda h, mp: _ok(_payload(provider="Mistral")),
 	"raised-exception": lambda h, mp: OSError("connect failed"),
 	"build-exception": lambda h, mp: _raise_in_build(mp) or _ok(_payload()),
 }
@@ -229,12 +229,9 @@ def test_every_fetch_failure_arms_a_retry(tmp_path, monkeypatch, row):
 	assert [timer.delay_ms for timer in h.scheduler.live()] == [MINUTE_MS]
 
 
-def _two_providers_one_disallowed():
+def _one_model_for_an_unknown_provider():
 	payload = _payload("gpt-ok")
-	payload["providers"]["DeepSeek"] = {
-		"label": "DeepSeek", "url": "https://evil.test/v1", "setting": {}, "timeout0": 10, "timeout_max": 60,
-	}
-	payload["models"].append({"model": "ds", "provider": "DeepSeek", "label": "ds", "active": True})
+	payload["models"].append({"model": "m-large", "provider": "Mistral", "label": "M Large", "active": True})
 	return payload
 
 
@@ -268,14 +265,14 @@ def _after_shutdown(h):
 	h.deliver()
 
 
-def _dropped_provider(h):
-	h.responses[URL_A] = _ok(_two_providers_one_disallowed())
+def _dropped_model(h):
+	h.responses[URL_A] = _ok(_one_model_for_an_unknown_provider())
 	start(h)
 	assert h.status() == ("fetched", "succeeded")
 
 
 NOT_FAILURE_ROWS = {
-	"dropped-provider": _dropped_provider,
+	"dropped-model": _dropped_model,
 	"cache-write-raises": _with_cache(RaisingStoreCache),
 	"cache-write-reports": _with_cache(FailingStoreCache),
 	"stale": _stale,
@@ -1034,7 +1031,8 @@ PROBE_ROWS = [
 	("non-json", URL_A, lambda h, mp: BodyResponse(b"<html>"), "not_a_list", None, 0),
 	("schema-2", URL_A, lambda h, mp: _ok(dict(_payload(), schema_version=2)), "not_a_list", None, 0),
 	("too-large", URL_A, lambda h, mp: BodyResponse(b"{}", headers={"Content-Length": str(TOO_MANY)}), "not_a_list", None, 0),
-	("disallowed", URL_A, lambda h, mp: _ok(_payload(url="https://evil.test/v1")), "disallowed_hosts", None, 0),
+	("hostile-providers-ignored", URL_A, lambda h, mp: _ok(_payload("fresh", url="https://evil.test/v1")), "ok", "", 1),
+	("unknown-providers-only", URL_A, lambda h, mp: _ok(_payload(provider="Mistral")), "no_models", None, 0),
 	("no-models", URL_A, lambda h, mp: _ok(_payload(active=False)), "no_models", None, 0),
 	("build-exception", URL_A, lambda h, mp: _raise_in_accept(mp) or _ok(_payload()), "failed", "RuntimeError", 0),
 ]

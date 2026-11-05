@@ -2,15 +2,19 @@ import copy
 import json
 from pathlib import Path
 
-from lib.catalog import COSEEING_GROUP, LOCAL_CHANNEL, CatalogIssue, is_dropped_issue
+import pytest
+
+from lib.catalog import COSEEING_GROUP, LINT_ISSUE_CODES, LOCAL_CHANNEL, CatalogIssue, is_dropped_issue
 from lib.catalog.document import build_catalog
 from lib.catalog.overlay import OverlaySource, has_local_items, load_overlay_catalog, overlay_documents
 from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
+from shipped_catalog import bundled_document, server_document
 
 
 SERVER_CATALOG = Path(__file__).resolve().parents[1] / "server" / "app" / "setting" / "catalog.json"
 SENTINEL = {"model": "default", "label": "default", "active": True}
+OPENAI_URL = "https://api.openai.com/v1/responses"
 
 
 class StaticSource:
@@ -51,38 +55,80 @@ def _codes(catalog):
 	return [issue.code for issue in catalog.issues]
 
 
-def test_local_channel_comes_from_remote_and_coseeings_from_bundled():
+def test_providers_and_coseeings_come_from_bundled_and_models_from_remote():
 	bundled = _bundled(
 		coseeings=(SENTINEL, {"model": "bundled-extra", "label": "bundled-extra"}),
-		providers={"DeepSeek": _provider("https://api.deepseek.com/chat/completions")},
+		providers={
+			"OpenAI": _provider(OPENAI_URL),
+			"DeepSeek": _provider("https://api.deepseek.com/chat/completions"),
+		},
 		models=[{"model": "bundled-local", "provider": "DeepSeek", "label": "bundled-local"}],
 	)
 
 	catalog = _load(StaticSource(bundled), _remote())
 
 	assert [entry.corrector_config_id for entry in catalog.models] == ["gpt-remote&OpenAI"]
-	assert set(catalog.providers) == {"OpenAI"}
+	assert set(catalog.providers) == {"DeepSeek", "OpenAI"}
 	assert catalog.labels_for(COSEEING_GROUP) == ("default", "bundled-extra")
 
 
-def test_remote_coseeings_are_ignored_with_a_lint_issue():
+def _hostile_providers(document):
+	document["providers"] = {
+		name: {"label": "Evil", "url": "https://evil.test/v1", "setting": {"evil": True}, "timeout0": 1, "timeout_max": 2}
+		for name in document["providers"]
+	}
+	return document
+
+
+def test_remote_providers_never_reach_a_provider_entry():
+	# AC2: every field of every provider entry comes from the bundled file.
+	bundled = bundled_document()
+
+	catalog = _load(StaticSource(bundled), _hostile_providers(server_document()))
+
+	for name, data in bundled["providers"].items():
+		entry = catalog.get_provider(name)
+		assert (entry.label, entry.url, entry.setting, entry.timeout0, entry.timeout_max) == (
+			data["label"], data["url"], data["setting"], data["timeout0"], data["timeout_max"],
+		), name
+	assert [(issue.code, issue.location) for issue in catalog.issues] == [
+		("unreferenced_provider", "providers.OpenRouter"),
+	]
+
+
+def test_remote_extra_keys_add_no_issue():
+	# Every NVDA start and fetch logs each issue as a warning; keys the
+	# add-on does not read must not add a line.
+	remote = dict(server_document(), coseeings=[{"model": "remote-only", "label": "remote-only"}], extra={"x": 1})
+
+	_document, issues = overlay_documents(bundled_document(), remote)
+
+	assert issues == ()
+
+
+def test_remote_coseeings_are_ignored_without_an_issue():
 	remote = dict(_remote(), coseeings=[{"model": "remote-only", "label": "remote-only"}])
 
 	document, issues = overlay_documents(_bundled(), remote)
 
 	assert document["coseeings"] == [SENTINEL]
-	assert [(issue.code, issue.location) for issue in issues] == [("ignored_remote_coseeings", "remote.coseeings")]
-	assert is_dropped_issue(issues[0]) is False
+	assert issues == ()
 
 
-def test_bundled_local_entries_are_ignored_with_a_lint_issue():
-	bundled = _bundled(providers={}, models=[])
+def test_bundled_models_are_ignored_with_a_lint_issue():
+	bundled = _bundled(providers={"OpenAI": _provider(OPENAI_URL)}, models=[])
 
 	document, issues = overlay_documents(bundled, _remote())
 
 	assert document["models"] == _remote()["models"]
-	assert [(issue.code, issue.location) for issue in issues] == [("ignored_bundled_local_entries", "bundled")]
+	assert [(issue.code, issue.location) for issue in issues] == [("ignored_bundled_models", "bundled.models")]
 	assert is_dropped_issue(issues[0]) is False
+	# Bundled providers are where they belong: no issue.
+	assert overlay_documents(_bundled(providers={"OpenAI": _provider(OPENAI_URL)}), _remote())[1] == ()
+
+
+def test_the_lint_codes_are_pinned():
+	assert LINT_ISSUE_CODES == {"unreferenced_provider", "ignored_bundled_models"}
 
 
 def test_the_overlay_document_has_exactly_the_four_keys():
@@ -93,30 +139,28 @@ def test_the_overlay_document_has_exactly_the_four_keys():
 
 
 def test_no_remote_document_gives_the_sentinel_only():
-	# U1: the bundled file's local entries are never used, even with no
-	# remote document at all -- there is no snapshot to fall back to.
-	bundled = _bundled(
-		providers={"OpenAI": _provider("https://api.openai.com/v1/responses")},
-		models=[{"model": "bundled-local", "provider": "OpenAI", "label": "bundled-local"}],
-	)
-
-	catalog = _load(StaticSource(bundled), None)
+	# U1: no model snapshot ships, and the bundled provider entries are not
+	# used without models -- that would add one unreferenced_provider
+	# warning per provider to every offline start.
+	catalog = _load(StaticSource(bundled_document()), None)
 
 	assert catalog.providers == {}
 	assert catalog.models == ()
 	assert catalog.provider_groups == (COSEEING_GROUP,)
 	assert catalog.labels_for(COSEEING_GROUP) == ("default",)
 	assert catalog.degraded is False
-	assert [issue.code for issue in catalog.issues] == ["ignored_bundled_local_entries"]
+	assert catalog.issues == ()
 	assert has_local_items(catalog) is False
 
 
-def test_a_broken_bundled_file_plus_a_good_remote_gives_the_sentinel_and_local_items():
+def test_a_broken_bundled_file_plus_a_good_remote_gives_the_sentinel_and_no_local_items():
+	# The provider entries have no second copy in the add-on (spec finding 4):
+	# every remote model is dropped, but the Coseeing sentinel stays.
 	broken = StaticSource(None, (CatalogIssue("unreadable_file", "catalog.json", "ValueError"),))
 
 	catalog = _load(broken, _remote())
 
-	assert has_local_items(catalog) is True
+	assert has_local_items(catalog) is False
 	assert catalog.labels_for(COSEEING_GROUP) == ("default",)
 	assert catalog.default_selection() == ("default", COSEEING_GROUP)
 	assert catalog.degraded is False
@@ -124,6 +168,7 @@ def test_a_broken_bundled_file_plus_a_good_remote_gives_the_sentinel_and_local_i
 	assert len(fallback) == 1
 	assert is_dropped_issue(fallback[0]) is True
 	assert "unreadable_file" in _codes(catalog)
+	assert "unknown_provider" in _codes(catalog)
 
 
 def test_inactive_only_bundled_coseeings_fall_back_to_the_sentinel():
@@ -151,17 +196,36 @@ def test_a_raising_bundled_source_degrades_to_the_fallback_rung():
 	assert "unreadable_source" in _codes(catalog)
 
 
-def test_a_disallowed_remote_provider_and_its_models_are_dropped():
-	catalog = _load(StaticSource(_bundled()), _remote(url="https://evil.test/v1"))
+def test_a_remote_provider_with_a_foreign_url_is_ignored():
+	bundled = _bundled(providers={"OpenAI": _provider(OPENAI_URL)})
 
-	assert catalog.get_provider("OpenAI") is None
-	assert "disallowed_provider_url" in _codes(catalog)
-	assert "unknown_provider" in _codes(catalog)
+	catalog = _load(StaticSource(bundled), _remote(url="https://evil.test/v1"))
+
+	assert catalog.get_provider("OpenAI").url == OPENAI_URL
+	assert [entry.corrector_config_id for entry in catalog.models] == ["gpt-remote&OpenAI"]
+	assert "unknown_provider" not in _codes(catalog)
+
+
+@pytest.mark.parametrize("provider", ["Mistral", "openai", "OpenAI "])
+def test_a_remote_model_for_a_provider_the_bundled_file_lacks_is_dropped(provider):
+	# Names match exactly: no case folding, no trimming.
+	remote = server_document()
+	index = len(remote["models"])
+	remote["models"].append({"model": "m-new", "provider": provider, "label": "M New"})
+
+	catalog = _load(StaticSource(bundled_document()), remote)
+
+	assert ("unknown_provider", f"models[{index}]") in [(issue.code, issue.location) for issue in catalog.issues]
+	assert all(entry.model != "m-new" for entry in catalog.models)
+	assert len([item for item in catalog.selectable_items if item.execution_channel == LOCAL_CHANNEL]) == 16
 
 
 def test_the_overlay_source_is_a_load_catalog_source():
-	document, issues = OverlaySource(StaticSource(_bundled()), _remote()).load()
+	providers = {"OpenAI": _provider(OPENAI_URL)}
 
+	document, issues = OverlaySource(StaticSource(_bundled(providers=providers)), _remote()).load()
+
+	assert document["providers"] == providers
 	assert document["coseeings"] == [SENTINEL]
 	assert issues == ()
 
@@ -169,10 +233,10 @@ def test_the_overlay_source_is_a_load_catalog_source():
 def test_the_shipped_target_files_overlay_as_section_7_4():
 	# The two shipped files, as applied from the target files (spec sections
 	# 2.3 and 2.4): the add-on's bundled file and the server's catalog.
-	from shipped_catalog import ADDON_SETTING_DIR, bundled_document
+	from shipped_catalog import ADDON_SETTING_DIR
 
-	assert bundled_document() == _bundled()
 	server = json.loads(SERVER_CATALOG.read_text(encoding="utf8"))
+	assert bundled_document() == _bundled(providers=server["providers"])
 	assert "coseeings" not in server
 
 	catalog = load_overlay_catalog(

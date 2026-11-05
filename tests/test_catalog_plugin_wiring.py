@@ -154,7 +154,8 @@ def test_remote_text_in_catalog_issues_cannot_forge_a_log_line(monkeypatch):
 	instance = plugin.GlobalPlugin()
 	document = server_document()
 	forged = "Evil\nWordBridge: catalog fetched host=https://fake\x1b[0m" + "x" * 5000
-	document["providers"][forged] = {"label": "x", "url": "https://evil.test/v1", "setting": {}}
+	# Remote text reaches issue details only through model fields (finding 9).
+	document["models"].append({"model": "m", "provider": forged, "label": "m"})
 	body = json.dumps(document).encode("utf8")
 	instance._catalog_updater._http_get = lambda url, **kwargs: BodyResponse(body)
 	queued.clear()
@@ -164,11 +165,42 @@ def test_remote_text_in_catalog_issues_cannot_forge_a_log_line(monkeypatch):
 	for callback, callback_args in list(queued):
 		callback(*callback_args)
 
-	[issue_line] = [line for line in lines if "disallowed_provider_url" in line]
+	[issue_line] = [line for line in lines if "unknown_provider" in line]
 	assert "\n" not in issue_line
 	assert "\x1b" not in issue_line
 	assert "Evil\\nWordBridge" in issue_line
 	assert len(issue_line) < 600
+	instance.terminate()
+
+
+def test_a_fetched_payload_installs_the_bundled_provider_entries(monkeypatch):
+	import json
+
+	from fake_http import BodyResponse
+	from shipped_catalog import bundled_document, server_document
+
+	plugin, queued, _auth = _load(monkeypatch)
+	instance = plugin.GlobalPlugin()
+	document = server_document()
+	document["providers"] = {
+		name: {"label": "Evil", "url": "https://evil.test/v1", "setting": {"evil": True}, "timeout0": 1, "timeout_max": 2}
+		for name in document["providers"]
+	}
+	body = json.dumps(document).encode("utf8")
+	instance._catalog_updater._http_get = lambda url, **kwargs: BodyResponse(body)
+	queued.clear()
+	instance._start_catalog_fetch()
+	target, args = plugin.started_catalog_threads[0]
+	target(*args)
+	for callback, callback_args in list(queued):
+		callback(*callback_args)
+
+	assert instance.catalog.models, "the fetched list was not installed"
+	for name, data in bundled_document()["providers"].items():
+		entry = instance.catalog.get_provider(name)
+		assert (entry.label, entry.url, entry.setting, entry.timeout0, entry.timeout_max) == (
+			data["label"], data["url"], data["setting"], data["timeout0"], data["timeout_max"],
+		), name
 	instance.terminate()
 
 
