@@ -101,7 +101,8 @@ costs safety:
 | --- | --- |
 | B2 | **The server stops sending `providers`.** `GET /` serves the catalog document without its `providers` key (`schema_version`, `models` and any other key), still validated once at startup, still `application/json` with `Cache-Control: no-cache`. The server file keeps `providers` for the server's own calls, and the drift test (§11) stays. The `2026.11.1-test-*` builds were never released, so their need for a `providers` mapping (finding 6) is not a constraint. — Decided by the user (2026-11-05) |
 | B3 | **OQ1 → B.** A remote model whose provider is not bundled is lint: still logged as `unknown_provider`, not counted in the panel's dropped-entries line (§18). — Decided by the user (2026-11-05) |
-| B4 | **A payload that carries `providers` is rejected.** `check_remote_document()` rejects a document that has a `providers` key, whatever its value, as a whole, like any other document-check failure (a fetch fails and keeps the current catalog; a cache is unreadable and the bundled-only catalog is used). Nothing is released, so no compatibility with the providers-carrying format is kept: caches written by the `2026.11.1-test-*` builds are rejected, with no migration. Remote `coseeings` and unknown keys keep P2. Supersedes the "accepted and ignored" parts of P2, P5, P8 and §9.4. — Decided by the user (2026-11-05) |
+| B4 | ~~**A payload that carries `providers` is rejected.**~~ Superseded by B5. — Decided by the user (2026-11-05) |
+| B5 | **A payload's `providers` key is ignored, like every other key.** `check_remote_document()` checks only that the document is an object, `schema_version` is the integer `1` and `models` is a list; `providers`, whatever its value, is ignored silently (no issue, no log line), as P2 does for every other key. The overlay never reads it, so it cannot reach a `ProviderEntry`. Rejecting it guarded nothing, made `providers` the one key that refuses a payload, and dropped usable test-build caches; an allowlist of keys is not used either, since a new optional key would then refuse the payload on every installed add-on (breaking changes go through `schema_version`). Supersedes B4. — Decided by the user (2026-11-05) |
 | B1 | **Provider entries are bundled.** The per-provider `label`, `url`, `setting`, `timeout0` and `timeout_max` move back into the add-on's `setting/catalog.json`, next to `coseeings`. The remote catalog then supplies only `models` to the add-on. The server keeps its `providers` and `GET /` keeps serving them; the add-on ignores the remote `providers`. Accepted cost: tuning a provider parameter needs an add-on release. — Decided by the user (2026-11-04) |
 
 ### 4.2 Decided by orchestrator with the recommended default; user may override before merge
@@ -113,13 +114,13 @@ the shipped files; the reasoning is in the section named.
 | # | Decision | Section |
 | --- | --- | --- |
 | P1 | Overlay: `providers` from the bundled file **when a remote document is given**, `{}` when there is none; `models` from the remote document; `coseeings` from the bundled file. | §7.3 |
-| P2 | Remote `coseeings` and every other remote key except `schema_version`, `models` and `providers` are ignored **silently** (no issue, no log line). The lint code `ignored_remote_coseeings` is retired. Remote `providers`: rejected by `check_remote_document()` (B4); the overlay still never reads them. | §7.2 |
+| P2 | Remote `providers`, `coseeings` and every other remote key except `schema_version` and `models` are ignored **silently** (no issue, no log line) (B5). The lint code `ignored_remote_coseeings` is retired. | §7.2 |
 | P3 | Bundled `models` are still ignored (U1: no snapshot of the remote list ships), now with the lint code `ignored_bundled_models` at location `bundled.models`. The code `ignored_bundled_local_entries` is retired. | §7.1 |
 | P4 | The acceptance rule is unchanged: a payload is accepted when it leaves at least one selectable local model once overlaid. A payload rejected only because the bundled file offers no provider entry is reported as `bundled_source_failed` (detail `no_providers`), not `remote_no_models`. | §8 |
-| P5 | `check_remote_document()` no longer requires `providers`; amended by B4, it **rejects** a document that has a `providers` key. It still requires an object, `schema_version` exactly the integer `1`, and `models` a list. `schema_version` stays `1`. | §9 |
+| P5 | `check_remote_document()` no longer requires `providers` and, by B5, does not reject it either. It still requires an object, `schema_version` exactly the integer `1`, and `models` a list. `schema_version` stays `1`. | §9 |
 | P6 | The runtime host allowlist is removed (`PROVIDER_URL_RULES`, `ProviderUrlRule`, `_https_only`, `_url_problem`, `filter_provider_urls`, the issue code `disallowed_provider_url`, the probe kind `disallowed_hosts` and its tip string). It is replaced by test-level guards on the bundled file. | §10 |
 | P7 | A drift test asserts that the add-on's bundled `providers` and the server's `providers` are equal, compared as canonical JSON text. It lives in the add-on suite (`tests/test_catalog_bundled.py`). | §11 |
-| P8 | No migration; `cache_version` stays `1`; the cache keeps storing the payload as fetched. Amended by B4: a cache that carries `providers` (every cache written before this release) is rejected as unreadable. | §9.4 |
+| P8 | No migration; `cache_version` stays `1`; the cache keeps storing the payload as fetched. A cache that carries `providers` (every cache written before this release) loads, its `providers` ignored (B5). | §9.4 |
 | P9 | ~~Remote models whose provider the bundled file does not have keep today's treatment until the user answers OQ1.~~ Superseded by B3 (OQ1 → B). | §8.2, §18 |
 | P10 | The amendment is recorded only in this spec; RC and CR are not edited. | §15 |
 
@@ -230,14 +231,13 @@ that follow from it; OQ1 (§18) is the only open user-visible choice.
   and CR §10.5 unchanged (`dialogs.py:87-118`); NVDA+Alt+O with a stored local
   selection opens the same U7 dialog, keyed on `source == none`
   (`__init__.py:296-307`, RC §12.5).
-- **With a cache written by a test build:** it is rejected (B4, §9.4); the
-  panel shows the bundled-only catalog until the next fetch succeeds, which
-  overwrites the cache.
+- **With a cache written by a test build:** it loads with its `providers`
+  ignored (B5, §9.4); its models use the bundled provider entries.
 - **Corrections with a personal key:** the same request parameters, URL and
   timeouts as today, now always from the add-on.
-- **"Test..." in the Model List URL dialog:** a payload that carries
-  `providers` (any value) now tests as "not a WordBridge model list" (B4)
-  instead of showing the `disallowed_hosts` tip (finding 2).
+- **"Test..." in the Model List URL dialog:** a payload's `providers` (any
+  value) decides nothing (B5); the `disallowed_hosts` tip is gone
+  (finding 2).
 - **Self-hosted catalogs:** provider overrides have no effect (finding 5).
 - **No new strings, no new speech.** One string is removed (§13).
 
@@ -356,18 +356,16 @@ mapping minus `disallowed_hosts`:
 ### 9.1 `check_remote_document()` (P5)
 
 `lib/catalog/remote.py:249-270`. Required: an object; `schema_version` of type
-`int` and equal to `1`; `models` a list; **no `providers` key** (B4, Decided by
-the user (2026-11-05)). The "providers must be a mapping" check
-(`remote.py:266-267`) is replaced by a rejection of any `providers` key, with
-its own issue code (chosen in the plan). Its docstring and
+`int` and equal to `1`; `models` a list. Every other key, `providers`
+included, is ignored (B5, Decided by the user (2026-11-05)). The "providers
+must be a mapping" check (`remote.py:266-267`) is removed. Its docstring and
 `parse_remote_payload()`'s are updated.
 
 ### 9.2 Why not keep requiring `providers`
 
-The default server omits `providers` (B2, §12). Amended by B4: a payload
-that still carries them is rejected rather than ignored, because nothing is
-released and a providers-carrying payload can only come from an outdated or
-misconfigured server.
+The default server omits `providers` (B2, §12). A payload that still
+carries them is accepted with them ignored (B5): the overlay never reads
+them, so rejecting them would guard nothing.
 
 ### 9.3 `schema_version`
 
@@ -376,22 +374,21 @@ Stays `1`. The served document only loses a key this add-on ignores, and
 nothing; the tester builds of finding 6 reject the providers-less payload
 either way, which B2 accepts.
 
-### 9.4 Existing caches (P8, amended by B4)
+### 9.4 Existing caches (P8, B5)
 
 Caches are `{"cache_version": 1, "url_key": …, "document": <the payload as
 fetched>}` (`lib/catalog/cache.py:69-108`). Caches written before this
 release (only test builds) contain the server's `providers`. At load
 (`catalog_updater.py:441-458`) the document goes through
-`accept_remote_document()`, whose `check_remote_document()` now rejects it
-(B4): the cache is logged as `unreadable_cache` with the new code as its type
-(`catalog_updater.py:452-456`) and the bundled-only catalog is used.
+`accept_remote_document()`, which ignores them (B5): the cache loads as
+`source=cache` with the bundled provider entries, and nothing is logged.
 
 - No migration, no `cache_version` bump, no rewrite on load. The next
   successful fetch overwrites the file as today.
-- A cache that held a hostile `providers` block is rejected, so its values
+- A cache that holds a hostile `providers` block loads, and its values
   never reach a `ProviderEntry` (tested, §17.1).
-- The cache keeps storing the payload as fetched; a payload is only stored
-  once accepted, so a stored payload never has `providers`.
+- The cache keeps storing the payload as fetched, `providers` included when
+  a server sends them; they are ignored again at every load.
 - The `cache.py` module docstring ("stored before allowlist filtering",
   `cache.py:4-5`) becomes "stored as fetched, so whichever add-on version
   loads it applies its own bundled providers and rules".
@@ -488,13 +485,10 @@ Amended by B2 (Decided by the user (2026-11-05)); this replaces "Unchanged".
   a bad file; the other keys survive. The server count grows from 103.
 - The add-on suite's `tests/shipped_catalog.py` models the served payload as
   the server file minus `providers`; `shipped_overlay()` uses it.
-- **Deployment order: the server first, then the add-on.** A new add-on
-  rejects a payload that carries `providers` (B4), and the production server
-  sends them until it runs this change. Released in the other order, every
-  new add-on fails each fetch (`remote_providers_not_allowed`, "could not be
-  loaded" / "could not be updated", retries armed) until the server is
-  updated. The new server is safe for every add-on that reads models only;
-  the `2026.11.1-test-*` builds stop updating (finding 6, B2).
+- **Deployment order: either.** A new add-on ignores `providers` (B5), so
+  it works with the production server before and after this change. The new
+  server is safe for every add-on that reads models only; the
+  `2026.11.1-test-*` builds stop updating (finding 6, B2).
 
 ## 13. Strings
 
@@ -564,7 +558,7 @@ so the protection it gave moves to the new rule.
 | `tests/test_catalog_plugin_wiring.py:145-172` | Forged text in a model's `provider` (finding 9) |
 | `tests/test_catalog_retry.py:215` | `all-providers-disallowed` → `only-unknown-providers` (still a failure that arms a retry) |
 | `tests/test_catalog_retry.py:232-238`, `:270-274` | `dropped-provider` → `dropped-model` (one model naming an unknown provider beside a good one: success, no retry) |
-| `tests/test_catalog_retry.py:1037` | `disallowed` probe row → `providers-rejected` (`not_a_list`, B4) plus `unknown-providers-only` (`no_models`) |
+| `tests/test_catalog_retry.py:1037` | `disallowed` probe row → `providers-ignored` (`ok`, B5) plus `unknown-providers-only` (`no_models`) |
 | `tests/test_catalog_url_dialog.py:418-419` | `disallowed_hosts` row removed |
 | `tests/shipped_catalog.py:1-8` | Docstring: providers are bundled; models come from the server file |
 
@@ -623,11 +617,11 @@ in RC §17 and CR §15.
 - **Cache** (`tests/test_catalog_cache.py` or `tests/test_catalog_updater.py`):
   a cache holding the served document (no `providers`) loads as
   `source=cache` and equals `shipped_overlay()`; a cache that carries
-  `providers` (the server file, or hostile URLs) is rejected and not
-  installed (B4).
+  hostile `providers` loads as `source=cache` with the bundled entries and
+  logs no warning (B5).
 - **Guards and drift** (`tests/test_catalog_bundled.py`): §10.2 and §11.
-- **Probe** (`tests/test_catalog_retry.py` probe table): `not_a_list` for a
-  payload carrying `providers` (B4); `no_models` for unknown providers only;
+- **Probe** (`tests/test_catalog_retry.py` probe table): `ok` for a payload
+  carrying `providers` (B5); `no_models` for unknown providers only;
   `failed` for `no_providers`.
 - **Dialog text** (`tests/test_catalog_url_dialog.py`): every `ProbeResult`
   kind the updater can return has a row; no row for `disallowed_hosts`.
@@ -665,15 +659,13 @@ On an installed add-on built from the branch:
 
 1. Upgrade over `WordBridge-2026.11.1-test-catalog-retry-1` with its cache in
    place, online, against a server that already runs §12: the first start
-   logs exactly one `WordBridge: catalog cache problem code=unreadable_cache
-   type=remote_providers_not_allowed` line (the test build's cache carries
-   `providers`, B4) and starts on the bundled-only catalog; once the fetch
-   succeeds, the panel lists the same providers and models as before the
-   upgrade, with no dropped-entries line, and the next start uses the new
-   cache with no cache problem.
-2. The same upgrade, offline: the old cache is rejected the same way, so only
-   Coseeing "default" is offered and the status line reads "could not be
-   loaded" (RC §13.3), not "could not be updated".
+   logs `catalog source=cache` and no `catalog cache problem` line (the test
+   build's cache carries `providers`, ignored by B5); the panel lists the
+   same providers and models as before the upgrade, with no dropped-entries
+   line, before and after the fetch succeeds.
+2. The same upgrade, offline: the old cache loads the same way, so the
+   cached models are offered and the status line reads "could not be
+   updated" (RC §13.3), not "could not be loaded".
 3. Fresh config, offline, stored local model: only Coseeing "default";
    NVDA+Alt+O opens the U7 dialog exactly as before.
 4. A correction with a personal key for each of OpenAI, Anthropic, Google and
@@ -770,8 +762,8 @@ git diff --check
 3. With the shipped files, a successful fetch gives exactly today's provider
    groups, local items, labels, prices and provider entries (RC §7.4), and the
    bundled-only catalog is exactly today's (sentinel only, no issues).
-4. A payload without `providers` is accepted when its models are usable; a
-   payload or cache with a `providers` key is rejected (B4).
+4. A payload or cache is accepted when its models are usable, with or
+   without a `providers` key (B5).
 5. No cache migration; a rejected cache is replaced by the next successful
    fetch.
 6. `PROVIDER_URL_RULES`, `filter_provider_urls` and `disallowed_provider_url`
