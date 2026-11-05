@@ -488,6 +488,13 @@ Amended by B2 (Decided by the user (2026-11-05)); this replaces "Unchanged".
   a bad file; the other keys survive. The server count grows from 103.
 - The add-on suite's `tests/shipped_catalog.py` models the served payload as
   the server file minus `providers`; `shipped_overlay()` uses it.
+- **Deployment order: the server first, then the add-on.** A new add-on
+  rejects a payload that carries `providers` (B4), and the production server
+  sends them until it runs this change. Released in the other order, every
+  new add-on fails each fetch (`remote_providers_not_allowed`, "could not be
+  loaded" / "could not be updated", retries armed) until the server is
+  updated. The new server is safe for every add-on that reads models only;
+  the `2026.11.1-test-*` builds stop updating (finding 6, B2).
 
 ## 13. Strings
 
@@ -657,11 +664,16 @@ Each mutant must be killed by a named test; the result goes in the review.
 On an installed add-on built from the branch:
 
 1. Upgrade over `WordBridge-2026.11.1-test-catalog-retry-1` with its cache in
-   place, online: the panel lists the same providers and models as before the
-   upgrade, no dropped-entries line, and the NVDA log has no catalog cache
-   problem.
-2. The same upgrade, offline: the cached list is shown; status line "could not
-   be updated" (RC §13.3), as before.
+   place, online, against a server that already runs §12: the first start
+   logs exactly one `WordBridge: catalog cache problem code=unreadable_cache
+   type=remote_providers_not_allowed` line (the test build's cache carries
+   `providers`, B4) and starts on the bundled-only catalog; once the fetch
+   succeeds, the panel lists the same providers and models as before the
+   upgrade, with no dropped-entries line, and the next start uses the new
+   cache with no cache problem.
+2. The same upgrade, offline: the old cache is rejected the same way, so only
+   Coseeing "default" is offered and the status line reads "could not be
+   loaded" (RC §13.3), not "could not be updated".
 3. Fresh config, offline, stored local model: only Coseeing "default";
    NVDA+Alt+O opens the U7 dialog exactly as before.
 4. A correction with a personal key for each of OpenAI, Anthropic, Google and
@@ -741,6 +753,8 @@ git diff --check
   parameters and timeouts are now fixed. Mitigation as before: TLS, the
   default URL being Coseeing's own host, and the user's explicit choice of any
   other URL.
+- **Deployment order.** Releasing the add-on before the server is updated
+  makes every new add-on fail its fetches until the server is (§12).
 - **Broken bundled file** loses the local channel (finding 4); logged as
   `bundled_source_failed` / `no_providers`.
 - **Forward compatibility** of models for providers newer than the installed
