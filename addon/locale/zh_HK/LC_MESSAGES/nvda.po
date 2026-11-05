@@ -6,8 +6,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: 'WordBridge' '2026.9.3'\n"
-"Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2026-09-23 18:10+0800\n"
+"Report-Msgid-Bugs-To: nvda-translations@groups.io\n"
+"POT-Creation-Date: 2026-11-05 12:13+0000\n"
 "PO-Revision-Date: 2026-09-23 19:14+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -17,178 +17,67 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 3.9\n"
 
-#: addon\globalPlugins\WordBridge\dialogs.py:36
-msgid "Traditional Chinese"
-msgstr "繁體中文"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:37
-msgid "Simplified Chinese"
-msgstr "簡體中文"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:38
-msgid "Standard"
-msgstr "標準"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:39
-msgid "Lite"
-msgstr "輕量"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:40
-msgid "Personal API Key"
-msgstr "個人 API 金鑰"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:41
-msgid "Coseeing Account"
-msgstr "Coseeing 帳戶"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:59
-msgid "default"
-msgstr "預設"
-
-#. Add-on summary/title, usually the user visible name of the add-on
-#. Translators: Summary/title for this add-on
-#. to be shown on installation and add-on information found in add-on store
-#: addon\globalPlugins\WordBridge\dialogs.py:86 buildVars.py:21
-msgid "WordBridge"
-msgstr "WordBridge"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:120
-#, python-brace-format
-msgid ""
-"{count} catalog entry could not be loaded; see the NVDA log for details."
-msgstr "無法載入 {count} 個目錄項目；詳情請參閱 NVDA 記錄。"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:129
-#, python-brace-format
-msgid ""
-"{count} catalog entries could not be loaded; see the NVDA log for details."
-msgstr "無法載入 {count} 個目錄項目；詳情請參閱 NVDA 記錄。"
-
-#. For selecting provider
-#: addon\globalPlugins\WordBridge\dialogs.py:135
-msgid "Service Provider:"
-msgstr "服務供應商："
-
-#: addon\globalPlugins\WordBridge\dialogs.py:141
-msgid "Choose the service provider for the WordBridge"
-msgstr "選擇 WordBridge 使用的服務供應商"
-
-#. For selecting LLM
-#: addon\globalPlugins\WordBridge\dialogs.py:146
-msgid "Large Language Model:"
-msgstr "大型語言模型："
-
-#: addon\globalPlugins\WordBridge\dialogs.py:152
-msgid "Choose the large language model for the Word Bridge"
-msgstr "選擇 WordBridge 使用的大型語言模型"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:162
-msgid "Authentication"
-msgstr "驗證"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:168
-msgid "clean"
-msgstr "清除"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:175
-msgid "API Key:"
-msgstr "API 金鑰："
-
-#. For selecting language
-#: addon\globalPlugins\WordBridge\dialogs.py:184
-msgid "Language:"
-msgstr "語言："
-
-#: addon\globalPlugins\WordBridge\dialogs.py:190
-msgid "Choose the language for the Word Bridge"
-msgstr "選擇 WordBridge 使用的語言"
-
-#. For selecting typo correction mode
-#: addon\globalPlugins\WordBridge\dialogs.py:194
-msgid "Correction Mode:"
-msgstr "校正模式："
-
-#: addon\globalPlugins\WordBridge\dialogs.py:200
-msgid "Choose the typo correction mode for the Word Bridge"
-msgstr "選擇 WordBridge 使用的錯別字校正模式"
-
-#. For setting upper bound of correction character count
-#: addon\globalPlugins\WordBridge\dialogs.py:206
-msgid "Max character count"
-msgstr "最大字元數"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:241
-msgid "Auto display typo report"
-msgstr "自動顯示錯別字校正報告"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:247
-msgid "Apply personal dictionary"
-msgstr "使用個人詞典"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:254
-msgid "Edit dictionary"
-msgstr "編輯辭典"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:261
-msgid "Enable sound effect cues"
-msgstr "啟用音效提示"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:268
-msgid "Sound effect credits"
-msgstr "音效鳴謝"
-
-#. This is the label for the feedback dialog for Coseeing.
-#: addon\globalPlugins\WordBridge\dialogs.py:357
-msgid "Feedback Coseeing"
-msgstr "Coseeing 意見回饋"
-
-#: addon\globalPlugins\WordBridge\dialogs.py:363
-msgid "Request:"
-msgstr "請求："
-
-#: addon\globalPlugins\WordBridge\dialogs.py:370
-msgid "Response:"
-msgstr "回應："
-
-#: addon\globalPlugins\WordBridge\dialogs.py:377
-msgid "Feedback:"
-msgstr "意見回饋："
-
-#: addon\globalPlugins\WordBridge\__init__.py:219
+#: addon/globalPlugins/WordBridge/__init__.py:265
 msgid ""
 "The bundled correction settings file is damaged; WordBridge is using its "
 "built-in defaults."
 msgstr "隨附的校正設定檔已損毀；WordBridge 正在使用內置預設值。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:315
+#: addon/globalPlugins/WordBridge/__init__.py:326
+msgid ""
+"The model list is not available yet, so the model you selected cannot be "
+"used.\n"
+"\n"
+"Switch to the Coseeing default and correct this text with Coseeing? Your "
+"WordBridge setting will be changed to the Coseeing default."
+msgstr ""
+
+#. Translators: Title of the Yes/No dialog asking whether to switch to the Coseeing default; the
+#. add-on name.
+#. Translators: Title of the WordBridge category in NVDA's settings dialog; the add-on name.
+#. Add-on summary/title, usually the user visible name of the add-on
+#. Translators: Summary/title for this add-on
+#. to be shown on installation and add-on information found in add-on store
+#: addon/globalPlugins/WordBridge/__init__.py:332
+#: addon/globalPlugins/WordBridge/dialogs.py:196 buildVars.py:21
+msgid "WordBridge"
+msgstr "WordBridge"
+
+#. Translators: Spoken after the user answers No (or presses Escape) in the dialog asking whether to switch
+#. to the Coseeing default because the model list is not available.
+#: addon/globalPlugins/WordBridge/__init__.py:355
+msgid "The text was not sent. Your model selection was not changed."
+msgstr ""
+
+#: addon/globalPlugins/WordBridge/__init__.py:468
 msgid "This task's cost is unavailable."
 msgstr "無法取得此任務的費用。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:317
-#: addon\globalPlugins\WordBridge\__init__.py:318
+#: addon/globalPlugins/WordBridge/__init__.py:470
+#: addon/globalPlugins/WordBridge/__init__.py:471
 #, python-brace-format
 msgid "This task costs {cost} USD."
 msgstr "此任務費用為 {cost} 美元。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:365
+#: addon/globalPlugins/WordBridge/__init__.py:518
 msgid "The correction report could not be generated."
 msgstr "無法產生錯別字校正報告。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:387
-#: addon\globalPlugins\WordBridge\__init__.py:393
+#: addon/globalPlugins/WordBridge/__init__.py:531
+#: addon/globalPlugins/WordBridge/__init__.py:537
 #, python-brace-format
 msgid ""
 "The number of characters is {len_text}, which exceeds the maximum, "
 "{max_char_count}."
 msgstr "文字字元數為 {len_text}，超過上限 {max_char_count}。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:400
-#: addon\globalPlugins\WordBridge\__init__.py:401
+#: addon/globalPlugins/WordBridge/__init__.py:544
+#: addon/globalPlugins/WordBridge/__init__.py:545
 msgid "No text is selected, unable to analyze."
 msgstr "未選取任何文字，無法分析。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:404
-#: addon\globalPlugins\WordBridge\__init__.py:405
+#: addon/globalPlugins/WordBridge/__init__.py:548
+#: addon/globalPlugins/WordBridge/__init__.py:549
 msgid ""
 "The selected text does not contain Chinese characters, unable to analyze."
 msgstr "所選文字不含中文字元，無法分析。"
@@ -197,18 +86,18 @@ msgstr "所選文字不含中文字元，無法分析。"
 #. message when self._shutdown is already set, and the old order
 #. (flag first) could mark this session's one-shot announcement
 #. "delivered" even when it never reached the user.
-#: addon\globalPlugins\WordBridge\__init__.py:444
+#: addon/globalPlugins/WordBridge/__init__.py:592
 msgid ""
 "The model list could not be loaded. Coseeing will choose a model for you."
 msgstr "無法載入模型清單。Coseeing 會為你選擇模型。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:449
+#: addon/globalPlugins/WordBridge/__init__.py:597
 msgid ""
 "The selected model is no longer available. Please choose another one in "
 "WordBridge settings."
 msgstr "所選模型已無法使用。請在 WordBridge 設定中選擇其他模型。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:453
+#: addon/globalPlugins/WordBridge/__init__.py:601
 msgid ""
 "The selected provider is no longer available. Please choose another one in "
 "WordBridge settings."
@@ -217,144 +106,502 @@ msgstr "所選服務供應商已無法使用。請在 WordBridge 設定中選擇
 #. The user has already been notified. Re-raising here only
 #. leaves an unhandled exception in a worker thread, which
 #. lands in the NVDA log with nothing to act on.
-#: addon\globalPlugins\WordBridge\__init__.py:479
-#: addon\globalPlugins\WordBridge\__init__.py:480
+#: addon/globalPlugins/WordBridge/__init__.py:627
+#: addon/globalPlugins/WordBridge/__init__.py:628
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred during the program execution, the details are: {e}"
 msgstr "抱歉，程式執行時發生錯誤，詳情如下：{e}"
 
-#: addon\globalPlugins\WordBridge\__init__.py:492
+#: addon/globalPlugins/WordBridge/__init__.py:641
 msgid "Sorry, an error occurred while authenticating with Coseeing."
 msgstr "抱歉，驗證 Coseeing 時發生錯誤。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:507
+#: addon/globalPlugins/WordBridge/__init__.py:656
 msgid "The Coseeing request timed out. Please try again later."
 msgstr "Coseeing 請求逾時，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:509
-#: addon\globalPlugins\WordBridge\__init__.py:525
+#: addon/globalPlugins/WordBridge/__init__.py:658
+#: addon/globalPlugins/WordBridge/__init__.py:674
 msgid "The Coseeing request failed. Please try again later."
 msgstr "Coseeing 請求失敗，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:516
-#: addon\globalPlugins\WordBridge\__init__.py:737
+#: addon/globalPlugins/WordBridge/__init__.py:665
+#: addon/globalPlugins/WordBridge/__init__.py:890
 msgid ""
 "Authentication error. Please sign in to Coseeing or check your account "
 "permissions."
 msgstr "驗證錯誤。請登入 Coseeing，或檢查帳戶權限。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:520
+#: addon/globalPlugins/WordBridge/__init__.py:669
 msgid "Rate limit reached for requests or you exceeded your current quota. "
 msgstr "請求已達到速率限制，或已超出目前配額。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:521
+#: addon/globalPlugins/WordBridge/__init__.py:670
 msgid ""
 "Please reduce the frequency of sending requests or check your account "
 "balance."
 msgstr "請降低發送請求的頻率，或檢查帳戶餘額。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:533
+#: addon/globalPlugins/WordBridge/__init__.py:682
 msgid "The Coseeing response was invalid. Please try again later."
 msgstr "Coseeing 回應無效，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:546
-#: addon\globalPlugins\WordBridge\__init__.py:547
+#: addon/globalPlugins/WordBridge/__init__.py:694
+#: addon/globalPlugins/WordBridge/__init__.py:695
 msgid "No errors in the selected text."
 msgstr "所選文字未偵測到錯誤。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:551
-#: addon\globalPlugins\WordBridge\__init__.py:552
+#: addon/globalPlugins/WordBridge/__init__.py:699
+#: addon/globalPlugins/WordBridge/__init__.py:700
 msgid "The corrected text has been copied to the clipboard."
 msgstr "已將校正後的文字複製到剪貼簿。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:569
+#: addon/globalPlugins/WordBridge/__init__.py:717
 msgid ""
 "Only one proofreading task can run at a time. Please wait until the current "
 "task has finished before starting another."
 msgstr "一次只能執行一項校對任務。請等待目前任務完成後，再開始另一項任務。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:618
+#: addon/globalPlugins/WordBridge/__init__.py:766
 msgid "Open personal dictionary editor"
 msgstr "開啟個人詞典編輯器"
 
-#: addon\globalPlugins\WordBridge\__init__.py:626
+#: addon/globalPlugins/WordBridge/__init__.py:774
 msgid "Execute typo correction"
 msgstr "執行錯別字校正"
 
-#: addon\globalPlugins\WordBridge\__init__.py:632
-#: addon\globalPlugins\WordBridge\__init__.py:635
+#: addon/globalPlugins/WordBridge/__init__.py:780
+#: addon/globalPlugins/WordBridge/__init__.py:783
 msgid ""
 "The function cannot be executed. Please finish the configuration and close "
 "the setting window."
 msgstr "無法執行此功能，請完成設定並關閉設定視窗。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:646
+#: addon/globalPlugins/WordBridge/__init__.py:799
 msgid "Open WordBridge settings"
 msgstr "開啟 WordBridge 設定"
 
-#: addon\globalPlugins\WordBridge\__init__.py:657
+#: addon/globalPlugins/WordBridge/__init__.py:810
 msgid "Show correction report"
 msgstr "顯示校正報告"
 
-#: addon\globalPlugins\WordBridge\__init__.py:663
-#: addon\globalPlugins\WordBridge\__init__.py:664
+#: addon/globalPlugins/WordBridge/__init__.py:816
+#: addon/globalPlugins/WordBridge/__init__.py:817
 msgid "No report has been generated yet."
 msgstr "尚未產生報告。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:671
+#: addon/globalPlugins/WordBridge/__init__.py:824
 msgid "Submit correction feedback"
 msgstr "提交校正意見回饋"
 
-#: addon\globalPlugins\WordBridge\__init__.py:684
-#: addon\globalPlugins\WordBridge\__init__.py:686
+#: addon/globalPlugins/WordBridge/__init__.py:837
+#: addon/globalPlugins/WordBridge/__init__.py:839
 msgid ""
 "You have not run a typos correction task with the Coseeing service provider "
 "yet."
 msgstr "您尚未使用 Coseeing 服務供應商執行錯別字校正任務。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:725
+#: addon/globalPlugins/WordBridge/__init__.py:878
 msgid "The Coseeing authentication failed. Please try again later."
 msgstr "Coseeing 驗證失敗，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:739
-#: addon\globalPlugins\WordBridge\__init__.py:749
+#: addon/globalPlugins/WordBridge/__init__.py:892
+#: addon/globalPlugins/WordBridge/__init__.py:902
 msgid "Sorry, the Coseeing feedback request failed. Please try again later."
 msgstr "抱歉，Coseeing 意見回饋請求失敗，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:745
+#: addon/globalPlugins/WordBridge/__init__.py:898
 msgid "The Coseeing feedback request timed out. Please try again later."
 msgstr "Coseeing 意見回饋請求逾時，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\__init__.py:747
+#: addon/globalPlugins/WordBridge/__init__.py:900
 msgid "The Coseeing feedback response was invalid. Please try again later."
 msgstr "Coseeing 意見回饋回應無效，請稍後再試。"
 
-#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:578
+#. Translators: Shown when the model list URL uses plain http for a host other than this computer.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:36
+msgid ""
+"The model list URL must start with https://. http:// is allowed only for "
+"localhost."
+msgstr ""
+
+#. Translators: Shown when the model list URL is not a complete web address.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:38
+msgid ""
+"Enter a complete web address, such as https://wordbridge.coseeing.org, or "
+"leave the field empty."
+msgstr ""
+
+#. Translators: Part of the message after a failed test of the model list URL: a network error.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:53
+msgid ""
+"There was a network error. Check that you are connected to the internet and "
+"try again."
+msgstr ""
+
+#. Translators: Part of the message after a failed test of the model list URL; {status} is the HTTP
+#. status code the server answered with, for example 404.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:57
+#, python-brace-format
+msgid ""
+"The server answered with HTTP status {status}. Check that the URL is correct."
+msgstr ""
+
+#. Translators: Part of the message after a failed test of the model list URL: the address answered,
+#. but not with a model list.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:63
+msgid ""
+"The server's answer is not a WordBridge model list. Check that the URL is "
+"correct."
+msgstr ""
+
+#. Translators: Part of the message after a failed test of the model list URL: the list has no usable model.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:66
+msgid "The model list offers no model WordBridge can use."
+msgstr ""
+
+#. Translators: Part of the message after a failed test of the model list URL, for any other failure.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:68
+msgid "Make sure you are connected to the internet and the URL is correct."
+msgstr ""
+
+#. Translators: Shown after a successful test of the model list URL; {count} is the number of models (1).
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:76
+#, python-brace-format
+msgid "The model list loaded. It offers {count} model."
+msgstr ""
+
+#. Translators: Shown after a successful test of the model list URL; {count} is the number of models.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:79
+#, python-brace-format
+msgid "The model list loaded. It offers {count} models."
+msgstr ""
+
+#. Translators: Shown after a failed test of the model list URL; {tip} says what went wrong and what to do.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:82
+#, python-brace-format
+msgid "The model list URL failed the test. {tip}"
+msgstr ""
+
+#. Translators: Title of the dialog that changes the address the WordBridge model list is downloaded from.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:87
+msgid "Set Model List URL"
+msgstr ""
+
+#. Translators: Label of the edit field for the web address the WordBridge model list is downloaded from.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:102
+msgid "Model list URL:"
+msgstr ""
+
+#. Translators: Tooltip of the model list URL field in the WordBridge settings panel.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:109
+msgid ""
+"The address WordBridge downloads the model list from. Leave it empty to use "
+"only the Coseeing default."
+msgstr ""
+
+#. Translators: Button next to the model list URL field that checks whether the address offers a model list.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:112
+msgid "&Test..."
+msgstr ""
+
+#. Translators: Shown while WordBridge tests the model list URL.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:142
+msgid "Validating the model list URL..."
+msgstr ""
+
+#. Translators: Title of the message after a successful test of the model list URL.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:166
+msgid "Success"
+msgstr ""
+
+#. Translators: Title of the message after a failed test of the model list URL.
+#. Translators: Title of the message shown when the model list URL is not valid.
+#. Translators: title of an error message
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:169
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:198
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:286
+msgid "Error"
+msgstr "錯誤"
+
+#. Translators: Asked when the user saves a model list URL whose test failed.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:216
+msgid "The model list URL failed the test. Save it anyway?"
+msgstr ""
+
+#. Translators: Asked when the user saves a model list URL that was not tested.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:219
+msgid ""
+"The model list URL has not been tested. Save it without testing it first?"
+msgstr ""
+
+#. Translators: Title of the question asked before saving a model list URL that did not pass the test.
+#: addon/globalPlugins/WordBridge/catalog_url_dialog.py:224
+msgid "Warning"
+msgstr ""
+
+#. Translators: An item of the Language choice in the WordBridge settings panel.
+#: addon/globalPlugins/WordBridge/dialogs.py:42
+msgid "Traditional Chinese"
+msgstr "繁體中文"
+
+#. Translators: An item of the Language choice in the WordBridge settings panel.
+#: addon/globalPlugins/WordBridge/dialogs.py:44
+msgid "Simplified Chinese"
+msgstr "簡體中文"
+
+#. Translators: An item of the Correction Mode choice in the WordBridge settings panel.
+#: addon/globalPlugins/WordBridge/dialogs.py:46
+msgid "Standard"
+msgstr "標準"
+
+#. Translators: An item of the Correction Mode choice in the WordBridge settings panel.
+#: addon/globalPlugins/WordBridge/dialogs.py:48
+msgid "Lite"
+msgstr "輕量"
+
+#. Translators: Name of the kind of account that uses the user's own API key for a provider.
+#: addon/globalPlugins/WordBridge/dialogs.py:50
+msgid "Personal API Key"
+msgstr "個人 API 金鑰"
+
+#. Translators: Name of the kind of account that signs in to Coseeing.
+#: addon/globalPlugins/WordBridge/dialogs.py:52
+msgid "Coseeing Account"
+msgstr "Coseeing 帳戶"
+
+#. Translators: The model label of the Coseeing default in the WordBridge settings panel's model choice.
+#: addon/globalPlugins/WordBridge/dialogs.py:77
+msgid "default"
+msgstr "預設"
+
+#. Translators: Status line in the WordBridge settings panel when the model list URL is empty.
+#: addon/globalPlugins/WordBridge/dialogs.py:99
+msgid "The model list URL is empty, so only the Coseeing default is available."
+msgstr ""
+
+#. Translators: Status line in the WordBridge settings panel when the stored model list URL is not a valid
+#. address, so no model list was downloaded.
+#: addon/globalPlugins/WordBridge/dialogs.py:103
+msgid "The model list URL is invalid, so no model list was loaded."
+msgstr ""
+
+#. Translators: Status line in the WordBridge settings panel while the model list is still being downloaded.
+#: addon/globalPlugins/WordBridge/dialogs.py:106
+msgid ""
+"The model list is still loading. Until it loads, only the Coseeing default "
+"is available."
+msgstr ""
+
+#: addon/globalPlugins/WordBridge/dialogs.py:111
+msgid ""
+"The model list could not be loaded, so only the Coseeing default is "
+"available. See the NVDA log for details."
+msgstr ""
+
+#. Translators: Status line in the WordBridge settings panel when the model list could not be downloaded
+#. and the copy saved earlier is used instead.
+#: addon/globalPlugins/WordBridge/dialogs.py:116
+msgid ""
+"The model list could not be updated. WordBridge is using the list it saved "
+"earlier."
+msgstr ""
+
+#. Translators: Spoken when the open WordBridge settings panel has just shown a newly downloaded list of
+#. providers and models.
+#: addon/globalPlugins/WordBridge/dialogs.py:147
+msgid "Model list updated."
+msgstr ""
+
+#. Translators: Spoken when downloading the list of providers and models failed while the WordBridge settings
+#. panel is open.
+#: addon/globalPlugins/WordBridge/dialogs.py:150
+msgid "Model list update failed."
+msgstr ""
+
+#. Translators: Line in the WordBridge settings panel when one entry of the model list could not be loaded.
+#: addon/globalPlugins/WordBridge/dialogs.py:164
+#, python-brace-format
+msgid ""
+"{count} catalog entry could not be loaded; see the NVDA log for details."
+msgstr "無法載入 {count} 個目錄項目；詳情請參閱 NVDA 記錄。"
+
+#. Translators: Line in the WordBridge settings panel when several entries of the model list could not be loaded;
+#. {count} is their number.
+#: addon/globalPlugins/WordBridge/dialogs.py:168
+#, python-brace-format
+msgid ""
+"{count} catalog entries could not be loaded; see the NVDA log for details."
+msgstr "無法載入 {count} 個目錄項目；詳情請參閱 NVDA 記錄。"
+
+#. For selecting provider
+#. Translators: Label of the choice of the service provider in the WordBridge settings panel.
+#: addon/globalPlugins/WordBridge/dialogs.py:250
+msgid "Service Provider:"
+msgstr "服務供應商："
+
+#. Translators: Tooltip of the service provider choice in the WordBridge settings panel.
+#: addon/globalPlugins/WordBridge/dialogs.py:257
+msgid "Choose the service provider for the WordBridge"
+msgstr "選擇 WordBridge 使用的服務供應商"
+
+#. For selecting LLM
+#. Translators: Label of the choice of the large language model in the WordBridge settings panel.
+#: addon/globalPlugins/WordBridge/dialogs.py:263
+msgid "Large Language Model:"
+msgstr "大型語言模型："
+
+#. Translators: Tooltip of the large language model choice in the WordBridge settings panel.
+#: addon/globalPlugins/WordBridge/dialogs.py:270
+msgid "Choose the large language model for the Word Bridge"
+msgstr "選擇 WordBridge 使用的大型語言模型"
+
+#. For selecting language
+#. Translators: Label of the choice of the correction language in the WordBridge settings panel.
+#: addon/globalPlugins/WordBridge/dialogs.py:286
+msgid "Language:"
+msgstr "語言："
+
+#. Translators: Tooltip of the language choice in the WordBridge settings panel.
+#: addon/globalPlugins/WordBridge/dialogs.py:293
+msgid "Choose the language for the Word Bridge"
+msgstr "選擇 WordBridge 使用的語言"
+
+#. For selecting typo correction mode
+#. Translators: Label of the choice of the correction mode in the WordBridge settings panel.
+#: addon/globalPlugins/WordBridge/dialogs.py:298
+msgid "Correction Mode:"
+msgstr "校正模式："
+
+#. Translators: Tooltip of the correction mode choice in the WordBridge settings panel.
+#: addon/globalPlugins/WordBridge/dialogs.py:305
+msgid "Choose the typo correction mode for the Word Bridge"
+msgstr "選擇 WordBridge 使用的錯別字校正模式"
+
+#. For setting upper bound of correction character count
+#. Translators: Label of the field for the largest number of characters WordBridge corrects at once.
+#: addon/globalPlugins/WordBridge/dialogs.py:312
+msgid "Max character count"
+msgstr "最大字元數"
+
+#. Translators: Check box in the WordBridge settings panel: show the typo report after each correction.
+#: addon/globalPlugins/WordBridge/dialogs.py:326
+msgid "Auto display typo report"
+msgstr "自動顯示錯別字校正報告"
+
+#. A setting and its button share a group, as NVDA's "NVDA Development"
+#. group; the controls keep their full labels, as NVDA's do.
+#. For setting custom dictionary
+#. Translators: Label of the group in the WordBridge settings panel holding the personal dictionary settings.
+#: addon/globalPlugins/WordBridge/dialogs.py:334
+msgid "Personal dictionary"
+msgstr ""
+
+#. Translators: Check box in the WordBridge settings panel: use the user's own dictionary in corrections.
+#: addon/globalPlugins/WordBridge/dialogs.py:337
+msgid "Apply personal dictionary"
+msgstr "使用個人詞典"
+
+#. Translators: Button in the WordBridge settings panel that opens the personal dictionary.
+#: addon/globalPlugins/WordBridge/dialogs.py:345
+msgid "Edit dictionary"
+msgstr "編輯辭典"
+
+#. For setting sound effects
+#. Translators: Label of the group in the WordBridge settings panel holding the sound effect settings.
+#: addon/globalPlugins/WordBridge/dialogs.py:352
+msgid "Sound effects"
+msgstr ""
+
+#. Translators: Check box in the WordBridge settings panel: play sounds while a correction runs.
+#: addon/globalPlugins/WordBridge/dialogs.py:355
+msgid "Enable sound effect cues"
+msgstr "啟用音效提示"
+
+#. Translators: Button in the WordBridge settings panel that opens the web page crediting the sound effects.
+#: addon/globalPlugins/WordBridge/dialogs.py:363
+msgid "Sound effect credits"
+msgstr "音效鳴謝"
+
+#. Translators: Label of the group in the WordBridge settings panel showing the address the model list is
+#. downloaded from.
+#: addon/globalPlugins/WordBridge/dialogs.py:377
+msgid "Model list URL"
+msgstr ""
+
+#. Translators: Button in the model list URL group of the WordBridge settings panel that opens the dialog
+#. changing the address.
+#: addon/globalPlugins/WordBridge/dialogs.py:384
+msgid "Change..."
+msgstr ""
+
+#. Translators: The end of an account box's caption in the WordBridge settings panel, after the provider name,
+#. for example "OpenAI Authentication".
+#: addon/globalPlugins/WordBridge/dialogs.py:610
+msgid "Authentication"
+msgstr "驗證"
+
+#. Translators: Button in the Coseeing account box that signs out and removes the saved Coseeing sign-in.
+#: addon/globalPlugins/WordBridge/dialogs.py:632
+msgid "clean"
+msgstr "清除"
+
+#. Translators: Label of the field for a provider's API key in the WordBridge settings panel.
+#: addon/globalPlugins/WordBridge/dialogs.py:639
+msgid "API Key:"
+msgstr "API 金鑰："
+
+#. Translators: Shown in the model list URL group of the WordBridge settings panel when the URL is empty.
+#: addon/globalPlugins/WordBridge/dialogs.py:698
+msgid "No model list URL"
+msgstr ""
+
+#. Translators: This is the label for the feedback dialog for Coseeing.
+#: addon/globalPlugins/WordBridge/dialogs.py:774
+msgid "Feedback Coseeing"
+msgstr "Coseeing 意見回饋"
+
+#. Translators: Label of the read-only field with the text sent for correction in the Coseeing feedback dialog.
+#: addon/globalPlugins/WordBridge/dialogs.py:781
+msgid "Request:"
+msgstr "請求："
+
+#. Translators: Label of the read-only field with the corrected text in the Coseeing feedback dialog.
+#: addon/globalPlugins/WordBridge/dialogs.py:789
+msgid "Response:"
+msgstr "回應："
+
+#. Translators: Label of the field where the user writes feedback in the Coseeing feedback dialog.
+#: addon/globalPlugins/WordBridge/dialogs.py:797
+msgid "Feedback:"
+msgstr "意見回饋："
+
+#: addon/globalPlugins/WordBridge/lib/coseeing_auth.py:580
 msgid "Sign in to Coseeing to use this service, or continue as a guest."
 msgstr "登入 Coseeing 以使用此服務，或以訪客身分繼續。"
 
-#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:579
+#: addon/globalPlugins/WordBridge/lib/coseeing_auth.py:581
 msgid "Coseeing authentication"
 msgstr "Coseeing 驗證"
 
-#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:582
+#: addon/globalPlugins/WordBridge/lib/coseeing_auth.py:584
 msgid "Sign in"
 msgstr "登入"
 
-#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:582
+#: addon/globalPlugins/WordBridge/lib/coseeing_auth.py:584
 msgid "Continue as guest"
 msgstr "以訪客身分繼續"
 
-#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:650
+#: addon/globalPlugins/WordBridge/lib/coseeing_auth.py:652
 msgid "Coseeing authentication failed."
 msgstr "Coseeing 驗證失敗。"
 
-#: addon\globalPlugins\WordBridge\lib\coseeing_auth.py:709
+#: addon/globalPlugins/WordBridge/lib/coseeing_auth.py:711
 msgid "Coseeing authentication is unavailable on this installation."
 msgstr "此安裝無法使用 Coseeing 驗證。"
 
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:14
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:12
 msgid ""
 "Guideline:\n"
 "Users can add words to improve the accuracy of added terms. It is "
@@ -400,90 +647,85 @@ msgstr ""
 "注音：ㄌㄩˇ ㄧㄡˊ"
 
 #. Translators: This is the label for the add symbol dialog.
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:48
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:46
 msgid "Add a New Word"
 msgstr "新增詞彙"
 
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:56
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:54
 msgid "&Word:"
 msgstr "詞彙:"
 
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:63
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:61
 msgid "&Pronunciation (Pinyin or Zhuyin):"
 msgstr "發音(拼音或注音):"
 
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:97
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:88
 msgid "WordBridge Dictionary"
 msgstr "WordBridge 辭典"
 
 #. Translators: The label of a text field to search for symbols in the speech symbols dialog.
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:109
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:100
 msgid "&Filter by:"
 msgstr "篩選詞彙:"
 
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:120
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:111
 msgid "User can add words to improve the accuracy of these terms.\n"
 msgstr "使用者可藉由添加詞彙以提高這些詞彙的準確性。\n"
 
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:121
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:112
 msgid "Please press Help button for more details."
 msgstr "請按底下說明鍵以了解詳細資訊。"
 
 #. Translators: The label for symbols list in symbol pronunciation dialog.
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:126
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:117
 msgid "&Words"
 msgstr "詞彙"
 
 #. Translators: The label for a column in symbols list used to identify a word.
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:136
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:127
 msgid "Word"
 msgstr "詞彙"
 
 #. Translators: The label for a column in symbols list used to identify a pronunciation.
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:138
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:129
 msgid "Pronunciation (Pinyin or Zhuyin)"
 msgstr "拼音或注音"
 
 #. Translators: The label for the group of controls in symbol pronunciation dialog to change the pronunciation of a word.
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:143
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:134
 msgid "Edit selected word and its pronunciation (pinyin or zhuyin)"
 msgstr "編輯選取詞彙與其發音(拼音或注音)"
 
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:164
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:155
 msgid "Selected &Word:"
 msgstr "選取的詞彙:"
 
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:173
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:164
 msgid "&Pronunciation (Pinyin or Zhuyin): "
 msgstr "發音(拼音或注音):"
 
 #. Translators: The label for a button in the Symbol Pronunciation dialog to add a new symbol.
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:188
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:179
 msgid "&Add"
 msgstr "新增(&A)"
 
 #. Translators: The label for a button in the Symbol Pronunciation dialog to remove a symbol.
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:191
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:182
 msgid "Re&move"
 msgstr "移除(&R)"
 
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:194
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:185
 msgid "&Help"
 msgstr "說明(&H)"
 
 #. Translators: An error reported in the Symbol Pronunciation dialog
 #. when adding a symbol that is already present.
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:293
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:284
 #, python-format
 msgid "Word \"%s\" is already present."
 msgstr "詞彙 \"%s\" 已經存在。"
 
-#. Translators: title of an error message
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:295
-msgid "Error"
-msgstr "錯誤"
-
-#: addon\globalPlugins\WordBridge\dictionary\dialog.py:347
+#: addon/globalPlugins/WordBridge/dictionary/dialog.py:338
 msgid "Close"
 msgstr "關閉"
 
