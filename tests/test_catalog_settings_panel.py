@@ -448,6 +448,47 @@ def test_account_box_captions_are_the_same_with_and_without_a_fetched_list(monke
 	]
 
 
+def _served_overlay(f, document, runnable_providers=None):
+	overlay = __import__(f.plugin.__name__ + ".lib.catalog.overlay", fromlist=["load_overlay_catalog"])
+	return overlay.load_overlay_catalog(
+		f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting"), document,
+		runnable_providers=f.plugin.SUPPORTED_PROVIDERS if runnable_providers is None else runnable_providers,
+	)
+
+
+def test_a_model_for_a_provider_this_release_lacks_is_not_counted_in_the_dropped_line(monkeypatch):
+	# OQ1 -> B (Decided by the user, 2026-11-05): after B1 the server can list
+	# models for a provider only a newer release bundles; users of this
+	# release cannot fix that, so it is lint -- logged, not counted.
+	from shipped_catalog import served_document
+
+	f = _panel_fixture(monkeypatch)
+	document = served_document()
+	index = len(document["models"])
+	document["models"].append({"provider": "Mistral", "model": "m-large", "label": "M Large"})
+
+	catalog = _served_overlay(f, document)
+
+	assert ("unknown_provider", f"models[{index}]") in [(issue.code, issue.location) for issue in catalog.issues]
+	assert f.dialogs._dropped_entries_message(catalog) is None
+
+
+def test_an_unsupported_provider_is_still_counted_in_the_dropped_line(monkeypatch):
+	# The B boundary: a bundled provider this build cannot run means the
+	# bundled file and the code disagree, which is still worth showing.
+	from shipped_catalog import served_document
+
+	f = _panel_fixture(monkeypatch)
+
+	catalog = _served_overlay(f, served_document(), f.plugin.SUPPORTED_PROVIDERS - {"DeepSeek"})
+
+	deepseek = sum(1 for model in served_document()["models"] if model["provider"] == "DeepSeek")
+	assert deepseek >= 2, "the served file has too few DeepSeek models for this test"
+	assert f.dialogs._dropped_entries_message(catalog) == (
+		f"{deepseek} catalog entries could not be loaded; see the NVDA log for details."
+	)
+
+
 def _run_queued(f):
 	for callback, args in list(f.queued):
 		callback(*args)

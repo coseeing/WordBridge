@@ -222,6 +222,35 @@ def test_a_fetched_payload_with_providers_keeps_the_current_catalog(monkeypatch)
 	instance.terminate()
 
 
+def test_an_unknown_provider_issue_is_still_logged(monkeypatch):
+	# OQ1 -> B: not counted in the panel, but the log keeps the detail.
+	import json
+
+	from fake_http import BodyResponse
+	from shipped_catalog import served_document
+
+	plugin, queued, _auth = _load(monkeypatch)
+	lines = []
+	monkeypatch.setattr(plugin.log, "warning", lambda message, *args, **kwargs: lines.append(message % args))
+	instance = plugin.GlobalPlugin()
+	document = served_document()
+	index = len(document["models"])
+	document["models"].append({"provider": "Mistral", "model": "m-large", "label": "M Large"})
+	body = json.dumps(document).encode("utf8")
+	instance._catalog_updater._http_get = lambda url, **kwargs: BodyResponse(body)
+	queued.clear()
+	instance._start_catalog_fetch()
+	target, args = plugin.started_catalog_threads[0]
+	target(*args)
+	for callback, callback_args in list(queued):
+		callback(*callback_args)
+
+	assert [line for line in lines if "code=unknown_provider" in line] == [
+		f"WordBridge: catalog issue code=unknown_provider location=models[{index}]: no providers entry for 'Mistral'",
+	]
+	instance.terminate()
+
+
 def test_a_posted_fetch_result_is_installed_on_the_ui_queue(monkeypatch):
 	import json
 

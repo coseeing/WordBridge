@@ -27,8 +27,12 @@ class CatalogIssue:
 # Issue codes that flag a lint-level quirk in the source data -- legal,
 # nothing dropped -- rather than an entry, provider or document that was
 # actually rejected: "unreferenced_provider" (a provider no models entry
-# names), and overlay.py's "ignored_bundled_models" (the bundled file
-# carrying models, which are never meant to be used). Every other code
+# names), overlay.py's "ignored_bundled_models" (the bundled file carrying
+# models, which are never meant to be used), and "unknown_provider" (a
+# remote model for a provider this release does not bundle: expected once
+# providers ship with the add-on, since the server may list models for a
+# provider only a newer release has; still logged -- OQ1 -> B, decided by
+# the user on 2026-11-05). Every other code
 # lib/catalog emits means something was dropped. Kept here, next to
 # CatalogIssue, so a caller like the settings panel can ask "was anything
 # actually dropped" without hard-coding the validation vocabulary itself
@@ -36,6 +40,7 @@ class CatalogIssue:
 LINT_ISSUE_CODES = frozenset({
 	"unreferenced_provider",
 	"ignored_bundled_models",
+	"unknown_provider",
 })
 
 

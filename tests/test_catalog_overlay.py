@@ -134,7 +134,8 @@ def test_bundled_models_are_ignored_with_a_lint_issue():
 
 
 def test_the_lint_codes_are_pinned():
-	assert LINT_ISSUE_CODES == {"unreferenced_provider", "ignored_bundled_models"}
+	# unknown_provider: OQ1 -> B, Decided by the user (2026-11-05).
+	assert LINT_ISSUE_CODES == {"unreferenced_provider", "ignored_bundled_models", "unknown_provider"}
 
 
 def test_the_overlay_document_has_exactly_the_four_keys():
