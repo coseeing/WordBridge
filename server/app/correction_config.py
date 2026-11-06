@@ -50,7 +50,7 @@ def load_correction_settings(settings: Settings = None) -> CorrectionSettings:
 	model = catalog.get_model(default_id)
 	if model is None or not model.active or catalog.get_provider(model.provider) is None:
 		raise ValueError(
-			f"DEFAULT_CORRECTOR_CONFIG_ID {default_id!r} does not name an enabled, runnable local catalog model"
+			f"DEFAULT_CORRECTOR_CONFIG_ID {default_id!r} does not name an enabled, runnable local catalog model",
 		)
 
 	return CorrectionSettings(

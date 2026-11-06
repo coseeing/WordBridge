@@ -127,7 +127,14 @@ def _storable_ip(ip: str | None) -> str:
 	return ip
 
 
-def _sum_cost(db: Session, *, since: datetime, user_id_is_none: bool, user_id=None, ip_address=None) -> Decimal:
+def _sum_cost(
+	db: Session,
+	*,
+	since: datetime,
+	user_id_is_none: bool,
+	user_id=None,
+	ip_address=None,
+) -> Decimal:
 	query = db.query(func.sum(InteractionModel.cost)).filter(InteractionModel.request_time > since)
 	if user_id_is_none:
 		query = query.filter(InteractionModel.user_id.is_(None))

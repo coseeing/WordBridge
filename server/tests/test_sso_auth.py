@@ -76,6 +76,7 @@ def client(db, verifier):
 
 # --- get_bearer_token / guest vs. malformed --------------------------------
 
+
 def test_guest_is_optional(client):
 	response = client.get("/optional")
 	assert response.status_code == 200
@@ -106,6 +107,7 @@ def test_guest_never_downgrades_malformed_header(client):
 
 # --- verifier error mapping -------------------------------------------------
 
+
 def test_scope_error_maps_to_401(db):
 	verifier = FakeVerifier(error=ScopeError("missing scope"))
 	app_client = TestClient(_make_app(db, verifier))
@@ -116,8 +118,11 @@ def test_scope_error_maps_to_401(db):
 def test_token_validation_error_maps_to_401(db):
 	verifier = FakeVerifier(
 		error=TokenValidationError(
-			"bad token", operation="access_token", stage="token_validation", code="jwt_invalid"
-		)
+			"bad token",
+			operation="access_token",
+			stage="token_validation",
+			code="jwt_invalid",
+		),
 	)
 	app_client = TestClient(_make_app(db, verifier))
 	response = app_client.get("/optional", headers=_bearer())
@@ -126,7 +131,7 @@ def test_token_validation_error_maps_to_401(db):
 
 def test_discovery_error_maps_to_503(db):
 	verifier = FakeVerifier(
-		error=DiscoveryError("discovery down", code="discovery_network_error", retryable=True)
+		error=DiscoveryError("discovery down", code="discovery_network_error", retryable=True),
 	)
 	app_client = TestClient(_make_app(db, verifier))
 	response = app_client.get("/optional", headers=_bearer())
@@ -135,6 +140,7 @@ def test_discovery_error_maps_to_503(db):
 
 # --- require_user / require_superuser --------------------------------------
 
+
 def test_require_user_401_without_token(client):
 	response = client.get("/user")
 	assert response.status_code == 401
@@ -142,8 +148,13 @@ def test_require_user_401_without_token(client):
 
 def test_ordinary_user_gets_403_from_admin(db, monkeypatch):
 	user = User(
-		account="user@example.org", name="User", sso_sub="sub-1", email_verified=True,
-		is_active=True, is_superuser=False, quota=0.1,
+		account="user@example.org",
+		name="User",
+		sso_sub="sub-1",
+		email_verified=True,
+		is_active=True,
+		is_superuser=False,
+		quota=0.1,
 	)
 	db.add(user)
 	db.commit()
@@ -155,8 +166,13 @@ def test_ordinary_user_gets_403_from_admin(db, monkeypatch):
 
 def test_superuser_gets_200_from_admin(db):
 	user = User(
-		account="admin@example.org", name="Admin", sso_sub="sub-1", email_verified=True,
-		is_active=True, is_superuser=True, quota=0.1,
+		account="admin@example.org",
+		name="Admin",
+		sso_sub="sub-1",
+		email_verified=True,
+		is_active=True,
+		is_superuser=True,
+		quota=0.1,
 	)
 	db.add(user)
 	db.commit()
@@ -168,6 +184,7 @@ def test_superuser_gets_200_from_admin(db):
 
 
 # --- token verification happens every request, UserInfo only when needed --
+
 
 def test_verifier_runs_every_request_but_userinfo_only_while_unverified(db, monkeypatch):
 	calls = {"userinfo": 0}

@@ -13,6 +13,7 @@ BASE_DIR = os.path.dirname(__file__)
 Base.metadata.create_all(bind=engine)
 Session = sessionmaker(bind=engine)
 
+
 def main():
 	with Session() as session, session.begin():
 		# SSO-linked users (Task 1: no password column). sso_sub is left
@@ -54,9 +55,14 @@ def main():
 
 	# Querying records with join and loading related entities
 	with Session() as session, session.begin():
-		stmt = select(User, Interaction).join(User.interactions, isouter=True).options(selectinload(User.interactions))
+		stmt = (
+			select(User, Interaction)
+			.join(User.interactions, isouter=True)
+			.options(selectinload(User.interactions))
+		)
 		result = session.execute(stmt)
 		for user, interaction in result.all():
 			print(user, interaction)
+
 
 main()

@@ -45,8 +45,11 @@ def test_root_needs_no_authentication_and_sets_no_cookie():
 	assert "set-cookie" not in response.headers
 
 
-@pytest.mark.parametrize("content", [b"[]", b'{"schema_version": 2}', b"{not json", b'{"providers": {}}'],
-	ids=["array", "schema-2", "not-json", "schema-missing"])
+@pytest.mark.parametrize(
+	"content",
+	[b"[]", b'{"schema_version": 2}', b"{not json", b'{"providers": {}}'],
+	ids=["array", "schema-2", "not-json", "schema-missing"],
+)
 def test_load_catalog_bytes_rejects_a_bad_file(tmp_path, content):
 	path = tmp_path / "catalog.json"
 	path.write_bytes(content)
@@ -58,12 +61,18 @@ def test_load_catalog_bytes_rejects_a_bad_file(tmp_path, content):
 def test_load_catalog_bytes_keeps_every_other_key_in_file_order(tmp_path):
 	path = tmp_path / "catalog.json"
 	models = [{"provider": "OpenAI", "model": "m", "label": "模型"}]
-	path.write_text(json.dumps({
-		"schema_version": 1,
-		"providers": {"OpenAI": {"url": "https://api.openai.com/v1/responses"}},
-		"models": models,
-		"extra": {"x": 1},
-	}, ensure_ascii=False), encoding="utf8")
+	path.write_text(
+		json.dumps(
+			{
+				"schema_version": 1,
+				"providers": {"OpenAI": {"url": "https://api.openai.com/v1/responses"}},
+				"models": models,
+				"extra": {"x": 1},
+			},
+			ensure_ascii=False,
+		),
+		encoding="utf8",
+	)
 
 	content = main_module.load_catalog_bytes(path)
 

@@ -3,6 +3,7 @@
 The server's own provider keys must not land in the server log: a key in a
 logged URL or in logged exception text is a key handed to whoever reads it.
 """
+
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -59,7 +60,7 @@ def _connection_error():
 	return error_type(
 		"HTTPSConnectionPool(host='generativelanguage.googleapis.com', port=443): "
 		f"Max retries exceeded with url: /v1beta/models/gemini:generateContent?key={SECRET} "
-		"(Caused by NameResolutionError(\"Failed to resolve\"))"
+		'(Caused by NameResolutionError("Failed to resolve"))',
 	)
 
 
@@ -70,13 +71,19 @@ def _logged_text(log_mock):
 @pytest.mark.parametrize("provider_name", ["Google", "OpenAI", "Anthropic"])
 def test_send_failure_logs_the_error_type_but_never_its_text(provider_name):
 	provider = provider_module.get_provider(
-		provider_name, {"api_key": SECRET}, retries=2, provider_entry=_entry(),
+		provider_name,
+		{"api_key": SECRET},
+		retries=2,
+		provider_entry=_entry(),
 	)
 	log = MagicMock()
 
-	with patch.object(provider_module.requests, "post", side_effect=_connection_error()), \
-			patch.object(provider_module.time, "sleep"), \
-			patch.object(provider_module, "log", log), pytest.raises(Exception) as raised:
+	with (
+		patch.object(provider_module.requests, "post", side_effect=_connection_error()),
+		patch.object(provider_module.time, "sleep"),
+		patch.object(provider_module, "log", log),
+		pytest.raises(Exception) as raised,
+	):
 		provider.send({}, model_name="gemini-3.8-flash")
 
 	logged = _logged_text(log)
@@ -92,8 +99,11 @@ def test_try_connection_failure_logs_the_error_type_but_never_its_text():
 	provider = provider_module.GoogleProvider({"api_key": SECRET}, provider_entry=_entry())
 	log = MagicMock()
 
-	with patch.object(provider_module.requests, "get", side_effect=_connection_error()), \
-			patch.object(provider_module, "log", log), pytest.raises(Exception) as raised:
+	with (
+		patch.object(provider_module.requests, "get", side_effect=_connection_error()),
+		patch.object(provider_module, "log", log),
+		pytest.raises(Exception) as raised,
+	):
 		provider.try_connection(try_count=2)
 
 	logged = _logged_text(log)

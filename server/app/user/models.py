@@ -1,4 +1,3 @@
-
 from sqlalchemy import Boolean, Double, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,4 +15,10 @@ class User(Base):
 	is_active: Mapped[bool] = mapped_column(Boolean, default=False)
 	is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
 	quota: Mapped[float] = mapped_column(Double, default=0)
-	interactions: Mapped[list["Interaction"]] = relationship("Interaction", back_populates="user", foreign_keys="[Interaction.user_id]", init=False, repr=False)
+	interactions: Mapped[list["Interaction"]] = relationship(
+		"Interaction",
+		back_populates="user",
+		foreign_keys="[Interaction.user_id]",
+		init=False,
+		repr=False,
+	)

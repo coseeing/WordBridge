@@ -332,8 +332,13 @@ def test_request_length_under_cap_is_accepted(db, fake_run_typo_correction, monk
 	# would already be blocked by the separate, tighter 128-char guest limit.
 	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	user = User(
-		account="atcap@example.org", name="AtCap", sso_sub="sub-atcap", email_verified=True,
-		is_active=True, is_superuser=False, quota=1000,
+		account="atcap@example.org",
+		name="AtCap",
+		sso_sub="sub-atcap",
+		email_verified=True,
+		is_active=True,
+		is_superuser=False,
+		quota=1000,
 	)
 	db.add(user)
 	db.commit()
@@ -346,7 +351,9 @@ def test_request_length_under_cap_is_accepted(db, fake_run_typo_correction, monk
 
 
 def test_guest_over_length_cap_is_422_not_429_and_writes_no_interaction(
-	db, fake_run_typo_correction, monkeypatch
+	db,
+	fake_run_typo_correction,
+	monkeypatch,
 ):
 	# Above the (tighter) guest limit but this asserts the universal cap
 	# fires with 422, distinct from the guest-only 429 quota path.
@@ -362,15 +369,22 @@ def test_guest_over_length_cap_is_422_not_429_and_writes_no_interaction(
 
 
 def test_authenticated_user_over_length_cap_is_422_not_502_and_writes_no_interaction(
-	db, fake_run_typo_correction, monkeypatch
+	db,
+	fake_run_typo_correction,
+	monkeypatch,
 ):
 	# Above the guest limit (which does not apply to authenticated users) but
 	# also above the universal cap -- must still be rejected before ever
 	# reaching the provider.
 	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	user = User(
-		account="longtext@example.org", name="LongText", sso_sub="sub-long", email_verified=True,
-		is_active=True, is_superuser=False, quota=1000,
+		account="longtext@example.org",
+		name="LongText",
+		sso_sub="sub-long",
+		email_verified=True,
+		is_active=True,
+		is_superuser=False,
+		quota=1000,
 	)
 	db.add(user)
 	db.commit()
@@ -407,7 +421,11 @@ def test_guest_ip_quota_just_under_boundary_is_accepted(db, fake_run_typo_correc
 	assert response.status_code == 200
 
 
-def test_guest_global_quota_exact_boundary_is_429_independent_of_ip(db, fake_run_typo_correction, monkeypatch):
+def test_guest_global_quota_exact_boundary_is_429_independent_of_ip(
+	db,
+	fake_run_typo_correction,
+	monkeypatch,
+):
 	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	# Spread 0.3 total cost across other guest IPs -- none of which is the
 	# requesting IP, so the per-IP check alone would pass.
@@ -442,8 +460,13 @@ def test_guest_quota_ignores_interactions_older_than_24h(db, fake_run_typo_corre
 def test_ordinary_user_quota_is_enforced(db, fake_run_typo_correction, monkeypatch):
 	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	user = User(
-		account="user@example.org", name="User", sso_sub="sub-1", email_verified=True,
-		is_active=True, is_superuser=False, quota=0.05,
+		account="user@example.org",
+		name="User",
+		sso_sub="sub-1",
+		email_verified=True,
+		is_active=True,
+		is_superuser=False,
+		quota=0.05,
 	)
 	db.add(user)
 	db.commit()
@@ -458,8 +481,13 @@ def test_ordinary_user_quota_is_enforced(db, fake_run_typo_correction, monkeypat
 def test_ordinary_user_under_quota_is_accepted(db, fake_run_typo_correction, monkeypatch):
 	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	user = User(
-		account="user2@example.org", name="User2", sso_sub="sub-2", email_verified=True,
-		is_active=True, is_superuser=False, quota=0.5,
+		account="user2@example.org",
+		name="User2",
+		sso_sub="sub-2",
+		email_verified=True,
+		is_active=True,
+		is_superuser=False,
+		quota=0.5,
 	)
 	db.add(user)
 	db.commit()
@@ -476,8 +504,13 @@ def test_ordinary_user_under_quota_is_accepted(db, fake_run_typo_correction, mon
 def test_superuser_is_exempt_from_quota(db, fake_run_typo_correction, monkeypatch):
 	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	user = User(
-		account="admin@example.org", name="Admin", sso_sub="sub-3", email_verified=True,
-		is_active=True, is_superuser=True, quota=0.01,
+		account="admin@example.org",
+		name="Admin",
+		sso_sub="sub-3",
+		email_verified=True,
+		is_active=True,
+		is_superuser=True,
+		quota=0.01,
 	)
 	db.add(user)
 	db.commit()

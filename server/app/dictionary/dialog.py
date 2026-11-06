@@ -12,7 +12,7 @@ from . import WBW_DICTIONARY_PATH
 addonHandler.initTranslation()
 
 GUIDELINE_TEXT = _(
-"""Guideline:
+	"""Guideline:
 Users can add words to improve the accuracy of added terms. It is recommended to add specialized terms that may not be present in the model's training data or terms that the model frequently make mistakes. The pronunciation (pinyin or zhuyin) of an added word is optional, but providing it can help improve correctness.
 
 For the format of pronunciation (pinyin or zhuyin), please see the following rules and examples
@@ -28,7 +28,7 @@ Zhuyin: ㄅㄚˋ ㄅㄚ˙
 Example2:
 Word: 旅遊
 Pinyin: lv3 you2
-Zhuyin: ㄌㄩˇ ㄧㄡˊ"""
+Zhuyin: ㄌㄩˇ ㄧㄡˊ""",
 )
 
 
@@ -85,10 +85,10 @@ class DictionaryEntryDialog(SettingsDialog):
 	helpId = "WordBridgeDictionary"
 
 	def __init__(self, parent):
-		self.path = os.path.join(WBW_DICTIONARY_PATH, 'data.csv')
+		self.path = os.path.join(WBW_DICTIONARY_PATH, "data.csv")
 		if not os.path.exists(self.path):
-			open(self.path, 'w', encoding='utf-8').close()
-		with open(self.path, 'r', encoding='utf-8') as file:
+			open(self.path, "w", encoding="utf-8").close()
+		with open(self.path, "r", encoding="utf-8") as file:
 			self.data = list(csv.DictReader(file))
 
 		self.title = _("WordBridge Dictionary")
@@ -114,9 +114,9 @@ class DictionaryEntryDialog(SettingsDialog):
 		sHelper.addItem(
 			wx.StaticText(
 				self,
-				label=_("User can add words to improve the accuracy of these terms.\n") +\
-				_("Please press Help button for more details.")
-			)
+				label=_("User can add words to improve the accuracy of these terms.\n")
+				+ _("Please press Help button for more details."),
+			),
 		)
 
 		# Translators: The label for symbols list in symbol pronunciation dialog.
@@ -167,7 +167,10 @@ class DictionaryEntryDialog(SettingsDialog):
 		self.wordEdit.Bind(wx.EVT_TEXT, skipEventAndCall(self.onWordEdited))
 		sizer.Add(self.wordEdit, pos=(0, 1))
 
-		self.pronunciationTextxtLabel = wx.StaticText(modifyPanel, label=_("&Pronunciation (Pinyin or Zhuyin): "))
+		self.pronunciationTextxtLabel = wx.StaticText(
+			modifyPanel,
+			label=_("&Pronunciation (Pinyin or Zhuyin): "),
+		)
 		sizer.Add(self.pronunciationTextxtLabel, pos=(1, 0), flag=wx.LEFT, border=10)
 		self.pronunciationEdit = wx.TextCtrl(
 			modifyPanel,
@@ -354,12 +357,14 @@ class DictionaryEntryDialog(SettingsDialog):
 
 		data = []
 		for word in self.words:
-			data.append({
-				"text": word.text,
-				"pronunciation": word.pronunciation,
-			})
+			data.append(
+				{
+					"text": word.text,
+					"pronunciation": word.pronunciation,
+				},
+			)
 
-		with open(self.path, 'w', encoding='utf-8', newline='') as file:
+		with open(self.path, "w", encoding="utf-8", newline="") as file:
 			writer = csv.DictWriter(file, fieldnames=["text", "pronunciation"])
 			writer.writeheader()
 			for row in data:

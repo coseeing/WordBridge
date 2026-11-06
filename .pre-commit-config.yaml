@@ -13,24 +13,24 @@ repos:
       # last one has a trailing comma, so add the ones that were missed.
       - id: add-trailing-comma
         types_or: [file]
-        files: ^(addon/.*\.py|tests/.*\.py|site_scons/.*\.py|buildVars\.py|sconstruct)$
-        exclude: ^addon/globalPlugins/WordBridge/package/
+        files: ^(addon/.*\.py|tests/.*\.py|server/.*\.py|site_scons/.*\.py|buildVars\.py|sconstruct)$
+        exclude: ^(addon/globalPlugins/WordBridge/package|server/app/package)/
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Matches the Ruff version NVDA pins (see pyproject.toml).
     rev: v0.16.3
     hooks:
-      # Only the add-on side for now: server/ and workspace/ are not clean yet.
+      # The add-on and the server; workspace/ is not clean yet.
       # types_or: [file] plus the pattern, because sconstruct has no .py
       # extension and would otherwise be skipped.
       - id: ruff
         name: lint with ruff
         args: [--fix]
         types_or: [file]
-        files: ^(addon/.*\.py|tests/.*\.py|site_scons/.*\.py|buildVars\.py|sconstruct)$
-        exclude: ^addon/globalPlugins/WordBridge/package/
+        files: ^(addon/.*\.py|tests/.*\.py|server/.*\.py|site_scons/.*\.py|buildVars\.py|sconstruct)$
+        exclude: ^(addon/globalPlugins/WordBridge/package|server/app/package)/
       - id: ruff-format
         name: format with ruff
         types_or: [file]
-        files: ^(addon/.*\.py|tests/.*\.py|site_scons/.*\.py|buildVars\.py|sconstruct)$
-        exclude: ^addon/globalPlugins/WordBridge/package/
+        files: ^(addon/.*\.py|tests/.*\.py|server/.*\.py|site_scons/.*\.py|buildVars\.py|sconstruct)$
+        exclude: ^(addon/globalPlugins/WordBridge/package|server/app/package)/

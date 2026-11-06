@@ -85,8 +85,13 @@ def _seed_interaction(db, *, user=None):
 
 def _ordinary_user(db):
 	user = User(
-		account="user@example.org", name="User", sso_sub="sub-1", email_verified=True,
-		is_active=True, is_superuser=False, quota=0.1,
+		account="user@example.org",
+		name="User",
+		sso_sub="sub-1",
+		email_verified=True,
+		is_active=True,
+		is_superuser=False,
+		quota=0.1,
 	)
 	db.add(user)
 	db.commit()
@@ -95,8 +100,13 @@ def _ordinary_user(db):
 
 def _superuser(db):
 	user = User(
-		account="admin@example.org", name="Admin", sso_sub="sub-2", email_verified=True,
-		is_active=True, is_superuser=True, quota=0.1,
+		account="admin@example.org",
+		name="Admin",
+		sso_sub="sub-2",
+		email_verified=True,
+		is_active=True,
+		is_superuser=True,
+		quota=0.1,
 	)
 	db.add(user)
 	db.commit()
@@ -254,8 +264,13 @@ def _client_with_real_auth_chain(db, *, verifier):
 
 def _inactive_user(db, *, is_superuser=False):
 	user = User(
-		account="inactive@example.org", name="Inactive", sso_sub="sub-inactive",
-		email_verified=True, is_active=False, is_superuser=is_superuser, quota=0.1,
+		account="inactive@example.org",
+		name="Inactive",
+		sso_sub="sub-inactive",
+		email_verified=True,
+		is_active=False,
+		is_superuser=is_superuser,
+		quota=0.1,
 	)
 	db.add(user)
 	db.commit()

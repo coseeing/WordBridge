@@ -20,14 +20,22 @@ def _patch_userinfo(monkeypatch, payload):
 def _no_userinfo_call(monkeypatch):
 	def _fail(token):
 		raise AssertionError("UserInfo called")
+
 	monkeypatch.setattr("app.user.linking.fetch_userinfo", _fail)
 
 
 # --- fast path -----------------------------------------------------------
 
+
 def test_existing_verified_sub_does_not_call_userinfo(db, monkeypatch):
-	user = User(account="a@example.org", name="A", sso_sub="s1", email_verified=True,
-	            is_active=True, quota=0.1)
+	user = User(
+		account="a@example.org",
+		name="A",
+		sso_sub="s1",
+		email_verified=True,
+		is_active=True,
+		quota=0.1,
+	)
 	db.add(user)
 	db.commit()
 	_no_userinfo_call(monkeypatch)
@@ -35,8 +43,14 @@ def test_existing_verified_sub_does_not_call_userinfo(db, monkeypatch):
 
 
 def test_existing_unverified_sub_calls_userinfo_and_updates_flag(db, monkeypatch):
-	user = User(account="a@example.org", name="A", sso_sub="s1", email_verified=False,
-	            is_active=True, quota=0.1)
+	user = User(
+		account="a@example.org",
+		name="A",
+		sso_sub="s1",
+		email_verified=False,
+		is_active=True,
+		quota=0.1,
+	)
 	db.add(user)
 	db.commit()
 	_patch_userinfo(monkeypatch, VALID_USERINFO)
@@ -49,9 +63,16 @@ def test_existing_unverified_sub_calls_userinfo_and_updates_flag(db, monkeypatch
 
 # --- linking by email ------------------------------------------------------
 
+
 def test_link_existing_user_by_email(db, monkeypatch):
-	user = User(account="a@example.org", name="A", sso_sub=None, email_verified=False,
-	            is_active=True, quota=0.1)
+	user = User(
+		account="a@example.org",
+		name="A",
+		sso_sub=None,
+		email_verified=False,
+		is_active=True,
+		quota=0.1,
+	)
 	db.add(user)
 	db.commit()
 	_patch_userinfo(monkeypatch, VALID_USERINFO)
@@ -64,8 +85,14 @@ def test_link_existing_user_by_email(db, monkeypatch):
 
 
 def test_link_by_email_is_case_insensitive(db, monkeypatch):
-	user = User(account="A@Example.org", name="A", sso_sub=None, email_verified=False,
-	            is_active=True, quota=0.1)
+	user = User(
+		account="A@Example.org",
+		name="A",
+		sso_sub=None,
+		email_verified=False,
+		is_active=True,
+		quota=0.1,
+	)
 	db.add(user)
 	db.commit()
 	_patch_userinfo(monkeypatch, VALID_USERINFO)
@@ -77,8 +104,14 @@ def test_link_by_email_is_case_insensitive(db, monkeypatch):
 
 
 def test_linking_preserves_inactive_status(db, monkeypatch):
-	user = User(account="a@example.org", name="A", sso_sub=None, email_verified=False,
-	            is_active=False, quota=0.1)
+	user = User(
+		account="a@example.org",
+		name="A",
+		sso_sub=None,
+		email_verified=False,
+		is_active=False,
+		quota=0.1,
+	)
 	db.add(user)
 	db.commit()
 	_patch_userinfo(monkeypatch, VALID_USERINFO)
@@ -94,8 +127,14 @@ def test_verified_sub_with_stale_account_resyncs_to_new_email(db, monkeypatch):
 	matches the freshly UserInfo-verified email must not simply be flagged
 	verified in place (that would vouch for an email never actually
 	checked against this row) — it re-syncs the account to match."""
-	user = User(account="old@example.org", name="Old", sso_sub="s1", email_verified=False,
-	            is_active=True, quota=0.1)
+	user = User(
+		account="old@example.org",
+		name="Old",
+		sso_sub="s1",
+		email_verified=False,
+		is_active=True,
+		quota=0.1,
+	)
 	db.add(user)
 	db.commit()
 	_patch_userinfo(monkeypatch, {"sub": "s1", "email": "new@example.org", "email_verified": True})
@@ -108,10 +147,22 @@ def test_verified_sub_with_stale_account_resyncs_to_new_email(db, monkeypatch):
 
 
 def test_verified_sub_cannot_steal_email_owned_by_another_user(db, monkeypatch):
-	stale = User(account="old@example.org", name="Old", sso_sub="s1", email_verified=False,
-	             is_active=True, quota=0.1)
-	other = User(account="new@example.org", name="Other", sso_sub="s3", email_verified=True,
-	             is_active=True, quota=0.1)
+	stale = User(
+		account="old@example.org",
+		name="Old",
+		sso_sub="s1",
+		email_verified=False,
+		is_active=True,
+		quota=0.1,
+	)
+	other = User(
+		account="new@example.org",
+		name="Other",
+		sso_sub="s3",
+		email_verified=True,
+		is_active=True,
+		quota=0.1,
+	)
 	db.add_all([stale, other])
 	db.commit()
 	_patch_userinfo(monkeypatch, {"sub": "s1", "email": "new@example.org", "email_verified": True})
@@ -128,13 +179,24 @@ def test_verified_sub_cannot_steal_email_owned_by_another_user(db, monkeypatch):
 
 
 def test_email_linked_to_other_sub_is_not_reassigned(db, monkeypatch):
-	user = User(account="a@example.org", name="A", sso_sub="s1", email_verified=True,
-	            is_active=True, quota=0.1)
+	user = User(
+		account="a@example.org",
+		name="A",
+		sso_sub="s1",
+		email_verified=True,
+		is_active=True,
+		quota=0.1,
+	)
 	db.add(user)
 	db.commit()
-	monkeypatch.setattr("app.user.linking.fetch_userinfo", lambda token: {
-		"sub": "s2", "email": "a@example.org", "email_verified": True
-	})
+	monkeypatch.setattr(
+		"app.user.linking.fetch_userinfo",
+		lambda token: {
+			"sub": "s2",
+			"email": "a@example.org",
+			"email_verified": True,
+		},
+	)
 	try:
 		resolve_local_user(db, "s2", "access-token")
 		assert False, "expected conflict"
@@ -146,8 +208,12 @@ def test_email_linked_to_other_sub_is_not_reassigned(db, monkeypatch):
 
 # --- creation --------------------------------------------------------------
 
+
 def test_create_new_user_when_no_match(db, monkeypatch):
-	_patch_userinfo(monkeypatch, {"sub": "s9", "email": "new@example.org", "email_verified": True, "name": "New Person"})
+	_patch_userinfo(
+		monkeypatch,
+		{"sub": "s9", "email": "new@example.org", "email_verified": True, "name": "New Person"},
+	)
 
 	result = resolve_local_user(db, "s9", "access-token")
 
@@ -170,7 +236,10 @@ def test_create_new_user_falls_back_to_email_when_name_missing(db, monkeypatch):
 
 def test_create_new_user_truncates_long_name(db, monkeypatch):
 	long_name = "N" * 60
-	_patch_userinfo(monkeypatch, {"sub": "s9", "email": "new@example.org", "email_verified": True, "name": long_name})
+	_patch_userinfo(
+		monkeypatch,
+		{"sub": "s9", "email": "new@example.org", "email_verified": True, "name": long_name},
+	)
 
 	result = resolve_local_user(db, "s9", "access-token")
 
@@ -179,6 +248,7 @@ def test_create_new_user_truncates_long_name(db, monkeypatch):
 
 
 # --- 403 validation failures -------------------------------------------------
+
 
 def test_mismatched_sub_returns_403_and_creates_nothing(db, monkeypatch):
 	_patch_userinfo(monkeypatch, {"sub": "other-sub", "email": "new@example.org", "email_verified": True})
@@ -221,6 +291,7 @@ def test_missing_email_returns_403(db, monkeypatch):
 
 # --- fetch_userinfo itself --------------------------------------------------
 
+
 class _FakeResponse:
 	def __init__(self, status_code=200, json_value=None, json_error=None):
 		self.status_code = status_code
@@ -236,6 +307,7 @@ class _FakeResponse:
 def test_fetch_userinfo_connection_error_returns_503(monkeypatch):
 	def _raise(*args, **kwargs):
 		raise requests.ConnectionError("boom")
+
 	monkeypatch.setattr("app.user.linking.requests.get", _raise)
 
 	with pytest.raises(HTTPException) as excinfo:
@@ -247,6 +319,7 @@ def test_fetch_userinfo_connection_error_returns_503(monkeypatch):
 def test_fetch_userinfo_timeout_returns_503(monkeypatch):
 	def _raise(*args, **kwargs):
 		raise requests.Timeout("timed out")
+
 	monkeypatch.setattr("app.user.linking.requests.get", _raise)
 
 	with pytest.raises(HTTPException) as excinfo:
@@ -277,7 +350,10 @@ def test_fetch_userinfo_unparseable_json_returns_503(monkeypatch):
 
 
 def test_fetch_userinfo_non_object_json_returns_503(monkeypatch):
-	monkeypatch.setattr("app.user.linking.requests.get", lambda *a, **k: _FakeResponse(json_value=["not", "an", "object"]))
+	monkeypatch.setattr(
+		"app.user.linking.requests.get",
+		lambda *a, **k: _FakeResponse(json_value=["not", "an", "object"]),
+	)
 
 	with pytest.raises(HTTPException) as excinfo:
 		fetch_userinfo("secret-token")
@@ -304,6 +380,7 @@ def test_fetch_userinfo_sends_bearer_token_and_returns_payload(monkeypatch):
 
 
 # --- concurrency -------------------------------------------------------------
+
 
 def test_concurrent_creation_of_same_subject_leaves_one_user(monkeypatch, tmp_path):
 	"""Two sessions racing to create the same brand-new subject must not
@@ -374,8 +451,14 @@ def test_concurrent_link_by_email_with_different_subjects_does_not_reassign(monk
 	Base.metadata.create_all(engine)
 
 	with Session(engine) as setup:
-		user = User(account="shared@example.org", name="Shared", sso_sub=None, email_verified=False,
-		            is_active=True, quota=0.1)
+		user = User(
+			account="shared@example.org",
+			name="Shared",
+			sso_sub=None,
+			email_verified=False,
+			is_active=True,
+			quota=0.1,
+		)
 		setup.add(user)
 		setup.commit()
 		user_id = user.id
