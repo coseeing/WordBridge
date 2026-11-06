@@ -78,18 +78,23 @@ def test_the_bundled_document_declares_the_current_schema_version():
 	document = shipped_document()
 
 	assert document["schema_version"] == SCHEMA_VERSION
-	# Provider entries ship with the add-on (B1); models come only from the
-	# remote payload, so no snapshot of the model list ships (U1).
-	assert set(document) == {"schema_version", "providers", "coseeings"}
+	# Provider entries ship with the add-on (B1), and so does the model list
+	# as it was at release time: it is used until a remote payload is
+	# accepted, and whenever none can be loaded.
+	assert set(document) == {"schema_version", "providers", "models", "coseeings"}
 
 
-def test_the_bundled_catalog_alone_offers_only_the_sentinel():
+def test_the_bundled_catalog_alone_offers_the_shipped_model_list():
 	catalog = shipped_catalog()
 
-	assert catalog.provider_groups == (COSEEING_GROUP,)
-	assert catalog.providers == {}
-	assert catalog.models == ()
-	assert catalog.issues == ()
+	def local_items(c):
+		return [(item.corrector_config_id, item.label) for item in c.selectable_items if item.execution_channel == "local"]
+
+	assert local_items(catalog) == local_items(shipped_overlay())
+	assert catalog.labels_for(COSEEING_GROUP) == ("default",)
+	assert [(issue.code, issue.location) for issue in catalog.issues] == [
+		("unreferenced_provider", "providers.OpenRouter"),
+	]
 	assert catalog.degraded is False
 
 
@@ -178,6 +183,24 @@ def test_the_bundled_providers_equal_the_server_providers():
 	assert _canonical(bundled) == _canonical(server), (
 		f"first differing provider: {_first_differing_provider(bundled, server)}"
 	)
+
+
+def test_the_bundled_models_equal_the_server_models():
+	# The bundled model list is the server's list at release time: a model
+	# change edits both files in the same commit.
+	bundled = bundled_document()["models"]
+	server = server_document()["models"]
+
+	assert _canonical(bundled) == _canonical(server), (
+		f"first differing model index: {_first_differing_index(bundled, server)}"
+	)
+
+
+def _first_differing_index(bundled, server):
+	for index in range(max(len(bundled), len(server))):
+		if index >= len(bundled) or index >= len(server) or _canonical(bundled[index]) != _canonical(server[index]):
+			return index
+	return None
 
 
 def _server_gains(bundled, server):

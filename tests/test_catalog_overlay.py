@@ -121,21 +121,34 @@ def test_remote_coseeings_are_ignored_without_an_issue():
 	assert issues == ()
 
 
-def test_bundled_models_are_ignored_with_a_lint_issue():
-	bundled = _bundled(providers={"OpenAI": _provider(OPENAI_URL)}, models=[])
+def test_remote_models_replace_the_bundled_models_without_an_issue():
+	# The bundled models are only the list shipped at release time: an
+	# accepted remote payload replaces them as a whole, nothing is merged.
+	bundled = _bundled(
+		providers={"OpenAI": _provider(OPENAI_URL)},
+		models=[{"model": "gpt-bundled", "provider": "OpenAI", "label": "gpt-bundled"}],
+	)
 
 	document, issues = overlay_documents(bundled, _remote())
 
 	assert document["models"] == _remote()["models"]
-	assert [(issue.code, issue.location) for issue in issues] == [("ignored_bundled_models", "bundled.models")]
-	assert is_dropped_issue(issues[0]) is False
-	# Bundled providers are where they belong: no issue.
-	assert overlay_documents(_bundled(providers={"OpenAI": _provider(OPENAI_URL)}), _remote())[1] == ()
+	assert issues == ()
+
+
+def test_without_a_remote_document_the_bundled_models_are_used():
+	models = [{"model": "gpt-bundled", "provider": "OpenAI", "label": "gpt-bundled"}]
+	providers = {"OpenAI": _provider(OPENAI_URL)}
+
+	document, issues = overlay_documents(_bundled(providers=providers, models=models), None)
+
+	assert document["models"] == models
+	assert document["providers"] == providers
+	assert issues == ()
 
 
 def test_the_lint_codes_are_pinned():
 	# unknown_provider: OQ1 -> B, Decided by the user (2026-11-05).
-	assert LINT_ISSUE_CODES == {"unreferenced_provider", "ignored_bundled_models", "unknown_provider"}
+	assert LINT_ISSUE_CODES == {"unreferenced_provider", "unknown_provider"}
 
 
 def test_the_overlay_document_has_exactly_the_four_keys():
@@ -145,11 +158,13 @@ def test_the_overlay_document_has_exactly_the_four_keys():
 	assert document["schema_version"] == 1
 
 
-def test_no_remote_document_gives_the_sentinel_only():
-	# U1: no model snapshot ships, and the bundled provider entries are not
-	# used without models -- that would add one unreferenced_provider
-	# warning per provider to every offline start.
-	catalog = _load(StaticSource(bundled_document()), None)
+def test_no_remote_document_and_no_bundled_models_gives_the_sentinel_only():
+	# Without any models the bundled provider entries are not used -- that
+	# would add one unreferenced_provider warning per provider to every
+	# offline start.
+	bundled = {key: value for key, value in bundled_document().items() if key != "models"}
+
+	catalog = _load(StaticSource(bundled), None)
 
 	assert catalog.providers == {}
 	assert catalog.models == ()
@@ -158,6 +173,23 @@ def test_no_remote_document_gives_the_sentinel_only():
 	assert catalog.degraded is False
 	assert catalog.issues == ()
 	assert has_local_items(catalog) is False
+
+
+def test_no_remote_document_gives_the_shipped_bundled_models():
+	# The list shipped at release time is offered before any remote catalog
+	# loads, and whenever none can be loaded.
+	catalog = _load(StaticSource(bundled_document()), None)
+
+	assert has_local_items(catalog) is True
+	assert [entry.corrector_config_id for entry in catalog.models] == [
+		f"{entry['model']}&{entry['provider']}" for entry in bundled_document()["models"]
+	]
+	assert catalog.labels_for(COSEEING_GROUP) == ("default",)
+	assert catalog.default_selection() == ("default", COSEEING_GROUP)
+	assert catalog.degraded is False
+	assert [(issue.code, issue.location) for issue in catalog.issues] == [
+		("unreferenced_provider", "providers.OpenRouter"),
+	]
 
 
 def test_a_broken_bundled_file_plus_a_good_remote_gives_the_sentinel_and_no_local_items():
@@ -249,7 +281,7 @@ def test_the_shipped_target_files_overlay_as_section_7_4():
 	from shipped_catalog import ADDON_SETTING_DIR
 
 	server = json.loads(SERVER_CATALOG.read_text(encoding="utf8"))
-	assert bundled_document() == _bundled(providers=server["providers"])
+	assert bundled_document() == _bundled(providers=server["providers"], models=server["models"])
 	assert "coseeings" not in server
 
 	catalog = load_overlay_catalog(

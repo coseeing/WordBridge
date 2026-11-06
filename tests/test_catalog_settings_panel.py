@@ -306,6 +306,12 @@ STATUS_TABLE = [
 	("failed", "none", "failed", "The model list could not be loaded, so only the Coseeing default is available. See the NVDA log for details."),
 	("stale", "cache", "failed", "The model list could not be updated. WordBridge is using the list it saved earlier."),
 	("cache-running", "cache", "running", None),
+	# The add-on's release-time model list is in use: the list is not short,
+	# so a load in progress says nothing, like cache/running.
+	("bundled-off", "bundled", "off", "The model list URL is empty, so WordBridge is using the model list that came with the add-on."),
+	("bundled-invalid", "bundled", "invalid", "The model list URL is invalid, so WordBridge is using the model list that came with the add-on."),
+	("bundled-running", "bundled", "running", None),
+	("bundled-failed", "bundled", "failed", "The model list could not be updated. WordBridge is using the model list that came with the add-on."),
 	("fetched", "fetched", "succeeded", None),
 ]
 
@@ -464,14 +470,27 @@ def test_opening_the_panel_retries_only_after_a_failure(monkeypatch, tmp_path, s
 
 	assert len(updater.threads) - threads == new_threads
 	if state == "failed":
-		# R1 ran before the status was read: the panel opens on "loading".
-		assert panel.catalogStatusText.label == STATUS_TABLE[2][3]
+		# R1 ran before the status was read, from the shipped bundled model
+		# list: the panel keeps that list's "could not be updated" line (C24).
+		assert panel.catalogStatusText.label == {row[0]: row[3] for row in STATUS_TABLE}["bundled-failed"]
 
 
-def _bundled_only(f):
+class _BundledWithoutModels:
+	"""The shipped bundled file without its model list."""
+
+	def __init__(self, inner):
+		self.inner = inner
+
+	def load(self):
+		document, issues = self.inner.load()
+		return {key: value for key, value in document.items() if key != "models"}, issues
+
+
+def _coseeing_only(f):
+	"""No local models at all: only the Coseeing default (source "none")."""
 	overlay = __import__(f.plugin.__name__ + ".lib.catalog.overlay", fromlist=["load_overlay_catalog"])
 	return overlay.load_overlay_catalog(
-		f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting"), None,
+		_BundledWithoutModels(f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting")), None,
 		runnable_providers=f.plugin.SUPPORTED_PROVIDERS,
 	)
 
@@ -487,7 +506,7 @@ def test_account_box_captions_are_the_same_with_and_without_a_fetched_list(monke
 		f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting"), served_document(),
 		runnable_providers=f.plugin.SUPPORTED_PROVIDERS,
 	)
-	bundled_only = _bundled_only(f)
+	bundled_only = _coseeing_only(f)
 
 	assert fetched.providers and not bundled_only.providers
 	assert [f.dialogs._provider_group_label(fetched, group) for group in f.dialogs.ACCOUNT_BOX_GROUPS] == [
@@ -545,7 +564,7 @@ def _run_queued(f):
 def test_an_unresolved_stored_selection_survives_an_untouched_save(monkeypatch):
 	# Offline with no cache: the stored local model is not in the catalog.
 	f = _panel_fixture(monkeypatch, corrector_config_id="gpt-6-luna&OpenAI", execution_channel="local")
-	catalog = _bundled_only(f)
+	catalog = _coseeing_only(f)
 	monkeypatch.setattr(f.dialogs.registry, "current", lambda: catalog)
 	panel = f.make_panel()
 	panel.languageList.SetSelection(1)
@@ -568,7 +587,7 @@ def test_a_fresh_install_untouched_save_stores_the_default_and_signs_in(monkeypa
 	f = _panel_fixture(monkeypatch)
 	assert (f.settings["corrector_config_id"], f.settings["execution_channel"]) == ("", "")
 	if catalog_kind == "bundled-only":
-		catalog = _bundled_only(f)
+		catalog = _coseeing_only(f)
 		monkeypatch.setattr(f.dialogs.registry, "current", lambda: catalog)
 	panel = f.make_panel()
 	f.queued.clear()
@@ -588,7 +607,7 @@ def test_an_upgrader_with_only_a_stored_id_saves_the_default_and_signs_in(monkey
 	# the untouched panel stores the shown default and signs in to Coseeing.
 	f = _panel_fixture(monkeypatch, corrector_config_id="gpt-5.6-luna&OpenAI", execution_channel="")
 	if catalog_kind == "bundled-only":
-		catalog = _bundled_only(f)
+		catalog = _coseeing_only(f)
 		monkeypatch.setattr(f.dialogs.registry, "current", lambda: catalog)
 	panel = f.make_panel()
 	f.queued.clear()
@@ -607,7 +626,7 @@ def test_an_upgrader_with_only_a_stored_local_channel_keeps_it(monkeypatch, cata
 	# local user: D12 and U7 keep the stored selection and sign in to nothing.
 	f = _panel_fixture(monkeypatch, corrector_config_id="", execution_channel="local")
 	if catalog_kind == "bundled-only":
-		catalog = _bundled_only(f)
+		catalog = _coseeing_only(f)
 		monkeypatch.setattr(f.dialogs.registry, "current", lambda: catalog)
 	panel = f.make_panel()
 	f.queued.clear()

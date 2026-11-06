@@ -1,5 +1,12 @@
 {
 	"schema_version": 1,
+	"coseeings": [
+		{
+			"model": "default",
+			"label": "default",
+			"active": true
+		}
+	],
 	"providers": {
 		"Anthropic": {
 			"label": "Anthropic",
@@ -75,11 +82,216 @@
 			"timeout_max": 20
 		}
 	},
-	"coseeings": [
+	"models": [
 		{
-			"model": "default",
-			"label": "default",
-			"active": true
+			"provider": "Anthropic",
+			"model": "claude-opus-5-5",
+			"label": "claude-opus-5.5",
+			"active": true,
+			"pricing": {
+				"input_tokens": 4,
+				"cache_creation_input_tokens": 5,
+				"cache_read_input_tokens": 0.2,
+				"output_tokens": 20,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
+		},
+		{
+			"provider": "Anthropic",
+			"model": "claude-sonnet-5-5",
+			"label": "claude-sonnet-5.5",
+			"active": true,
+			"pricing": {
+				"input_tokens": 2,
+				"cache_creation_input_tokens": 2.5,
+				"cache_read_input_tokens": 0.1,
+				"output_tokens": 10,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
+		},
+		{
+			"provider": "Anthropic",
+			"model": "claude-haiku-5-5",
+			"label": "claude-haiku-5.5",
+			"active": true,
+			"pricing": {
+				"input_tokens": 0.1,
+				"cache_creation_input_tokens": 0.125,
+				"cache_read_input_tokens": 0.01,
+				"output_tokens": 0.5,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
+		},
+		{
+			"provider": "Anthropic",
+			"model": "claude-opus-5",
+			"label": "claude-opus-5",
+			"active": true,
+			"pricing": {
+				"input_tokens": 5,
+				"cache_creation_input_tokens": 6.25,
+				"cache_read_input_tokens": 0.5,
+				"output_tokens": 25,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
+		},
+		{
+			"provider": "Anthropic",
+			"model": "claude-sonnet-5",
+			"label": "claude-sonnet-5",
+			"active": true,
+			"pricing": {
+				"input_tokens": 2,
+				"cache_creation_input_tokens": 2.5,
+				"cache_read_input_tokens": 0.2,
+				"output_tokens": 10,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
+		},
+		{
+			"provider": "DeepSeek",
+			"model": "deepseek-v4-pro",
+			"label": "deepseek-v4-pro",
+			"active": true,
+			"pricing": {
+				"prompt_cache_hit_tokens": 0.022,
+				"prompt_cache_miss_tokens": 0.66,
+				"completion_tokens": 1.98,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
+		},
+		{
+			"provider": "DeepSeek",
+			"model": "deepseek-flash",
+			"label": "deepseek-flash",
+			"active": true,
+			"pricing": {
+				"prompt_cache_hit_tokens": 0.003,
+				"prompt_cache_miss_tokens": 0.15,
+				"completion_tokens": 0.6,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
+		},
+		{
+			"provider": "Google",
+			"model": "gemini-3.8-flash",
+			"label": "gemini-3.8-flash",
+			"active": true,
+			"pricing": {
+				"promptTokenCount": 0.75,
+				"candidatesTokenCount": 3.75,
+				"base_unit": 1000000
+			},
+			"usage_key": "usageMetadata"
+		},
+		{
+			"provider": "Google",
+			"model": "gemini-3.7-flash",
+			"label": "gemini-3.7-flash",
+			"active": true,
+			"pricing": {
+				"promptTokenCount": 0.75,
+				"candidatesTokenCount": 3.75,
+				"base_unit": 1000000
+			},
+			"usage_key": "usageMetadata"
+		},
+		{
+			"provider": "Google",
+			"model": "gemini-3.5-flash-lite",
+			"label": "gemini-3.5-flash-lite",
+			"active": true,
+			"pricing": {
+				"promptTokenCount": 0.3,
+				"candidatesTokenCount": 2.5,
+				"base_unit": 1000000
+			},
+			"usage_key": "usageMetadata"
+		},
+		{
+			"provider": "Google",
+			"model": "gemini-3.1-pro-preview",
+			"label": "gemini-3.1-pro",
+			"active": true,
+			"pricing": {
+				"promptTokenCount": 2.0,
+				"candidatesTokenCount": 12.0,
+				"base_unit": 1000000
+			},
+			"usage_key": "usageMetadata"
+		},
+		{
+			"provider": "Google",
+			"model": "gemini-3.1-flash-lite",
+			"label": "gemini-3.1-flash-lite",
+			"active": true,
+			"pricing": {
+				"promptTokenCount": 0.25,
+				"candidatesTokenCount": 1.5,
+				"base_unit": 1000000
+			},
+			"usage_key": "usageMetadata"
+		},
+		{
+			"provider": "Ollama",
+			"model": "qwen2",
+			"label": "qwen2",
+			"active": false
+		},
+		{
+			"provider": "OpenAI",
+			"model": "gpt-6.1-sol",
+			"label": "gpt-6.1-sol",
+			"active": true,
+			"pricing": {
+				"input_tokens": 2,
+				"output_tokens": 10,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
+		},
+		{
+			"provider": "OpenAI",
+			"model": "gpt-6.1-terra",
+			"label": "gpt-6.1-terra",
+			"active": true,
+			"pricing": {
+				"input_tokens": 1,
+				"output_tokens": 5,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
+		},
+		{
+			"provider": "OpenAI",
+			"model": "gpt-6-sol",
+			"label": "gpt-6-sol",
+			"active": true,
+			"pricing": {
+				"input_tokens": 2,
+				"output_tokens": 10,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
+		},
+		{
+			"provider": "OpenAI",
+			"model": "gpt-6-luna",
+			"label": "gpt-6-luna",
+			"active": true,
+			"pricing": {
+				"input_tokens": 0.1,
+				"output_tokens": 0.5,
+				"base_unit": 1000000
+			},
+			"usage_key": "usage"
 		}
 	]
 }

@@ -11,7 +11,7 @@ import threading
 import time
 
 from .lib.catalog.model import COSEEING_GROUP, CatalogIssue
-from .lib.catalog.overlay import accept_remote_document, load_overlay_catalog
+from .lib.catalog.overlay import accept_remote_document, has_local_items, load_overlay_catalog
 from .lib.catalog.remote import (
 	CHUNK_BYTES,
 	FETCH_DEADLINE_SECONDS,
@@ -105,7 +105,7 @@ def fetch_payload(url: str, *, http_get, clock=time.monotonic) -> FetchResult:
 
 
 THREAD_NAME = "wordbridge-catalog-fetch"
-SOURCE_NONE, SOURCE_CACHE, SOURCE_FETCHED = "none", "cache", "fetched"
+SOURCE_NONE, SOURCE_BUNDLED, SOURCE_CACHE, SOURCE_FETCHED = "none", "bundled", "cache", "fetched"
 FETCH_OFF, FETCH_INVALID, FETCH_RUNNING, FETCH_SUCCEEDED, FETCH_FAILED = (
 	"off", "invalid", "running", "succeeded", "failed",
 )
@@ -113,7 +113,9 @@ FETCH_OFF, FETCH_INVALID, FETCH_RUNNING, FETCH_SUCCEEDED, FETCH_FAILED = (
 
 @dataclass(frozen=True)
 class UpdaterStatus:
-	"""source: where the live local channel came from (none, cache, fetched).
+	"""source: where the live local channel came from: none (no local
+	models at all), bundled (the add-on's release-time model list), cache or
+	fetched.
 	fetch: off (empty URL), invalid (URL fails validation), running,
 	succeeded or failed. Shown by the settings panel's status line.
 	"""
@@ -245,7 +247,7 @@ class CatalogUpdater:
 			return UpdaterStatus(source=self._source, fetch=self._fetch)
 
 	def initial_catalog(self, url: str):
-		"""Bundled ⊕ (cache for this URL, if accepted). Main thread."""
+		"""The cache for this URL if accepted, else the bundled models. Main thread."""
 		check = self._check(url)
 		self._current_url = url
 		catalog, source = self._local_catalog(check)
@@ -438,7 +440,8 @@ class CatalogUpdater:
 		return check
 
 	def _local_catalog(self, check) -> tuple:
-		"""(catalog, source) from the bundled file and, when enabled, the cache."""
+		"""(catalog, source) from the cache when enabled and accepted, else the
+		bundled file with its release-time models."""
 		if check.enabled:
 			document, issues = self._cache.load(check.key)
 			self._log_cache_problems(issues)
@@ -454,7 +457,7 @@ class CatalogUpdater:
 					CatalogIssue("unreadable_cache", issue.location, issue.code) for issue in issues
 				)
 		catalog = load_overlay_catalog(self._bundled_source, None, runnable_providers=self._runnable_providers)
-		return catalog, SOURCE_NONE
+		return catalog, SOURCE_BUNDLED if has_local_items(catalog) else SOURCE_NONE
 
 	def _log_source(self, check, source) -> None:
 		"""Which catalog is in use, so a reader of the log can tell whether the

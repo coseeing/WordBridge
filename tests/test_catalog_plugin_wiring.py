@@ -14,6 +14,11 @@ import pytest
 DEFAULT_URL = "https://wordbridge.coseeing.org"
 
 
+# A local model the shipped bundled list does not offer, e.g. one a later
+# remote catalog added and whose cache is gone.
+UNLISTED_MODEL = "gpt-unlisted&OpenAI"
+
+
 def _settings(**overrides):
 	settings = {
 		"corrector_config_id": "gpt-6.1-sol&OpenAI",
@@ -67,18 +72,34 @@ def test_init_uses_the_cache_for_the_configured_url(monkeypatch):
 	instance.terminate()
 
 
-def test_init_with_an_empty_url_is_bundled_only(monkeypatch):
+def test_init_with_an_empty_url_offers_the_bundled_models(monkeypatch):
+	# Decided by the user (2026-11-06): with the remote catalog off, the model
+	# list shipped with the add-on is still offered.
 	plugin, queued, _auth = _load(monkeypatch, _settings(catalog_url=""))
 
 	instance = plugin.GlobalPlugin()
 	for callback, args in list(queued):
 		callback(*args)
 
-	assert instance.catalog.models == ()
+	assert instance.catalog.get_model("gpt-6.1-sol&OpenAI") is not None
 	assert instance.catalog.labels_for("Coseeing") == ("default",)
 	assert plugin.started_catalog_threads == []
-	assert plugin.catalog_updater.status().fetch == "off"
-	# A stored local model and no model list: no Coseeing sign-in (U7).
+	assert plugin.catalog_updater.status() == plugin.catalog_updater.UpdaterStatus(source="bundled", fetch="off")
+	assert instance._needs_catalog_choice() is False
+	# The stored local model is in the bundled list: no Coseeing sign-in.
+	assert _auth == []
+	instance.terminate()
+
+
+def test_init_with_an_empty_url_and_an_unlisted_local_model_needs_a_choice(monkeypatch):
+	plugin, queued, _auth = _load(monkeypatch, _settings(catalog_url="", corrector_config_id=UNLISTED_MODEL))
+
+	instance = plugin.GlobalPlugin()
+	for callback, args in list(queued):
+		callback(*args)
+
+	assert instance._needs_catalog_choice() is True
+	# A stored local model the list does not offer: no Coseeing sign-in (U7).
 	assert _auth == []
 	instance.terminate()
 
@@ -490,6 +511,9 @@ RETURN_CODE = SimpleNamespace(YES=5103, NO=5104, CANCEL=5101)
 
 
 def _choice_fixture(monkeypatch, answer=None, **settings_overrides):
+	# By default the stored local model is one the bundled list lacks: with
+	# no cache, that is the case U7 asks about.
+	settings_overrides.setdefault("corrector_config_id", UNLISTED_MODEL)
 	plugin, queued, auth_calls = _load(monkeypatch, _settings(**settings_overrides))
 	FakeMessageDialog.instances = []
 	FakeMessageDialog.answer = answer if answer is not None else RETURN_CODE.NO
@@ -519,6 +543,20 @@ def _run(queued):
 	while queued:
 		callback, args = queued.pop(0)
 		callback(*args)
+
+
+def test_a_local_model_in_the_bundled_list_corrects_without_asking(monkeypatch):
+	f = _choice_fixture(monkeypatch, catalog_url=NO_CACHE_URL, corrector_config_id="gpt-6.1-sol&OpenAI")
+
+	assert f.plugin.catalog_updater.status().source == "bundled"
+	assert f.instance._needs_catalog_choice() is False
+	f.instance.script_correction(None)
+	_run(f.queued)
+
+	assert f.started == ["原文"]
+	assert FakeMessageDialog.instances == []
+	assert f.instance.settings.corrector_selection() == ("gpt-6.1-sol&OpenAI", "local")
+	f.instance.terminate()
 
 
 def test_correction_asks_instead_of_correcting_without_a_catalog(monkeypatch):
@@ -605,7 +643,7 @@ def test_no_after_the_model_list_arrived_still_sends_nothing(monkeypatch, answer
 	f.instance.script_correction(None)
 	_run(f.queued)
 
-	assert f.instance.settings.stored_corrector_selection() == ("gpt-6.1-sol&OpenAI", "local")
+	assert f.instance.settings.stored_corrector_selection() == (UNLISTED_MODEL, "local")
 	assert f.started == []
 	assert f.messages == [CANCEL_MESSAGE]
 	f.instance.terminate()
@@ -618,7 +656,7 @@ def test_no_sends_nothing_and_keeps_the_stored_selection(monkeypatch, answer):
 	f.instance.script_correction(None)
 	_run(f.queued)
 
-	assert f.instance.settings.stored_corrector_selection() == ("gpt-6.1-sol&OpenAI", "local")
+	assert f.instance.settings.stored_corrector_selection() == (UNLISTED_MODEL, "local")
 	assert f.started == []
 	assert f.messages == [CANCEL_MESSAGE]
 	assert f.plugin.network_calls == []
@@ -648,7 +686,7 @@ def test_shutdown_during_the_dialog_starts_nothing(monkeypatch):
 	f.instance.script_correction(None)
 	_run(f.queued)
 
-	assert f.instance.settings.stored_corrector_selection() == ("gpt-6.1-sol&OpenAI", "local")
+	assert f.instance.settings.stored_corrector_selection() == (UNLISTED_MODEL, "local")
 	assert f.started == []
 	f.instance.terminate()
 

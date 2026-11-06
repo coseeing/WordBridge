@@ -1,15 +1,14 @@
 """Bundled ⊕ remote: one catalog document from the two sources.
 
-Each key comes from exactly one document. The provider entries (`providers`)
-and the Coseeing channel (`coseeings`) come from the bundled file, which
-ships with the code that sends the user's key; the models (`models`) come
-only from the remote payload. There are no merge or precedence rules, and
-every entry can be traced to one file. Remote keys other than `models` are
-never read; a bundled `models` key is ignored with a lint issue, which is
-what makes "no snapshot of the remote model list ships in the add-on"
-structural. Without a remote document there are no models, so the provider
-entries are left out too: unused, they would only add one
-unreferenced_provider issue per provider to every offline start.
+The provider entries (`providers`) and the Coseeing channel (`coseeings`)
+always come from the bundled file, which ships with the code that sends the
+user's key. The models (`models`) come from exactly one document: the remote
+payload when there is one, otherwise the bundled file, which carries the
+model list as it was at release time. An accepted remote payload replaces
+the bundled models as a whole; there is no merge, and every entry can be
+traced to one file. Remote keys other than `models` are never read. Without
+any models the provider entries are left out too: unused, they would only
+add one unreferenced_provider issue per provider to every offline start.
 """
 
 from .document import SCHEMA_VERSION, build_catalog
@@ -22,20 +21,14 @@ def overlay_documents(bundled, remote) -> tuple:
 	"""Returns (document, issues). Total: a non-mapping counts as absent."""
 	bundled = bundled if isinstance(bundled, dict) else {}
 	remote = remote if isinstance(remote, dict) else None
-	issues = []
-
-	if "models" in bundled:
-		issues.append(CatalogIssue(
-			"ignored_bundled_models",
-			"bundled.models",
-			"the bundled catalog may not carry models; they are ignored",
-		))
-
-	if remote is None:
-		providers, models = {}, []
-	else:
-		providers = bundled.get("providers", {})
+	if remote is not None:
 		models = remote.get("models", [])
+	else:
+		models = bundled.get("models", [])
+	# With a remote payload the providers are always offered, so a payload
+	# without usable models is rejected for its models (remote_no_models),
+	# not blamed on the bundled file.
+	providers = bundled.get("providers", {}) if remote is not None or models else {}
 
 	document = {
 		"schema_version": SCHEMA_VERSION,
@@ -43,7 +36,7 @@ def overlay_documents(bundled, remote) -> tuple:
 		"models": models,
 		"coseeings": bundled.get("coseeings", []),
 	}
-	return document, tuple(issues)
+	return document, ()
 
 
 def _offers_coseeing(coseeings) -> bool:
@@ -100,7 +93,8 @@ def accept_remote_document(bundled_source, document, *, runnable_providers) -> t
 	"""Returns (catalog, ()) for an accepted payload, (None, issues) otherwise.
 
 	A payload is accepted as a whole or not at all: it must leave at least
-	one selectable local model once overlaid on the bundled file. The same
+	one selectable local model once overlaid on the bundled file, whose own
+	models it then replaces. The same
 	rule is applied to a cached payload, so a later add-on version with a
 	different bundled provider set re-checks an old cache. The
 	document-level checks run first, because overlay_documents() always

@@ -119,7 +119,8 @@ config.conf.spec["WordBridge"] = {
 		"customized_words_enable": "boolean(default=True)",
 		"sound_effects_enable": "boolean(default=True)",
 		# Where the provider/model list is downloaded from. Empty turns the
-		# remote catalog off: only the bundled Coseeing default is offered.
+		# remote catalog off: only the model list bundled with the add-on (and
+		# the Coseeing default) is offered.
 		"catalog_url": f"string(default='{DEFAULT_CATALOG_URL}')",
 	}
 }
@@ -294,18 +295,26 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._catalog_updater.refresh(self.settings.catalog_url())
 
 	def _needs_catalog_choice(self):
-		"""A stored local selection while no remote or cached catalog is loaded (U7).
+		"""A stored local selection the live list cannot run, while no remote or
+		cached catalog is loaded (U7).
 
-		Keyed on the raw stored channel: normalize_selection() would resolve
-		that selection to the Coseeing default, which is exactly what must not
-		happen without the user's say-so.
+		Without one, the live list is the add-on's bundled model list (or
+		nothing at all). A stored local model on that list runs as usual; one
+		missing from it -- e.g. a model a later remote catalog added -- needs
+		the user's choice. Keyed on the raw stored selection:
+		normalize_selection() would resolve it to the Coseeing default, which
+		is exactly what must not happen without the user's say-so.
 		"""
 		status = catalog_updater.status()
 		if status is None:
 			# No updater installed (the plugin is not running).
 			return False
-		_, stored_channel = self.settings.stored_corrector_selection()
-		return stored_channel == LOCAL_CHANNEL and status.source == catalog_updater.SOURCE_NONE
+		if status.source not in (catalog_updater.SOURCE_NONE, catalog_updater.SOURCE_BUNDLED):
+			return False
+		stored_id, stored_channel = self.settings.stored_corrector_selection()
+		if stored_channel != LOCAL_CHANNEL:
+			return False
+		return registry.current().find_selection(stored_id, LOCAL_CHANNEL) == (-1, -1)
 
 	def _ask_switch_to_coseeing(self, text):
 		"""Main thread. Ask whether to switch a local user to the Coseeing default (U7).

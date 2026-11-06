@@ -730,3 +730,125 @@ def test_a_url_change_logs_the_new_source_and_a_same_url_refresh_does_not(tmp_pa
 	h.updater.refresh(URL_B)
 
 	assert _source_lines(h) == [("none", "running", "https://a.test"), ("cache", "running", "https://b.test")]
+
+
+# --- The bundled model list: the release-time fallback ---------------------
+# The shipped bundled file carries the model list as it was at release time.
+# It is what the user can choose from until a remote payload is accepted,
+# and whenever none can be loaded -- including with the URL emptied.
+
+class ShippedBundled:
+	"""The shipped bundled file: providers, the sentinel and the models."""
+
+	def load(self):
+		return bundled_document(), ()
+
+
+def _bundled_harness(tmp_path, responses=None):
+	h = Harness(tmp_path, responses)
+	h.updater._bundled_source = ShippedBundled()
+	return h
+
+
+BUNDLED_LOCAL_IDS = [f"{entry['model']}&{entry['provider']}" for entry in bundled_document()["models"] if entry.get("active", True)]
+
+
+def test_startup_without_a_cache_offers_the_bundled_models(tmp_path):
+	h = _bundled_harness(tmp_path)
+
+	catalog = h.updater.initial_catalog(URL_A)
+
+	assert _local_ids(catalog) == BUNDLED_LOCAL_IDS
+	assert catalog.labels_for("Coseeing") == ("default",)
+	assert h.status() == ("bundled", "running")
+	assert ("info", "WordBridge: catalog source=%s fetch=%s host=%s", "bundled", "running", "https://a.test") in h.log.records
+
+
+def test_a_cache_wins_over_the_bundled_models(tmp_path):
+	h = _bundled_harness(tmp_path)
+	h.seed_cache(URL_A, _payload("cached"))
+
+	catalog = h.updater.initial_catalog(URL_A)
+
+	assert _ids(catalog) == ["cached&OpenAI"]
+	assert h.status() == ("cache", "running")
+
+
+def test_a_cache_failing_acceptance_falls_back_to_the_bundled_models(tmp_path):
+	h = _bundled_harness(tmp_path)
+	h.seed_cache(URL_A, _payload("cached", active=False))
+
+	catalog = h.updater.initial_catalog(URL_A)
+
+	assert _local_ids(catalog) == BUNDLED_LOCAL_IDS
+	assert h.status() == ("bundled", "running")
+
+
+def test_a_fetched_payload_replaces_the_bundled_models(tmp_path):
+	h = _bundled_harness(tmp_path, {URL_A: _ok(_payload("fresh"))})
+	h.updater.initial_catalog(URL_A)
+
+	h.updater.refresh(URL_A)
+	h.threads[0].run()
+	h.deliver()
+
+	assert [_ids(catalog) for catalog in h.installed] == [["fresh&OpenAI"]]
+	assert h.status() == ("fetched", "succeeded")
+
+
+def test_a_failed_fetch_keeps_the_bundled_models(tmp_path):
+	h = _bundled_harness(tmp_path, {URL_A: FakeResponse(status_code=500)})
+	catalog = h.updater.initial_catalog(URL_A)
+
+	h.updater.refresh(URL_A)
+	h.threads[0].run()
+	h.deliver()
+
+	assert h.installed == []
+	assert _local_ids(catalog) == BUNDLED_LOCAL_IDS
+	assert h.status() == ("bundled", "failed")
+
+
+def test_a_rejected_payload_keeps_the_bundled_models(tmp_path):
+	h = _bundled_harness(tmp_path, {URL_A: _ok(_payload("broken", active=False))})
+	h.updater.initial_catalog(URL_A)
+
+	h.updater.refresh(URL_A)
+	h.threads[0].run()
+	h.deliver()
+
+	assert h.installed == []
+	assert h.status() == ("bundled", "failed")
+	assert h.cache.stores == []
+
+
+def test_an_empty_url_offers_the_bundled_models(tmp_path):
+	# Decided by the user (2026-11-06): turning the remote catalog off still
+	# leaves the release-time model list.
+	h = _bundled_harness(tmp_path)
+
+	catalog = h.updater.initial_catalog("")
+
+	assert _local_ids(catalog) == BUNDLED_LOCAL_IDS
+	assert h.status() == ("bundled", "off")
+	assert h.cache.loads == []
+
+
+def test_switching_to_an_empty_url_installs_the_bundled_models(tmp_path):
+	h = _bundled_harness(tmp_path)
+	h.seed_cache(URL_A, _payload("cached-a"))
+	h.updater.initial_catalog(URL_A)
+
+	h.updater.refresh("")
+
+	assert [_local_ids(catalog) for catalog in h.installed] == [BUNDLED_LOCAL_IDS]
+	assert h.status() == ("bundled", "off")
+
+
+def test_an_invalid_url_offers_the_bundled_models(tmp_path):
+	h = _bundled_harness(tmp_path)
+
+	catalog = h.updater.initial_catalog("http://example.com/p")
+
+	assert _local_ids(catalog) == BUNDLED_LOCAL_IDS
+	assert h.status() == ("bundled", "invalid")

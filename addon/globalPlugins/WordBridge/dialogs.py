@@ -94,10 +94,19 @@ def catalog_status_message(status):
 	"""
 	if status is None:
 		return None
+	bundled = status.source == catalog_updater.SOURCE_BUNDLED
 	if status.fetch == catalog_updater.FETCH_OFF:
+		if bundled:
+			# Translators: Status line in the WordBridge settings panel when the model list URL is empty, so the
+			# model list that was included when the add-on was released is used.
+			return _("The model list URL is empty, so WordBridge is using the model list that came with the add-on.")
 		# Translators: Status line in the WordBridge settings panel when the model list URL is empty.
 		return _("The model list URL is empty, so only the Coseeing default is available.")
 	if status.fetch == catalog_updater.FETCH_INVALID:
+		if bundled:
+			# Translators: Status line in the WordBridge settings panel when the stored model list URL is not a valid
+			# address, so the model list that was included when the add-on was released is used.
+			return _("The model list URL is invalid, so WordBridge is using the model list that came with the add-on.")
 		# Translators: Status line in the WordBridge settings panel when the stored model list URL is not a valid
 		# address, so no model list was downloaded.
 		return _("The model list URL is invalid, so no model list was loaded.")
@@ -114,28 +123,42 @@ def catalog_status_message(status):
 		# Translators: Status line in the WordBridge settings panel when the model list could not be downloaded
 		# and the copy saved earlier is used instead.
 		return _("The model list could not be updated. WordBridge is using the list it saved earlier.")
+	if bundled and status.fetch == catalog_updater.FETCH_FAILED:
+		# Translators: Status line in the WordBridge settings panel when the model list could not be downloaded
+		# and no copy was saved earlier, so the model list that was included when the add-on was released is used.
+		return _("The model list could not be updated. WordBridge is using the model list that came with the add-on.")
 	return None
 
 
-def _stale_list_message():
-	"""The "could not be updated ... the list it saved earlier" line."""
+# The sources whose list stays usable while a fetch fails: each has a
+# "could not be updated" line, and none for its fetch in progress.
+_STALE_SOURCES = (catalog_updater.SOURCE_CACHE, catalog_updater.SOURCE_BUNDLED)
+
+
+def _stale_list_message(source):
+	"""The "could not be updated ... WordBridge is using ..." line for `source`."""
 	return catalog_status_message(
-		catalog_updater.UpdaterStatus(source=catalog_updater.SOURCE_CACHE, fetch=catalog_updater.FETCH_FAILED)
+		catalog_updater.UpdaterStatus(source=source, fetch=catalog_updater.FETCH_FAILED)
 	)
+
+
+def _is_stale_list_message(message):
+	return message is not None and any(message == _stale_list_message(source) for source in _STALE_SOURCES)
 
 
 def _status_line_message(status, keep_stale):
 	"""catalog_status_message(), except that `keep_stale` (a same-key refresh
-	while the saved list is in use) keeps the stale-list text for
-	cache/running, which has none of its own. A failing retry then leaves the
-	line as it is instead of hiding and showing it (C24)."""
+	while the saved or the bundled list is in use) keeps the stale-list text
+	for cache/running and bundled/running, which have none of their own. A
+	failing retry then leaves the line as it is instead of hiding and
+	showing it (C24)."""
 	if (
 		keep_stale
 		and status is not None
-		and status.source == catalog_updater.SOURCE_CACHE
+		and status.source in _STALE_SOURCES
 		and status.fetch == catalog_updater.FETCH_RUNNING
 	):
-		return _stale_list_message()
+		return _stale_list_message(status.source)
 	return catalog_status_message(status)
 
 
@@ -598,7 +621,7 @@ class LLMSettingsPanel(SettingsPanel):
 		"""The status line and the accessible description (R11) from the
 		updater's current status; True when the line appeared or vanished.
 		A refresh that keeps the URL key keeps a shown stale-list line (C24)."""
-		keepStale = not change.catalog_changed and self._statusMessage == _stale_list_message()
+		keepStale = not change.catalog_changed and _is_stale_list_message(self._statusMessage)
 		message = _status_line_message(catalog_updater.status(), keep_stale=keepStale)
 		self._statusMessage = message
 		self.panelDescription = message or ""

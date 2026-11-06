@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from test_catalog_settings_panel import STATUS_TABLE, _bundled_only, _panel_fixture, _status
+from test_catalog_settings_panel import STATUS_TABLE, _coseeing_only, _panel_fixture, _status
 
 
 class FakeUpdater:
@@ -128,7 +128,7 @@ def test_one_update_is_applied_in_one_freeze_with_at_most_one_layout_event(monke
 	# the shown box used to send two layout events (two scrolls to the top).
 	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
 	set_status(f, "none", "failed")
-	f.box["catalog"] = _bundled_only(f)
+	f.box["catalog"] = _coseeing_only(f)
 	panel = f.make_panel()
 	assert _shown_boxes(panel) == ["Coseeing"]
 
@@ -146,7 +146,7 @@ def test_a_hidden_panel_sends_no_layout_event_and_lays_out_when_activated(monkey
 	# categories share, so an event from the hidden WordBridge panel would
 	# scroll the category the user is reading back to the top.
 	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
-	f.box["catalog"] = _bundled_only(f)
+	f.box["catalog"] = _coseeing_only(f)
 	panel = f.make_panel()
 	panel.shown = False
 
@@ -211,6 +211,46 @@ def test_a_same_key_retry_with_the_cache_keeps_the_stale_line(monkeypatch):
 	f.fake.emit(change(f, True, "succeeded"))
 	assert _status_line(panel) == ("", False, "")
 	assert panel.layout_events == 1
+
+
+def test_a_same_key_retry_with_the_bundled_list_keeps_its_line(monkeypatch):
+	# C24 for the release-time list: bundled/running has no text either.
+	f = live_fixture(monkeypatch)
+	set_status(f, "bundled", "failed")
+	panel = f.make_panel()
+	line = (_text("bundled-failed"), True, _text("bundled-failed"))
+	assert _status_line(panel) == line
+
+	for _ in range(2):
+		set_status(f, "bundled", "running")
+		f.fake.emit(change(f))
+		assert _status_line(panel) == line
+		set_status(f, "bundled", "failed")
+		f.fake.emit(change(f, False, "failed"))
+		assert _status_line(panel) == line
+	assert getattr(panel, "layout_events", 0) == 0
+
+	set_status(f, "bundled", "running")
+	f.fake.emit(change(f))
+	set_status(f, "fetched", "succeeded")
+	f.fake.emit(change(f, True, "succeeded"))
+	assert _status_line(panel) == ("", False, "")
+
+
+@pytest.mark.parametrize("retried, expected", [(True, "bundled-failed"), (False, None)], ids=["r1-started", "already-running"])
+def test_the_panel_opens_on_the_bundled_line_when_its_fetch_starts_from_a_failure(monkeypatch, retried, expected):
+	f = live_fixture(monkeypatch)
+	set_status(f, "bundled", "failed" if retried else "running")
+
+	def retry_on_panel_open():
+		set_status(f, "bundled", "running")
+		return retried
+
+	f.fake.retry_on_panel_open = retry_on_panel_open
+	panel = f.make_panel()
+
+	text = _text(expected) if expected else ""
+	assert _status_line(panel) == (text, bool(expected), text)
 
 
 def test_a_url_change_with_the_cache_hides_the_stale_line(monkeypatch):
@@ -292,7 +332,7 @@ def test_a_notification_after_the_panel_is_gone_unregisters_and_does_nothing(mon
 	items = list(panel.providerList.items)
 	panel.alive = False
 	set_status(f, "none", "failed")
-	f.box["catalog"] = _bundled_only(f)
+	f.box["catalog"] = _coseeing_only(f)
 
 	f.fake.emit(change(f, True, "succeeded"))
 
@@ -346,15 +386,15 @@ def _run_queued(f):
 SOL = ("gpt-6.1-sol&OpenAI", "local")
 DEEPSEEK_PRO = ("deepseek-v4-pro&DeepSeek", "local")
 SELECTION_ROWS = [
-	("fresh-untouched", _bundled_only, _shipped, ("", ""), None, DEFAULT, DEFAULT),
-	("stored-local-unresolved-untouched", _bundled_only, _shipped, ("gpt-6-luna&OpenAI", "local"), None,
+	("fresh-untouched", _coseeing_only, _shipped, ("", ""), None, DEFAULT, DEFAULT),
+	("stored-local-unresolved-untouched", _coseeing_only, _shipped, ("gpt-6-luna&OpenAI", "local"), None,
 		("gpt-6-luna&OpenAI", "local"), ("gpt-6-luna&OpenAI", "local")),
 	("touched-pick-kept", _shipped, _shipped, SOL, ("DeepSeek", 0), DEEPSEEK_PRO, SOL),
 	("touched-pick-gone-stored-present", _shipped, _shipped_without("deepseek-v4-pro&DeepSeek"), SOL, ("DeepSeek", 0),
 		SOL, SOL),
 	("touched-pick-gone-stored-absent", _shipped, _shipped_without("deepseek-v4-pro&DeepSeek", SOL[0]), SOL,
 		("DeepSeek", 0), DEFAULT, DEFAULT),
-	("stored-coseeing-non-default", _bundled_only, _shipped, ("gpt-6-luna&OpenAI", "Coseeing"), None, DEFAULT, DEFAULT),
+	("stored-coseeing-non-default", _coseeing_only, _shipped, ("gpt-6-luna&OpenAI", "Coseeing"), None, DEFAULT, DEFAULT),
 ]
 
 
@@ -383,7 +423,7 @@ def _stored(f):
 
 def test_an_untouched_save_after_a_rebuild_keeps_an_unresolved_stored_model(monkeypatch):
 	f = live_fixture(monkeypatch, corrector_config_id="gpt-retired&OpenAI", execution_channel="local")
-	f.box["catalog"] = _bundled_only(f)
+	f.box["catalog"] = _coseeing_only(f)
 	panel = f.make_panel()
 	rebuild_with(f, panel, _shipped(f))
 	f.queued.clear()
@@ -399,7 +439,7 @@ def test_an_untouched_save_after_the_list_arrives_saves_the_users_own_model(monk
 	# F1: the offline local user's own model appears; OK must not save the
 	# Coseeing default that was shown before, nor sign in to Coseeing.
 	f = live_fixture(monkeypatch, corrector_config_id="gpt-6-luna&OpenAI", execution_channel="local")
-	f.box["catalog"] = _bundled_only(f)
+	f.box["catalog"] = _coseeing_only(f)
 	panel = f.make_panel()
 	rebuild_with(f, panel, _shipped(f))
 	assert _item_ids(panel.selection.current_item()) == ("gpt-6-luna&OpenAI", "local")
@@ -559,7 +599,7 @@ def _focused(f, panel):
 @pytest.mark.parametrize("shown", [True, False], ids=["shown", "hidden"])
 def test_a_rebuild_never_moves_focus_or_shows_the_panel(monkeypatch, shown):
 	f = live_fixture(monkeypatch)
-	f.box["catalog"] = _bundled_only(f)
+	f.box["catalog"] = _coseeing_only(f)
 	panel = f.make_panel()
 	panel.shown = shown
 
@@ -581,7 +621,7 @@ def test_choices_are_replaced_only_when_their_labels_change(monkeypatch):
 	assert getattr(panel.providerList, "set_items_calls", 0) == 0
 	assert getattr(panel.modelList, "set_items_calls", 0) == 0
 
-	rebuild_with(f, panel, _bundled_only(f))
+	rebuild_with(f, panel, _coseeing_only(f))
 	assert panel.providerList.set_items_calls == 1
 
 
@@ -619,7 +659,7 @@ def _account_groups(f):
 	return [*sorted(f.plugin.SUPPORTED_PROVIDERS), "Coseeing"]
 
 
-@pytest.mark.parametrize("catalog", [_bundled_only, lambda f: f.plugin.catalog], ids=["bundled", "shipped"])
+@pytest.mark.parametrize("catalog", [_coseeing_only, lambda f: f.plugin.catalog], ids=["bundled", "shipped"])
 def test_every_supported_provider_has_a_box_in_a_fixed_order(monkeypatch, catalog):
 	# R13: the boxes do not depend on the catalog, so no live update ever
 	# needs to create one.
@@ -646,7 +686,7 @@ def test_only_the_selected_groups_box_is_shown(monkeypatch):
 
 def test_a_live_update_creates_no_window_and_only_shows_hides_and_relabels(monkeypatch):
 	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
-	f.box["catalog"] = _bundled_only(f)
+	f.box["catalog"] = _coseeing_only(f)
 	panel = f.make_panel()
 	windows = list(f.plugin.created_windows)
 	children = list(panel.settingsSizer.children)
@@ -659,7 +699,7 @@ def test_a_live_update_creates_no_window_and_only_shows_hides_and_relabels(monke
 		(_shipped(f), ["OpenAI"], "OpenAI Authentication"),
 		(relabelled, ["OpenAI"], "OpenAI EU Authentication"),
 		(_without_group(f, "OpenAI"), ["Coseeing"], "OpenAI Authentication"),
-		(_bundled_only(f), ["Coseeing"], "OpenAI Authentication"),
+		(_coseeing_only(f), ["Coseeing"], "OpenAI Authentication"),
 	]:
 		rebuild_with(f, panel, new)
 		assert _shown_boxes(panel) == shown
@@ -687,7 +727,7 @@ def test_tab_and_window_order_is_creation_order(monkeypatch):
 	order.append(at(panel.languageList))
 	assert order == sorted(order)
 
-	rebuild_with(f, panel, _bundled_only(f))
+	rebuild_with(f, panel, _coseeing_only(f))
 	assert [at(panel.modelList), at(panel.languageList)] == [order[0], order[-1]]
 
 
@@ -705,14 +745,14 @@ def _path_open(f, panel):
 
 
 def _path_rebuild(f, panel):
-	rebuild_with(f, panel, _bundled_only(f))
+	rebuild_with(f, panel, _coseeing_only(f))
 	rebuild_with(f, panel, _shipped(f))
 
 
 def _path_rebuild_after_ok(f, panel):
 	# OK ran onSave; the D8 swap arrives before DestroyLater (F5, batch-2 m1).
 	panel.onSave()
-	rebuild_with(f, panel, _bundled_only(f))
+	rebuild_with(f, panel, _coseeing_only(f))
 	rebuild_with(f, panel, _shipped(f))
 
 
@@ -755,7 +795,7 @@ def test_no_blank_api_key_is_written(monkeypatch, stored, path, expected):
 
 def test_a_hidden_providers_key_is_shown_in_its_box_and_kept(monkeypatch):
 	f = live_fixture(monkeypatch, api_key={"OpenRouter": "r"})
-	f.box["catalog"] = _bundled_only(f)
+	f.box["catalog"] = _coseeing_only(f)
 	panel = f.make_panel()
 
 	panel.onSave()
@@ -798,7 +838,7 @@ def test_a_vanished_providers_box_is_hidden_and_its_key_saved_unchanged(monkeypa
 def test_refreshing_account_info_never_raises_for_any_group_change(monkeypatch, steps):
 	f = live_fixture(monkeypatch)
 	catalogs = {
-		"bundled": _bundled_only, "shipped": _shipped,
+		"bundled": _coseeing_only, "shipped": _shipped,
 		"without-Anthropic": lambda f: _without_group(f, "Anthropic"),
 		"without-Google": lambda f: _without_group(f, "Google"),
 	}
@@ -874,7 +914,7 @@ def _live_timers(f):
 @pytest.mark.parametrize("which", ["provider", "model"])
 def test_an_open_drop_down_defers_the_rebuild_and_polls(monkeypatch, which):
 	f = live_fixture(monkeypatch)
-	f.box["catalog"] = _bundled_only(f)
+	f.box["catalog"] = _coseeing_only(f)
 	panel = f.make_panel()
 	target = panel.providerList if which == "provider" else panel.modelList
 	dropped = {"open": True}
@@ -900,7 +940,7 @@ def test_an_open_drop_down_defers_the_rebuild_and_polls(monkeypatch, which):
 
 def test_a_notification_after_the_drop_down_closes_runs_the_update_and_stops_the_poll(monkeypatch):
 	f = live_fixture(monkeypatch)
-	f.box["catalog"] = _bundled_only(f)
+	f.box["catalog"] = _coseeing_only(f)
 	panel = f.make_panel()
 	dropped = {"open": True}
 	panel._isDroppedDown = lambda choice: dropped["open"]
@@ -958,7 +998,7 @@ def test_focus_on_the_clean_button_defers_when_coseeing_is_left(monkeypatch):
 	# F1: the untouched panel of an offline local user moves to their own
 	# model when the list arrives, which would hide the focused clean button.
 	f = live_fixture(monkeypatch, corrector_config_id="gpt-6-luna&OpenAI", execution_channel="local")
-	f.box["catalog"] = _bundled_only(f)
+	f.box["catalog"] = _coseeing_only(f)
 	panel = f.make_panel()
 	_focus(panel, panel.coseeingCleanButton)
 	catalog = panel.catalog
@@ -972,7 +1012,7 @@ def test_focus_on_the_clean_button_defers_when_coseeing_is_left(monkeypatch):
 
 def test_the_poll_stops_when_the_panel_is_destroyed(monkeypatch):
 	f = live_fixture(monkeypatch)
-	f.box["catalog"] = _bundled_only(f)
+	f.box["catalog"] = _coseeing_only(f)
 	panel = f.make_panel()
 	panel._isDroppedDown = lambda choice: True
 	items = list(panel.providerList.items)
@@ -1078,7 +1118,7 @@ def test_no_announcement_when(monkeypatch, event, condition):
 
 def test_only_the_latest_speakable_outcome_behind_a_deferral_is_spoken(monkeypatch):
 	f = live_fixture(monkeypatch)
-	f.box["catalog"] = _bundled_only(f)
+	f.box["catalog"] = _coseeing_only(f)
 	panel = f.make_panel()
 	dropped = {"open": True}
 	panel._isDroppedDown = lambda choice: dropped["open"]
@@ -1095,7 +1135,7 @@ def test_only_the_latest_speakable_outcome_behind_a_deferral_is_spoken(monkeypat
 
 def test_a_background_failure_behind_a_deferral_keeps_the_pending_message(monkeypatch):
 	f = live_fixture(monkeypatch)
-	f.box["catalog"] = _bundled_only(f)
+	f.box["catalog"] = _coseeing_only(f)
 	panel = f.make_panel()
 	dropped = {"open": True}
 	panel._isDroppedDown = lambda choice: dropped["open"]
@@ -1147,11 +1187,13 @@ def test_the_panel_follows_a_real_updater_end_to_end(monkeypatch, tmp_path):
 	try:
 		panel = f.make_panel()
 		assert len(updater.threads) == 2  # R1
-		assert panel.providerList.items == ["Coseeing"]
+		# The shipped bundled model list is offered before any fetch succeeds.
+		assert panel.providerList.items == list(f.plugin.catalog.provider_groups)
+		assert len(panel.providerList.items) > 1
 
 		updater.run_latest()
 		assert messages == [UPDATE_FAILED]
-		assert panel.catalogStatusText.label == _text("failed")
+		assert panel.catalogStatusText.label == _text("bundled-failed")
 		# R6: the panel-open failure continues the schedule.
 		assert [timer.delay_ms for timer in scheduler.live()] == [2 * 60_000]
 

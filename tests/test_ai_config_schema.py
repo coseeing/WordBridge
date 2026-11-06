@@ -22,10 +22,13 @@ def _server_document():
 	return server_document()
 
 
-def test_the_bundled_catalog_is_the_sentinel_plus_the_server_providers():
+def test_the_bundled_catalog_is_the_sentinel_plus_the_server_providers_and_models():
+	# The models are the server's list at release time (the fallback until a
+	# remote payload is accepted).
 	assert _catalog_document() == {
 		"schema_version": 1,
 		"providers": _server_document()["providers"],
+		"models": _server_document()["models"],
 		"coseeings": [SENTINEL],
 	}
 
