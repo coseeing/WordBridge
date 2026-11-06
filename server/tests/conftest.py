@@ -1,9 +1,34 @@
+import os
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
-from app.baseModel import Base
-from app.user.models import User
+
+# app.settings reads every deployment setting at import and refuses to start
+# without them. Pin them for the whole run, ahead of any app import, so the
+# suite never depends on the shell or on server/.env. The database values
+# are never used: the tests swap in sqlite sessions.
+os.environ.update({
+	"DEFAULT_CORRECTOR_CONFIG_ID": "deepseek-flash&DeepSeek",
+	"COSEEING_MODEL_IDS": "deepseek-flash&DeepSeek,gpt-6-luna&OpenAI",
+	"SSO_ISSUER": "https://sso.coseeing.org",
+	"SSO_CLIENT_ID": "wordbridge",
+	"SSO_USERINFO_URL": "https://sso.coseeing.org/userinfo",
+	"SSO_USERINFO_TIMEOUT_SECONDS": "6",
+	"DB_USER": "wordbridge",
+	"DB_PASS": "test-only",
+	"DB_HOST": "localhost",
+	"DB_PORT": "3306",
+	"DATABASE": "WordBridge",
+	"GUEST_TEXT_LIMIT": "128",
+	"GUEST_IP_QUOTA": "0.06",
+	"GUEST_GLOBAL_QUOTA": "0.3",
+	"QUOTA_WINDOW_HOURS": "24",
+})
+
+from app.baseModel import Base  # noqa: E402
+from app.user.models import User  # noqa: E402
 
 
 @pytest.fixture

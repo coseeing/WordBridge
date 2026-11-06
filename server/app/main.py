@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Literal, Optional
 
@@ -21,13 +21,11 @@ from .user.models import User as UserModel
 from .user.schemas import User as UserSchema
 from .user.auth import get_optional_user, require_superuser
 
-from dotenv import load_dotenv
-load_dotenv()
-
 from .correction_config import SETTING_DIR, load_correction_settings, resolve_model
 from .lib.application.task_runner import run_typo_correction
 from .lib.decimalUtils import decimal_to_str_0
 from .lib.tasks.typo.utils import strings_diff
+from .settings import SETTINGS
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +35,7 @@ app = FastAPI()
 # (bundled catalog + task config). Validates the deployment default model at
 # import time -- a broken deployment fails loudly at startup rather than
 # silently misbehaving per-request.
-CORRECTION_SETTINGS = load_correction_settings()
+CORRECTION_SETTINGS = load_correction_settings(SETTINGS)
 
 
 def load_catalog_bytes(path) -> bytes:
@@ -67,7 +65,6 @@ def load_catalog_bytes(path) -> bytes:
 # The file only changes with a deployment, so it is read once.
 CATALOG_BYTES = load_catalog_bytes(SETTING_DIR / "catalog.json")
 
-GUEST_TEXT_LIMIT = 128
 # Applies to every caller (guest, authenticated, superuser). Chosen comfortably
 # below both limits a request that exceeds it can otherwise blow past only
 # *after* the paid provider call already ran: create_single_char_mapping's
@@ -75,12 +72,9 @@ GUEST_TEXT_LIMIT = 128
 # request_content/response_content are MySQL TEXT columns (65,535 bytes,
 # ~21.8k CJK characters). This is a payload validation failure (422), not a
 # quota failure, and is checked before the quota check and before the
-# provider call. The much tighter GUEST_TEXT_LIMIT above remains a separate,
-# guest-only check.
+# provider call. The much tighter guest text limit (GUEST_TEXT_LIMIT, from
+# app/settings.py) remains a separate, guest-only check.
 REQUEST_TEXT_MAX_LENGTH = 8000
-GUEST_IP_QUOTA = Decimal("0.06")
-GUEST_GLOBAL_QUOTA = Decimal("0.3")
-QUOTA_WINDOW = timedelta(hours=24)
 
 # Interaction.ip_address is String(45). This does not change get_client_ip()'s
 # X-Forwarded-For trust model (keeping that as-is for this phase is
@@ -148,10 +142,10 @@ def _sum_cost(db: Session, *, since: datetime, user_id_is_none: bool, user_id=No
 
 
 def _enforce_quota(db: Session, *, user: Optional[UserModel], client_ip: str, text: str) -> None:
-	if user is None and len(text) > GUEST_TEXT_LIMIT:
+	if user is None and len(text) > SETTINGS.guest_text_limit:
 		raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=_QUOTA_EXCEEDED_DETAIL)
 
-	since = datetime.now(timezone.utc) - QUOTA_WINDOW
+	since = datetime.now(timezone.utc) - SETTINGS.quota_window
 
 	if user is not None:
 		if user.is_superuser:
@@ -163,7 +157,7 @@ def _enforce_quota(db: Session, *, user: Optional[UserModel], client_ip: str, te
 
 	ip_cost = _sum_cost(db, since=since, user_id_is_none=True, ip_address=client_ip)
 	global_cost = _sum_cost(db, since=since, user_id_is_none=True)
-	if ip_cost >= GUEST_IP_QUOTA or global_cost >= GUEST_GLOBAL_QUOTA:
+	if ip_cost >= SETTINGS.guest_ip_quota or global_cost >= SETTINGS.guest_global_quota:
 		raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=_QUOTA_EXCEEDED_DETAIL)
 
 

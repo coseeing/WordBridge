@@ -10,6 +10,29 @@ def test_default_resolves_to_local_model(monkeypatch):
 	assert resolve_model(settings, "gpt-6-luna&OpenAI").provider == "OpenAI"
 
 
+def test_an_unset_default_model_env_var_stops_startup(monkeypatch):
+	monkeypatch.delenv("DEFAULT_CORRECTOR_CONFIG_ID", raising=False)
+
+	with pytest.raises(ValueError, match="DEFAULT_CORRECTOR_CONFIG_ID is not set"):
+		load_correction_settings()
+
+
+def test_an_empty_default_model_env_var_stops_startup(monkeypatch):
+	monkeypatch.setenv("DEFAULT_CORRECTOR_CONFIG_ID", "  ")
+
+	with pytest.raises(ValueError, match="DEFAULT_CORRECTOR_CONFIG_ID is empty"):
+		load_correction_settings()
+
+
+def test_the_default_model_comes_from_the_env_var(monkeypatch):
+	monkeypatch.setenv("DEFAULT_CORRECTOR_CONFIG_ID", "claude-sonnet-5-5&Anthropic")
+	settings = load_correction_settings()
+
+	assert settings.default_id == "claude-sonnet-5-5&Anthropic"
+	model = resolve_model(settings, "default")
+	assert (model.provider, model.model) == ("Anthropic", "claude-sonnet-5-5")
+
+
 def test_inactive_model_is_rejected(monkeypatch):
 	monkeypatch.setenv("DEFAULT_CORRECTOR_CONFIG_ID", "deepseek-flash&DeepSeek")
 	settings = load_correction_settings()
@@ -24,10 +47,17 @@ def test_the_served_catalog_has_no_coseeing_offers(monkeypatch):
 	assert settings.catalog.coseeings == ()
 
 
-def test_the_ids_released_add_ons_send_are_servable_by_default(monkeypatch):
+def test_an_unset_coseeing_list_stops_startup(monkeypatch):
+	monkeypatch.delenv("COSEEING_MODEL_IDS", raising=False)
+
+	with pytest.raises(ValueError, match="COSEEING_MODEL_IDS is not set"):
+		load_correction_settings()
+
+
+def test_the_ids_released_add_ons_send_are_servable_when_listed(monkeypatch):
 	# U5 (OQ1 -> B): released add-ons offered these two on Coseeing and keep
 	# sending them; the list is the server's own, not part of GET /.
-	monkeypatch.delenv("COSEEING_MODEL_IDS", raising=False)
+	monkeypatch.setenv("COSEEING_MODEL_IDS", "deepseek-flash&DeepSeek,gpt-6-luna&OpenAI")
 	settings = load_correction_settings()
 
 	assert settings.coseeing_ids == frozenset({"deepseek-flash&DeepSeek", "gpt-6-luna&OpenAI"})
@@ -36,7 +66,7 @@ def test_the_ids_released_add_ons_send_are_servable_by_default(monkeypatch):
 
 
 def test_an_unlisted_id_is_rejected_even_if_it_is_an_active_local_model(monkeypatch):
-	monkeypatch.delenv("COSEEING_MODEL_IDS", raising=False)
+	monkeypatch.setenv("COSEEING_MODEL_IDS", "deepseek-flash&DeepSeek,gpt-6-luna&OpenAI")
 	settings = load_correction_settings()
 
 	assert settings.catalog.get_model("gemini-3.7-flash&Google").active

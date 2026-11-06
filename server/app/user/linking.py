@@ -8,18 +8,16 @@ only when the local user is not already known to be verified.
 Never logs the access token or the raw UserInfo response body.
 """
 
-import os
-
 import requests
 from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.settings import SETTINGS
+
 from .models import User
 
-SSO_USERINFO_URL_DEFAULT = "https://sso.coseeing.org/userinfo"
-USERINFO_TIMEOUT = 6
 # User.name is String(30); truncate anything we derive to fit it.
 NAME_MAX_LENGTH = 30
 
@@ -27,10 +25,6 @@ _UNAVAILABLE_DETAIL = "SSO UserInfo endpoint is unavailable"
 _UNPARSEABLE_DETAIL = "SSO UserInfo endpoint returned an unparseable response"
 _UNVERIFIED_DETAIL = "SSO identity could not be verified"
 _CONFLICT_DETAIL = "SSO identity conflicts with an existing account"
-
-
-def _userinfo_url() -> str:
-	return os.environ.get("SSO_USERINFO_URL", SSO_USERINFO_URL_DEFAULT)
 
 
 def fetch_userinfo(token: str) -> dict:
@@ -42,9 +36,9 @@ def fetch_userinfo(token: str) -> dict:
 	"""
 	try:
 		response = requests.get(
-			_userinfo_url(),
+			SETTINGS.sso_userinfo_url,
 			headers={"Authorization": f"Bearer {token}"},
-			timeout=USERINFO_TIMEOUT,
+			timeout=SETTINGS.sso_userinfo_timeout,
 		)
 	except requests.RequestException as error:
 		raise HTTPException(status_code=503, detail=_UNAVAILABLE_DETAIL) from error

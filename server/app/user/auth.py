@@ -7,8 +7,8 @@ Layering (spec: "SSO dependencies and local users"):
    header that is present but not a well-formed Bearer credential is
    always a 401 -- it is never silently downgraded to guest.
 2. `get_token_verifier` lazily builds a process-wide `TokenVerifier`
-   singleton from `AuthConfig`/`OidcProtocol` (env-configurable issuer
-   and client id).
+   singleton from `AuthConfig`/`OidcProtocol` (issuer and client id from
+   SSO_ISSUER and SSO_CLIENT_ID).
 3. `get_verified_sub` calls `TokenVerifier.verify_access_token()` for
    every request that carries a token -- unconditionally, even when
    `resolve_local_user()` will go on to skip the UserInfo round-trip
@@ -21,7 +21,6 @@ Layering (spec: "SSO dependencies and local users"):
    and "not a superuser" into 403.
 """
 
-import os
 import threading
 from typing import Optional
 
@@ -33,6 +32,7 @@ from app.package.coseeing_auth.errors import DiscoveryError, ScopeError, TokenVa
 from app.package.coseeing_auth.models import AuthConfig
 from app.package.coseeing_auth.oidc import OidcProtocol
 from app.package.coseeing_auth.verification import TokenVerifier
+from app.settings import SETTINGS
 
 from .linking import resolve_local_user
 from .models import User
@@ -72,8 +72,8 @@ def get_token_verifier() -> TokenVerifier:
 		with _verifier_lock:
 			if _verifier is None:
 				config = AuthConfig(
-					issuer=os.getenv("SSO_ISSUER", "https://sso.coseeing.org"),
-					client_id=os.getenv("SSO_CLIENT_ID", "wordbridge"),
+					issuer=SETTINGS.sso_issuer,
+					client_id=SETTINGS.sso_client_id,
 					scopes=("openid",),
 					login_redirect_uri="http://127.0.0.1:8000/auth/callback",
 					logout_redirect_uri=None,

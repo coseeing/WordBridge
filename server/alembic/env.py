@@ -1,5 +1,4 @@
 from logging.config import fileConfig
-from urllib.parse import quote
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
@@ -21,14 +20,10 @@ from app.baseModel import Base
 target_metadata = Base.metadata
 
 # --- Override DB URL dynamically ---
-DB_USER = 'wordbridge'
-DB_PASS = quote('wob@w125')
-DB_HOST = 'wob-db'
-DB_PORT = '3306'
-DB_NAME = 'WordBridge'
-ENCODING = 'charset=utf8mb4'
-
-url = f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}?{ENCODING}"
+# The same DB_* variables the app reads (app/settings.py, which also loads
+# server/.env); a missing one stops the migration before it connects.
+from app.settings import SETTINGS
+url = SETTINGS.database_url("mysql+pymysql")
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
