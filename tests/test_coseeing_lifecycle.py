@@ -245,7 +245,9 @@ def test_feedback_reads_one_internally_consistent_snapshot_despite_nested_event_
 	plugin_module = _plugin(monkeypatch, queued)
 	instance = _instance(plugin_module)
 	instance.latest_action = plugin_module.CorrectionAction(
-		interaction_id="i-first", request="first-req", response="first-resp"
+		interaction_id="i-first",
+		request="first-req",
+		response="first-resp",
 	)
 	future = Future()
 	future.set_result(None)
@@ -281,7 +283,9 @@ def test_feedback_reads_one_internally_consistent_snapshot_despite_nested_event_
 			# Simulate a second, unrelated correction completing and
 			# publishing its own snapshot while this dialog is open.
 			instance.latest_action = plugin_module.CorrectionAction(
-				interaction_id="i-second", request="second-req", response="second-resp"
+				interaction_id="i-second",
+				request="second-req",
+				response="second-resp",
 			)
 			return plugin_module.wx.ID_OK
 
@@ -318,7 +322,9 @@ def test_feedback_thread_is_not_started_once_terminate_ran_inside_showmodal(monk
 	plugin_module, _, gui = _load_nvda_plugin(monkeypatch, SETTINGS, auth_calls, queued)
 	instance = _instance(plugin_module)
 	instance.latest_action = plugin_module.CorrectionAction(
-		interaction_id="i-1", request="req", response="resp"
+		interaction_id="i-1",
+		request="req",
+		response="resp",
 	)
 	instance.correct_typo_thread = None
 	instance._feedback_thread = None

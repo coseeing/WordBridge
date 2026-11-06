@@ -56,13 +56,19 @@ def _script_workflow(monkeypatch, *, segmentations, revisions, responder):
 	revision_iter = iter(revisions)
 
 	monkeypatch.setattr(
-		workflow_module, "text_segmentation", lambda text, max_length=100: next(segmentation_iter)
+		workflow_module,
+		"text_segmentation",
+		lambda text, max_length=100: next(segmentation_iter),
 	)
 	monkeypatch.setattr(
-		workflow_module, "find_correction_errors", lambda text, corrected: next(revision_iter)
+		workflow_module,
+		"find_correction_errors",
+		lambda text, corrected: next(revision_iter),
 	)
 	monkeypatch.setattr(
-		workflow_module, "get_segments_to_recorrect", lambda segments, typo_indices: list(segments)
+		workflow_module,
+		"get_segments_to_recorrect",
+		lambda segments, typo_indices: list(segments),
 	)
 	monkeypatch.setattr(workflow_module, "review_correction_errors", lambda text, corrected: corrected)
 	monkeypatch.setattr(workflow_module, "strings_diff", lambda before, after: [])

@@ -34,7 +34,7 @@ ISOLATED = frozenset(
 		"zhon",
 		"hanzidentifier",
 		"chinese_converter",
-	}
+	},
 )
 
 # Must come from the host, and deliberately not shipped: NVDA preloads all of
@@ -66,7 +66,7 @@ HOST_ONLY = frozenset(
 		"_cffi_backend",
 		"pycparser",
 		"cryptography",
-	}
+	},
 )
 
 STDLIB_GAPFILL_DIRNAME = "_stdlib_gapfill"
@@ -87,7 +87,7 @@ CRYPTOGRAPHY_GAPFILL = frozenset(
 		"cryptography.hazmat.primitives.kdf.pbkdf2",
 		"cryptography.hazmat.primitives.keywrap",
 		"cryptography.hazmat.primitives.padding",
-	}
+	},
 )
 
 
@@ -272,7 +272,9 @@ class _GapFillFinder(importlib.abc.MetaPathFinder):
 			if not os.path.isfile(init):
 				return None
 			return importlib.util.spec_from_file_location(
-				fullname, init, submodule_search_locations=[location]
+				fullname,
+				init,
+				submodule_search_locations=[location],
 			)
 		source = location + ".py"
 		if not os.path.isfile(source):

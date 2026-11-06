@@ -244,10 +244,14 @@ def test_a_same_key_retry_with_the_bundled_list_keeps_its_line(monkeypatch):
 
 
 @pytest.mark.parametrize(
-	"retried, expected", [(True, "bundled-failed"), (False, None)], ids=["r1-started", "already-running"]
+	"retried, expected",
+	[(True, "bundled-failed"), (False, None)],
+	ids=["r1-started", "already-running"],
 )
 def test_the_panel_opens_on_the_bundled_line_when_its_fetch_starts_from_a_failure(
-	monkeypatch, retried, expected
+	monkeypatch,
+	retried,
+	expected,
 ):
 	f = live_fixture(monkeypatch)
 	set_status(f, "bundled", "failed" if retried else "running")
@@ -275,10 +279,14 @@ def test_a_url_change_with_the_cache_hides_the_stale_line(monkeypatch):
 
 
 @pytest.mark.parametrize(
-	"retried, expected", [(True, "stale"), (False, None)], ids=["r1-started", "already-running"]
+	"retried, expected",
+	[(True, "stale"), (False, None)],
+	ids=["r1-started", "already-running"],
 )
 def test_the_panel_opens_on_the_stale_line_when_its_fetch_starts_from_a_cache_failure(
-	monkeypatch, retried, expected
+	monkeypatch,
+	retried,
+	expected,
 ):
 	f = live_fixture(monkeypatch)
 	set_status(f, "cache", "failed" if retried else "running")
@@ -375,7 +383,8 @@ def _shipped_without(*ids):
 	def build(f):
 		catalog = f.plugin.catalog
 		return dataclasses.replace(
-			catalog, models=tuple(m for m in catalog.models if m.corrector_config_id not in ids)
+			catalog,
+			models=tuple(m for m in catalog.models if m.corrector_config_id not in ids),
 		)
 
 	return build
@@ -465,7 +474,7 @@ def test_live_selection_table(monkeypatch, old, new, stored, touched, expected, 
 	assert panel.catalog is new_catalog
 	assert _item_ids(panel.selection.current_item()) == expected
 	assert (panel.providerList.GetSelection(), panel.modelList.GetSelection()) == new_catalog.find_selection(
-		*expected
+		*expected,
 	)
 	assert panel._restoredIndices == new_catalog.find_selection(*baseline)
 
@@ -715,7 +724,7 @@ def test_a_failing_widget_update_leaves_the_panel_on_the_old_catalog(monkeypatch
 	assert panel.catalog is new_catalog
 	assert _item_ids(panel.selection.current_item()) == SOL
 	assert (panel.providerList.GetSelection(), panel.modelList.GetSelection()) == new_catalog.find_selection(
-		*SOL
+		*SOL,
 	)
 
 
@@ -861,7 +870,9 @@ KEY_ROWS = [
 
 
 @pytest.mark.parametrize(
-	"stored, path, expected", [row[1:] for row in KEY_ROWS], ids=[row[0] for row in KEY_ROWS]
+	"stored, path, expected",
+	[row[1:] for row in KEY_ROWS],
+	ids=[row[0] for row in KEY_ROWS],
 )
 def test_no_blank_api_key_is_written(monkeypatch, stored, path, expected):
 	# R13: boxes exist for providers the user never used; neither reading
@@ -1161,7 +1172,9 @@ ANNOUNCEMENT_ROWS = [
 
 
 @pytest.mark.parametrize(
-	"event, expected", [row[1:] for row in ANNOUNCEMENT_ROWS], ids=[row[0] for row in ANNOUNCEMENT_ROWS]
+	"event, expected",
+	[row[1:] for row in ANNOUNCEMENT_ROWS],
+	ids=[row[0] for row in ANNOUNCEMENT_ROWS],
 )
 def test_announcements_table(monkeypatch, event, expected):
 	f = live_fixture(monkeypatch)
@@ -1200,7 +1213,9 @@ SILENT_ROWS = [
 
 
 @pytest.mark.parametrize(
-	"event, condition", [row[1:] for row in SILENT_ROWS], ids=[row[0] for row in SILENT_ROWS]
+	"event, condition",
+	[row[1:] for row in SILENT_ROWS],
+	ids=[row[0] for row in SILENT_ROWS],
 )
 def test_no_announcement_when(monkeypatch, event, condition):
 	f = live_fixture(monkeypatch)
@@ -1267,7 +1282,8 @@ def test_the_new_strings_have_translator_comments_and_zh_tw_translations():
 	from test_catalog_url_dialog import ADDON, _assert_translated
 
 	_assert_translated(
-		ADDON / "dialogs.py", {UPDATED: "模型清單已更新。", UPDATE_FAILED: "模型清單更新失敗。"}
+		ADDON / "dialogs.py",
+		{UPDATED: "模型清單已更新。", UPDATE_FAILED: "模型清單更新失敗。"},
 	)
 
 
@@ -1281,7 +1297,10 @@ def test_the_panel_follows_a_real_updater_end_to_end(monkeypatch, tmp_path):
 	network = {"get": _refuse}
 	scheduler = FakeScheduler()
 	updater = real_updater(
-		f, tmp_path, lambda url, **kwargs: network["get"](url, **kwargs), schedule=scheduler
+		f,
+		tmp_path,
+		lambda url, **kwargs: network["get"](url, **kwargs),
+		schedule=scheduler,
 	)
 	url = "https://wordbridge.coseeing.org"
 	f.dialogs.registry.replace(updater.initial_catalog(url))

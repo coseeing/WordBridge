@@ -51,7 +51,9 @@ class SelectionState:
 	@classmethod
 	def restore(cls, catalog, corrector_config_id: str, execution_channel: str) -> "SelectionState":
 		corrector_config_id, execution_channel = normalize_selection(
-			catalog, corrector_config_id, execution_channel
+			catalog,
+			corrector_config_id,
+			execution_channel,
 		)
 		indices = catalog.find_selection(corrector_config_id, execution_channel)
 		if indices == (-1, -1):

@@ -142,7 +142,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 			"content": [
 				{"type": "thinking", "thinking": "", "signature": "signature"},
 				{"type": "text", "text": "我說我喜歡用螢幕閱讀器讀書"},
-			]
+			],
 		}
 
 		self.assertEqual(adapter.parse_response(response), "我說我喜歡用螢幕閱讀器讀書")
@@ -160,7 +160,9 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.prompt_bundle import PromptBundle
 
 		adapter = get_provider_model_adapter(
-			"OpenAI", "gpt-6.1-terra", price_entry=_price_entry("gpt-6.1-terra", "OpenAI")
+			"OpenAI",
+			"gpt-6.1-terra",
+			price_entry=_price_entry("gpt-6.1-terra", "OpenAI"),
 		)
 		self.assertIsInstance(adapter, OpenAIAdapter)
 
@@ -185,7 +187,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 				{
 					"role": "user",
 					"content": [{"type": "input_text", "text": "原始文字"}],
-				}
+				},
 			],
 		)
 		self.assertEqual(payload["max_output_tokens"], 4096)
@@ -200,7 +202,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 					"content": [
 						{"type": "output_text", "text": "修正文字"},
 					],
-				}
+				},
 			],
 			"usage": {
 				"input_tokens": 11,
@@ -244,7 +246,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 				{
 					"type": "message",
 					"content": [{"type": "output_text", "text": "adapter must parse this"}],
-				}
+				},
 			],
 			"usage": {"input_tokens": 11, "output_tokens": 7},
 		}
@@ -412,7 +414,9 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		from lib.llm.adapter import get_provider_model_adapter
 
 		adapter = get_provider_model_adapter(
-			"OpenAI", "gpt-6.1-terra", price_entry=_price_entry("gpt-6.1-terra", "OpenAI")
+			"OpenAI",
+			"gpt-6.1-terra",
+			price_entry=_price_entry("gpt-6.1-terra", "OpenAI"),
 		)
 		usage_history = [
 			{"input_tokens": 10, "output_tokens": 5},
@@ -488,7 +492,7 @@ class ProviderModelAdapterTests(unittest.TestCase):
 						"prompt_tokens": 2,
 						"completion_tokens": 8,
 						"base_unit": 1000000,
-					}
+					},
 				}
 
 			def get_total_usage(self, usage_history):

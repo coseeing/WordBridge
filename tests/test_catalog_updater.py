@@ -8,10 +8,12 @@ from shipped_catalog import bundled_document, served_document, server_document, 
 
 updater_module = load_plugin_module("catalog_updater")
 cache_module = __import__(
-	updater_module.__name__.rsplit(".", 1)[0] + ".lib.catalog.cache", fromlist=["CatalogCache"]
+	updater_module.__name__.rsplit(".", 1)[0] + ".lib.catalog.cache",
+	fromlist=["CatalogCache"],
 )
 remote_module = __import__(
-	updater_module.__name__.rsplit(".", 1)[0] + ".lib.catalog.remote", fromlist=["validate_catalog_url"]
+	updater_module.__name__.rsplit(".", 1)[0] + ".lib.catalog.remote",
+	fromlist=["validate_catalog_url"],
 )
 CatalogUpdater = updater_module.CatalogUpdater
 SUPPORTED = frozenset({"Anthropic", "DeepSeek", "Google", "Ollama", "OpenAI", "OpenRouter"})
@@ -98,7 +100,7 @@ class Harness:
 		self.shutdown = threading.Event()
 		self.log = FakeLog()
 		self.cache = SpyCache(
-			cache_module.CatalogCache(tmp_path / "catalog" / "remote-catalog.json", can_write=lambda: True)
+			cache_module.CatalogCache(tmp_path / "catalog" / "remote-catalog.json", can_write=lambda: True),
 		)
 		self.updater = CatalogUpdater(
 			bundled_source=BundledSentinel(),

@@ -98,7 +98,7 @@ def catalog_status_message(status):
 			return _(
 				# Translators: Status line in the WordBridge settings panel when the model list URL is empty, so the
 				# model list that was included when the add-on was released is used.
-				"The model list URL is empty, so WordBridge is using the model list that came with the add-on."
+				"The model list URL is empty, so WordBridge is using the model list that came with the add-on.",
 			)
 		# Translators: Status line in the WordBridge settings panel when the model list URL is empty.
 		return _("The model list URL is empty, so only the Coseeing default is available.")
@@ -107,7 +107,7 @@ def catalog_status_message(status):
 			return _(
 				# Translators: Status line in the WordBridge settings panel when the stored model list URL is not a valid
 				# address, so the model list that was included when the add-on was released is used.
-				"The model list URL is invalid, so WordBridge is using the model list that came with the add-on."
+				"The model list URL is invalid, so WordBridge is using the model list that came with the add-on.",
 			)
 		# Translators: Status line in the WordBridge settings panel when the stored model list URL is not a valid
 		# address, so no model list was downloaded.
@@ -119,7 +119,7 @@ def catalog_status_message(status):
 		return _(
 			# Translators: Status line in the WordBridge settings panel when the model list could not be downloaded
 			# and no earlier copy is saved.
-			"The model list could not be loaded, so only the Coseeing default is available. See the NVDA log for details."
+			"The model list could not be loaded, so only the Coseeing default is available. See the NVDA log for details.",
 		)
 	if status.source == catalog_updater.SOURCE_CACHE and status.fetch == catalog_updater.FETCH_FAILED:
 		# Translators: Status line in the WordBridge settings panel when the model list could not be downloaded
@@ -129,7 +129,7 @@ def catalog_status_message(status):
 		return _(
 			# Translators: Status line in the WordBridge settings panel when the model list could not be downloaded
 			# and no copy was saved earlier, so the model list that was included when the add-on was released is used.
-			"The model list could not be updated. WordBridge is using the model list that came with the add-on."
+			"The model list could not be updated. WordBridge is using the model list that came with the add-on.",
 		)
 	return None
 
@@ -142,7 +142,7 @@ _STALE_SOURCES = (catalog_updater.SOURCE_CACHE, catalog_updater.SOURCE_BUNDLED)
 def _stale_list_message(source):
 	"""The "could not be updated ... WordBridge is using ..." line for `source`."""
 	return catalog_status_message(
-		catalog_updater.UpdaterStatus(source=source, fetch=catalog_updater.FETCH_FAILED)
+		catalog_updater.UpdaterStatus(source=source, fetch=catalog_updater.FETCH_FAILED),
 	)
 
 
@@ -189,13 +189,13 @@ def _dropped_entries_message(catalog):
 	if count == 1:
 		# Translators: Line in the WordBridge settings panel when one entry of the model list could not be loaded.
 		return _("{count} catalog entry could not be loaded; see the NVDA log for details.").format(
-			count=count
+			count=count,
 		)
 	if count > 1:
 		# Translators: Line in the WordBridge settings panel when several entries of the model list could not be loaded;
 		# {count} is their number.
 		return _("{count} catalog entries could not be loaded; see the NVDA log for details.").format(
-			count=count
+			count=count,
 		)
 	return None
 
@@ -237,7 +237,8 @@ class LLMSettingsPanel(SettingsPanel):
 			retried = catalog_updater.retry_on_panel_open()
 		except Exception as error:  # noqa: BLE001
 			log.warning(
-				"WordBridge: catalog fetch on settings panel open failed type=%s", type(error).__name__
+				"WordBridge: catalog fetch on settings panel open failed type=%s",
+				type(error).__name__,
 			)
 			retried = False
 		# NVDA's _buildGui has set this already; the live update needs it.
@@ -318,7 +319,9 @@ class LLMSettingsPanel(SettingsPanel):
 		# Translators: Label of the choice of the correction language in the WordBridge settings panel.
 		languageLabelText = _("Language:")
 		self.languageList = settingsSizerHelper.addLabeledControl(
-			languageLabelText, wx.Choice, choices=LANGUAGE_LABELS
+			languageLabelText,
+			wx.Choice,
+			choices=LANGUAGE_LABELS,
 		)
 		# Translators: Tooltip of the language choice in the WordBridge settings panel.
 		self.languageList.SetToolTip(wx.ToolTip(_("Choose the language for the Word Bridge")))
@@ -328,14 +331,16 @@ class LLMSettingsPanel(SettingsPanel):
 		# Translators: Label of the choice of the correction mode in the WordBridge settings panel.
 		typoCorrectionModeLabelText = _("Correction Mode:")
 		self.typoCorrectionModeList = settingsSizerHelper.addLabeledControl(
-			typoCorrectionModeLabelText, wx.Choice, choices=TYPO_CORRECTION_MODE_LABELS
+			typoCorrectionModeLabelText,
+			wx.Choice,
+			choices=TYPO_CORRECTION_MODE_LABELS,
 		)
 		self.typoCorrectionModeList.SetToolTip(
 			# Translators: Tooltip of the correction mode choice in the WordBridge settings panel.
-			wx.ToolTip(_("Choose the typo correction mode for the Word Bridge"))
+			wx.ToolTip(_("Choose the typo correction mode for the Word Bridge")),
 		)
 		self.typoCorrectionModeList.SetSelection(
-			TYPO_CORRECTION_MODE_VALUES.index(self.settings.typo_correction_mode())
+			TYPO_CORRECTION_MODE_VALUES.index(self.settings.typo_correction_mode()),
 		)
 
 		# For setting upper bound of correction character count
@@ -354,7 +359,7 @@ class LLMSettingsPanel(SettingsPanel):
 		# For setting auto display typo report
 		self.autoDisplayReportEnable = settingsSizerHelper.addItem(
 			# Translators: Check box in the WordBridge settings panel: show the typo report after each correction.
-			wx.CheckBox(self, label=_("Auto display typo report"))
+			wx.CheckBox(self, label=_("Auto display typo report")),
 		)
 		self.autoDisplayReportEnable.SetValue(self.settings.auto_display_report())
 
@@ -365,7 +370,7 @@ class LLMSettingsPanel(SettingsPanel):
 		dictionaryBox = self._addGroup(settingsSizerHelper, _("Personal dictionary"))
 		self.customizedWordEnable = dictionaryBox.helper.addItem(
 			# Translators: Check box in the WordBridge settings panel: use the user's own dictionary in corrections.
-			wx.CheckBox(dictionaryBox.box, label=_("Apply personal dictionary"))
+			wx.CheckBox(dictionaryBox.box, label=_("Apply personal dictionary")),
 		)
 		self.customizedWordEnable.SetValue(self.settings.customized_words_enable())
 
@@ -374,7 +379,7 @@ class LLMSettingsPanel(SettingsPanel):
 				dictionaryBox.box,
 				# Translators: Button in the WordBridge settings panel that opens the personal dictionary.
 				label=_("Edit dictionary"),
-			)
+			),
 		)
 		self.wordDictionaryCtrl.Bind(wx.EVT_BUTTON, self.onEditDictionary)
 
@@ -383,7 +388,7 @@ class LLMSettingsPanel(SettingsPanel):
 		soundEffectsBox = self._addGroup(settingsSizerHelper, _("Sound effects"))
 		self.soundEffectsEnable = soundEffectsBox.helper.addItem(
 			# Translators: Check box in the WordBridge settings panel: play sounds while a correction runs.
-			wx.CheckBox(soundEffectsBox.box, label=_("Enable sound effect cues"))
+			wx.CheckBox(soundEffectsBox.box, label=_("Enable sound effect cues")),
 		)
 		self.soundEffectsEnable.SetValue(self.settings.sound_effects_enable())
 
@@ -392,7 +397,7 @@ class LLMSettingsPanel(SettingsPanel):
 				soundEffectsBox.box,
 				# Translators: Button in the WordBridge settings panel that opens the web page crediting the sound effects.
 				label=_("Sound effect credits"),
-			)
+			),
 		)
 		self.soundEffectsCtrl.Bind(wx.EVT_BUTTON, self.onSoundEffects)
 
@@ -410,7 +415,9 @@ class LLMSettingsPanel(SettingsPanel):
 		catalogUrlHelper = guiHelper.BoxSizerHelper(self, sizer=catalogUrlSizer)
 		settingsSizerHelper.addItem(catalogUrlHelper)
 		self.catalogUrlBox = ExpandoTextCtrl(
-			catalogUrlGroup, size=(self.scaleSize(375), -1), style=wx.TE_READONLY
+			catalogUrlGroup,
+			size=(self.scaleSize(375), -1),
+			style=wx.TE_READONLY,
 		)
 		# Translators: Button in the model list URL group of the WordBridge settings panel that opens the dialog
 		# changing the address.
@@ -752,7 +759,8 @@ class LLMSettingsPanel(SettingsPanel):
 		chosen = (self.selection.provider_group_index, self.selection.model_index)
 		if self._storedSelectionResolved or chosen != self._restoredIndices or self._keptUserPick:
 			self.settings.save_corrector_selection(
-				selected_item.corrector_config_id, selected_item.execution_channel
+				selected_item.corrector_config_id,
+				selected_item.execution_channel,
 			)
 			signInChannel = selected_item.execution_channel
 		else:
@@ -767,7 +775,7 @@ class LLMSettingsPanel(SettingsPanel):
 		self._keptUserPick = False
 		self.settings.save_language(LANGUAGE_VALUES[self.languageList.GetSelection()])
 		self.settings.save_typo_correction_mode(
-			TYPO_CORRECTION_MODE_VALUES[self.typoCorrectionModeList.GetSelection()]
+			TYPO_CORRECTION_MODE_VALUES[self.typoCorrectionModeList.GetSelection()],
 		)
 		self.settings.save_max_char_count(self.maxCharCountSpinCtrl.GetValue())
 		self.settings.save_auto_display_report(self.autoDisplayReportEnable.GetValue())

@@ -29,7 +29,7 @@ BOOTSTRAP = textwrap.dedent(
 	from lib import vendor
 
 	vendor.install(vendor.default_roots(str(ADDON / "package")))
-	"""
+	""",
 )
 
 
@@ -85,7 +85,7 @@ def test_analyze_diff_uses_the_real_vendored_converter():
 
 		assert "Tranditional to simplified" in analyze_diff("體", "体"), analyze_diff("體", "体")
 		assert "Simplified to tranditional" in analyze_diff("体", "體"), analyze_diff("体", "體")
-		"""
+		""",
 	)
 	assert result.returncode == 0, result.stderr
 

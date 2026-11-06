@@ -37,7 +37,7 @@ def test_a_usable_document_is_not_replaced():
 				"setting": {},
 				"timeout0": 10,
 				"timeout_max": 20,
-			}
+			},
 		},
 		"models": [{"provider": "OpenAI", "model": "gpt-x", "label": "GPT X"}],
 		"coseeings": [],
@@ -93,7 +93,7 @@ def test_a_partially_broken_document_stays_undegraded_and_keeps_all_issues():
 				"setting": {},
 				"timeout0": 10,
 				"timeout_max": 20,
-			}
+			},
 		},
 		"models": [
 			{"provider": "OpenAI", "model": "gpt-x", "label": "GPT X"},

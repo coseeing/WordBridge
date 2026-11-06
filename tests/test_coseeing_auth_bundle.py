@@ -76,7 +76,7 @@ assert Path(coseeing_auth.__file__).resolve().is_relative_to(fixture)
 			pytest.fail(
 				f"sandboxed subprocess failed ({result.returncode})\n"
 				f"--- stderr ---\n{result.stderr}\n"
-				f"--- stdout ---\n{result.stdout}"
+				f"--- stdout ---\n{result.stdout}",
 			)
 		return
 
@@ -115,7 +115,7 @@ assert Path(coseeing_auth.__file__).resolve().is_relative_to(bundle)
 		pytest.fail(
 			f"sandboxed subprocess failed ({result.returncode})\n"
 			f"--- stderr ---\n{result.stderr}\n"
-			f"--- stdout ---\n{result.stdout}"
+			f"--- stdout ---\n{result.stdout}",
 		)
 
 
@@ -267,7 +267,7 @@ assert not Path(cryptography.__file__).resolve().is_relative_to(bundle)
 		pytest.fail(
 			f"sandbox gate failed ({result.returncode})\n"
 			f"--- stderr ---\n{result.stderr}\n"
-			f"--- stdout ---\n{result.stdout}"
+			f"--- stdout ---\n{result.stdout}",
 		)
 
 

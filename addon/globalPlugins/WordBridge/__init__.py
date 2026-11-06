@@ -122,7 +122,7 @@ config.conf.spec["WordBridge"] = {
 		# remote catalog off: only the model list bundled with the add-on (and
 		# the Coseeing default) is offered.
 		"catalog_url": f"string(default='{DEFAULT_CATALOG_URL}')",
-	}
+	},
 }
 COSEEING_BASE_URL = "https://wordbridge.coseeing.org"
 # COSEEING_BASE_URL = "http://localhost:8000"
@@ -268,8 +268,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				_(
 					# Translators: Reported when the correction settings file that comes with WordBridge is
 					# damaged, so WordBridge uses its built-in defaults.
-					"The bundled correction settings file is damaged; WordBridge is using its built-in defaults."
-				)
+					"The bundled correction settings file is damaged; WordBridge is using its built-in defaults.",
+				),
 			)
 			return CorrectorTaskConfig(
 				template_name={"standard": "Standard_v1.json", "lite": "Lite_v1.json"},
@@ -341,7 +341,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					# nothing.
 					"The model list is not available yet, so the model you selected cannot be used.\n\n"
 					"Switch to the Coseeing default and correct this text with Coseeing? "
-					"Your WordBridge setting will be changed to the Coseeing default."
+					"Your WordBridge setting will be changed to the Coseeing default.",
 				),
 				# Translators: Title of the Yes/No dialog asking whether to switch to the Coseeing default;
 				# the add-on name.
@@ -522,7 +522,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def onSettings(self, evt):
 		wx.CallAfter(
-			gui.mainFrame.popupSettingsDialog, gui.settingsDialogs.NVDASettingsDialog, LLMSettingsPanel
+			gui.mainFrame.popupSettingsDialog,
+			gui.settingsDialogs.NVDASettingsDialog,
+			LLMSettingsPanel,
 		)
 
 	def OnPreview(self, file):
@@ -554,11 +556,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				_(
 					# Translators: Reported when the selected text is too long to correct; {len_text} is its
 					# number of characters and {max_char_count} the maximum set in WordBridge settings.
-					"The number of characters is {len_text}, which exceeds the maximum, {max_char_count}."
-				).format(len_text=len(text), max_char_count=max_char_count)
+					"The number of characters is {len_text}, which exceeds the maximum, {max_char_count}.",
+				).format(len_text=len(text), max_char_count=max_char_count),
 			)
 			log.warning(
-				f"The number of characters is {len(text)}, which exceeds the maximum, {max_char_count}."
+				f"The number of characters is {len(text)}, which exceeds the maximum, {max_char_count}.",
 			)
 			return False
 		elif len(text) == 0:
@@ -624,8 +626,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					_(
 						# Translators: Reported when the model chosen in WordBridge settings is no longer in
 						# the model list.
-						"The selected model is no longer available. Please choose another one in WordBridge settings."
-					)
+						"The selected model is no longer available. Please choose another one in WordBridge settings.",
+					),
 				)
 				return
 			provider_entry = catalog.get_provider(model_entry.provider)
@@ -634,8 +636,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					_(
 						# Translators: Reported when the service provider of the chosen model is no longer in
 						# the model list.
-						"The selected provider is no longer available. Please choose another one in WordBridge settings."
-					)
+						"The selected provider is no longer available. Please choose another one in WordBridge settings.",
+					),
 				)
 				return
 			credential = {"api_key": self.settings.api_key(model_entry.provider)}
@@ -666,8 +668,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					# Translators: Reported when a correction with the user's own API key fails; {e} is the
 					# error message, which may come from the service provider untranslated.
 					_("Sorry, an error occurred during the program execution, the details are: {e}").format(
-						e=e
-					)
+						e=e,
+					),
 				)
 				log.warning(f"Sorry, an error occurred during the program execution, the details are: {e}")
 				return
@@ -695,7 +697,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			}
 			try:
 				data = self._post_coseeing_request(
-					f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data
+					f"{COSEEING_BASE_URL}/proofreader",
+					headers=headers,
+					json=data,
 				)
 			except Exception as error:  # noqa: BLE001
 				timeout_type = getattr(getattr(requests, "exceptions", None), "Timeout", None)
@@ -714,7 +718,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._notify(
 					# Translators: Reported when the Coseeing service does not accept the user's sign-in (HTTP
 					# 401).
-					_("Authentication error. Please sign in to Coseeing or check your account permissions.")
+					_("Authentication error. Please sign in to Coseeing or check your account permissions."),
 				)
 				return
 			elif data.status_code == 429:
@@ -724,7 +728,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					_("Rate limit reached for requests or you exceeded your current quota. ")
 					# Translators: Second sentence reported when the Coseeing service limits the user's
 					# requests (HTTP 429).
-					+ _("Please reduce the frequency of sending requests or check your account balance.")
+					+ _("Please reduce the frequency of sending requests or check your account balance."),
 				)
 				return
 			elif data.status_code >= 400:
@@ -782,8 +786,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self._notify(
 				_(
 					# Translators: Reported when a correction is started while another one is still running.
-					"Only one proofreading task can run at a time. Please wait until the current task has finished before starting another."
-				)
+					"Only one proofreading task can run at a time. Please wait until the current task has finished before starting another.",
+				),
 			)
 			return
 
@@ -854,11 +858,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				_(
 					# Translators: Reported when a correction is started while the NVDA settings dialog is
 					# open.
-					"The function cannot be executed. Please finish the configuration and close the setting window."
-				)
+					"The function cannot be executed. Please finish the configuration and close the setting window.",
+				),
 			)
 			log.warning(
-				"The function cannot be executed. Please finish the configuration and close the setting window."
+				"The function cannot be executed. Please finish the configuration and close the setting window.",
 			)
 			return
 
@@ -881,7 +885,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	)
 	def script_openWordBridgeSettings(self, gesture):
 		wx.CallAfter(
-			gui.mainFrame.popupSettingsDialog, gui.settingsDialogs.NVDASettingsDialog, LLMSettingsPanel
+			gui.mainFrame.popupSettingsDialog,
+			gui.settingsDialogs.NVDASettingsDialog,
+			LLMSettingsPanel,
 		)
 
 	@script(
@@ -928,7 +934,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			if self._shutdown.is_set():
 				return
 			with FeedbackDialog(
-				gui.mainFrame, latest_action.request, latest_action.response
+				gui.mainFrame,
+				latest_action.request,
+				latest_action.response,
 			) as feedbackDialog:
 				if feedbackDialog.ShowModal() != wx.ID_OK:
 					return
@@ -975,7 +983,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				message = _(
 					# Translators: Reported when the Coseeing service does not accept the user's sign-in (HTTP
 					# 401).
-					"Authentication error. Please sign in to Coseeing or check your account permissions."
+					"Authentication error. Please sign in to Coseeing or check your account permissions.",
 				)
 			elif response.status_code >= 400:
 				# Translators: Reported when sending correction feedback to the Coseeing service failed.

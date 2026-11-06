@@ -55,7 +55,7 @@ sys.modules.update(
 		"_wb_vendor.authlib.integrations.base_client.errors": authlib_errors,
 		"_wb_vendor.coseeing_auth": coseeing_auth,
 		"_wb_vendor.coseeing_auth.errors": coseeing_errors,
-	}
+	},
 )
 
 import lib.coseeing_auth as auth_module

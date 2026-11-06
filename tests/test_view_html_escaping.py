@@ -44,7 +44,9 @@ def _render(monkeypatch, tmp_path, diff):
 
 def test_inline_config_contains_no_raw_angle_brackets(monkeypatch, tmp_path):
 	html = _render(
-		monkeypatch, tmp_path, [{"operation": "replace", "before_text": PAYLOAD, "after_text": PAYLOAD}]
+		monkeypatch,
+		tmp_path,
+		[{"operation": "replace", "before_text": PAYLOAD, "after_text": PAYLOAD}],
 	)
 	config = _inline_config(html)
 	assert "<" not in config

@@ -116,7 +116,7 @@ def test_fallback_engages_when_no_translation_is_available(module_path):
 
 		assert "_" in vars(module), "no builtin _ was available, so the fallback should exist"
 		assert module._("raw") == "raw"
-		"""
+		""",
 	)
 	result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
 

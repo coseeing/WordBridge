@@ -30,7 +30,7 @@ class BundledCatalogSource:
 					"unreadable_file",
 					str(path.name),
 					f"{type(error).__name__}: {error}",
-				)
+				),
 			)
 			return None
 		if not isinstance(data, dict):
@@ -39,7 +39,7 @@ class BundledCatalogSource:
 					"unreadable_file",
 					str(path.name),
 					f"expected a JSON object, got {type(data).__name__}",
-				)
+				),
 			)
 			return None
 		return data

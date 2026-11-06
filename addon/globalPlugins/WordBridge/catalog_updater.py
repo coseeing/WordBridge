@@ -310,7 +310,7 @@ class CatalogUpdater:
 			self._fetch = FETCH_FAILED
 		self._schedule_retry()
 		self._notify(
-			CatalogChange(catalog_changed=False, outcome=FETCH_FAILED, user_initiated=self._user_initiated)
+			CatalogChange(catalog_changed=False, outcome=FETCH_FAILED, user_initiated=self._user_initiated),
 		)
 
 	def retry_on_panel_open(self) -> bool:
@@ -421,13 +421,16 @@ class CatalogUpdater:
 			timer = self._schedule(wait * 60_000, functools.partial(self._on_retry_timer, generation))
 		except Exception as error:  # noqa: BLE001
 			self._log.warning(
-				"WordBridge: catalog fetch retry could not be scheduled type=%s", type(error).__name__
+				"WordBridge: catalog fetch retry could not be scheduled type=%s",
+				type(error).__name__,
 			)
 			return
 		self._retry_count += 1
 		self._retry_timer = timer
 		self._log.info(
-			"WordBridge: catalog fetch retry scheduled attempt=%d delay=%dmin", self._retry_count, wait
+			"WordBridge: catalog fetch retry scheduled attempt=%d delay=%dmin",
+			self._retry_count,
+			wait,
 		)
 
 	def _on_retry_timer(self, armed_generation) -> None:
@@ -472,7 +475,9 @@ class CatalogUpdater:
 					CatalogIssue("unreadable_cache", issue.location, issue.code) for issue in issues
 				)
 		catalog = load_overlay_catalog(
-			self._bundled_source, None, runnable_providers=self._runnable_providers
+			self._bundled_source,
+			None,
+			runnable_providers=self._runnable_providers,
 		)
 		return catalog, SOURCE_BUNDLED if has_local_items(catalog) else SOURCE_NONE
 
@@ -489,7 +494,9 @@ class CatalogUpdater:
 	def _log_cache_problems(self, issues) -> None:
 		for issue in issues:
 			self._log.warning(
-				"WordBridge: catalog cache problem code=%s type=%s", issue.code, loggable(issue.detail)
+				"WordBridge: catalog cache problem code=%s type=%s",
+				issue.code,
+				loggable(issue.detail),
 			)
 
 	def _is_current(self, generation) -> bool:
@@ -567,8 +574,10 @@ class CatalogUpdater:
 			self._cancel_retry_timer()
 			self._notify(
 				CatalogChange(
-					catalog_changed=True, outcome=FETCH_SUCCEEDED, user_initiated=self._user_initiated
-				)
+					catalog_changed=True,
+					outcome=FETCH_SUCCEEDED,
+					user_initiated=self._user_initiated,
+				),
 			)
 			return
 		with self._lock:
@@ -581,7 +590,7 @@ class CatalogUpdater:
 		)
 		self._schedule_retry()
 		self._notify(
-			CatalogChange(catalog_changed=False, outcome=FETCH_FAILED, user_initiated=self._user_initiated)
+			CatalogChange(catalog_changed=False, outcome=FETCH_FAILED, user_initiated=self._user_initiated),
 		)
 
 

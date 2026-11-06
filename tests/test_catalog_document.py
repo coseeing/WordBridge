@@ -67,8 +67,8 @@ def test_pricing_is_carried_into_the_price_entry_shape():
 				"label": "GPT X",
 				"pricing": {"input_tokens": 1.25, "base_unit": 1000000},
 				"usage_key": "usage",
-			}
-		]
+			},
+		],
 	)
 	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
 
@@ -89,8 +89,8 @@ def test_a_model_with_malformed_pricing_remains_selectable_but_is_unpriced():
 				"label": "GPT X",
 				"pricing": ["not", "a", "mapping"],
 				"usage_key": "usage",
-			}
-		]
+			},
+		],
 	)
 	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
 
@@ -169,7 +169,7 @@ def test_a_duplicate_id_keeps_the_first_entry():
 		models=[
 			{"provider": "OpenAI", "model": "gpt-x", "label": "first"},
 			{"provider": "OpenAI", "model": "gpt-x", "label": "second"},
-		]
+		],
 	)
 	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
 

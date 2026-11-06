@@ -35,7 +35,7 @@ def invalid_url_message(error: str) -> str:
 		return _("The model list URL must start with https://. http:// is allowed only for localhost.")
 	return _(
 		# Translators: Shown when the model list URL is not a complete web address.
-		"Enter a complete web address, such as https://wordbridge.coseeing.org, or leave the field empty."
+		"Enter a complete web address, such as https://wordbridge.coseeing.org, or leave the field empty.",
 	)
 
 
@@ -109,9 +109,9 @@ class CatalogUrlDialog(SettingsDialog):
 			wx.ToolTip(
 				_(
 					# Translators: Tooltip of the model list URL field in the WordBridge settings panel.
-					"The address WordBridge downloads the model list from. Leave it empty to use only the Coseeing default."
-				)
-			)
+					"The address WordBridge downloads the model list from. Leave it empty to use only the Coseeing default.",
+				),
+			),
 		)
 		# Translators: Button next to the model list URL field that checks whether the address offers a model list.
 		self.testButton = wx.Button(self, label=_("&Test..."))

@@ -114,7 +114,9 @@ def test_remote_extra_keys_add_no_issue():
 	# Every NVDA start and fetch logs each issue as a warning; keys the
 	# add-on does not read must not add a line.
 	remote = dict(
-		server_document(), coseeings=[{"model": "remote-only", "label": "remote-only"}], extra={"x": 1}
+		server_document(),
+		coseeings=[{"model": "remote-only", "label": "remote-only"}],
+		extra={"x": 1},
 	)
 
 	_document, issues = overlay_documents(bundled_document(), remote)

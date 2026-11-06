@@ -726,7 +726,9 @@ EVENT_ROWS = [
 
 
 @pytest.mark.parametrize(
-	"scenario, expected", [row[1:] for row in EVENT_ROWS], ids=[row[0] for row in EVENT_ROWS]
+	"scenario, expected",
+	[row[1:] for row in EVENT_ROWS],
+	ids=[row[0] for row in EVENT_ROWS],
 )
 def test_change_events_table(tmp_path, scenario, expected):
 	h = retry_harness(tmp_path, {URL_A: failing()})
@@ -778,7 +780,7 @@ def test_user_initiated_is_set_before_a_synchronous_fetch_completes(tmp_path, ac
 	action(h)
 
 	assert [event for event in recorder.events if event.outcome is not None] == [
-		C(False, "failed", user_initiated)
+		C(False, "failed", user_initiated),
 	]
 
 
@@ -798,7 +800,7 @@ def test_listeners_see_the_new_state_when_notified(tmp_path, response, expected)
 	def listener(change):
 		status = h.updater.status()
 		seen.append(
-			(change.outcome, (status.source, status.fetch), len(h.installed), len(h.scheduler.live()))
+			(change.outcome, (status.source, status.fetch), len(h.installed), len(h.scheduler.live())),
 		)
 
 	h.updater.add_listener(listener)
@@ -1120,7 +1122,9 @@ PROBE_ROWS = [
 
 
 @pytest.mark.parametrize(
-	"url, response, kind, detail, models", [row[1:] for row in PROBE_ROWS], ids=[row[0] for row in PROBE_ROWS]
+	"url, response, kind, detail, models",
+	[row[1:] for row in PROBE_ROWS],
+	ids=[row[0] for row in PROBE_ROWS],
 )
 def test_probe_result_table(tmp_path, monkeypatch, url, response, kind, detail, models):
 	h = retry_harness(tmp_path)
@@ -1157,7 +1161,7 @@ def test_probe_sends_the_d4_request(tmp_path):
 				"allow_redirects": False,
 				"headers": {"Accept": "application/json"},
 			},
-		)
+		),
 	]
 
 

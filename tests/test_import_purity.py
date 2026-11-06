@@ -15,7 +15,7 @@ ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
 # import in the tree is relative; this scan is the gate that catches the next
 # one before it ships.
 TOP_LEVEL_INTERNAL_NAMES = frozenset(
-	{"lib", "dialogs", "configManager", "dictionary", "settings_repository", "catalog_updater"}
+	{"lib", "dialogs", "configManager", "dictionary", "settings_repository", "catalog_updater"},
 )
 
 

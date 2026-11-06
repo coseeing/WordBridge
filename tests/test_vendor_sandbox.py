@@ -571,7 +571,9 @@ def test_unavailable_reason_distinguishes_missing_directory_from_broken_bundle(m
 	)
 	monkeypatch.setattr(coseeing_auth, "_AUTH_IMPORT_ERROR", same_error)
 	monkeypatch.setattr(
-		coseeing_auth, "_AUTH_IMPORT_MODULE", "_wb_vendor.authlib.integrations.base_client.errors"
+		coseeing_auth,
+		"_AUTH_IMPORT_MODULE",
+		"_wb_vendor.authlib.integrations.base_client.errors",
 	)
 	monkeypatch.setattr(coseeing_auth.vendor, "runtime_key", lambda: "py313-win_amd64")
 
@@ -619,7 +621,9 @@ def test_unavailable_reason_flags_a_host_only_name_going_missing(monkeypatch):
 	error = ModuleNotFoundError("No module named 'requests'", name="requests")
 	monkeypatch.setattr(coseeing_auth, "_AUTH_IMPORT_ERROR", error)
 	monkeypatch.setattr(
-		coseeing_auth, "_AUTH_IMPORT_MODULE", "_wb_vendor.authlib.integrations.base_client.errors"
+		coseeing_auth,
+		"_AUTH_IMPORT_MODULE",
+		"_wb_vendor.authlib.integrations.base_client.errors",
 	)
 
 	message = coseeing_auth.unavailable_reason()
@@ -758,7 +762,7 @@ def test_local_correction_imports_resolve_through_the_prefix():
 
 _BARE_VENDORED_IMPORT = re.compile(
 	r"^[ \t]*(?:from|import)[ \t]+"
-	r"(pypinyin|zhon|hanzidentifier|chinese_converter|coseeing_auth|authlib|jwt|joserfc|cryptography)\b"
+	r"(pypinyin|zhon|hanzidentifier|chinese_converter|coseeing_auth|authlib|jwt|joserfc|cryptography)\b",
 )
 
 
@@ -811,7 +815,8 @@ def test_plugin_entry_point_installs_the_sandbox_before_importing_coseeing_auth(
 	# consumer such as lib/tasks/typo/text_policy.py.
 	vendor_import = "from .lib import vendor"
 	first_relative_import_after_install_index = source.index(
-		"\nfrom .", source.index(vendor_import) + len(vendor_import)
+		"\nfrom .",
+		source.index(vendor_import) + len(vendor_import),
 	)
 	coseeing_auth_import_index = source.index("from .lib import coseeing_auth")
 	hanzidentifier_import_index = source.index("from _wb_vendor.hanzidentifier import has_chinese")

@@ -55,7 +55,9 @@ PARSE_TABLE = [
 
 
 @pytest.mark.parametrize(
-	"body, code, detail", [row[1:] for row in PARSE_TABLE], ids=[row[0] for row in PARSE_TABLE]
+	"body, code, detail",
+	[row[1:] for row in PARSE_TABLE],
+	ids=[row[0] for row in PARSE_TABLE],
 )
 def test_parse_remote_payload_table(body, code, detail):
 	document, issues = parse_remote_payload(body)
@@ -175,7 +177,8 @@ def _bundled_with(providers):
 _ABSENT = object()
 NO_PROVIDERS_ROWS = {
 	"unreadable-file": lambda: StaticBundled(
-		None, (CatalogIssue("unreadable_file", "catalog.json", "ValueError"),)
+		None,
+		(CatalogIssue("unreadable_file", "catalog.json", "ValueError"),),
 	),
 	"no-providers-key": lambda: _bundled_with(_ABSENT),
 	"empty-providers": lambda: _bundled_with({}),
@@ -184,7 +187,7 @@ NO_PROVIDERS_ROWS = {
 		{
 			name: {key: value for key, value in data.items() if key != "setting"}
 			for name, data in bundled_document()["providers"].items()
-		}
+		},
 	),
 }
 
@@ -237,7 +240,7 @@ PROVIDERS_VALUES = {
 			"setting": {},
 			"timeout0": 1,
 			"timeout_max": 2,
-		}
+		},
 	},
 	"server-providers": json.loads(SERVER_BYTES)["providers"],
 }
@@ -271,7 +274,9 @@ def test_a_failing_bundled_source_is_reported_as_such():
 			raise OSError("catalog.json unreadable")
 
 	catalog, issues = accept_remote_document(
-		RaisingSource(), _server_document(), runnable_providers=SUPPORTED_PROVIDERS
+		RaisingSource(),
+		_server_document(),
+		runnable_providers=SUPPORTED_PROVIDERS,
 	)
 
 	assert catalog is None

@@ -148,7 +148,10 @@ ADAPTER_CLASSES = {
 
 
 def get_provider_model_adapter(
-	provider_name: str, model_name: str, *, price_entry: dict
+	provider_name: str,
+	model_name: str,
+	*,
+	price_entry: dict,
 ) -> ProviderModelAdapter:
 	adapter_class = ADAPTER_CLASSES.get(provider_name)
 	if not adapter_class:

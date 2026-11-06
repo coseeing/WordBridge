@@ -49,7 +49,9 @@ def fetched_catalog(body: bytes, runnable_providers=SUPPORTED_PROVIDERS):
 	document, issues = parse_remote_payload(result.body)
 	assert issues == ()
 	return load_overlay_catalog(
-		BundledCatalogSource(ADDON_SETTING_DIR), document, runnable_providers=runnable_providers
+		BundledCatalogSource(ADDON_SETTING_DIR),
+		document,
+		runnable_providers=runnable_providers,
 	)
 
 
@@ -85,7 +87,7 @@ def test_a_remote_document_can_add_a_model_with_no_code_change():
 			"label": "GPT 9 Future",
 			"pricing": {"input_tokens": 1, "output_tokens": 2, "base_unit": 1000000},
 			"usage_key": "usage",
-		}
+		},
 	]
 
 	catalog = fetched_catalog(_body(document))
@@ -99,7 +101,7 @@ def test_a_model_for_a_provider_this_release_does_not_bundle_is_dropped():
 	# a provider only a newer release has is dropped, its siblings kept.
 	document = served_document()
 	document["models"] = document["models"] + [
-		{"provider": "Mistral", "model": "m-large", "label": "M Large"}
+		{"provider": "Mistral", "model": "m-large", "label": "M Large"},
 	]
 
 	catalog = fetched_catalog(_body(document))
@@ -155,7 +157,8 @@ def test_issues_a_source_reports_reach_the_catalog():
 	issue = CatalogIssue("unreadable_file", "remote-payload.json", "simulated 500")
 
 	catalog = load_catalog(
-		InMemorySource(server_document(), (issue,)), runnable_providers=SUPPORTED_PROVIDERS
+		InMemorySource(server_document(), (issue,)),
+		runnable_providers=SUPPORTED_PROVIDERS,
 	)
 
 	assert issue in catalog.issues

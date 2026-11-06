@@ -130,13 +130,13 @@ def strings_diff(string_before: str, string_after: str) -> dict:
 		elif index_end_before - index_start_before < index_end_after - index_start_after:
 			index_middle = index_start_after + (index_end_before - index_start_before)
 			matcher_ops.append(
-				("replace", index_start_before, index_end_before, index_start_after, index_middle)
+				("replace", index_start_before, index_end_before, index_start_after, index_middle),
 			)
 			matcher_ops.append(("insert", index_end_before, index_end_before, index_middle, index_end_after))
 		else:
 			index_middle = index_start_before + (index_end_after - index_start_after)
 			matcher_ops.append(
-				("replace", index_start_before, index_middle, index_start_after, index_end_after)
+				("replace", index_start_before, index_middle, index_start_after, index_end_after),
 			)
 			matcher_ops.append(("delete", index_middle, index_end_before, index_end_after, index_end_after))
 
@@ -151,7 +151,7 @@ def strings_diff(string_before: str, string_after: str) -> dict:
 					"before_descs": "",
 					"after_descs": "",
 					"tags": None,
-				}
+				},
 			)
 			continue
 		if op != "replace":
@@ -163,7 +163,7 @@ def strings_diff(string_before: str, string_after: str) -> dict:
 					"before_descs": get_descs("".join(tokens_before[index_start_before:index_end_before])),
 					"after_descs": get_descs("".join(tokens_after[index_start_after:index_end_after])),
 					"tags": None,
-				}
+				},
 			)
 			continue
 
@@ -171,14 +171,14 @@ def strings_diff(string_before: str, string_after: str) -> dict:
 			operation_dict = {
 				"operation": op,
 				"before_text": "".join(
-					tokens_before[(index_start_before + i) : (index_start_before + i + 1)]
+					tokens_before[(index_start_before + i) : (index_start_before + i + 1)],
 				),
 				"after_text": "".join(tokens_after[(index_start_after + i) : (index_start_after + i + 1)]),
 				"before_descs": get_descs(
-					"".join(tokens_before[(index_start_before + i) : (index_start_before + i + 1)])
+					"".join(tokens_before[(index_start_before + i) : (index_start_before + i + 1)]),
 				),
 				"after_descs": get_descs(
-					"".join(tokens_after[(index_start_after + i) : (index_start_after + i + 1)])
+					"".join(tokens_after[(index_start_after + i) : (index_start_after + i + 1)]),
 				),
 				"tags": None,
 			}

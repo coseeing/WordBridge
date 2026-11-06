@@ -19,7 +19,7 @@ def parallel_map(
 	# AttributeError on the caller's side.
 	if iterable_kwargs is not None and len(iterable_kwargs) != len(iterable):
 		raise ValueError(
-			f"iterable_kwargs has {len(iterable_kwargs)} entries but iterable has {len(iterable)}"
+			f"iterable_kwargs has {len(iterable_kwargs)} entries but iterable has {len(iterable)}",
 		)
 
 	results = [None] * len(iterable)

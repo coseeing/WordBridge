@@ -32,10 +32,13 @@ def test_empty_access_token_is_rejected():
 
 
 @pytest.mark.parametrize(
-	"access_token, expected_headers", [("access", {"Authorization": "Bearer access"}), (None, {})]
+	"access_token, expected_headers",
+	[("access", {"Authorization": "Bearer access"}), (None, {})],
 )
 def test_proofreader_uses_completed_auth_future_and_preserves_payload(
-	monkeypatch, access_token, expected_headers
+	monkeypatch,
+	access_token,
+	expected_headers,
 ):
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
@@ -74,7 +77,10 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(
 		coseeings=plugin_module.catalog.coseeings
 		+ (
 			dataclasses.replace(
-				sentinel_entry, model="deepseek-flash", label="deepseek-flash", provider="DeepSeek"
+				sentinel_entry,
+				model="deepseek-flash",
+				label="deepseek-flash",
+				provider="DeepSeek",
 			),
 		),
 	)
@@ -160,7 +166,8 @@ def test_degraded_catalog_announcement_fires_once_per_session(monkeypatch):
 	# lib/catalog/fallback.py's load_catalog) -- the exact shape correctTypo()
 	# would see in production the day the shipped setting/ tree can't be read.
 	instance.catalog = _plugin_load_catalog(plugin_module)(
-		BrokenSource(), runnable_providers=plugin_module.SUPPORTED_PROVIDERS
+		BrokenSource(),
+		runnable_providers=plugin_module.SUPPORTED_PROVIDERS,
 	)
 	assert instance.catalog.degraded is True
 	# correctTypo() takes its one snapshot from the registry.
@@ -187,7 +194,8 @@ def test_degraded_catalog_announcement_fires_once_per_session(monkeypatch):
 
 	def post(url, **kwargs):
 		return SimpleNamespace(
-			status_code=200, json=lambda: {"response": "修正", "interaction_id": "i-1", "cost": 0}
+			status_code=200,
+			json=lambda: {"response": "修正", "interaction_id": "i-1", "cost": 0},
 		)
 
 	monkeypatch.setattr(plugin_module.requests, "post", post, raising=False)
@@ -239,7 +247,10 @@ def test_proofreader_auth_failure_skips_post_and_queues_ui_notification(monkeypa
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
 	posted = []
 	monkeypatch.setattr(
-		plugin_module.requests, "post", lambda *args, **kwargs: posted.append(args), raising=False
+		plugin_module.requests,
+		"post",
+		lambda *args, **kwargs: posted.append(args),
+		raising=False,
 	)
 	messages = []
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
@@ -288,10 +299,15 @@ def test_proofreader_termination_before_worker_request_skips_post_and_ui(monkeyp
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
 	posted = []
 	monkeypatch.setattr(
-		plugin_module.requests, "post", lambda *args, **kwargs: posted.append(args), raising=False
+		plugin_module.requests,
+		"post",
+		lambda *args, **kwargs: posted.append(args),
+		raising=False,
 	)
 	monkeypatch.setattr(
-		plugin_module, "ui", SimpleNamespace(message=lambda message: pytest.fail("UI updated"))
+		plugin_module,
+		"ui",
+		SimpleNamespace(message=lambda message: pytest.fail("UI updated")),
 	)
 	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
 	assert posted == []
@@ -353,7 +369,7 @@ def test_proofreader_failures_use_stable_notification(monkeypatch, failure):
 	assert messages == [
 		"The Coseeing request failed. Please try again later."
 		if failure != "response"
-		else "The Coseeing response was invalid. Please try again later."
+		else "The Coseeing response was invalid. Please try again later.",
 	]
 
 
@@ -409,7 +425,9 @@ def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeyp
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance._shutdown = threading.Event()
 	instance.latest_action = plugin_module.CorrectionAction(
-		interaction_id="i-old", request="原文", response="修正"
+		interaction_id="i-old",
+		request="原文",
+		response="修正",
 	)
 	future = Future()
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
@@ -432,7 +450,9 @@ def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeyp
 			# for a DIFFERENT task completing and publishing its snapshot
 			# while this dialog is still open, before returning ID_OK.
 			instance.latest_action = plugin_module.CorrectionAction(
-				interaction_id="i-new", request="原文", response="修正"
+				interaction_id="i-new",
+				request="原文",
+				response="修正",
 			)
 			return plugin_module.wx.ID_OK
 
@@ -484,7 +504,10 @@ def test_feedback_auth_failure_skips_post_and_notifies_on_ui(monkeypatch):
 
 	posted = []
 	monkeypatch.setattr(
-		plugin_module.requests, "post", lambda *args, **kwargs: posted.append(args), raising=False
+		plugin_module.requests,
+		"post",
+		lambda *args, **kwargs: posted.append(args),
+		raising=False,
 	)
 	monkeypatch.setattr(plugin_module.requests, "exceptions", SimpleNamespace(Timeout=Timeout), raising=False)
 	messages = []
@@ -661,7 +684,8 @@ def test_degraded_catalog_flag_is_set_only_after_the_notification_is_dispatched(
 			raise RuntimeError("setting tree unreadable")
 
 	instance.catalog = _plugin_load_catalog(plugin_module)(
-		BrokenSource(), runnable_providers=plugin_module.SUPPORTED_PROVIDERS
+		BrokenSource(),
+		runnable_providers=plugin_module.SUPPORTED_PROVIDERS,
 	)
 	assert instance.catalog.degraded is True
 	# correctTypo() takes its one snapshot from the registry.
@@ -697,7 +721,8 @@ def test_degraded_catalog_flag_is_set_only_after_the_notification_is_dispatched(
 
 	def post(url, **kwargs):
 		return SimpleNamespace(
-			status_code=200, json=lambda: {"response": "修正", "interaction_id": "i-1", "cost": 0}
+			status_code=200,
+			json=lambda: {"response": "修正", "interaction_id": "i-1", "cost": 0},
 		)
 
 	monkeypatch.setattr(plugin_module.requests, "post", post, raising=False)
@@ -750,7 +775,9 @@ def test_local_channel_notifies_and_returns_when_the_selected_model_is_gone(monk
 	# ever producing this, so the fake below stands in for the catalog having
 	# changed out from under an already-resolved selection.
 	monkeypatch.setattr(
-		instance.settings, "corrector_selection", lambda catalog=None: ("ghost-model&OpenAI", "local")
+		instance.settings,
+		"corrector_selection",
+		lambda catalog=None: ("ghost-model&OpenAI", "local"),
 	)
 	messages = []
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
@@ -771,7 +798,7 @@ def test_local_channel_notifies_and_returns_when_the_selected_model_is_gone(monk
 	callback, args = queued.pop()
 	callback(*args)
 	assert messages == [
-		"The selected model is no longer available. Please choose another one in WordBridge settings."
+		"The selected model is no longer available. Please choose another one in WordBridge settings.",
 	]
 
 
@@ -819,7 +846,9 @@ def test_local_channel_notifies_and_returns_when_the_selected_provider_is_gone(m
 	instance.catalog = catalog
 	monkeypatch.setattr(plugin_module.registry, "current", lambda: catalog)
 	monkeypatch.setattr(
-		instance.settings, "corrector_selection", lambda catalog=None: ("ghost-model&GhostProvider", "local")
+		instance.settings,
+		"corrector_selection",
+		lambda catalog=None: ("ghost-model&GhostProvider", "local"),
 	)
 	messages = []
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
@@ -840,7 +869,7 @@ def test_local_channel_notifies_and_returns_when_the_selected_provider_is_gone(m
 	callback, args = queued.pop()
 	callback(*args)
 	assert messages == [
-		"The selected provider is no longer available. Please choose another one in WordBridge settings."
+		"The selected provider is no longer available. Please choose another one in WordBridge settings.",
 	]
 
 

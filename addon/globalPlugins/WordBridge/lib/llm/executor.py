@@ -38,7 +38,11 @@ class LLMExecutor:
 		self.provider_object.try_connection()
 
 	def execute(
-		self, input_text: str, prompt_strategy, text_policy, previous_results: list | None = None
+		self,
+		input_text: str,
+		prompt_strategy,
+		text_policy,
+		previous_results: list | None = None,
 	) -> LLMExecutionResult:
 		previous_results = previous_results or []
 		if not text_policy.has_target_language(input_text):
@@ -67,8 +71,8 @@ class LLMExecutor:
 				# Translators: Reported when the AI service provider's answer has an unexpected shape;
 				# {response} is that answer, shown as received.
 				_("Parsing error. Unexpected server response. Response: {response}").format(
-					response=response_json
-				)
+					response=response_json,
+				),
 			)
 
 		response_text = text_policy.normalize_response(sentence)

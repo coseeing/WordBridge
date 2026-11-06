@@ -74,7 +74,9 @@ def generate(env: Environment):
 	)
 
 	env["BUILDERS"]["NVDATranslatedManifest"] = Builder(
-		action=translatedManifestAction, suffix=".ini", src_siffix=".ini.tpl"
+		action=translatedManifestAction,
+		suffix=".ini",
+		src_siffix=".ini.tpl",
 	)
 
 	env.SetDefault(mdExtensions={})

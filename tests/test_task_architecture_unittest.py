@@ -69,7 +69,8 @@ class TaskArchitectureTests(unittest.TestCase):
 			catalog = shipped_overlay()
 			plugin.registry.initialize(catalog)
 			instance.settings = plugin.SettingsRepository(
-				nvda_stubs.config.conf["WordBridge"]["settings"], plugin.registry.current
+				nvda_stubs.config.conf["WordBridge"]["settings"],
+				plugin.registry.current,
 			)
 			# correctTypo() now also reads self.catalog / self._degraded_catalog_announced.
 			instance.catalog = catalog
@@ -257,7 +258,7 @@ class TaskArchitectureTests(unittest.TestCase):
 						"raw_usage": {"prompt_tokens": 1, "completion_tokens": 1},
 						"latency_ms": 12.5,
 						"request_cost": "0.0001",
-					}
+					},
 				]
 
 		workflow = TypoCorrectionWorkflow(
@@ -415,7 +416,7 @@ class TaskArchitectureTests(unittest.TestCase):
 							],
 						},
 						"output_text": "修正結果",
-					}
+					},
 				],
 			},
 		)
@@ -456,7 +457,7 @@ class _nvda_module_stubs:
 
 		ctypes_module = types.ModuleType("ctypes")
 		ctypes_module.windll = types.SimpleNamespace(
-			kernel32=types.SimpleNamespace(GetUserDefaultUILanguage=lambda: 1033)
+			kernel32=types.SimpleNamespace(GetUserDefaultUILanguage=lambda: 1033),
 		)
 		sys.modules["ctypes"] = ctypes_module
 
@@ -491,7 +492,7 @@ class _nvda_module_stubs:
 		gui_module.guiHelper = types.SimpleNamespace(BoxSizerHelper=object)
 		gui_module.nvdaControls = types.SimpleNamespace(SelectOnFocusSpinCtrl=object)
 		gui_module.settingsDialogs = types.SimpleNamespace(
-			NVDASettingsDialog=types.SimpleNamespace(categoryClasses=[])
+			NVDASettingsDialog=types.SimpleNamespace(categoryClasses=[]),
 		)
 		gui_module.mainFrame = types.SimpleNamespace()
 		sys.modules["gui"] = gui_module
@@ -513,11 +514,11 @@ class _nvda_module_stubs:
 				info=lambda *args, **kwargs: None,
 				debug=lambda *args, **kwargs: None,
 				exception=lambda *args, **kwargs: None,
-			)
+			),
 		)
 		sys.modules["nvwave"] = types.SimpleNamespace(playWaveFile=lambda *args, **kwargs: None)
 		sys.modules["scriptHandler"] = types.SimpleNamespace(
-			script=lambda **kwargs: lambda function: function
+			script=lambda **kwargs: lambda function: function,
 		)
 		sys.modules["textInfos"] = types.SimpleNamespace(POSITION_SELECTION=object())
 		sys.modules["tones"] = types.SimpleNamespace(beep=lambda *args: None)
@@ -531,13 +532,15 @@ class _nvda_module_stubs:
 		sys.modules["WordBridge.dictionary"] = dictionary_package
 		sys.modules["WordBridge.dictionary.dialog"] = types.SimpleNamespace(DictionaryEntryDialog=object)
 		sys.modules["WordBridge.lib.coseeing"] = types.SimpleNamespace(
-			build_coseeing_headers=lambda token: {} if token is None else {"Authorization": f"Bearer {token}"}
+			build_coseeing_headers=lambda token: (
+				{} if token is None else {"Authorization": f"Bearer {token}"}
+			),
 		)
 		sys.modules["WordBridge.lib.decimalUtils"] = types.SimpleNamespace(
-			decimal_to_str_0=lambda cost: str(cost)
+			decimal_to_str_0=lambda cost: str(cost),
 		)
 		sys.modules["WordBridge.lib.tasks.typo.utils"] = types.SimpleNamespace(
-			strings_diff=lambda request, response: []
+			strings_diff=lambda request, response: [],
 		)
 		sys.modules["WordBridge.lib.viewHTML"] = types.SimpleNamespace(text2template=lambda src, dst: None)
 		if self.captured_runner_args is not None:
@@ -579,7 +582,7 @@ class _nvda_module_stubs:
 						"customized_words": customized_words,
 						"retries": retries,
 						"backoff": backoff,
-					}
+					},
 				)
 				return types.SimpleNamespace(corrected_text=request, diff=[], cost=Decimal(0))
 
@@ -637,9 +640,9 @@ class _FakeConf(dict):
 						"customized_words_enable": False,
 						"auto_display_report": False,
 						"sound_effects_enable": False,
-					}
-				}
-			}
+					},
+				},
+			},
 		)
 		self.spec = {}
 

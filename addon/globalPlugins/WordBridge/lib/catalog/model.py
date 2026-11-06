@@ -39,7 +39,7 @@ LINT_ISSUE_CODES = frozenset(
 	{
 		"unreferenced_provider",
 		"unknown_provider",
-	}
+	},
 )
 
 
@@ -130,7 +130,7 @@ class CorrectorCatalog:
 					corrector_config_id=entry.corrector_config_id,
 					execution_channel=LOCAL_CHANNEL,
 					label=entry.label,
-				)
+				),
 			)
 		for entry in self.coseeings:
 			if not entry.active:
@@ -141,7 +141,7 @@ class CorrectorCatalog:
 					corrector_config_id=entry.corrector_config_id,
 					execution_channel=COSEEING_GROUP,
 					label=entry.label,
-				)
+				),
 			)
 		object.__setattr__(self, "_groups", {name: tuple(items) for name, items in groups.items()})
 

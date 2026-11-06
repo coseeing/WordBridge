@@ -65,7 +65,7 @@ def _connection_error():
 	return error_type(
 		"HTTPSConnectionPool(host='generativelanguage.googleapis.com', port=443): "
 		f"Max retries exceeded with url: /v1beta/models/gemini:generateContent?key={SECRET} "
-		'(Caused by NameResolutionError("Failed to resolve"))'
+		'(Caused by NameResolutionError("Failed to resolve"))',
 	)
 
 

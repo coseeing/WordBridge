@@ -136,7 +136,9 @@ def test_the_dialog_shows_the_stored_url_and_focuses_it(monkeypatch):
 
 
 @pytest.mark.parametrize(
-	"text, enabled", [("", False), ("   ", False), (DEFAULT_URL, True)], ids=["empty", "blank", "url"]
+	"text, enabled",
+	[("", False), ("   ", False), (DEFAULT_URL, True)],
+	ids=["empty", "blank", "url"],
 )
 def test_test_is_enabled_only_for_non_blank_text(monkeypatch, text, enabled):
 	f = dialog_fixture(monkeypatch)
@@ -474,7 +476,9 @@ def _progress(f):
 
 
 @pytest.mark.parametrize(
-	"text, error", [("ftp://x", MALFORMED), ("http://example.com", INSECURE)], ids=["invalid", "insecure"]
+	"text, error",
+	[("ftp://x", MALFORMED), ("http://example.com", INSECURE)],
+	ids=["invalid", "insecure"],
 )
 def test_test_validates_first_without_a_request(monkeypatch, text, error):
 	f = dialog_fixture(monkeypatch)
@@ -578,7 +582,9 @@ RESULT_ROWS = [
 
 
 @pytest.mark.parametrize(
-	"probe, message, ok", [row[1:] for row in RESULT_ROWS], ids=[row[0] for row in RESULT_ROWS]
+	"probe, message, ok",
+	[row[1:] for row in RESULT_ROWS],
+	ids=[row[0] for row in RESULT_ROWS],
 )
 def test_test_result_messages(monkeypatch, probe, message, ok):
 	f = dialog_fixture(monkeypatch)

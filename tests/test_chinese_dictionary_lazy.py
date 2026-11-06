@@ -22,7 +22,7 @@ BOOTSTRAP = textwrap.dedent(
 	from lib import vendor
 
 	vendor.install(vendor.default_roots(str(ADDON / "package")))
-	"""
+	""",
 )
 
 
@@ -44,7 +44,7 @@ def test_importing_the_diff_utilities_does_not_read_the_dictionary():
 		from lib.tasks.typo import chinese_dictionary
 
 		assert chinese_dictionary._MAPPINGS is None, "the dictionary was parsed at import time"
-		"""
+		""",
 	)
 	assert result.returncode == 0, result.stderr
 
@@ -71,7 +71,7 @@ def test_the_dictionary_loads_on_first_use_and_is_reused():
 		assert first is third
 		assert len(first) > 1000, len(first)
 		assert len(second) > 100, len(second)
-		"""
+		""",
 	)
 	assert result.returncode == 0, result.stderr
 
@@ -106,7 +106,7 @@ def test_concurrent_first_access_loads_exactly_once():
 
 		assert len(calls) == 1, calls
 		assert all(mapping is seen[0] for mapping in seen)
-		"""
+		""",
 	)
 	assert result.returncode == 0, result.stderr
 
@@ -127,7 +127,7 @@ def test_a_missing_dictionary_file_raises():
 			pass
 		else:
 			raise AssertionError("a missing dictionary must raise, not degrade to an empty mapping")
-		"""
+		""",
 	)
 	assert result.returncode == 0, result.stderr
 
@@ -157,6 +157,6 @@ def test_repeated_misses_do_not_grow_the_process_lifetime_mapping():
 
 		after = len(chinese_dictionary.get_string_to_pinyin())
 		assert after == before, (before, after)
-		"""
+		""",
 	)
 	assert result.returncode == 0, result.stderr

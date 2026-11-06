@@ -134,7 +134,8 @@ class LiteTypoPromptStrategy(TypoPromptStrategy):
 		for i in range(len(template)):
 			template[i]["content"] = template[i]["content"].replace("{{text_input}}", preprocessed_text)
 			template[i]["content"] = template[i]["content"].replace(
-				"{{QUESTION}}", text_policy.question_string
+				"{{QUESTION}}",
+				text_policy.question_string,
 			)
 			template[i]["content"] = template[i]["content"].replace("{{ANSWER}}", text_policy.answer_string)
 		return template
@@ -150,7 +151,8 @@ class StandardTypoPromptStrategy(TypoPromptStrategy):
 			template[i]["content"] = template[i]["content"].replace("{{text_input}}", preprocessed_text)
 			template[i]["content"] = template[i]["content"].replace("{{phone_input}}", phone)
 			template[i]["content"] = template[i]["content"].replace(
-				"{{QUESTION}}", text_policy.question_string
+				"{{QUESTION}}",
+				text_policy.question_string,
 			)
 			template[i]["content"] = template[i]["content"].replace("{{ANSWER}}", text_policy.answer_string)
 		return template

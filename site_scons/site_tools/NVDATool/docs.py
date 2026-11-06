@@ -53,7 +53,7 @@ def md2html(
 			"</head>\n<body>",
 			htmlText,
 			"</body>\n</html>",
-		)
+		),
 	)
 	with dest.open("w", encoding="utf-8") as f:
 		f.write(docText)  # type: ignore

@@ -116,7 +116,7 @@ def test_the_call_uses_exactly_the_specified_arguments():
 				"allow_redirects": False,
 				"headers": {"Accept": "application/json"},
 			},
-		)
+		),
 	]
 
 
@@ -216,7 +216,8 @@ def test_an_exception_from_http_get_gives_request_failed_with_the_type_only():
 
 def test_an_exception_while_reading_gives_request_failed_and_closes():
 	response = FakeResponse(
-		chunks=[b"a", b"b"], raise_on_iter=TimeoutError("read timed out: https://h.test/x")
+		chunks=[b"a", b"b"],
+		raise_on_iter=TimeoutError("read timed out: https://h.test/x"),
 	)
 
 	result = _fetch(response)

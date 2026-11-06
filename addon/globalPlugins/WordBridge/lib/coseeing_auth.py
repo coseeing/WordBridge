@@ -425,7 +425,9 @@ class CoseeingAuthSession:
 			try:
 				future = self._call_client("login")
 				self._watch(
-					future, lambda result: self._login_succeeded(result, silent=silent), silent=silent
+					future,
+					lambda result: self._login_succeeded(result, silent=silent),
+					silent=silent,
 				)
 			except Exception as error:  # noqa: BLE001
 				self._fail(error, silent=silent)
@@ -509,7 +511,10 @@ class CoseeingAuthSession:
 
 	@staticmethod
 	def _complete(
-		waiter: Future[str | None], *, value: str | None = None, error: Exception | None = None
+		waiter: Future[str | None],
+		*,
+		value: str | None = None,
+		error: Exception | None = None,
 	) -> None:
 		try:
 			if error is None:
@@ -574,7 +579,7 @@ class _NvdaAuthAdapter:
 			CoseeingAuthClient(
 				config,
 				refresh_token_store=_new_refresh_token_store(),
-			)
+			),
 		)
 
 	def prompt_login(self) -> str:
@@ -701,7 +706,9 @@ def has_seen_valid_refresh_token() -> bool:
 
 
 def get_coseeing_access_token(
-	*, reconsider_guest: bool = False, silent: bool | None = None
+	*,
+	reconsider_guest: bool = False,
+	silent: bool | None = None,
 ) -> Future[str | None]:
 	if silent is None:
 		silent = not has_seen_valid_refresh_token()

@@ -82,7 +82,7 @@ def catalog():
 					"setting": {},
 					"timeout0": 10,
 					"timeout_max": 20,
-				}
+				},
 			},
 			"models": [{"provider": "OpenAI", "model": "gpt-x", "label": "GPT X"}],
 			"coseeings": [{"model": "default", "label": "default"}],
@@ -303,7 +303,9 @@ def test_a_too_big_max_char_count_clamps_to_the_upper_bound(monkeypatch):
 def test_a_too_small_max_char_count_clamps_to_the_lower_bound(monkeypatch):
 	_stub_configobj_validate(monkeypatch)
 	repo = SettingsRepository(
-		_RaisingSettings(_TooSmall()), catalog, max_char_count_bounds=lambda: (256, 4096)
+		_RaisingSettings(_TooSmall()),
+		catalog,
+		max_char_count_bounds=lambda: (256, 4096),
 	)
 
 	assert repo.max_char_count() == 256
@@ -312,7 +314,9 @@ def test_a_too_small_max_char_count_clamps_to_the_lower_bound(monkeypatch):
 def test_an_unrelated_max_char_count_error_still_propagates(monkeypatch):
 	_stub_configobj_validate(monkeypatch)
 	repo = SettingsRepository(
-		_RaisingSettings(KeyError("max_char_count")), catalog, max_char_count_bounds=lambda: (256, 4096)
+		_RaisingSettings(KeyError("max_char_count")),
+		catalog,
+		max_char_count_bounds=lambda: (256, 4096),
 	)
 
 	try:

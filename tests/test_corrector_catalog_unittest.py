@@ -72,7 +72,8 @@ class CorrectorCatalogTests(unittest.TestCase):
 		from lib.catalog.selection import normalize_selection
 
 		self.assertEqual(
-			normalize_selection(shipped_catalog(), "default", "Coseeing"), ("default", "Coseeing")
+			normalize_selection(shipped_catalog(), "default", "Coseeing"),
+			("default", "Coseeing"),
 		)
 
 	def test_a_stored_local_id_still_resolves_locally(self):

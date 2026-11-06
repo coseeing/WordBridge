@@ -20,8 +20,10 @@ def build_catalog(document, *, runnable_providers) -> CorrectorCatalog:
 	if not isinstance(document, dict):
 		issues.append(
 			CatalogIssue(
-				"malformed_document", "document", f"expected a mapping, got {type(document).__name__}"
-			)
+				"malformed_document",
+				"document",
+				f"expected a mapping, got {type(document).__name__}",
+			),
 		)
 		return CorrectorCatalog(issues=tuple(issues))
 	if document.get("schema_version") != SCHEMA_VERSION:
@@ -30,7 +32,7 @@ def build_catalog(document, *, runnable_providers) -> CorrectorCatalog:
 				"schema_version",
 				"document",
 				f"expected {SCHEMA_VERSION}, got {document.get('schema_version')!r}",
-			)
+			),
 		)
 		return CorrectorCatalog(issues=tuple(issues))
 
@@ -41,7 +43,7 @@ def build_catalog(document, *, runnable_providers) -> CorrectorCatalog:
 	named = {entry.provider for entry in models}
 	for name in sorted(set(providers) - named):
 		issues.append(
-			CatalogIssue("unreferenced_provider", f"providers.{name}", "no models entry names this provider")
+			CatalogIssue("unreferenced_provider", f"providers.{name}", "no models entry names this provider"),
 		)
 
 	return CorrectorCatalog(
@@ -58,7 +60,7 @@ def _build_providers(raw, issues) -> dict:
 		return providers
 	if not isinstance(raw, dict):
 		issues.append(
-			CatalogIssue("malformed_document", "providers", f"expected a mapping, got {type(raw).__name__}")
+			CatalogIssue("malformed_document", "providers", f"expected a mapping, got {type(raw).__name__}"),
 		)
 		return providers
 	for name in sorted(raw, key=str):
@@ -70,12 +72,12 @@ def _build_providers(raw, issues) -> dict:
 					"invalid_provider_name",
 					location,
 					f"provider name must be a string, got {type(name).__name__}",
-				)
+				),
 			)
 			continue
 		if name == "" or "&" in name:
 			issues.append(
-				CatalogIssue("reserved_separator", location, "provider name is empty or contains '&'")
+				CatalogIssue("reserved_separator", location, "provider name is empty or contains '&'"),
 			)
 			continue
 		if not isinstance(data, dict):
@@ -103,7 +105,7 @@ def _build_models(raw, providers, runnable_providers, issues) -> tuple:
 		raw = ()
 	elif not isinstance(raw, (list, tuple)):
 		issues.append(
-			CatalogIssue("malformed_document", "models", f"expected a list, got {type(raw).__name__}")
+			CatalogIssue("malformed_document", "models", f"expected a list, got {type(raw).__name__}"),
 		)
 		return ()
 	for index, data in enumerate(raw):
@@ -114,18 +116,18 @@ def _build_models(raw, providers, runnable_providers, issues) -> tuple:
 		model, provider, label = data.get("model"), data.get("provider"), data.get("label")
 		if not (_text(model) and _text(provider) and _text(label)):
 			issues.append(
-				CatalogIssue("incomplete_entry", location, "model, provider and label are all required")
+				CatalogIssue("incomplete_entry", location, "model, provider and label are all required"),
 			)
 			continue
 		if "&" in model or "&" in provider:
 			issues.append(
-				CatalogIssue("reserved_separator", location, "model and provider must not contain '&'")
+				CatalogIssue("reserved_separator", location, "model and provider must not contain '&'"),
 			)
 			continue
 		active = data.get("active", True)
 		if not isinstance(active, bool):
 			issues.append(
-				CatalogIssue("invalid_active", location, f"active must be a boolean, got {active!r}")
+				CatalogIssue("invalid_active", location, f"active must be a boolean, got {active!r}"),
 			)
 			continue
 		if provider not in providers:
@@ -134,8 +136,10 @@ def _build_models(raw, providers, runnable_providers, issues) -> tuple:
 		if provider not in runnable_providers:
 			issues.append(
 				CatalogIssue(
-					"unsupported_provider", location, f"this build has no implementation for {provider!r}"
-				)
+					"unsupported_provider",
+					location,
+					f"this build has no implementation for {provider!r}",
+				),
 			)
 			continue
 		pricing = data.get("pricing")
@@ -145,7 +149,7 @@ def _build_models(raw, providers, runnable_providers, issues) -> tuple:
 					"malformed_pricing",
 					location,
 					f"pricing must be a mapping, got {type(pricing).__name__}",
-				)
+				),
 			)
 			pricing = None
 		entry = ModelEntry(
@@ -158,7 +162,7 @@ def _build_models(raw, providers, runnable_providers, issues) -> tuple:
 		)
 		if entry.corrector_config_id in seen:
 			issues.append(
-				CatalogIssue("duplicate_entry", location, f"{entry.corrector_config_id!r} already defined")
+				CatalogIssue("duplicate_entry", location, f"{entry.corrector_config_id!r} already defined"),
 			)
 			continue
 		seen.add(entry.corrector_config_id)
@@ -173,7 +177,7 @@ def _build_coseeings(raw, issues) -> tuple:
 		raw = ()
 	elif not isinstance(raw, (list, tuple)):
 		issues.append(
-			CatalogIssue("malformed_document", "coseeings", f"expected a list, got {type(raw).__name__}")
+			CatalogIssue("malformed_document", "coseeings", f"expected a list, got {type(raw).__name__}"),
 		)
 		return ()
 	for index, data in enumerate(raw):
@@ -188,25 +192,27 @@ def _build_coseeings(raw, issues) -> tuple:
 		if provider is not None and not _text(provider):
 			issues.append(
 				CatalogIssue(
-					"incomplete_entry", location, "provider, when present, must be a non-empty string"
-				)
+					"incomplete_entry",
+					location,
+					"provider, when present, must be a non-empty string",
+				),
 			)
 			continue
 		if "&" in model or (provider is not None and "&" in provider):
 			issues.append(
-				CatalogIssue("reserved_separator", location, "model and provider must not contain '&'")
+				CatalogIssue("reserved_separator", location, "model and provider must not contain '&'"),
 			)
 			continue
 		active = data.get("active", True)
 		if not isinstance(active, bool):
 			issues.append(
-				CatalogIssue("invalid_active", location, f"active must be a boolean, got {active!r}")
+				CatalogIssue("invalid_active", location, f"active must be a boolean, got {active!r}"),
 			)
 			continue
 		entry = CoseeingEntry(model=model, label=label, provider=provider, active=active)
 		if entry.corrector_config_id in seen:
 			issues.append(
-				CatalogIssue("duplicate_entry", location, f"{entry.corrector_config_id!r} already defined")
+				CatalogIssue("duplicate_entry", location, f"{entry.corrector_config_id!r} already defined"),
 			)
 			continue
 		seen.add(entry.corrector_config_id)

@@ -27,7 +27,9 @@ def shipped_catalog():
 	_document, issues = BundledCatalogSource(SETTING_DIR).load()
 	assert issues == ()
 	return load_overlay_catalog(
-		BundledCatalogSource(SETTING_DIR), None, runnable_providers=SUPPORTED_PROVIDERS
+		BundledCatalogSource(SETTING_DIR),
+		None,
+		runnable_providers=SUPPORTED_PROVIDERS,
 	)
 
 

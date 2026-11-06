@@ -37,8 +37,8 @@ def test_get_config_reads_explicit_wordbridge_settings():
 					"no_explanation": True,
 					"keep_non_chinese_char": False,
 				},
-			}
-		}
+			},
+		},
 	)
 
 	assert config["provider_name"] == "OpenAI"
@@ -88,7 +88,7 @@ def test_call_api_forwards_provider_config_to_application_runner(monkeypatch):
 					"no_explanation": True,
 					"keep_non_chinese_char": False,
 				},
-			}
+			},
 		},
 		{"vars": {"input": "測試文字"}},
 	)

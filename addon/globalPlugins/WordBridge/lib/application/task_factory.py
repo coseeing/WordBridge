@@ -23,7 +23,11 @@ def create_typo_workflow(
 	max_correction_attempts: int = 3,
 ):
 	provider_object = get_provider(
-		provider_name, credential, retries=retries, backoff=backoff, provider_entry=provider_entry
+		provider_name,
+		credential,
+		retries=retries,
+		backoff=backoff,
+		provider_entry=provider_entry,
 	)
 	adapter_object = get_provider_model_adapter(provider_name, model_name, price_entry=price_entry)
 	executor = LLMExecutor(provider_object, adapter_object)

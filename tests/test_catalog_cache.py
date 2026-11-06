@@ -34,7 +34,7 @@ def test_a_lone_surrogate_round_trips(tmp_path):
 	# json.loads() turns a \ud800 escape in the payload into a lone
 	# surrogate, which strict UTF-8 cannot encode.
 	document = json.loads(
-		'{"schema_version": 1, "providers": {}, "models": [{"model": "m", "label": "\\ud800x"}]}'
+		'{"schema_version": 1, "providers": {}, "models": [{"model": "m", "label": "\\ud800x"}]}',
 	)
 	cache = _cache(tmp_path)
 
@@ -77,7 +77,7 @@ def test_a_corrupt_cache_is_ignored_and_left_in_place(tmp_path, content, detail)
 
 	assert document is None
 	assert [(issue.code, issue.location, issue.detail) for issue in issues] == [
-		("unreadable_cache", "cache", detail)
+		("unreadable_cache", "cache", detail),
 	]
 	assert path.read_bytes() == content
 
@@ -140,7 +140,7 @@ def test_a_payload_at_the_fetch_limit_with_the_longest_key_round_trips(tmp_path)
 	# (and a url_key at the URL length limit) must still fit and load back.
 	key = "https://h.test/" + "a" * 2033
 	filler = MAX_PAYLOAD_BYTES - len(
-		json.dumps({"schema_version": 1, "providers": {}, "models": [], "x": ""})
+		json.dumps({"schema_version": 1, "providers": {}, "models": [], "x": ""}),
 	)
 	document = {"schema_version": 1, "providers": {}, "models": [], "x": "a" * filler}
 	assert len(json.dumps(document).encode("utf8")) == MAX_PAYLOAD_BYTES
@@ -156,7 +156,8 @@ def test_store_refuses_a_body_over_the_limit_and_keeps_the_old_file(tmp_path):
 	before = _path(tmp_path).read_bytes()
 
 	issues = cache.store(
-		KEY, {"schema_version": 1, "providers": {}, "models": [], "x": "a" * MAX_CACHE_BYTES}
+		KEY,
+		{"schema_version": 1, "providers": {}, "models": [], "x": "a" * MAX_CACHE_BYTES},
 	)
 
 	assert [(issue.code, issue.detail) for issue in issues] == [("cache_write_failed", "too_large")]

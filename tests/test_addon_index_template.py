@@ -91,11 +91,11 @@ def test_replace_dialog_labels_original_text_before_corrected_text():
 	html = _open_replace_dialog_html()
 
 	original_label_index = html.index(
-		'<h3 class="correction-dialog__label correction-dialog__label--original">原始文字</h3>'
+		'<h3 class="correction-dialog__label correction-dialog__label--original">原始文字</h3>',
 	)
 	original_description_index = html.index("錯字詞")
 	corrected_label_index = html.index(
-		'<h3 class="correction-dialog__label correction-dialog__label--corrected">修正文字</h3>'
+		'<h3 class="correction-dialog__label correction-dialog__label--corrected">修正文字</h3>',
 	)
 	corrected_description_index = html.index("正確詞")
 

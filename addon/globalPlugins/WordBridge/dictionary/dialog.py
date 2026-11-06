@@ -27,7 +27,7 @@ Zhuyin: ㄅㄚˋ ㄅㄚ˙
 Example2:
 Word: 旅遊
 Pinyin: lv3 you2
-Zhuyin: ㄌㄩˇ ㄧㄡˊ"""
+Zhuyin: ㄌㄩˇ ㄧㄡˊ""",
 )
 
 
@@ -120,7 +120,7 @@ class DictionaryEntryDialog(SettingsDialog):
 				# Translators: Second line of the explanation at the top of the WordBridge personal
 				# dictionary.
 				+ _("Please press Help button for more details."),
-			)
+			),
 		)
 
 		# Translators: Label of the word list in the WordBridge personal dictionary.

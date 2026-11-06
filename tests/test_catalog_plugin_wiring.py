@@ -76,7 +76,8 @@ def test_init_uses_the_cache_for_the_configured_url(monkeypatch):
 	assert instance.catalog.get_model("gpt-6.1-sol&OpenAI") is not None
 	assert plugin.registry.current() is instance.catalog
 	assert plugin.catalog_updater.status() == plugin.catalog_updater.UpdaterStatus(
-		source="cache", fetch="running"
+		source="cache",
+		fetch="running",
 	)
 	instance.terminate()
 
@@ -94,7 +95,8 @@ def test_init_with_an_empty_url_offers_the_bundled_models(monkeypatch):
 	assert instance.catalog.labels_for("Coseeing") == ("default",)
 	assert plugin.started_catalog_threads == []
 	assert plugin.catalog_updater.status() == plugin.catalog_updater.UpdaterStatus(
-		source="bundled", fetch="off"
+		source="bundled",
+		fetch="off",
 	)
 	assert instance._needs_catalog_choice() is False
 	# The stored local model is in the bundled list: no Coseeing sign-in.
@@ -451,7 +453,9 @@ def test_the_production_request_forwards_the_fetch_arguments_unchanged(monkeypat
 	calls = []
 	plugin, _queued, _auth = _load(monkeypatch)
 	monkeypatch.setattr(
-		plugin.requests, "get", lambda *args, **kwargs: calls.append((args, kwargs)) or "response"
+		plugin.requests,
+		"get",
+		lambda *args, **kwargs: calls.append((args, kwargs)) or "response",
 	)
 	kwargs = {
 		"stream": True,
@@ -491,7 +495,7 @@ def test_the_wired_fetch_sends_exactly_the_specified_request(monkeypatch):
 				"allow_redirects": False,
 				"headers": {"Accept": "application/json"},
 			},
-		)
+		),
 	]
 	assert "verify" not in calls[0][1]
 	instance.terminate()
@@ -768,7 +772,9 @@ def test_the_dialog_is_not_shown_once_a_catalog_is_loaded(monkeypatch):
 
 
 @pytest.mark.parametrize(
-	"url", ["", NO_CACHE_URL, "http://example.com/"], ids=["empty", "no-cache", "invalid"]
+	"url",
+	["", NO_CACHE_URL, "http://example.com/"],
+	ids=["empty", "no-cache", "invalid"],
 )
 def test_startup_skips_coseeing_sign_in_for_a_local_user_without_a_catalog(monkeypatch, url):
 	plugin, queued, auth_calls = _load(monkeypatch, _settings(catalog_url=url))
@@ -798,7 +804,9 @@ def test_correct_typo_never_sends_a_local_users_text_to_coseeing_without_a_catal
 	posts = []
 	monkeypatch.setattr(f.plugin.requests, "post", lambda *args, **kwargs: posts.append(args), raising=False)
 	monkeypatch.setattr(
-		f.plugin, "get_coseeing_access_token", lambda **kwargs: pytest.fail("no Coseeing token request")
+		f.plugin,
+		"get_coseeing_access_token",
+		lambda **kwargs: pytest.fail("no Coseeing token request"),
 	)
 	f.instance.readDictionary = list
 
@@ -838,7 +846,9 @@ def test_the_retry_seam_uses_wx_call_later_at_call_time(monkeypatch):
 	plugin, _queued, _auth = _load(monkeypatch)
 	calls = []
 	monkeypatch.setattr(
-		plugin.wx, "CallLater", lambda delay_ms, callback: calls.append((delay_ms, callback)) or "handle"
+		plugin.wx,
+		"CallLater",
+		lambda delay_ms, callback: calls.append((delay_ms, callback)) or "handle",
 	)
 
 	def callback():

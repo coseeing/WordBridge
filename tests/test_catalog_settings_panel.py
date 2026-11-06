@@ -373,7 +373,9 @@ STATUS_TABLE = [
 
 
 @pytest.mark.parametrize(
-	"source, fetch, message", [row[1:] for row in STATUS_TABLE], ids=[row[0] for row in STATUS_TABLE]
+	"source, fetch, message",
+	[row[1:] for row in STATUS_TABLE],
+	ids=[row[0] for row in STATUS_TABLE],
 )
 def test_catalog_status_message_table(monkeypatch, source, fetch, message):
 	f = _panel_fixture(monkeypatch)
@@ -406,7 +408,9 @@ def _line_shown(panel, line):
 def test_no_status_line_when_the_list_is_fresh(monkeypatch):
 	f = _panel_fixture(monkeypatch)
 	monkeypatch.setattr(
-		f.dialogs.catalog_updater, "status", lambda: _status(f.dialogs, "fetched", "succeeded")
+		f.dialogs.catalog_updater,
+		"status",
+		lambda: _status(f.dialogs, "fetched", "succeeded"),
 	)
 
 	panel = f.make_panel()
@@ -425,7 +429,9 @@ def test_the_dropped_entries_line_is_silent_for_the_shipped_overlay(monkeypatch)
 
 
 @pytest.mark.parametrize(
-	"source, fetch, message", [row[1:] for row in STATUS_TABLE], ids=[row[0] for row in STATUS_TABLE]
+	"source, fetch, message",
+	[row[1:] for row in STATUS_TABLE],
+	ids=[row[0] for row in STATUS_TABLE],
 )
 def test_the_panel_description_is_the_status_line(monkeypatch, source, fetch, message):
 	# R11: NVDA reads panelDescription as the property page's description
@@ -443,7 +449,9 @@ def test_the_panel_description_is_the_status_line(monkeypatch, source, fetch, me
 def test_both_lines_exist_in_their_place_when_empty(monkeypatch):
 	f = _panel_fixture(monkeypatch)
 	monkeypatch.setattr(
-		f.dialogs.catalog_updater, "status", lambda: _status(f.dialogs, "fetched", "succeeded")
+		f.dialogs.catalog_updater,
+		"status",
+		lambda: _status(f.dialogs, "fetched", "succeeded"),
 	)
 
 	panel = f.make_panel()
@@ -486,7 +494,8 @@ def real_updater(f, tmp_path, http_get, schedule=None):
 	updater = module.CatalogUpdater(
 		bundled_source=f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting"),
 		cache=cache_module.CatalogCache(
-			tmp_path / "catalog" / "remote-catalog.json", can_write=lambda: False
+			tmp_path / "catalog" / "remote-catalog.json",
+			can_write=lambda: False,
 		),
 		runnable_providers=f.plugin.SUPPORTED_PROVIDERS,
 		http_get=http_get,

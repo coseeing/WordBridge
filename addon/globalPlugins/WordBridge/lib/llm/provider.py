@@ -62,7 +62,7 @@ class Provider:
 			if response.status_code == 401:
 				raise LLMServiceError(
 					# Translators: Reported when the AI service provider rejects the user's API key (HTTP 401).
-					_("Authentication error. Please check if the service provider's key is correct.")
+					_("Authentication error. Please check if the service provider's key is correct."),
 				)
 			if response.status_code == 403:
 				# Translators: Reported when the AI service provider refuses requests from the user's location (HTTP 403).
@@ -70,7 +70,7 @@ class Provider:
 			if response.status_code == 404:
 				raise LLMServiceError(
 					# Translators: Reported when the AI service provider does not know the selected model (HTTP 404).
-					_("Service does not exist. Please check if the model does not exist or has expired.")
+					_("Service does not exist. Please check if the model does not exist or has expired."),
 				)
 			if response.status_code == 429:
 				raise LLMServiceError(
@@ -79,7 +79,7 @@ class Provider:
 					_("Rate limit reached for requests or you exceeded your current quota. ")
 					# Translators: Second sentence reported when the AI service provider limits the user's requests
 					# (HTTP 429).
-					+ _("Please reduce the frequency of sending requests or check your account balance.")
+					+ _("Please reduce the frequency of sending requests or check your account balance."),
 				)
 			if response.status_code == 503:
 				# Translators: Reported when the AI service provider is too busy to answer (HTTP 503).
@@ -88,7 +88,7 @@ class Provider:
 			raise LLMServiceError(
 				# Translators: Reported for any other error from the AI service provider; the HTTP status code
 				# and the provider's own (untranslated) message follow it, as "401, message".
-				_("An error occurred, status code = ") + f"{response.status_code}, {message}"
+				_("An error occurred, status code = ") + f"{response.status_code}, {message}",
 			)
 
 	def try_connection(self, timeout=10, try_count=1):
@@ -113,8 +113,8 @@ class Provider:
 			# Translators: Reported when the AI service provider cannot be reached; {request_error} is the
 			# name of the network error, for example ConnectTimeout.
 			_("HTTP request error ({request_error}). Please check the network setting.").format(
-				request_error=request_error
-			)
+				request_error=request_error,
+			),
 		)
 
 	def send(self, payload, model_name=None):
@@ -152,8 +152,8 @@ class Provider:
 				# Translators: Reported when the AI service provider cannot be reached; {request_error} is the
 				# name of the network error, for example ConnectTimeout.
 				_("HTTP request error ({request_error}). Please check the network setting.").format(
-					request_error=request_error
-				)
+					request_error=request_error,
+				),
 			)
 
 		self.handle_errors(response)
@@ -219,7 +219,12 @@ PROVIDER_CLASSES = {
 
 
 def get_provider(
-	provider_name: str, credential: dict, retries: int = 2, backoff: int = 1, *, provider_entry
+	provider_name: str,
+	credential: dict,
+	retries: int = 2,
+	backoff: int = 1,
+	*,
+	provider_entry,
 ) -> Provider:
 	provider_class = PROVIDER_CLASSES.get(provider_name)
 	if not provider_class:
