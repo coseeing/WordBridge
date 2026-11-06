@@ -266,6 +266,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# synchronously, mid-construction, before NVDA's UI is ready for it.
 			self._notify(
 				_(
+					# Translators: Reported when the correction settings file that comes with WordBridge is
+					# damaged, so WordBridge uses its built-in defaults.
 					"The bundled correction settings file is damaged; WordBridge is using its built-in defaults."
 				)
 			)
@@ -332,16 +334,17 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				return
 			dialog = gui.message.MessageDialog(
 				gui.mainFrame,
-				# Translators: Message of a Yes/No dialog shown when the user starts a correction with a model
-				# that uses their own API key, but the model list has not been downloaded. Yes switches the
-				# setting to the Coseeing default and sends the text to Coseeing; No sends nothing.
 				_(
+					# Translators: Message of a Yes/No dialog shown when the user starts a correction with a
+					# model that uses their own API key, but the model list has not been downloaded. Yes
+					# switches the setting to the Coseeing default and sends the text to Coseeing; No sends
+					# nothing.
 					"The model list is not available yet, so the model you selected cannot be used.\n\n"
 					"Switch to the Coseeing default and correct this text with Coseeing? "
 					"Your WordBridge setting will be changed to the Coseeing default."
 				),
-				# Translators: Title of the Yes/No dialog asking whether to switch to the Coseeing default; the
-				# add-on name.
+				# Translators: Title of the Yes/No dialog asking whether to switch to the Coseeing default;
+				# the add-on name.
 				_("WordBridge"),
 				buttons=gui.message.DefaultButtonSet.YES_NO,
 			)
@@ -363,8 +366,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		ui.message(self._catalog_choice_cancel_message())
 
 	def _catalog_choice_cancel_message(self):
-		# Translators: Spoken after the user answers No (or presses Escape) in the dialog asking whether to switch
-		# to the Coseeing default because the model list is not available.
+		# Translators: Spoken after the user answers No (or presses Escape) in the dialog asking whether to
+		# switch to the Coseeing default because the model list is not available.
 		return _("The text was not sent. Your model selection was not changed.")
 
 	def _install_catalog(self, catalog):
@@ -482,8 +485,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				type(error).__name__,
 				error,
 			)
+			# Translators: Reported after a correction when its cost could not be calculated.
 			self._notify(_("This task's cost is unavailable."))
 			return
+		# Translators: Reported after a correction; {cost} is what the request cost, in US dollars.
 		self._notify(_("This task costs {cost} USD.").format(cost=cost_text))
 		log.info(f"This task costs {cost_text} USD.")
 
@@ -531,6 +536,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			report_path = generate_report(diff_data)
 		except OSError as error:
 			log.warning("WordBridge: could not generate the report: %s: %s", type(error).__name__, error)
+			# Translators: Reported when the report of a correction (the page that shows the changes) could
+			# not be created.
 			self._notify(_("The correction report could not be generated."))
 			return
 		self.OnPreview(str(report_path))
@@ -545,6 +552,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if len(text) > max_char_count:
 			ui.message(
 				_(
+					# Translators: Reported when the selected text is too long to correct; {len_text} is its
+					# number of characters and {max_char_count} the maximum set in WordBridge settings.
 					"The number of characters is {len_text}, which exceeds the maximum, {max_char_count}."
 				).format(len_text=len(text), max_char_count=max_char_count)
 			)
@@ -553,10 +562,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			)
 			return False
 		elif len(text) == 0:
+			# Translators: Reported when a correction is started without any selected text.
 			ui.message(_("No text is selected, unable to analyze."))
 			log.warning("No text is selected, unable to analyze.")
 			return False
 		elif not has_chinese(text):
+			# Translators: Reported when the selected text has no Chinese characters, so there is nothing to
+			# correct.
 			ui.message(_("The selected text does not contain Chinese characters, unable to analyze."))
 			log.warning("The selected text does not contain Chinese characters, unable to analyze.")
 			return False
@@ -601,6 +613,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# message when self._shutdown is already set, and the old order
 			# (flag first) could mark this session's one-shot announcement
 			# "delivered" even when it never reached the user.
+			# Translators: Reported once when the model list could not be loaded, so the correction goes to
+			# the Coseeing service, which picks the model.
 			self._notify(_("The model list could not be loaded. Coseeing will choose a model for you."))
 			self._degraded_catalog_announced = True
 		if execution_channel == LOCAL_CHANNEL:
@@ -608,6 +622,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			if model_entry is None:
 				self._notify(
 					_(
+						# Translators: Reported when the model chosen in WordBridge settings is no longer in
+						# the model list.
 						"The selected model is no longer available. Please choose another one in WordBridge settings."
 					)
 				)
@@ -616,6 +632,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			if provider_entry is None:
 				self._notify(
 					_(
+						# Translators: Reported when the service provider of the chosen model is no longer in
+						# the model list.
 						"The selected provider is no longer available. Please choose another one in WordBridge settings."
 					)
 				)
@@ -645,6 +663,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				# leaves an unhandled exception in a worker thread, which
 				# lands in the NVDA log with nothing to act on.
 				self._notify(
+					# Translators: Reported when a correction with the user's own API key fails; {e} is the
+					# error message, which may come from the service provider untranslated.
 					_("Sorry, an error occurred during the program execution, the details are: {e}").format(
 						e=e
 					)
@@ -662,6 +682,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				access_token = get_coseeing_access_token().result(timeout=COSEEING_TOKEN_WAIT_SECONDS)
 				headers = build_coseeing_headers(access_token)
 			except Exception:  # noqa: BLE001
+				# Translators: Reported when signing in to Coseeing failed before a correction could be sent.
 				self._notify(_("Sorry, an error occurred while authenticating with Coseeing."))
 				return
 
@@ -679,8 +700,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			except Exception as error:  # noqa: BLE001
 				timeout_type = getattr(getattr(requests, "exceptions", None), "Timeout", None)
 				message = (
+					# Translators: Reported when a correction request to the Coseeing service took too long.
 					_("The Coseeing request timed out. Please try again later.")
 					if timeout_type is not None and isinstance(error, timeout_type)
+					# Translators: Reported when a correction request to the Coseeing service failed.
 					else _("The Coseeing request failed. Please try again later.")
 				)
 				self._notify(message)
@@ -689,16 +712,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				return
 			if data.status_code == 401:
 				self._notify(
+					# Translators: Reported when the Coseeing service does not accept the user's sign-in (HTTP
+					# 401).
 					_("Authentication error. Please sign in to Coseeing or check your account permissions.")
 				)
 				return
 			elif data.status_code == 429:
 				self._notify(
+					# Translators: First sentence reported when the Coseeing service limits the user's
+					# requests (HTTP 429); the next sentence follows it directly, so keep the trailing space.
 					_("Rate limit reached for requests or you exceeded your current quota. ")
+					# Translators: Second sentence reported when the Coseeing service limits the user's
+					# requests (HTTP 429).
 					+ _("Please reduce the frequency of sending requests or check your account balance.")
 				)
 				return
 			elif data.status_code >= 400:
+				# Translators: Reported when a correction request to the Coseeing service failed.
 				self._notify(_("The Coseeing request failed. Please try again later."))
 				return
 			try:
@@ -707,6 +737,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				interaction_id = result["interaction_id"]
 				cost = result["cost"]
 			except (ValueError, KeyError, TypeError):
+				# Translators: Reported when the Coseeing service's answer to a correction request could not
+				# be read.
 				self._notify(_("The Coseeing response was invalid. Please try again later."))
 				return
 			diff = strings_diff(request, response)
@@ -722,11 +754,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		)
 
 		if request == response:
+			# Translators: Reported when a correction found no errors in the selected text.
 			self._notify(_("No errors in the selected text."))
 			log.info("No errors in the selected text.")
 			return
 
 		self._run_on_ui(api.copyToClip, response)
+		# Translators: Reported when a correction has finished and the corrected text is on the clipboard.
 		self._notify(_("The corrected text has been copied to the clipboard."))
 		log.info("The corrected text has been copied to the clipboard.")
 
@@ -747,6 +781,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if self.correct_typo_thread is not None and self.correct_typo_thread.is_alive():
 			self._notify(
 				_(
+					# Translators: Reported when a correction is started while another one is still running.
 					"Only one proofreading task can run at a time. Please wait until the current task has finished before starting another."
 				)
 			)
@@ -798,6 +833,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+d",
+		# Translators: Description of the command that opens the WordBridge personal dictionary, shown in
+		# Input gestures.
 		description=_("Open personal dictionary editor"),
 		category=ADDON_SUMMARY,
 	)
@@ -806,6 +843,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+o",
+		# Translators: Description of the command that corrects typos in the selected text, shown in Input
+		# gestures.
 		description=_("Execute typo correction"),
 		category=ADDON_SUMMARY,
 	)
@@ -813,6 +852,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if self.isNVDASettingsDialogCreate():
 			ui.message(
 				_(
+					# Translators: Reported when a correction is started while the NVDA settings dialog is
+					# open.
 					"The function cannot be executed. Please finish the configuration and close the setting window."
 				)
 			)
@@ -833,6 +874,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+w",
+		# Translators: Description of the command that opens the WordBridge settings panel, shown in Input
+		# gestures.
 		description=_("Open WordBridge settings"),
 		category=ADDON_SUMMARY,
 	)
@@ -842,12 +885,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		)
 
 	@script(
+		# Translators: Description of the command that shows the report of the latest correction, shown in
+		# Input gestures.
 		description=_("Show correction report"),
 		category=ADDON_SUMMARY,
 	)
 	def script_showCorrectionReport(self, gesture):
 		diff = self.latest_action.diff
 		if diff is None:
+			# Translators: Reported when the correction report is asked for before any correction has run.
 			ui.message(_("No report has been generated yet."))
 			log.warning("No report has been generated yet.")
 			return
@@ -856,6 +902,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		gesture="kb:NVDA+alt+f",
+		# Translators: Description of the command that sends feedback on the latest correction to Coseeing,
+		# shown in Input gestures.
 		description=_("Submit correction feedback"),
 		category=ADDON_SUMMARY,
 	)
@@ -869,6 +917,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# this one local instead.
 		latest_action = self.latest_action
 		if latest_action.interaction_id is None:
+			# Translators: Reported when feedback is sent before any correction has run with the Coseeing
+			# service.
 			ui.message(_("You have not run a typos correction task with the Coseeing service provider yet."))
 
 			log.warning("You have not run a typos correction task with the Coseeing service provider yet.")
@@ -908,6 +958,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			access_token = get_coseeing_access_token().result(timeout=COSEEING_TOKEN_WAIT_SECONDS)
 			headers = build_coseeing_headers(access_token)
 		except Exception:  # noqa: BLE001
+			# Translators: Reported when signing in to Coseeing failed before feedback could be sent.
 			message = _("The Coseeing authentication failed. Please try again later.")
 			self._notify(message)
 			return
@@ -922,19 +973,27 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				return
 			if response.status_code == 401:
 				message = _(
+					# Translators: Reported when the Coseeing service does not accept the user's sign-in (HTTP
+					# 401).
 					"Authentication error. Please sign in to Coseeing or check your account permissions."
 				)
 			elif response.status_code >= 400:
+				# Translators: Reported when sending correction feedback to the Coseeing service failed.
 				message = _("Sorry, the Coseeing feedback request failed. Please try again later.")
 			else:
 				response.json()
 		except Exception as error:  # noqa: BLE001
 			timeout_type = getattr(getattr(requests, "exceptions", None), "Timeout", None)
 			if timeout_type is not None and isinstance(error, timeout_type):
+				# Translators: Reported when sending correction feedback to the Coseeing service took too
+				# long.
 				message = _("The Coseeing feedback request timed out. Please try again later.")
 			elif isinstance(error, ValueError):
+				# Translators: Reported when the Coseeing service's answer to correction feedback could not be
+				# read.
 				message = _("The Coseeing feedback response was invalid. Please try again later.")
 			else:
+				# Translators: Reported when sending correction feedback to the Coseeing service failed.
 				message = _("Sorry, the Coseeing feedback request failed. Please try again later.")
 		if message is not None:
 			self._notify(message)

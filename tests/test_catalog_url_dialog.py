@@ -343,12 +343,22 @@ TRANSLATED_SOURCES = [
 ]
 
 
-COMMENTED_SOURCES = ["dialogs.py", "catalog_url_dialog.py", "lib/llm/provider.py", "lib/llm/executor.py"]
+def test_the_translated_sources_cover_the_known_files():
+	# Guards _i18n_sources() itself: an empty or wrong glob would make the
+	# test below check nothing.
+	assert {
+		"__init__.py",
+		"dialogs.py",
+		"dictionary/dialog.py",
+		"lib/coseeing_auth.py",
+		"lib/llm/provider.py",
+	} <= set(TRANSLATED_SOURCES)
 
 
-@pytest.mark.parametrize("name", COMMENTED_SOURCES)
+@pytest.mark.parametrize("name", TRANSLATED_SOURCES)
 def test_every_translatable_string_has_a_translators_comment(name):
-	# C23: no tests/test_translator_comments.py exists in this repository.
+	# NVDA's coding standards: every translatable string has a preceding
+	# Translators comment. C23: no tests/test_translator_comments.py exists.
 	calls = _translation_calls(ADDON / name)
 
 	assert calls

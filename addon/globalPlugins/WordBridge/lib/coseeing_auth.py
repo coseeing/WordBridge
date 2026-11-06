@@ -580,11 +580,19 @@ class _NvdaAuthAdapter:
 	def prompt_login(self) -> str:
 		dialog = self._gui.message.MessageDialog(
 			self._gui.mainFrame,
+			# Translators: Message of the dialog that asks the user to sign in to Coseeing or to go on as a
+			# guest.
 			_("Sign in to Coseeing to use this service, or continue as a guest."),
+			# Translators: Title of the dialog that asks the user to sign in to Coseeing.
 			_("Coseeing authentication"),
 			buttons=self._gui.message.DefaultButtonSet.YES_NO,
 		)
-		dialog.setYesNoLabels(_("Sign in"), _("Continue as guest"))
+		dialog.setYesNoLabels(
+			# Translators: Label of the button in the Coseeing sign-in dialog that signs in to Coseeing.
+			_("Sign in"),
+			# Translators: Label of the button in the Coseeing sign-in dialog that goes on without signing in.
+			_("Continue as guest"),
+		)
 		with self._dialog_lock:
 			self._active_dialog = dialog
 		try:
@@ -659,6 +667,7 @@ class _NvdaAuthAdapter:
 		with self._dialog_lock:
 			if self._shutting_down and not notify_during_shutdown:
 				return
+		# Translators: Reported when signing in to Coseeing failed.
 		self._ui.message(_("Coseeing authentication failed."))
 
 
@@ -720,6 +729,8 @@ def _notify_auth_unavailable() -> None:
 	import wx
 
 	try:
+		# Translators: Reported when Coseeing sign-in cannot be used because parts it needs could not be
+		# loaded.
 		wx.CallAfter(ui.message, _("Coseeing authentication is unavailable on this installation."))
 	except Exception:  # noqa: BLE001, S110
 		pass
