@@ -14,7 +14,7 @@ except ImportError:
 # initTranslation() installs, and `except ImportError` alone does not cover
 # the case where addonHandler imports but installs nothing.
 try:
-	_
+	_  # noqa: B018
 except NameError:
 	def _(s):
 		return s
@@ -58,7 +58,7 @@ class LLMExecutor:
 			sentence = self.adapter_object.parse_response(response_json)
 		except KeyError:
 			log.error("%s", response_json)
-			raise Exception(
+			raise Exception(  # noqa: TRY002
 				# Translators: Reported when the AI service provider's answer has an unexpected shape;
 				# {response} is that answer, shown as received.
 				_("Parsing error. Unexpected server response. Response: {response}").format(
@@ -70,7 +70,7 @@ class LLMExecutor:
 		output_text = text_policy.postprocess_output(response_text, input_text)
 		raw_usage = self.adapter_object.extract_usage(response_json)
 		usage = raw_usage.copy() if isinstance(raw_usage, dict) else {}
-		request_cost = self.adapter_object.get_cost_for_usage(usage) if usage else Decimal("0")
+		request_cost = self.adapter_object.get_cost_for_usage(usage) if usage else Decimal(0)
 
 		self.response_history.append(response_json)
 		self.usage_history.append(usage)

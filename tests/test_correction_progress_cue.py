@@ -2,7 +2,6 @@ import sys
 import threading
 from types import SimpleNamespace
 
-
 SETTINGS = {
 	"corrector_config_id": "deepseek-flash&DeepSeek",
 	"execution_channel": "Coseeing",

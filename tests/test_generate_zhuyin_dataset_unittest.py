@@ -1,9 +1,11 @@
 from collections import Counter
 
-from workspace.evals.generate_zhuyin_dataset import choose_candidate
-from workspace.evals.generate_zhuyin_dataset import collect_sentence_options
-from workspace.evals.generate_zhuyin_dataset import generate_cases
-from workspace.evals.generate_zhuyin_dataset import rank_candidates
+from workspace.evals.generate_zhuyin_dataset import (
+	choose_candidate,
+	collect_sentence_options,
+	generate_cases,
+	rank_candidates,
+)
 
 
 def test_rank_candidates_prefers_more_frequent_characters():

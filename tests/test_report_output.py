@@ -1,12 +1,9 @@
-import json
 import logging
-import re
 import sys
 import types
 from pathlib import Path
 
 import pytest
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"

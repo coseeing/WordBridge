@@ -2,11 +2,9 @@ import json
 import threading
 
 import pytest
-
 from fake_http import BodyResponse
 from plugin_modules import load_plugin_module
 from shipped_catalog import bundled_document, served_document, server_document, shipped_overlay
-
 
 updater_module = load_plugin_module("catalog_updater")
 cache_module = __import__(updater_module.__name__.rsplit(".", 1)[0] + ".lib.catalog.cache", fromlist=["CatalogCache"])

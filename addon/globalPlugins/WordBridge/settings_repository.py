@@ -3,7 +3,6 @@ from functools import lru_cache
 from .lib.catalog.remote import DEFAULT_CATALOG_URL
 from .lib.catalog.selection import normalize_selection
 
-
 LANGUAGE_VALUES = ["zh_traditional", "zh_simplified"]
 LANGUAGE_FALLBACK = "zh_traditional"
 TYPO_CORRECTION_MODE_VALUES = ["standard", "lite"]
@@ -23,7 +22,7 @@ def os_default_language() -> str:
 		import locale
 
 		code = locale.windows_locale[ctypes.windll.kernel32.GetUserDefaultUILanguage()]
-	except Exception:
+	except Exception:  # noqa: BLE001
 		return LANGUAGE_FALLBACK
 	return LANGUAGE_FALLBACK if code in ("zh_TW", "zh_MO", "zh_HK") else "zh_simplified"
 
@@ -116,7 +115,7 @@ class SettingsRepository:
 		writes. The settings panel shows a box for every supported provider
 		(retry spec R13) and must not add empty entries for unused ones."""
 		keys = self._settings["api_key"]
-		return keys[provider] if provider in keys else ""
+		return keys.get(provider, "")
 
 	def save_api_key(self, provider: str, value: str) -> None:
 		self._settings["api_key"][provider] = value

@@ -22,16 +22,15 @@ The following environment variables are required to build the HTML:
 
 """
 
-from SCons.Script import Environment, Builder
+from SCons.Script import Builder, Environment
 
 from .addon import createAddonBundleFromPath
-from .manifests import generateManifest, generateTranslatedManifest
 from .docs import md2html
-
+from .manifests import generateManifest, generateTranslatedManifest
 
 
 def generate(env: Environment):
-	env.SetDefault(excludePatterns=tuple())
+	env.SetDefault(excludePatterns=())
 
 	addonAction = env.Action(
 		lambda target, source, env: createAddonBundleFromPath(

@@ -56,8 +56,8 @@ sys.modules.update({
 	"_wb_vendor.coseeing_auth.errors": coseeing_errors,
 })
 
-from lib.coseeing_auth import AuthSessionState, CoseeingAuthSession
 import lib.coseeing_auth as auth_module
+from lib.coseeing_auth import AuthSessionState, CoseeingAuthSession
 
 for module_name in (
 	"addonHandler", "_wb_vendor.authlib", "_wb_vendor.authlib.integrations",
@@ -66,19 +66,18 @@ for module_name in (
 	"_wb_vendor.coseeing_auth.errors",
 ):
 	sys.modules.pop(module_name, None)
-from concurrent.futures import CancelledError, Future
 import shutil
 import subprocess
 import sys
 import textwrap
-from threading import Event, Thread, current_thread
 import threading
+from concurrent.futures import CancelledError, Future
 from pathlib import Path
+from threading import Event, Thread, current_thread
 
 import pytest
-
-from lib import vendor
 from coseeing_auth_helpers import AuthHarness, FakeAuth
+from lib import vendor
 
 
 def test_guest_is_remembered_until_reconsidered():
@@ -840,7 +839,11 @@ def test_close_schedule_failure_waits_for_admitted_request_client_handoff():
 		prompt_login=lambda: "guest",
 	)
 	result = session.get_access_token()
-	request_thread = Thread(target=lambda: (lambda item: item[0](*item[1]))(queue.pop(0)))
+	def run_queued_request():
+		callback, args = queue.pop(0)
+		callback(*args)
+
+	request_thread = Thread(target=run_queued_request)
 	request_thread.start()
 	assert started.wait(timeout=1)
 	cleanup_holder = []

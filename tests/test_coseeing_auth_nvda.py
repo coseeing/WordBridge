@@ -1,16 +1,17 @@
-from concurrent.futures import Future
+import ctypes
 import dataclasses
 import importlib
 import importlib.util
-import ctypes
 import json
 import os
-from threading import Event, RLock, Thread, current_thread
-from types import SimpleNamespace
-from pathlib import Path
-from urllib.parse import urlparse
 import sys
 import types
+from concurrent.futures import Future
+from pathlib import Path
+from threading import Event, RLock, Thread, current_thread
+from types import SimpleNamespace
+from urllib.parse import urlparse
+
 import pytest
 
 
@@ -58,8 +59,8 @@ sys.modules.update(_TEMPORARY_IMPORT_MODULES)
 
 import lib.coseeing_auth as module
 from coseeing_auth_helpers import FakeAuth
-from lib.coseeing_auth import CoseeingAuthSession
 from lib.coseeing import build_coseeing_headers
+from lib.coseeing_auth import CoseeingAuthSession
 
 for _module_name, _original_module in _ORIGINAL_IMPORT_MODULES.items():
 	if _original_module is _MISSING_MODULE:
@@ -212,7 +213,7 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	class IndeterminateProgressDialog:
 		"""gui.IndeterminateProgressDialog: records its text and done()."""
 
-		instances = []
+		instances = []  # noqa: RUF012
 
 		def __init__(self, parent, title, message):
 			self.parent, self.title, self.message = parent, title, message
@@ -443,7 +444,7 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	dictionary_package = type(sys)(f"{package_name}.dictionary")
 	dictionary_package.__path__ = [str(ADDON_PATH / "dictionary")]
 	dictionary_package.WBW_DICTIONARY_PATH = "/tmp/wordbridge-test-dictionary"
-	dictionary_package.default_dictionary_repository = lambda: SimpleNamespace(load=lambda: [])
+	dictionary_package.default_dictionary_repository = lambda: SimpleNamespace(load=list)
 	monkeypatch.setitem(sys.modules, dictionary_package.__name__, dictionary_package)
 	monkeypatch.setitem(sys.modules, f"{package_name}.dictionary.dialog", SimpleNamespace(DictionaryEntryDialog=object))
 
@@ -953,7 +954,7 @@ def test_settings_panel_uses_clean_button_without_legacy_credential_controls(mon
 			return self
 
 	class Helper:
-		calls = []
+		calls = []  # noqa: RUF012
 
 		def __init__(self, owner, sizer=None, **kwargs):
 			self.sizer = sizer or Sizer()
@@ -1212,7 +1213,7 @@ def test_settings_panel_summary_line_appears_only_when_the_catalog_has_issues(mo
 	settings = _panel_settings()
 	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
 	dialogs = plugin.dialogs
-	helper_calls, static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	_helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
 
 	clean_catalog = dataclasses.replace(plugin.catalog, issues=())
@@ -1247,7 +1248,7 @@ def test_settings_panel_summary_line_is_silent_for_the_shipped_healthy_catalog(m
 	settings = _panel_settings()
 	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
 	dialogs = plugin.dialogs
-	helper_calls, static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	_helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
 
 	# The real, unmodified shipped catalog -- not a fabricated fixture -- is
@@ -1274,7 +1275,7 @@ def test_settings_panel_summary_line_ignores_lint_issues_and_uses_correct_gramma
 	settings = _panel_settings()
 	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
 	dialogs = plugin.dialogs
-	helper_calls, static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	_helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
 
 	from lib.catalog.model import CatalogIssue
@@ -1351,7 +1352,7 @@ def test_the_sentinel_model_label_is_rendered_through_the_translation_map(monkey
 	settings = _panel_settings()
 	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
 	dialogs = plugin.dialogs
-	helper_calls, static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
 
 	# The shipped catalogs offer only the sentinel on Coseeing now (U8), so
@@ -1405,7 +1406,7 @@ def test_refreshing_the_model_choice_still_renders_the_sentinel_through_the_tran
 	settings = _panel_settings()
 	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
 	dialogs = plugin.dialogs
-	helper_calls, static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	_helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
 
 	original = plugin.catalog
@@ -1648,7 +1649,7 @@ def test_nvda_adapter_maps_dialog_choices(monkeypatch):
 
 	class Dialog:
 		result = 0
-		created = []
+		created = []  # noqa: RUF012
 		def __init__(self, *args, **kwargs):
 			self.__class__.created.append((args, kwargs))
 		def setYesNoLabels(self, yes, no):
@@ -1667,7 +1668,7 @@ def test_nvda_adapter_maps_dialog_choices(monkeypatch):
 			YES_NO = 4
 
 	class Ui:
-		messages = []
+		messages = []  # noqa: RUF012
 		def message(self, text):
 			self.messages.append(text)
 
@@ -1694,7 +1695,7 @@ def test_nvda_adapter_maps_dialog_choices(monkeypatch):
 def test_nvda_dialog_is_destroyed_after_each_choice(monkeypatch):
 	class Dialog:
 		result = 0
-		instances = []
+		instances = []  # noqa: RUF012
 		def __init__(self, *args, **kwargs):
 			self.__class__.instances.append(self)
 		def setYesNoLabels(self, yes, no):

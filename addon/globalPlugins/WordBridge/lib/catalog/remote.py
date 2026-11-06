@@ -5,13 +5,12 @@ lib/catalog. The HTTP request itself lives in catalog_updater.py, which gets
 NVDA's own `requests` injected.
 """
 
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from .document import SCHEMA_VERSION
 from .model import CatalogIssue
-
 
 DEFAULT_CATALOG_URL = "https://wordbridge.coseeing.org"
 MAX_URL_LENGTH = 2048
@@ -141,7 +140,7 @@ def loggable(value) -> str:
 	"""
 	try:
 		text = value if isinstance(value, str) else repr(value)
-	except Exception:
+	except Exception:  # noqa: BLE001
 		text = f"<{type(value).__name__}>"
 	pieces = []
 	length = 0
@@ -192,7 +191,7 @@ def parse_remote_payload(body) -> tuple:
 	"""
 	try:
 		document = json.loads(body)
-	except Exception as error:
+	except Exception as error:  # noqa: BLE001
 		# ValueError and UnicodeDecodeError for bad text, RecursionError for
 		# deep nesting: every one of them is a malformed payload.
 		return None, _issue("remote_malformed", type(error).__name__)

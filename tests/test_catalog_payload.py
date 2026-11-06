@@ -2,13 +2,11 @@ import json
 from pathlib import Path
 
 import pytest
-
 from lib.catalog.model import CatalogIssue
 from lib.catalog.overlay import accept_remote_document, has_local_items
 from lib.catalog.remote import check_remote_document, parse_remote_payload
 from lib.llm import SUPPORTED_PROVIDERS
 from shipped_catalog import bundled_document, served_document
-
 
 SERVER_CATALOG = Path(__file__).resolve().parents[1] / "server" / "app" / "setting" / "catalog.json"
 SERVER_BYTES = SERVER_CATALOG.read_bytes()

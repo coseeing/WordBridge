@@ -1,10 +1,10 @@
+import dataclasses
 import threading
 import time
 from concurrent.futures import Future
 from types import SimpleNamespace
 
 import pytest
-
 from test_coseeing_auth_nvda import _load_nvda_plugin
 
 SETTINGS = {
@@ -188,7 +188,7 @@ def test_latest_action_is_published_as_one_snapshot_on_the_ui_thread(monkeypatch
 	plugin_module = _plugin(monkeypatch, queued)
 	instance = _instance(plugin_module)
 	instance.latest_action = plugin_module.CorrectionAction()
-	instance.readDictionary = lambda: []
+	instance.readDictionary = list
 	future = Future()
 	future.set_result("access")
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
@@ -215,7 +215,7 @@ def test_latest_action_is_published_as_one_snapshot_on_the_ui_thread(monkeypatch
 
 	assert instance.latest_action is before, "the worker thread must not write latest_action"
 
-	for callback, args in list(queued):
+	for callback, args in tuple(queued):
 		callback(*args)
 
 	assert instance.latest_action.request == "原文"
@@ -227,12 +227,8 @@ def test_latest_action_is_published_as_one_snapshot_on_the_ui_thread(monkeypatch
 def test_correction_action_is_immutable(monkeypatch):
 	plugin_module = _plugin(monkeypatch, [])
 	action = plugin_module.CorrectionAction(request="a")
-	try:
+	with pytest.raises(dataclasses.FrozenInstanceError):
 		action.request = "b"
-	except Exception as error:
-		assert type(error).__name__ == "FrozenInstanceError"
-	else:
-		assert False, "CorrectionAction must be frozen"
 
 
 def test_feedback_reads_one_internally_consistent_snapshot_despite_nested_event_loop(monkeypatch):
@@ -286,7 +282,7 @@ def test_feedback_reads_one_internally_consistent_snapshot_despite_nested_event_
 	monkeypatch.setattr(
 		plugin_module.requests,
 		"post",
-		lambda url, **kwargs: record.update(url=url, **kwargs) or SimpleNamespace(status_code=200, json=lambda: {}),
+		lambda url, **kwargs: record.update(url=url, **kwargs) or SimpleNamespace(status_code=200, json=dict),
 		raising=False,
 	)
 

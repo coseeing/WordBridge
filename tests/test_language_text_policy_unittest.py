@@ -4,7 +4,6 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
 sys.path.insert(0, str(ADDON_PATH))
@@ -61,9 +60,11 @@ class LanguageTextPolicyTests(unittest.TestCase):
 
 		policy = StandardTypoTextPolicy("zh_traditional")
 
-		with patch("lib.tasks.typo.text_policy.has_simplified_chinese_char", return_value=True):
-			with patch("lib.tasks.typo.text_policy.chinese_converter.to_traditional", return_value="繁體結果"):
-				self.assertEqual(policy.normalize_response("简体结果"), "繁體結果")
+		with (
+			patch("lib.tasks.typo.text_policy.has_simplified_chinese_char", return_value=True),
+			patch("lib.tasks.typo.text_policy.chinese_converter.to_traditional", return_value="繁體結果"),
+		):
+			self.assertEqual(policy.normalize_response("简体结果"), "繁體結果")
 
 	def test_lite_policy_handles_empty_input(self):
 		from lib.tasks.typo.text_policy import LiteTypoTextPolicy

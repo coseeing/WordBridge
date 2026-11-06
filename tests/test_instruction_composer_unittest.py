@@ -3,7 +3,6 @@ import types
 import unittest
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
 sys.path.insert(0, str(ADDON_PATH))

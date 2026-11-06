@@ -17,7 +17,6 @@ from lib.catalog.overlay import load_overlay_catalog
 from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SERVER_SETTING_DIR = PROJECT_ROOT / "server" / "app" / "setting"
 SERVER_CATALOG_PATH = SERVER_SETTING_DIR / "catalog.json"

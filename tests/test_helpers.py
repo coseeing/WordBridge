@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from lib.application.task_factory import create_typo_workflow
 from lib.catalog.document import build_catalog
 from lib.catalog.model import make_corrector_config_id

@@ -1,8 +1,7 @@
-from collections import defaultdict
-from pathlib import Path
 import csv
 import threading
-
+from collections import defaultdict
+from pathlib import Path
 
 DICTIONARY_PATH = Path(__file__).resolve().parent / "data" / "dict_revised_2015_20231228_csv.csv"
 

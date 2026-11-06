@@ -12,9 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from test_catalog_settings_panel import DEFAULT_URL, INSECURE, MALFORMED, _panel_fixture
-
 
 ADDON = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge"
 PO = Path(__file__).resolve().parents[1] / "addon" / "locale" / "zh_TW" / "LC_MESSAGES" / "nvda.po"
@@ -30,9 +28,9 @@ class FakeMessageDialog:
 	An OK-only dialog is a message, not a question: it is recorded with the
 	alerts (and its type in alert_types) when shown, not in instances."""
 
-	instances = []
-	alerts = []
-	alert_types = []
+	instances = []  # noqa: RUF012
+	alerts = []  # noqa: RUF012
+	alert_types = []  # noqa: RUF012
 	answer = None
 
 	def __init__(self, parent, message, title="", dialogType="STANDARD", *, buttons=None, helpId=""):
@@ -242,7 +240,7 @@ def _po_entries():
 	text = PO.read_text(encoding="utf8")
 	return {
 		match.group(1).replace('\\"', '"'): match.group(2).replace('\\"', '"')
-		for match in re.finditer(r'^msgid "(.*)"\nmsgstr "(.*)"$', text, flags=re.M)
+		for match in re.finditer(r'^msgid "(.*)"\nmsgstr "(.*)"$', text, flags=re.MULTILINE)
 	}
 
 

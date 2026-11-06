@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
 CORRECTOR_TASK_CONFIG_PATH = ADDON_PATH / "setting" / "task" / "corrector.json"

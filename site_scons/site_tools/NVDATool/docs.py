@@ -7,7 +7,6 @@ import markdown
 from .typings import AddonInfo
 
 
-
 def md2html(
 		source: str | Path,
 		dest: str | Path,
@@ -26,7 +25,7 @@ def md2html(
 	try:
 		with moFile.open("rb") as f:
 			_ = gettext.GNUTranslations(f).gettext
-	except Exception:
+	except Exception:  # noqa: BLE001
 		summary = addon_info["addon_summary"]
 	else:
 		summary = _(addon_info["addon_summary"])

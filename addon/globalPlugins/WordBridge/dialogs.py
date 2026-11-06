@@ -1,14 +1,12 @@
+import os
 from concurrent.futures import Future
 from types import SimpleNamespace
 
+import addonHandler
 import config
-import os
+import gui
 import ui
 import wx
-
-import addonHandler
-
-import gui
 from gui import guiHelper, nvdaControls
 from gui.contextHelp import ContextHelpMixin
 from gui.settingsDialogs import SettingsPanel
@@ -20,12 +18,12 @@ from .dictionary.dialog import DictionaryEntryDialog
 from .lib.catalog import COSEEING_GROUP, is_dropped_issue, registry
 from .lib.catalog.fallback import SENTINEL_ID
 from .lib.catalog.selection import SelectionState
-from .lib.llm import SUPPORTED_PROVIDERS
 from .lib.coseeing_auth import (
 	clean_coseeing_auth,
 	has_saved_coseeing_refresh_token,
 	start_coseeing_auth,
 )
+from .lib.llm import SUPPORTED_PROVIDERS
 from .settings_repository import (
 	LANGUAGE_VALUES,
 	TYPO_CORRECTION_MODE_VALUES,
@@ -227,7 +225,7 @@ class LLMSettingsPanel(SettingsPanel):
 		# type only, D15).
 		try:
 			retried = catalog_updater.retry_on_panel_open()
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			log.warning("WordBridge: catalog fetch on settings panel open failed type=%s", type(error).__name__)
 			retried = False
 		# NVDA's _buildGui has set this already; the live update needs it.
@@ -487,7 +485,7 @@ class LLMSettingsPanel(SettingsPanel):
 		dialog in front, C11, C20)."""
 		try:
 			return bool(self.IsShown() and self.GetTopLevelParent().IsActive())
-		except Exception:
+		except Exception:  # noqa: BLE001
 			return False
 
 	def _onDeferTimer(self):
@@ -520,13 +518,13 @@ class LLMSettingsPanel(SettingsPanel):
 			import winUser
 
 			return winUser.sendMessage(choice.GetHandle(), CB_GETDROPPEDSTATE, 0, 0) != 0
-		except Exception:
+		except Exception:  # noqa: BLE001
 			return False
 
 	def _findFocus(self):
 		try:
 			return wx.Window.FindFocus()
-		except Exception:
+		except Exception:  # noqa: BLE001
 			return None
 
 	def _requestLayout(self) -> None:
@@ -701,7 +699,7 @@ class LLMSettingsPanel(SettingsPanel):
 	def _finishCleanCoseeingAuth(self, done: Future[None]) -> None:
 		try:
 			done.result()
-		except Exception:
+		except Exception:  # noqa: BLE001
 			self.coseeingCleanButton.Enable(has_saved_coseeing_refresh_token())
 		else:
 			self.coseeingCleanButton.Enable(False)

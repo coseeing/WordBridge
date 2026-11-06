@@ -3,7 +3,6 @@ import re
 import subprocess
 from pathlib import Path
 
-
 TEMPLATE_PATH = (
 	Path(__file__).parents[1]
 	/ "addon"

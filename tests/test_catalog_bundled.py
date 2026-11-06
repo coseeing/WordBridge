@@ -4,14 +4,12 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import pytest
-
 from lib.catalog.document import SCHEMA_VERSION, build_catalog
 from lib.catalog.model import COSEEING_GROUP
 from lib.catalog.overlay import load_overlay_catalog
 from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
 from shipped_catalog import bundled_document, server_document, shipped_overlay
-
 
 ADDON_PATH = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge"
 SETTING_DIR = ADDON_PATH / "setting"

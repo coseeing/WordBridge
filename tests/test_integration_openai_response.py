@@ -5,7 +5,6 @@ from test_helpers import (
 	run_workflow_or_skip_transient_failure,
 )
 
-
 PROVIDER_NAME = "OpenAI"
 MODELS_TO_TEST = [
 	"gpt-6.1-sol",

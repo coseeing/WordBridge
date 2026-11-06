@@ -6,18 +6,18 @@
 import os
 import os.path
 import sys
-from pathlib import Path
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Final
+
+# Imports for type hints
+from SCons.Node import FS
 
 # While names imported below are available by default in every SConscript
 # Linters aren't aware about them.
 # To avoid PyRight `reportUndefinedVariable` errors about them they are imported explicitly.
 # When using other  Scons functions please add them to the line below.
-from SCons.Script import EnsurePythonVersion, Variables, BoolVariable, Environment, Copy
-
-# Imports for type hints
-from SCons.Node import FS
+from SCons.Script import BoolVariable, Copy, EnsurePythonVersion, Environment, Variables
 
 # Add-on localization exchange facility and the template requires Python 3.10.
 # For best practice, use Python 3.11 or later to align with NVDA development.
@@ -26,7 +26,7 @@ EnsurePythonVersion(3, 10)
 # Bytecode should not be written for build vars module to keep the repository root folder clean.
 sys.dont_write_bytecode = True
 
-import buildVars  # NOQA: E402
+import buildVars
 
 
 def validateVersionNumber(key: str, val: str, _):
@@ -37,7 +37,7 @@ def validateVersionNumber(key: str, val: str, _):
 	versionNumber = val.split(".")
 	if len(versionNumber) < 3:
 		raise ValueError(f"{key} must have three parts (major.minor.patch)")
-	if not all([part.isnumeric() for part in versionNumber]):
+	if not all(part.isnumeric() for part in versionNumber):
 		raise ValueError(f"{key} (major.minor.patch) must be integers")
 
 
@@ -66,7 +66,7 @@ env.Append(
 if env["dev"]:
 	from datetime import date
 
-	versionTimestamp = date.today().strftime('%Y%m%d')
+	versionTimestamp = date.today().strftime('%Y%m%d')  # noqa: DTZ011
 	version = f"{versionTimestamp}.0.0"
 	env["addon_info"]["addon_version"] = version
 	env["versionNumber"] = version

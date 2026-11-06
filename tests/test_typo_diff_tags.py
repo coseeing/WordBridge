@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
 
@@ -39,7 +38,7 @@ def run_in_subprocess(code: str, *, optimized: bool = False) -> subprocess.Compl
 	if optimized:
 		argv.append("-O")
 	argv.extend(["-c", BOOTSTRAP + textwrap.dedent(code)])
-	return subprocess.run(argv, capture_output=True, text=True)
+	return subprocess.run(argv, capture_output=True, text=True, check=False)
 
 
 def test_analyze_diff_flags_a_traditional_to_simplified_change():

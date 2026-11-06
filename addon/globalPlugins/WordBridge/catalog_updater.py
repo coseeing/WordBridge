@@ -5,10 +5,10 @@ config and the log are injected by __init__.py, so importing this module has
 no side effects and tests never touch the network.
 """
 
-from dataclasses import dataclass
 import functools
 import threading
 import time
+from dataclasses import dataclass
 
 from .lib.catalog.model import COSEEING_GROUP, CatalogIssue
 from .lib.catalog.overlay import accept_remote_document, has_local_items, load_overlay_catalog
@@ -22,7 +22,6 @@ from .lib.catalog.remote import (
 	redact_url,
 	validate_catalog_url,
 )
-
 
 _FETCH = "fetch"
 
@@ -100,7 +99,7 @@ def fetch_payload(url: str, *, http_get, clock=time.monotonic) -> FetchResult:
 				if past_deadline():
 					return _failed("remote_timeout", f"deadline {FETCH_DEADLINE_SECONDS}s")
 			return FetchResult(body=b"".join(chunks), issue=None)
-	except Exception as error:
+	except Exception as error:  # noqa: BLE001
 		return _failed("remote_request_failed", type(error).__name__)
 
 
@@ -289,7 +288,7 @@ class CatalogUpdater:
 		if check.enabled:
 			try:
 				self._thread = self._start_thread(self._run, (generation, check))
-			except Exception as error:
+			except Exception as error:  # noqa: BLE001
 				# Thread.start() raises when no thread can be started. Left
 				# "running", nothing would ever retry (fix review N2).
 				self._log.warning("WordBridge: catalog fetch could not start type=%s", type(error).__name__)
@@ -346,14 +345,14 @@ class CatalogUpdater:
 		self._listeners = []
 		try:
 			self._cancel_retry_timer()
-		except Exception:
+		except Exception:  # noqa: BLE001, S110
 			pass
 
 	def _notify(self, change) -> None:
 		for listener in list(self._listeners):
 			try:
 				listener(change)
-			except Exception as error:
+			except Exception as error:  # noqa: BLE001
 				self._log.warning("WordBridge: catalog listener failed type=%s", type(error).__name__)
 
 	def probe(self, url: str) -> ProbeResult:
@@ -362,7 +361,7 @@ class CatalogUpdater:
 		any thread; never raises."""
 		try:
 			return self._probe(url)
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			return ProbeResult("failed", type(error).__name__)
 
 	def _probe(self, url) -> ProbeResult:
@@ -410,7 +409,7 @@ class CatalogUpdater:
 		# notifies the failure, and a retry never armed does not count.
 		try:
 			timer = self._schedule(wait * 60_000, functools.partial(self._on_retry_timer, generation))
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			self._log.warning("WordBridge: catalog fetch retry could not be scheduled type=%s", type(error).__name__)
 			return
 		self._retry_count += 1
@@ -499,7 +498,7 @@ class CatalogUpdater:
 		"""The fetch thread. Never raises; a stale or post-shutdown result does nothing."""
 		try:
 			catalog, document, issue, size = self._fetch_and_build(check)
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			catalog, document, size = None, None, 0
 			issue = CatalogIssue("remote_request_failed", _FETCH, type(error).__name__)
 		if not self._is_current(generation):
@@ -511,11 +510,11 @@ class CatalogUpdater:
 			# wrong URL; the worst case is one more fetch at the next start.
 			try:
 				self._log_cache_problems(self._cache.store(check.key, document))
-			except Exception as error:
+			except Exception as error:  # noqa: BLE001
 				self._log.warning("WordBridge: catalog cache problem code=%s type=%s", "cache_write_failed", type(error).__name__)
 		try:
 			self._post_to_ui(self._apply, generation, check, catalog, issue, size)
-		except Exception:
+		except Exception:  # noqa: BLE001, S110
 			pass
 
 	def _apply(self, generation, check, catalog, issue, size) -> None:
@@ -564,7 +563,7 @@ def uninstall() -> None:
 	if updater is not None:
 		try:
 			updater.close()
-		except Exception:
+		except Exception:  # noqa: BLE001, S110
 			pass
 
 

@@ -9,7 +9,6 @@ from types import SimpleNamespace
 
 import pytest
 
-
 DEFAULT_URL = "https://wordbridge.coseeing.org"
 MALFORMED = "Enter a complete web address, such as https://wordbridge.coseeing.org, or leave the field empty."
 INSECURE = "The model list URL must start with https://. http:// is allowed only for localhost."
@@ -129,7 +128,7 @@ class KeyEvent:
 class FakeUrlDialog:
 	"""Stands in for CatalogUrlDialog; `saves` is what its OK saves."""
 
-	instances = []
+	instances = []  # noqa: RUF012
 	answer = None
 	saves = None
 

@@ -2,10 +2,8 @@ import ast
 from pathlib import Path
 
 import pytest
-
 from lib.catalog.document import SCHEMA_VERSION, build_catalog
 from lib.catalog.model import COSEEING_GROUP, make_corrector_config_id
-
 
 RUNNABLE = frozenset({"OpenAI", "DeepSeek"})
 

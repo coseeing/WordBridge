@@ -7,10 +7,9 @@ on the settings dialog's OK/Apply.
 
 import threading
 
+import addonHandler
 import gui
 import wx
-
-import addonHandler
 from gui import guiHelper
 from gui.settingsDialogs import SettingsDialog
 

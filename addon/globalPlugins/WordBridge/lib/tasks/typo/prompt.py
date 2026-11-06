@@ -1,6 +1,6 @@
-from copy import deepcopy
 import json
 import os
+from copy import deepcopy
 
 from _wb_vendor.pypinyin import Style, lazy_pinyin
 
@@ -15,8 +15,8 @@ class TypoPromptStrategy(BasePromptStrategy):
 		self,
 		language: str,
 		template_name: str,
-		optional_guidance_enable: dict = None,
-		customized_words: list = None,
+		optional_guidance_enable: dict | None = None,
+		customized_words: list | None = None,
 	):
 		self.language = language
 		self.optional_guidance_enable = optional_guidance_enable or {}

@@ -3,7 +3,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
 
@@ -128,6 +127,7 @@ def test_importing_the_plugin_reads_no_setting_file_and_calls_no_windll(tmp_path
 		capture_output=True,
 		text=True,
 		cwd=str(PROJECT_ROOT),
+		check=False,
 	)
 
 	assert result.returncode == 0, result.stderr
@@ -258,6 +258,7 @@ def test_the_plugin_package_imports_with_the_addon_directory_off_sys_path(tmp_pa
 		capture_output=True,
 		text=True,
 		cwd=str(PROJECT_ROOT),
+		check=False,
 	)
 
 	assert result.returncode == 0, result.stderr

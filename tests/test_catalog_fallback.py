@@ -1,11 +1,9 @@
 import pytest
-
 from lib.catalog import registry
 from lib.catalog.document import SCHEMA_VERSION, build_catalog
 from lib.catalog.fallback import FALLBACK_DOCUMENT, SENTINEL_ID, load_catalog
 from lib.catalog.model import COSEEING_GROUP
 from lib.catalog.selection import normalize_selection
-
 
 RUNNABLE = frozenset({"OpenAI"})
 

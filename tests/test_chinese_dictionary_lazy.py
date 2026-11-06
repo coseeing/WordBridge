@@ -1,9 +1,7 @@
 import subprocess
 import sys
 import textwrap
-import threading
 from pathlib import Path
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
@@ -33,6 +31,7 @@ def _run(code: str) -> subprocess.CompletedProcess:
 		[sys.executable, "-c", BOOTSTRAP + textwrap.dedent(code)],
 		capture_output=True,
 		text=True,
+		check=False,
 	)
 
 

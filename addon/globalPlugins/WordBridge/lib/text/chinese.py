@@ -1,5 +1,4 @@
-from _wb_vendor.hanzidentifier import identify
-from _wb_vendor.hanzidentifier import MIXED, SIMPLIFIED, TRADITIONAL
+from _wb_vendor.hanzidentifier import MIXED, SIMPLIFIED, TRADITIONAL, identify
 
 try:
 	from languageHandler import getLanguage

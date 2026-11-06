@@ -10,7 +10,6 @@ from types import SimpleNamespace
 
 import pytest
 
-
 DEFAULT_URL = "https://wordbridge.coseeing.org"
 
 
@@ -39,7 +38,7 @@ def _load(monkeypatch, settings=None, log_warnings=None):
 
 	queued = []
 	auth_calls = []
-	plugin, config, gui = _load_nvda_plugin(
+	plugin, _config, _gui = _load_nvda_plugin(
 		monkeypatch, settings if settings is not None else _settings(), auth_calls, queued,
 		log_warnings=log_warnings,
 	)
@@ -112,7 +111,7 @@ def test_the_fetch_start_callback_starts_one_fetch_for_the_configured_url(monkey
 	callback(*args)
 
 	assert len(plugin.started_catalog_threads) == 1
-	_target, (generation, check) = plugin.started_catalog_threads[0]
+	_target, (_generation, check) = plugin.started_catalog_threads[0]
 	assert check.url == DEFAULT_URL
 	assert plugin.network_calls == []
 	instance.terminate()
@@ -130,7 +129,7 @@ def test_the_fetch_start_callback_does_nothing_after_terminate(monkeypatch):
 
 
 def test_terminate_joins_the_fetch_thread_and_uninstalls_even_if_earlier_steps_raise(monkeypatch):
-	plugin, queued, _auth = _load(monkeypatch)
+	plugin, _queued, _auth = _load(monkeypatch)
 	instance = plugin.GlobalPlugin()
 	joined = []
 	instance._catalog_updater._thread = SimpleNamespace(
@@ -316,7 +315,7 @@ def test_a_posted_fetch_result_is_installed_on_the_ui_queue(monkeypatch):
 
 
 def test_correct_typo_uses_one_catalog_snapshot(monkeypatch):
-	plugin, queued, _auth = _load(monkeypatch)
+	plugin, _queued, _auth = _load(monkeypatch)
 	instance = plugin.GlobalPlugin()
 	first = instance.catalog
 	# The catalog swapped in mid-correction: no OpenAI model, and degraded.
@@ -337,11 +336,11 @@ def test_correct_typo_uses_one_catalog_snapshot(monkeypatch):
 
 	def run_typo_correction(**kwargs):
 		captured.update(kwargs)
-		return SimpleNamespace(corrected_text=kwargs["request"], diff=[], cost=Decimal("0"))
+		return SimpleNamespace(corrected_text=kwargs["request"], diff=[], cost=Decimal(0))
 
 	monkeypatch.setattr(plugin, "run_typo_correction", run_typo_correction)
 	monkeypatch.setattr(plugin, "ui", SimpleNamespace(message=lambda message: None))
-	instance.readDictionary = lambda: []
+	instance.readDictionary = list
 
 	instance.correctTypo("原文")
 
@@ -437,7 +436,7 @@ def test_the_wired_fetch_sends_exactly_the_specified_request(monkeypatch):
 	from shipped_catalog import served_bytes
 
 	calls = []
-	plugin, queued, _auth = _load(monkeypatch)
+	plugin, _queued, _auth = _load(monkeypatch)
 	instance = plugin.GlobalPlugin()
 	instance._catalog_updater._cache = StoreSpy(instance._catalog_updater._cache)
 
@@ -483,7 +482,7 @@ NO_CACHE_URL = "https://no-cache.test/catalog"
 
 
 class FakeMessageDialog:
-	instances = []
+	instances = []  # noqa: RUF012
 	answer = None
 	on_show = None
 
@@ -742,7 +741,7 @@ def test_correct_typo_never_sends_a_local_users_text_to_coseeing_without_a_catal
 	posts = []
 	monkeypatch.setattr(f.plugin.requests, "post", lambda *args, **kwargs: posts.append(args), raising=False)
 	monkeypatch.setattr(f.plugin, "get_coseeing_access_token", lambda **kwargs: pytest.fail("no Coseeing token request"))
-	f.instance.readDictionary = lambda: []
+	f.instance.readDictionary = list
 
 	f.instance.correctTypo("原文")
 	_run(f.queued)

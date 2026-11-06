@@ -5,7 +5,6 @@ from types import SimpleNamespace
 
 from lib.decimalUtils import decimal_to_str_0 as real_decimal_to_str_0
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_INIT = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge" / "__init__.py"
 

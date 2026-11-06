@@ -1,7 +1,8 @@
-from decimal import Decimal, localcontext, ROUND_DOWN
+from decimal import ROUND_DOWN, Decimal, localcontext
 from functools import partial
 
-def decimal_to_str(value: Decimal, min_decimal_places: int = None) -> str:
+
+def decimal_to_str(value: Decimal, min_decimal_places: int | None = None) -> str:
 	"""
 	Convert a Decimal to a non-scientific notation string, forcing a specific number of decimal places.
 	"""

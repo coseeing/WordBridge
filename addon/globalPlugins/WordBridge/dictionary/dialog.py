@@ -1,8 +1,8 @@
+import addonHandler
 import gui
+import wx
 from gui import guiHelper, nvdaControls
 from gui.settingsDialogs import SettingsDialog
-import wx
-import addonHandler
 
 from . import default_dictionary_repository
 
@@ -86,7 +86,7 @@ class DictionaryEntryDialog(SettingsDialog):
 		self.data = self.repository.load()
 
 		self.title = _("WordBridge Dictionary")
-		super(DictionaryEntryDialog, self).__init__(
+		super().__init__(
 			parent,
 			resizeable=True,
 		)
@@ -242,7 +242,7 @@ class DictionaryEntryDialog(SettingsDialog):
 		elif column == 1:
 			return word.pronunciation
 		else:
-			raise ValueError("Unknown column: %d" % column)
+			raise ValueError(f"Unknown column: {column}")
 
 	def onWordEdited(self):
 		if self.editingItem is not None:
@@ -351,7 +351,7 @@ class DictionaryEntryDialog(SettingsDialog):
 			for word in self.words
 		)
 
-		super(DictionaryEntryDialog, self).onOk(evt)
+		super().onOk(evt)
 
 	def _refreshVisibleItems(self):
 		count = self.wordsList.GetCountPerPage()

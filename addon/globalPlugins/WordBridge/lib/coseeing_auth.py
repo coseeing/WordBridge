@@ -37,7 +37,7 @@ _AUTH_IMPORT_MODULE = None
 # module was being imported).
 try:
 	from _wb_vendor.authlib.integrations.base_client.errors import OAuthError
-except Exception as error:
+except Exception as error:  # noqa: BLE001
 	_AUTH_IMPORT_ERROR = error
 	_AUTH_IMPORT_MODULE = "_wb_vendor.authlib.integrations.base_client.errors"
 else:
@@ -48,7 +48,7 @@ else:
 			TokenUnavailableError,
 			TokenValidationError,
 		)
-	except Exception as error:
+	except Exception as error:  # noqa: BLE001
 		_AUTH_IMPORT_ERROR = error
 		_AUTH_IMPORT_MODULE = "_wb_vendor.coseeing_auth.errors"
 
@@ -158,7 +158,7 @@ def has_saved_coseeing_refresh_token() -> bool:
 		return False
 	try:
 		return _new_refresh_token_store().load() is not None
-	except Exception:
+	except Exception:  # noqa: BLE001
 		return False
 
 
@@ -193,7 +193,7 @@ class CoseeingAuthSession:
 		result: Future[str | None] = Future()
 		try:
 			self._post_ui(self._request, result, reconsider_guest, silent)
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			result.set_exception(error)
 		return result
 
@@ -201,27 +201,27 @@ class CoseeingAuthSession:
 		result: Future[None] = Future()
 		try:
 			self._post_ui(self._start_logout_local, result)
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			result.set_exception(error)
 		return result
 
 	def _start_logout_local(self, result: Future[None]) -> None:
 		try:
 			future = self._call_client("logout_local")
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			self._complete(result, error=error)
 			return
 
 		def completed(done: Future) -> None:
 			try:
 				self._post_ui(deliver, done)
-			except Exception as error:
+			except Exception as error:  # noqa: BLE001
 				self._complete(result, error=error)
 
 		def deliver(done: Future) -> None:
 			try:
 				done.result()
-			except Exception as error:
+			except Exception as error:  # noqa: BLE001
 				self._complete(result, error=error)
 				return
 			self._session_ready = False
@@ -240,10 +240,10 @@ class CoseeingAuthSession:
 			self._close_requested = True
 		try:
 			self._post_ui(self._close_ui, cleanup)
-		except Exception:
+		except Exception:  # noqa: BLE001
 			try:
 				self._post_ui(self._close_ui, cleanup)
-			except Exception as retry_error:
+			except Exception as retry_error:  # noqa: BLE001
 				with self._state_lock:
 					client = self._client
 					creating = self._client_creation_in_progress
@@ -304,7 +304,7 @@ class CoseeingAuthSession:
 	def _close_client(self, client: object, cleanup: Future[None]) -> None:
 		try:
 			client.close()
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			self._complete_cleanup(error=error)
 		else:
 			self._complete_cleanup()
@@ -390,7 +390,7 @@ class CoseeingAuthSession:
 				lambda result: self._restore_saved_session_succeeded(result, silent=silent),
 				silent=silent,
 			)
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			self._fail(error, silent=silent)
 
 	def _restore_saved_session_succeeded(self, result: object | None, *, silent: bool = False) -> None:
@@ -405,7 +405,7 @@ class CoseeingAuthSession:
 		try:
 			future = self._call_client("get_access_token", auto_login=False)
 			self._watch(future, self._token_succeeded, silent=silent)
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			self._fail(error, silent=silent)
 
 	def _start_prompt(self, silent: bool = False) -> None:
@@ -414,7 +414,7 @@ class CoseeingAuthSession:
 			return
 		try:
 			choice = self._prompt_login()
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			self._fail(error, silent=silent)
 			return
 		if choice == "guest":
@@ -426,7 +426,7 @@ class CoseeingAuthSession:
 			try:
 				future = self._call_client("login")
 				self._watch(future, lambda result: self._login_succeeded(result, silent=silent), silent=silent)
-			except Exception as error:
+			except Exception as error:  # noqa: BLE001
 				self._fail(error, silent=silent)
 		else:
 			self._fail(ValueError(f"unknown login choice: {choice!r}"))
@@ -443,13 +443,13 @@ class CoseeingAuthSession:
 		def completed(done: Future) -> None:
 			try:
 				self._post_ui(deliver, done)
-			except Exception as error:
+			except Exception as error:  # noqa: BLE001
 				try:
 					self._post_ui(deliver_scheduler_error, error)
-				except Exception as retry_error:
+				except Exception as retry_error:  # noqa: BLE001
 					try:
 						self._post_ui(deliver_scheduler_error, retry_error)
-					except Exception:
+					except Exception:  # noqa: BLE001
 						self._finish_handoff(error=retry_error)
 
 		def deliver_scheduler_error(error: Exception) -> None:
@@ -462,7 +462,7 @@ class CoseeingAuthSession:
 				return
 			try:
 				value = done.result()
-			except Exception as error:
+			except Exception as error:  # noqa: BLE001
 				self._fail(error, silent=silent)
 			else:
 				succeeded(value)
@@ -604,7 +604,7 @@ class _NvdaAuthAdapter:
 			return
 		try:
 			dialog.EndModal(self._wx.ID_CANCEL)
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			self._log.warning(
 				"Coseeing auth dialog close failed type=%s operation=%s stage=%s code=%s",
 				type(error).__name__, "shutdown", "dialog", "close_failed",
@@ -629,7 +629,7 @@ class _NvdaAuthAdapter:
 			done.result()
 		except CancelledError:
 			return
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			with self._dialog_lock:
 				if self._shutting_down and not notify_during_shutdown:
 					return
@@ -642,7 +642,7 @@ class _NvdaAuthAdapter:
 			)
 			try:
 				self.post_ui(self._deliver_notification, notify_during_shutdown)
-			except Exception:
+			except Exception:  # noqa: BLE001
 				return
 
 	def _deliver_notification(self, notify_during_shutdown: bool = False) -> None:
@@ -686,7 +686,7 @@ def get_coseeing_access_token(*, reconsider_guest: bool = False, silent: bool | 
 		silent = not has_seen_valid_refresh_token()
 	try:
 		return _get_singleton().get_access_token(reconsider_guest=reconsider_guest, silent=silent)
-	except Exception as error:
+	except Exception as error:  # noqa: BLE001
 		return _completed_future(error)
 
 
@@ -709,7 +709,7 @@ def _notify_auth_unavailable() -> None:
 
 	try:
 		wx.CallAfter(ui.message, _("Coseeing authentication is unavailable on this installation."))
-	except Exception:
+	except Exception:  # noqa: BLE001, S110
 		pass
 
 
@@ -722,7 +722,7 @@ def start_coseeing_auth(execution_channel: str, *, silent: bool = True) -> None:
 		return
 	try:
 		future = get_coseeing_access_token(reconsider_guest=True, silent=silent)
-	except Exception as error:
+	except Exception as error:  # noqa: BLE001
 		adapter = _singleton_adapter
 		if adapter is not None:
 			adapter.notify_completion(_completed_future(error))
@@ -749,7 +749,7 @@ def reset_coseeing_auth() -> Future[None]:
 		_singleton_session = None
 	try:
 		adapter.post_ui(adapter.close_active_dialog)
-	except Exception:
+	except Exception:  # noqa: BLE001
 		adapter.close_active_dialog()
 	return cleanup
 
@@ -767,7 +767,7 @@ def _reset_captured_coseeing_auth(
 			_singleton_session = None
 	try:
 		adapter.post_ui(adapter.close_active_dialog)
-	except Exception:
+	except Exception:  # noqa: BLE001
 		adapter.close_active_dialog()
 	return cleanup
 
@@ -786,7 +786,7 @@ def clean_coseeing_auth() -> Future[None]:
 	bridge: Future[None] = Future()
 	try:
 		session, adapter = _get_singleton_pair()
-	except Exception as error:
+	except Exception as error:  # noqa: BLE001
 		with _singleton_lock:
 			adapter = _singleton_adapter
 		if adapter is not None:
@@ -797,14 +797,14 @@ def clean_coseeing_auth() -> Future[None]:
 	bridge.add_done_callback(getattr(adapter, "notify_clean_completion", adapter.notify_completion))
 	try:
 		logout = session.logout_local()
-	except Exception as error:
+	except Exception as error:  # noqa: BLE001
 		_settle_none(bridge, error)
 		return bridge
 
 	def cleanup_done(done: Future) -> None:
 		try:
 			done.result()
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			_settle_none(bridge, error)
 		else:
 			_settle_none(bridge)
@@ -812,12 +812,12 @@ def clean_coseeing_auth() -> Future[None]:
 	def logout_done(done: Future) -> None:
 		try:
 			done.result()
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			_settle_none(bridge, error)
 			return
 		try:
 			cleanup = _reset_captured_coseeing_auth(session, adapter)
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			_settle_none(bridge, error)
 			return
 		cleanup.add_done_callback(cleanup_done)
@@ -853,6 +853,6 @@ def shutdown_coseeing_auth() -> Future[None]:
 		_singleton_session = None
 	try:
 		adapter.post_ui(adapter.close_active_dialog)
-	except Exception:
+	except Exception:  # noqa: BLE001
 		adapter.close_active_dialog()
 	return _shutdown_future

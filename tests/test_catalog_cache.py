@@ -1,11 +1,9 @@
 import json
 
-import pytest
-
 import lib.catalog.cache as cache_module
+import pytest
 from lib.catalog.cache import CACHE_VERSION, MAX_CACHE_BYTES, CatalogCache
 from lib.catalog.remote import MAX_PAYLOAD_BYTES
-
 
 KEY = "https://wordbridge.coseeing.org/"
 DOCUMENT = {"schema_version": 1, "providers": {}, "models": [{"model": "m", "label": "模型"}]}

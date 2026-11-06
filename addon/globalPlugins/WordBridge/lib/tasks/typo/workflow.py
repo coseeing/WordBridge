@@ -1,6 +1,7 @@
 import time
 
 from ..concurrency import parallel_map
+from .result import TypoCorrectionResult
 from .utils import (
 	find_correction_errors,
 	get_segments_to_recorrect,
@@ -8,7 +9,6 @@ from .utils import (
 	strings_diff,
 	text_segmentation,
 )
-from .result import TypoCorrectionResult
 
 
 class TypoCorrectionWorkflow:

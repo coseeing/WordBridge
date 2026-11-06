@@ -1,11 +1,10 @@
 from .model import (
 	CatalogIssue,
-	CoseeingEntry,
 	CorrectorCatalog,
+	CoseeingEntry,
 	ModelEntry,
 	ProviderEntry,
 )
-
 
 SCHEMA_VERSION = 1
 PROVIDER_FIELDS = ("label", "url", "setting", "timeout0", "timeout_max")

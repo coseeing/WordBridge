@@ -1,5 +1,4 @@
 import builtins
-from collections import Counter
 import hashlib
 import importlib
 import re
@@ -9,14 +8,13 @@ import subprocess
 import sys
 import textwrap
 import types
+from collections import Counter
 from importlib.machinery import ExtensionFileLoader, ModuleSpec, SourceFileLoader
 from pathlib import Path
 
 import pytest
-
 from lib import vendor
 from lib.vendor import _make_sandbox_import
-
 
 ISOLATED = frozenset({"alpha", "beta"})
 

@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
 
@@ -43,7 +42,7 @@ def test_executor_messages_go_through_the_installed_translation(monkeypatch):
 			raise KeyError("choices")
 
 	class _Provider:
-		setting = {}
+		setting = {}  # noqa: RUF012
 
 		def send(self, payload, model_name):
 			return response_payload
@@ -119,6 +118,6 @@ def test_fallback_engages_when_no_translation_is_available(module_path):
 		assert module._("raw") == "raw"
 		"""
 	)
-	result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+	result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
 
 	assert result.returncode == 0, result.stderr

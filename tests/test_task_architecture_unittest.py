@@ -1,12 +1,11 @@
+import builtins
 import sys
 import threading
 import types
 import unittest
-import builtins
 from decimal import Decimal
 from importlib import util
 from pathlib import Path
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
@@ -57,7 +56,7 @@ class TaskArchitectureTests(unittest.TestCase):
 			plugin = _load_module("WordBridge", ADDON_PATH / "__init__.py", package=True)
 
 			instance = object.__new__(plugin.GlobalPlugin)
-			instance.readDictionary = lambda: []
+			instance.readDictionary = list
 			instance.latest_action = plugin.CorrectionAction()
 			instance._shutdown = threading.Event()
 
@@ -313,7 +312,7 @@ class TaskArchitectureTests(unittest.TestCase):
 		captured = {}
 
 		class FakeProvider:
-			setting = {}
+			setting = {}  # noqa: RUF012
 
 		class FakeAdapter:
 			pass
@@ -355,8 +354,9 @@ class TaskArchitectureTests(unittest.TestCase):
 		self.assertEqual(captured["model_name"], "gpt-4.1-2025-04-14")
 
 	def test_eval_provider_formats_raw_cost_latency_and_token_usage(self):
-		from workspace.evals import provider as eval_provider
 		from lib.tasks.typo.result import TypoCorrectionResult
+
+		from workspace.evals import provider as eval_provider
 
 		result = TypoCorrectionResult(
 			corrected_text="修正結果",
@@ -389,14 +389,15 @@ class TaskArchitectureTests(unittest.TestCase):
 		self.assertEqual(formatted["metadata"], result.raw_data)
 
 	def test_eval_provider_estimates_local_cost_when_usage_is_missing(self):
-		from workspace.evals import provider as eval_provider
 		from lib.tasks.typo.result import TypoCorrectionResult
+
+		from workspace.evals import provider as eval_provider
 
 		result = TypoCorrectionResult(
 			corrected_text="修正結果",
 			diff=[],
 			usage_summary={},
-			cost=Decimal("0"),
+			cost=Decimal(0),
 			raw_data={
 				"metrics": {
 					"request_count": 1,
@@ -517,7 +518,7 @@ class _nvda_module_stubs:
 		dictionary_package = types.ModuleType("WordBridge.dictionary")
 		dictionary_package.__path__ = []
 		dictionary_package.WBW_DICTIONARY_PATH = "/tmp/wordbridge-test-dictionary"
-		dictionary_package.default_dictionary_repository = lambda: types.SimpleNamespace(load=lambda: [])
+		dictionary_package.default_dictionary_repository = lambda: types.SimpleNamespace(load=list)
 		sys.modules["WordBridge.dictionary"] = dictionary_package
 		sys.modules["WordBridge.dictionary.dialog"] = types.SimpleNamespace(DictionaryEntryDialog=object)
 		sys.modules["WordBridge.lib.coseeing"] = types.SimpleNamespace(build_coseeing_headers=lambda token: {} if token is None else {"Authorization": f"Bearer {token}"})
@@ -551,7 +552,7 @@ class _nvda_module_stubs:
 					"retries": retries,
 					"backoff": backoff,
 				})
-				return types.SimpleNamespace(corrected_text=request, diff=[], cost=Decimal("0"))
+				return types.SimpleNamespace(corrected_text=request, diff=[], cost=Decimal(0))
 			sys.modules["WordBridge.lib.application.task_runner"] = types.SimpleNamespace(
 				run_typo_correction=run_typo_correction,
 			)

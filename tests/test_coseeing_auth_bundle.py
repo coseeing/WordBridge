@@ -1,14 +1,13 @@
-import subprocess
-import sys
 import os
 import shutil
+import subprocess
+import sys
 import types
 from email import policy
 from email.parser import Parser
 from pathlib import Path
 
 import pytest
-
 
 PACKAGE_ROOT = (
 	Path(__file__).resolve().parent.parent

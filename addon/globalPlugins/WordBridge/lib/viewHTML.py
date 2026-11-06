@@ -45,7 +45,7 @@ def text2template(src, dst, title=None):
 			if len(name) > 1:
 				name = name[:-1]
 			title = ".".join(name)
-		except BaseException:
+		except BaseException:  # noqa: BLE001
 			title = "WordBridge"
 
 	content_config = {

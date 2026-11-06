@@ -3,7 +3,6 @@ from concurrent.futures import Future
 from types import SimpleNamespace
 
 import pytest
-
 from lib.coseeing import build_coseeing_headers
 
 
@@ -37,7 +36,7 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	queued = []
-	plugin_module, config, _ = _load_nvda_plugin(monkeypatch, {
+	plugin_module, _config, _ = _load_nvda_plugin(monkeypatch, {
 		"corrector_config_id": "deepseek-flash&DeepSeek",
 		"execution_channel": "Coseeing",
 		"api_key": {},
@@ -52,7 +51,7 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance.latest_action = plugin_module.CorrectionAction()
-	instance.readDictionary = lambda: []
+	instance.readDictionary = list
 	instance._shutdown = threading.Event()
 	# correctTypo() now also reads self.catalog / self._degraded_catalog_announced.
 	# The shipped catalogs offer only the sentinel on Coseeing (U8); this test
@@ -126,7 +125,7 @@ def test_degraded_catalog_announcement_fires_once_per_session(monkeypatch):
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance.latest_action = plugin_module.CorrectionAction()
-	instance.readDictionary = lambda: []
+	instance.readDictionary = list
 	instance._shutdown = threading.Event()
 
 	class BrokenSource:
@@ -195,7 +194,7 @@ def test_proofreader_auth_failure_skips_post_and_queues_ui_notification(monkeypa
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance.latest_action = plugin_module.CorrectionAction()
-	instance.readDictionary = lambda: []
+	instance.readDictionary = list
 	instance._shutdown = threading.Event()
 	# correctTypo() now also reads self.catalog / self._degraded_catalog_announced.
 	instance.catalog = plugin_module.catalog
@@ -236,7 +235,7 @@ def test_proofreader_termination_before_worker_request_skips_post_and_ui(monkeyp
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance.latest_action = plugin_module.CorrectionAction()
-	instance.readDictionary = lambda: []
+	instance.readDictionary = list
 	instance._shutdown = threading.Event()
 	# correctTypo() now also reads self.catalog / self._degraded_catalog_announced.
 	instance.catalog = plugin_module.catalog
@@ -273,7 +272,7 @@ def test_proofreader_failures_use_stable_notification(monkeypatch, failure):
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance.latest_action = plugin_module.CorrectionAction()
-	instance.readDictionary = lambda: []
+	instance.readDictionary = list
 	instance._shutdown = threading.Event()
 	# correctTypo() now also reads self.catalog / self._degraded_catalog_announced.
 	instance.catalog = plugin_module.catalog
@@ -289,7 +288,7 @@ def test_proofreader_failures_use_stable_notification(monkeypatch, failure):
 	elif failure == "connection":
 		monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("secret")), raising=False)
 	else:
-		response = SimpleNamespace(status_code=200, json=lambda: {})
+		response = SimpleNamespace(status_code=200, json=dict)
 		monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: response, raising=False)
 
 	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
@@ -320,7 +319,7 @@ def test_feedback_connection_and_malformed_response_use_stable_messages(monkeypa
 
 	plugin_module, instance, queued, _, messages = _feedback_worker_fixture(
 		monkeypatch,
-		SimpleNamespace(status_code=200, json=lambda: {}),
+		SimpleNamespace(status_code=200, json=dict),
 	)
 	instance._send_coseeing_feedback("i-1", "回饋")
 	assert messages == []
@@ -330,7 +329,7 @@ def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeyp
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	queued = []
-	plugin_module, _, gui = _load_nvda_plugin(monkeypatch, {
+	plugin_module, _, _gui = _load_nvda_plugin(monkeypatch, {
 		"corrector_config_id": "deepseek-flash&DeepSeek",
 		"execution_channel": "Coseeing",
 		"api_key": {},
@@ -365,7 +364,7 @@ def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeyp
 	plugin_module.wx.ID_OK = plugin_module.wx.OK
 	def post(url, **kwargs):
 		record.update(url=url, **kwargs)
-		return SimpleNamespace(status_code=200, json=lambda: {})
+		return SimpleNamespace(status_code=200, json=dict)
 
 	monkeypatch.setattr(plugin_module.requests, "post", post, raising=False)
 	plugin_module.GlobalPlugin.script_correctionFeedback(instance, None)
@@ -446,7 +445,7 @@ def _feedback_worker_fixture(monkeypatch, response, access_token="access"):
 
 
 def test_feedback_uses_bearer_header_and_preserves_payload(monkeypatch):
-	response = SimpleNamespace(status_code=200, json=lambda: {})
+	response = SimpleNamespace(status_code=200, json=dict)
 	plugin_module, instance, queued, record, messages = _feedback_worker_fixture(monkeypatch, response)
 
 	instance._send_coseeing_feedback("i-1", "回饋")
@@ -463,7 +462,7 @@ def test_feedback_uses_bearer_header_and_preserves_payload(monkeypatch):
 
 def test_feedback_401_notifies_on_ui_after_recording_http_error(monkeypatch):
 	response = SimpleNamespace(status_code=401, json=lambda: (_ for _ in ()).throw(AssertionError("decoded")))
-	plugin_module, instance, queued, record, messages = _feedback_worker_fixture(monkeypatch, response)
+	_plugin_module, instance, queued, record, messages = _feedback_worker_fixture(monkeypatch, response)
 
 	instance._send_coseeing_feedback("i-1", "回饋")
 
@@ -545,7 +544,7 @@ def test_degraded_catalog_flag_is_set_only_after_the_notification_is_dispatched(
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance.latest_action = plugin_module.CorrectionAction()
-	instance.readDictionary = lambda: []
+	instance.readDictionary = list
 	instance._shutdown = threading.Event()
 
 	class BrokenSource:
@@ -622,7 +621,7 @@ def test_local_channel_notifies_and_returns_when_the_selected_model_is_gone(monk
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance.latest_action = plugin_module.CorrectionAction()
-	instance.readDictionary = lambda: []
+	instance.readDictionary = list
 	instance._shutdown = threading.Event()
 	instance.catalog = plugin_module.catalog
 	# A stored selection this stale (the model was removed from the catalog
@@ -669,7 +668,7 @@ def test_local_channel_notifies_and_returns_when_the_selected_provider_is_gone(m
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance.latest_action = plugin_module.CorrectionAction()
-	instance.readDictionary = lambda: []
+	instance.readDictionary = list
 	instance._shutdown = threading.Event()
 
 	# A model entry naming a provider the catalog has no ProviderEntry for.
@@ -721,7 +720,7 @@ def _local_plugin_instance(monkeypatch, queued):
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance.latest_action = plugin_module.CorrectionAction()
-	instance.readDictionary = lambda: []
+	instance.readDictionary = list
 	instance._shutdown = threading.Event()
 	instance.catalog = plugin_module.catalog
 	instance._degraded_catalog_announced = False
@@ -743,7 +742,7 @@ def test_local_channel_publishes_the_workflow_diff_without_recomputing_it(monkey
 	plugin_module, instance = _local_plugin_instance(monkeypatch, queued)
 	runner_diff = [{"operation": "replace", "before_text": "原", "after_text": "修"}]
 	monkeypatch.setattr(plugin_module, "run_typo_correction", lambda **kwargs: SimpleNamespace(
-		corrected_text="修文", diff=runner_diff, cost=Decimal("0"),
+		corrected_text="修文", diff=runner_diff, cost=Decimal(0),
 	))
 
 	def strings_diff(request, response):
@@ -784,7 +783,7 @@ def _coseeing_plugin_instance(monkeypatch, queued, messages):
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
 	instance.latest_action = plugin_module.CorrectionAction()
-	instance.readDictionary = lambda: []
+	instance.readDictionary = list
 	instance._shutdown = threading.Event()
 	instance.catalog = plugin_module.catalog
 	instance._degraded_catalog_announced = False

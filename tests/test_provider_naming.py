@@ -1,12 +1,10 @@
 from pathlib import Path
 
 import pytest
-
 from lib.llm import SUPPORTED_PROVIDERS
 from lib.llm.adapter import ADAPTER_CLASSES
 from lib.llm.provider import PROVIDER_CLASSES, get_provider
 from shipped_catalog import dropped_issues, server_document, shipped_overlay
-
 
 ADDON_PATH = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge"
 

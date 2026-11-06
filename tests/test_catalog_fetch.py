@@ -1,7 +1,5 @@
 import pytest
-
 from plugin_modules import load_plugin_module
-
 
 updater = load_plugin_module("catalog_updater")
 URL = "https://h.test/"

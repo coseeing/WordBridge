@@ -1,9 +1,7 @@
 import pytest
-
 from lib.catalog.document import SCHEMA_VERSION, build_catalog
 from lib.catalog.model import COSEEING_GROUP
 from lib.catalog.selection import SelectionState, normalize_selection
-
 
 RUNNABLE = frozenset({"OpenAI", "DeepSeek"})
 

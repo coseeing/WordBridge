@@ -1,5 +1,4 @@
 import pytest
-
 from lib.catalog import registry
 from lib.catalog.model import CorrectorCatalog
 

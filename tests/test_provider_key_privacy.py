@@ -13,7 +13,7 @@ import pytest
 ADDON_PATH = Path(__file__).parents[1] / "addon" / "globalPlugins" / "WordBridge"
 sys.path.insert(0, str(ADDON_PATH))
 
-from lib.llm import provider as provider_module  # noqa: E402
+from lib.llm import provider as provider_module
 
 SECRET = "SECRET-key-1234"
 GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta"
@@ -81,9 +81,8 @@ def test_send_failure_logs_the_error_type_but_never_its_text(provider_name):
 
 	with patch.object(provider_module.requests, "post", side_effect=_connection_error()), \
 			patch.object(provider_module.time, "sleep"), \
-			patch.object(provider_module, "log", log):
-		with pytest.raises(Exception) as raised:
-			provider.send({}, model_name="gemini-3.8-flash")
+			patch.object(provider_module, "log", log), pytest.raises(Exception) as raised:
+		provider.send({}, model_name="gemini-3.8-flash")
 
 	logged = _logged_text(log)
 	assert log.error.call_count == 2
@@ -99,9 +98,8 @@ def test_try_connection_failure_logs_the_error_type_but_never_its_text():
 	log = MagicMock()
 
 	with patch.object(provider_module.requests, "get", side_effect=_connection_error()), \
-			patch.object(provider_module, "log", log):
-		with pytest.raises(Exception) as raised:
-			provider.try_connection(try_count=2)
+			patch.object(provider_module, "log", log), pytest.raises(Exception) as raised:
+		provider.try_connection(try_count=2)
 
 	logged = _logged_text(log)
 	assert log.error.call_count == 2

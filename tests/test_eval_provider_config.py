@@ -1,6 +1,6 @@
 import importlib.util
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -9,8 +9,6 @@ sys.path.insert(0, str(ADDON_PATH))
 from lib.catalog.model import make_corrector_config_id
 from lib.llm.adapter import get_provider_model_adapter
 from lib.llm.provider import get_provider
-
-
 
 PROVIDER_PATH = Path(__file__).parents[1] / "workspace" / "evals" / "provider.py"
 spec = importlib.util.spec_from_file_location("wordbridge_eval_provider", PROVIDER_PATH)

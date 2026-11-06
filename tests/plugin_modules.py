@@ -11,10 +11,9 @@ tests' own `lib.catalog`, so compare issues by code, not by class.
 """
 
 import importlib.util
-from pathlib import Path
 import sys
 import types
-
+from pathlib import Path
 
 ADDON_PATH = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge"
 PACKAGE_NAME = "wordbridge_plugin_module_probe"

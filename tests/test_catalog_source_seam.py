@@ -10,7 +10,7 @@ load_catalog(). Nothing downstream of the seam may tell the two apart.
 import json
 
 import pytest
-
+from fake_http import BodyResponse
 from lib.catalog.fallback import load_catalog
 from lib.catalog.model import COSEEING_GROUP, CatalogIssue
 from lib.catalog.overlay import load_overlay_catalog, overlay_documents
@@ -18,7 +18,6 @@ from lib.catalog.remote import parse_remote_payload
 from lib.catalog.selection import SelectionState
 from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
-from fake_http import BodyResponse
 from plugin_modules import load_plugin_module
 from shipped_catalog import (
 	ADDON_SETTING_DIR,
@@ -27,7 +26,6 @@ from shipped_catalog import (
 	served_document,
 	server_document,
 )
-
 
 updater = load_plugin_module("catalog_updater")
 

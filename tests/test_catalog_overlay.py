@@ -3,7 +3,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from lib.catalog import COSEEING_GROUP, LINT_ISSUE_CODES, LOCAL_CHANNEL, CatalogIssue, is_dropped_issue
 from lib.catalog.document import build_catalog
 from lib.catalog.overlay import (
@@ -16,7 +15,6 @@ from lib.catalog.overlay import (
 from lib.catalog.sources import BundledCatalogSource
 from lib.llm import SUPPORTED_PROVIDERS
 from shipped_catalog import bundled_document, server_document
-
 
 SERVER_CATALOG = Path(__file__).resolve().parents[1] / "server" / "app" / "setting" / "catalog.json"
 SENTINEL = {"model": "default", "label": "default", "active": True}

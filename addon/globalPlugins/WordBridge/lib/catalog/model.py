@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 
-
 COSEEING_GROUP = "Coseeing"
 LOCAL_CHANNEL = "local"
 

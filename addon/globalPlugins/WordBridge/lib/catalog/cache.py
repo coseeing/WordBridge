@@ -9,12 +9,11 @@ it.
 
 import json
 import os
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 from .model import CatalogIssue
 from .remote import MAX_PAYLOAD_BYTES
-
 
 CACHE_VERSION = 1
 # The file is a re-serialisation of the payload plus a small wrapper (the
@@ -53,7 +52,7 @@ class CatalogCache:
 			return _unreadable("too_large")
 		try:
 			stored = json.loads(data)
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			return _unreadable(type(error).__name__)
 		if not isinstance(stored, dict):
 			return _unreadable("not_an_object")
@@ -71,7 +70,7 @@ class CatalogCache:
 		"""Write atomically. Returns the issues; never raises."""
 		try:
 			allowed = bool(self._can_write())
-		except Exception:
+		except Exception:  # noqa: BLE001
 			allowed = False
 		if not allowed:
 			return ()
@@ -99,7 +98,7 @@ class CatalogCache:
 				handle.flush()
 				os.fsync(handle.fileno())
 			os.replace(temporary, self.path)
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			if temporary is not None:
 				try:
 					os.unlink(temporary)

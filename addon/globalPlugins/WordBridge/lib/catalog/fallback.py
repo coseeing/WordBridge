@@ -1,7 +1,6 @@
 from .document import SCHEMA_VERSION, build_catalog
 from .model import CatalogIssue
 
-
 SENTINEL_ID = "default"
 # Not translated, like every other catalog label. See the note in sources.py.
 SENTINEL_LABEL = "default"
@@ -36,7 +35,7 @@ def load_catalog(source, *, runnable_providers):
 		# rung like any other misbehaving source, not raise TypeError straight
 		# out of load_catalog (and so out of GlobalPlugin.__init__).
 		source_issues = tuple(source_issues or ())
-	except Exception as error:
+	except Exception as error:  # noqa: BLE001
 		document = None
 		source_issues = (CatalogIssue(
 			"unreadable_source",

@@ -1,13 +1,12 @@
-import pytest
 import ctypes
 import importlib.util
 import sys
 import types
 from pathlib import Path
 
+import pytest
 from lib.catalog.document import SCHEMA_VERSION, build_catalog
 from lib.catalog.model import COSEEING_GROUP
-
 
 ADDON_PATH = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge"
 

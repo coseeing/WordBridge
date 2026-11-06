@@ -2,12 +2,10 @@ import importlib.util
 import sys
 import types
 import unittest
-from copy import deepcopy
 from decimal import Decimal
 from pathlib import Path
 from unittest.mock import patch
 from urllib.parse import urlparse
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
@@ -268,9 +266,11 @@ class ProviderModelAdapterTests(unittest.TestCase):
 		provider = OpenAIProvider({"api_key": "test"}, provider_entry=_provider_entry("OpenAI"))
 		provider.retries = 1
 
-		with patch("lib.llm.provider.requests.post", return_value=FakeResponse()):
-			with self.assertRaisesRegex(Exception, "Rate limit reached"):
-				provider.send({"model": "gpt-4.1", "input": "prepared payload"})
+		with (
+			patch("lib.llm.provider.requests.post", return_value=FakeResponse()),
+			self.assertRaisesRegex(Exception, "Rate limit reached"),
+		):
+			provider.send({"model": "gpt-4.1", "input": "prepared payload"})
 
 	def test_openai_response_provider_uses_responses_endpoint(self):
 		from lib.llm.provider import OpenAIProvider
@@ -426,7 +426,6 @@ class ProviderModelAdapterTests(unittest.TestCase):
 
 	def test_workflow_uses_executor_for_format_parse_and_usage(self):
 		from lib.llm.executor import LLMExecutor
-		from lib.llm.prompt_bundle import PromptBundle
 		from lib.tasks.typo.prompt import LiteTypoPromptStrategy
 		from lib.tasks.typo.text_policy import LiteTypoTextPolicy
 		from lib.tasks.typo.workflow import TypoCorrectionWorkflow

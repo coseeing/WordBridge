@@ -8,7 +8,6 @@ test_catalog_settings_panel's fixture), never at module scope.
 from types import SimpleNamespace
 
 import pytest
-
 from test_catalog_settings_panel import STATUS_TABLE, _coseeing_only, _panel_fixture, _status
 
 
@@ -345,7 +344,7 @@ def test_a_notification_after_the_panel_is_gone_unregisters_and_does_nothing(mon
 
 # --- Task 9: rebuild, selection and the D12 baseline (R4, R7/C8, C22) -----
 
-import dataclasses  # noqa: E402
+import dataclasses
 
 DEFAULT = ("default", "Coseeing")
 

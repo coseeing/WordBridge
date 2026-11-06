@@ -1,8 +1,8 @@
-from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
 import os
 import threading
 import time
+from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 
 PATH = os.path.dirname(__file__)
 PACKAGE_PATH = os.path.join(PATH, "package")
@@ -24,7 +24,7 @@ _CRYPTOGRAPHY_GAPFILL_INSTALLED = vendor.install_cryptography_gapfill(PACKAGE_PA
 # available, instead of ever taking the add-on down at this line.
 try:
 	_STDLIB_GAPFILL_REGISTERED, _STDLIB_GAPFILL_FAILURES = vendor.install_stdlib_gapfill(PACKAGE_PATH)
-except Exception as _stdlib_gapfill_install_error:
+except Exception as _stdlib_gapfill_install_error:  # noqa: BLE001
 	_STDLIB_GAPFILL_REGISTERED = []
 	_STDLIB_GAPFILL_FAILURES = [("install_stdlib_gapfill", _stdlib_gapfill_install_error)]
 
@@ -33,40 +33,38 @@ import api
 import config
 import globalPluginHandler
 import gui
-from logHandler import log
 import nvwave
-from scriptHandler import script
+import requests
 import textInfos
-from tones import beep
 import ui
 import wx
+from _wb_vendor.hanzidentifier import has_chinese
+from logHandler import log
+from scriptHandler import script
+from tones import beep
 
-import requests
-
-from .dialogs import LLMSettingsPanel, FeedbackDialog
-from .configManager import CorrectorTaskConfig, load_corrector_task_config
 from . import catalog_updater
 from .catalog_updater import CatalogUpdater
+from .configManager import CorrectorTaskConfig, load_corrector_task_config
+from .dialogs import FeedbackDialog, LLMSettingsPanel
+from .dictionary import default_dictionary_repository
+from .dictionary.dialog import DictionaryEntryDialog
+from .lib import coseeing_auth
+from .lib.application.task_runner import run_typo_correction
 from .lib.catalog import COSEEING_GROUP, LOCAL_CHANNEL, registry
 from .lib.catalog.cache import CatalogCache
 from .lib.catalog.fallback import SENTINEL_ID
 from .lib.catalog.remote import DEFAULT_CATALOG_URL, loggable
 from .lib.catalog.sources import BundledCatalogSource
-from .lib.llm import SUPPORTED_PROVIDERS
-from .dictionary import default_dictionary_repository
-from .dictionary.dialog import DictionaryEntryDialog
-from .lib.application.task_runner import run_typo_correction
 from .lib.coseeing import build_coseeing_headers
-from .lib import coseeing_auth
 from .lib.coseeing_auth import shutdown_coseeing_auth, start_coseeing_auth
 from .lib.decimalUtils import decimal_to_str_0
+from .lib.llm import SUPPORTED_PROVIDERS
 from .lib.paths import user_workspace_root
-from .lib.report import generate_report
 from .lib.progress_cue import ProgressCue
+from .lib.report import generate_report
 from .lib.tasks.typo.utils import strings_diff
 from .settings_repository import SettingsRepository
-from _wb_vendor.hanzidentifier import has_chinese
-
 
 DEBUG_MODE = False
 addonHandler.initTranslation()
@@ -156,7 +154,7 @@ def _can_write_catalog_cache():
 		import NVDAState
 
 		return bool(NVDAState.shouldWriteToDisk())
-	except Exception:
+	except Exception:  # noqa: BLE001
 		return False
 
 
@@ -244,7 +242,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def _load_corrector_task_config(self):
 		try:
 			return load_corrector_task_config(CORRECTOR_TASK_CONFIG_PATH)
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			# A damaged task config used to take the add-on's import down.
 			# This must be total (bare Exception, not a specific tuple): a
 			# malformed corrector.json can fail in more ways than OSError/
@@ -449,7 +447,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			function(*args)
 		try:
 			wx.CallAfter(deliver)
-		except Exception:
+		except Exception:  # noqa: BLE001
 			return
 
 	def _notify(self, message):
@@ -629,7 +627,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					retries=2,
 					backoff=1,
 				)
-			except Exception as e:
+			except Exception as e:  # noqa: BLE001
 				# The user has already been notified. Re-raising here only
 				# leaves an unhandled exception in a worker thread, which
 				# lands in the NVDA log with nothing to act on.
@@ -646,7 +644,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			try:
 				access_token = get_coseeing_access_token().result(timeout=COSEEING_TOKEN_WAIT_SECONDS)
 				headers = build_coseeing_headers(access_token)
-			except Exception:
+			except Exception:  # noqa: BLE001
 				self._notify(_("Sorry, an error occurred while authenticating with Coseeing."))
 				return
 
@@ -659,7 +657,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			}
 			try:
 				data = self._post_coseeing_request(f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data)
-			except Exception as error:
+			except Exception as error:  # noqa: BLE001
 				timeout_type = getattr(getattr(requests, "exceptions", None), "Timeout", None)
 				message = (
 					_("The Coseeing request timed out. Please try again later.")
@@ -883,7 +881,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		try:
 			access_token = get_coseeing_access_token().result(timeout=COSEEING_TOKEN_WAIT_SECONDS)
 			headers = build_coseeing_headers(access_token)
-		except Exception:
+		except Exception:  # noqa: BLE001
 			message = _("The Coseeing authentication failed. Please try again later.")
 			self._notify(message)
 			return
@@ -901,7 +899,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				message = _("Sorry, the Coseeing feedback request failed. Please try again later.")
 			else:
 				response.json()
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			timeout_type = getattr(getattr(requests, "exceptions", None), "Timeout", None)
 			if timeout_type is not None and isinstance(error, timeout_type):
 				message = _("The Coseeing feedback request timed out. Please try again later.")

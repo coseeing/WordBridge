@@ -1,5 +1,4 @@
 import pytest
-
 from lib.catalog.remote import (
 	DEFAULT_CATALOG_URL,
 	LOG_TEXT_LIMIT,
@@ -8,7 +7,6 @@ from lib.catalog.remote import (
 	redact_url,
 	validate_catalog_url,
 )
-
 
 DEFAULT_KEY = "https://wordbridge.coseeing.org/"
 MAX_LENGTH_URL = "https://h.test/" + "a" * 2033

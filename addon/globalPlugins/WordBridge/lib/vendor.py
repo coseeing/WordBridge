@@ -300,7 +300,7 @@ def install_cryptography_gapfill(package_path, *, names=CRYPTOGRAPHY_GAPFILL):
 			return True
 		sys.meta_path.append(_GapFillFinder(names, root))
 		return True
-	except Exception:
+	except Exception:  # noqa: BLE001
 		return False
 
 
@@ -376,7 +376,7 @@ def install_stdlib_gapfill(package_path):
 				except KeyError:
 					pass
 				raise
-		except Exception as error:
+		except Exception as error:  # noqa: BLE001
 			failures.append((name, error))
 			continue
 		registered.append(name)

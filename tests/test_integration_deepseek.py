@@ -5,7 +5,6 @@ from test_helpers import (
 	run_workflow_or_skip_transient_failure,
 )
 
-
 PROVIDER_NAME = "DeepSeek"
 MODELS_TO_TEST = [
 	"deepseek-flash",

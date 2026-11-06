@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
 sys.path.insert(0, str(ADDON_PATH))
@@ -80,7 +79,7 @@ def _script_workflow(monkeypatch, *, segmentations, revisions, responder):
 
 
 def test_segment_count_growing_between_rounds_does_not_crash(monkeypatch):
-	workflow, executor = _script_workflow(
+	workflow, _executor = _script_workflow(
 		monkeypatch,
 		segmentations=[
 			["甲乙丙"],
@@ -170,7 +169,7 @@ def test_no_recorrection_needed_makes_no_extra_calls(monkeypatch):
 
 
 def test_empty_result_falls_back_to_the_segment_text(monkeypatch):
-	workflow, executor = _script_workflow(
+	workflow, _executor = _script_workflow(
 		monkeypatch,
 		segmentations=[
 			["甲乙"],

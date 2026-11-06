@@ -7,7 +7,6 @@ from .typings import AddonInfo, BrailleTables, SymbolDictionaries
 from .utils import format_nested_section
 
 
-
 def generateManifest(
 		source: str,
 		dest: str,

@@ -10,7 +10,6 @@ import copy
 import itertools
 
 import pytest
-
 from fake_http import BodyResponse
 from test_catalog_updater import (
 	URL_A,
@@ -25,7 +24,6 @@ from test_catalog_updater import (
 	remote_module,
 	updater_module,
 )
-
 
 SCHEDULED = "WordBridge: catalog fetch retry scheduled attempt=%d delay=%dmin"
 STOPPED = "WordBridge: catalog fetch retries stopped attempts=%d"

@@ -1,7 +1,6 @@
 import importlib.util
 from pathlib import Path
 
-
 ADDON_PATH = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge"
 
 
