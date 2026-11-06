@@ -5,6 +5,7 @@ real `coseeing_auth.client` registers `coseeing_auth` in `sys.modules` and the
 rest of the auth tests run against stubs under that name. Keeping it out of
 this process is what stops the two from poisoning each other.
 """
+
 import subprocess
 import sys
 import textwrap
@@ -12,10 +13,7 @@ from pathlib import Path
 
 import pytest
 
-PACKAGE_ROOT = (
-	Path(__file__).resolve().parent.parent
-	/ "addon" / "globalPlugins" / "WordBridge" / "package"
-)
+PACKAGE_ROOT = Path(__file__).resolve().parent.parent / "addon" / "globalPlugins" / "WordBridge" / "package"
 
 
 def _run(body):
@@ -25,7 +23,9 @@ def _run(body):
 	assert runtimes, "no runtime bundle to take authlib/jwt/joserfc from"
 	result = subprocess.run(
 		[sys.executable, "-c", textwrap.dedent(body), str(PACKAGE_ROOT), str(runtimes[0])],
-		check=False, capture_output=True, text=True,
+		check=False,
+		capture_output=True,
+		text=True,
 	)
 	assert result.returncode == 0, f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
 

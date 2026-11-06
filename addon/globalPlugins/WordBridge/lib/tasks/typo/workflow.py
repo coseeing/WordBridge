@@ -49,8 +49,7 @@ class TypoCorrectionWorkflow:
 			segments_to_recorrect = get_segments_to_recorrect(segments_revised, typo_indices)
 			use_history = i >= self.max_correction_attempts / 3
 			history_for_correction = [
-				recorrection_history.get(segment, []) if use_history else []
-				for segment in segments_revised
+				recorrection_history.get(segment, []) if use_history else [] for segment in segments_revised
 			]
 
 			if batch_mode:

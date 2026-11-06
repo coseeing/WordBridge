@@ -123,15 +123,21 @@ def strings_diff(string_before: str, string_after: str) -> dict:
 
 	matcher_ops = []
 	for op, index_start_before, index_end_before, index_start_after, index_end_after in matcher.get_opcodes():
-		if op != "replace" or (index_end_before - index_start_before) == (index_end_after - index_start_after):
+		if op != "replace" or (index_end_before - index_start_before) == (
+			index_end_after - index_start_after
+		):
 			matcher_ops.append((op, index_start_before, index_end_before, index_start_after, index_end_after))
 		elif index_end_before - index_start_before < index_end_after - index_start_after:
 			index_middle = index_start_after + (index_end_before - index_start_before)
-			matcher_ops.append(("replace", index_start_before, index_end_before, index_start_after, index_middle))
+			matcher_ops.append(
+				("replace", index_start_before, index_end_before, index_start_after, index_middle)
+			)
 			matcher_ops.append(("insert", index_end_before, index_end_before, index_middle, index_end_after))
 		else:
 			index_middle = index_start_before + (index_end_after - index_start_after)
-			matcher_ops.append(("replace", index_start_before, index_middle, index_start_after, index_end_after))
+			matcher_ops.append(
+				("replace", index_start_before, index_middle, index_start_after, index_end_after)
+			)
 			matcher_ops.append(("delete", index_middle, index_end_before, index_end_after, index_end_after))
 
 	diff = []
@@ -164,10 +170,16 @@ def strings_diff(string_before: str, string_after: str) -> dict:
 		for i in range(index_end_before - index_start_before):
 			operation_dict = {
 				"operation": op,
-				"before_text": "".join(tokens_before[(index_start_before + i):(index_start_before + i + 1)]),
-				"after_text": "".join(tokens_after[(index_start_after + i):(index_start_after + i + 1)]),
-				"before_descs": get_descs("".join(tokens_before[(index_start_before + i):(index_start_before + i + 1)])),
-				"after_descs": get_descs("".join(tokens_after[(index_start_after + i):(index_start_after + i + 1)])),
+				"before_text": "".join(
+					tokens_before[(index_start_before + i) : (index_start_before + i + 1)]
+				),
+				"after_text": "".join(tokens_after[(index_start_after + i) : (index_start_after + i + 1)]),
+				"before_descs": get_descs(
+					"".join(tokens_before[(index_start_before + i) : (index_start_before + i + 1)])
+				),
+				"after_descs": get_descs(
+					"".join(tokens_after[(index_start_after + i) : (index_start_after + i + 1)])
+				),
 				"tags": None,
 			}
 			operation_dict["tags"] = analyze_diff(
@@ -239,7 +251,7 @@ def get_segments_to_recorrect(segments: list, typo_indices: list, max_length: in
 		for j in range(index_start, index_end):
 			if j in typo_indices:
 				is_error = True
-				text_with_tag += ("[[" + text[j] + "]]")
+				text_with_tag += "[[" + text[j] + "]]"
 			else:
 				text_with_tag += text[j]
 		if is_error:

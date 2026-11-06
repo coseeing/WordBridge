@@ -106,7 +106,11 @@ def fetch_payload(url: str, *, http_get, clock=time.monotonic) -> FetchResult:
 THREAD_NAME = "wordbridge-catalog-fetch"
 SOURCE_NONE, SOURCE_BUNDLED, SOURCE_CACHE, SOURCE_FETCHED = "none", "bundled", "cache", "fetched"
 FETCH_OFF, FETCH_INVALID, FETCH_RUNNING, FETCH_SUCCEEDED, FETCH_FAILED = (
-	"off", "invalid", "running", "succeeded", "failed",
+	"off",
+	"invalid",
+	"running",
+	"succeeded",
+	"failed",
 )
 
 
@@ -305,7 +309,9 @@ class CatalogUpdater:
 				return
 			self._fetch = FETCH_FAILED
 		self._schedule_retry()
-		self._notify(CatalogChange(catalog_changed=False, outcome=FETCH_FAILED, user_initiated=self._user_initiated))
+		self._notify(
+			CatalogChange(catalog_changed=False, outcome=FETCH_FAILED, user_initiated=self._user_initiated)
+		)
 
 	def retry_on_panel_open(self) -> bool:
 		"""Main thread. Fetch now when the last fetch failed (R1, spec section 8).
@@ -377,10 +383,14 @@ class CatalogUpdater:
 		if document is None:
 			return _probe_failure(issues[0])
 		catalog, issues = accept_remote_document(
-			self._bundled_source, document, runnable_providers=self._runnable_providers,
+			self._bundled_source,
+			document,
+			runnable_providers=self._runnable_providers,
 		)
 		if catalog is not None:
-			models = sum(len(catalog.items_for(group)) for group in catalog.provider_groups if group != COSEEING_GROUP)
+			models = sum(
+				len(catalog.items_for(group)) for group in catalog.provider_groups if group != COSEEING_GROUP
+			)
 			return ProbeResult("ok", models=models)
 		# Explicit: _probe_failure() would map remote_no_models, like every
 		# other remote_* code, to not_a_list.
@@ -397,7 +407,7 @@ class CatalogUpdater:
 		"""Main thread, after a failure of the current generation (spec section 7.2)."""
 		if self._closed or self._shutdown.is_set() or self._schedule is None:
 			return
-		wait = RETRY_FIRST_WAIT_MINUTES * 2 ** self._retry_count
+		wait = RETRY_FIRST_WAIT_MINUTES * 2**self._retry_count
 		if wait > RETRY_MAX_WAIT_MINUTES:
 			if not self._retries_stopped:
 				self._retries_stopped = True
@@ -410,11 +420,15 @@ class CatalogUpdater:
 		try:
 			timer = self._schedule(wait * 60_000, functools.partial(self._on_retry_timer, generation))
 		except Exception as error:  # noqa: BLE001
-			self._log.warning("WordBridge: catalog fetch retry could not be scheduled type=%s", type(error).__name__)
+			self._log.warning(
+				"WordBridge: catalog fetch retry could not be scheduled type=%s", type(error).__name__
+			)
 			return
 		self._retry_count += 1
 		self._retry_timer = timer
-		self._log.info("WordBridge: catalog fetch retry scheduled attempt=%d delay=%dmin", self._retry_count, wait)
+		self._log.info(
+			"WordBridge: catalog fetch retry scheduled attempt=%d delay=%dmin", self._retry_count, wait
+		)
 
 	def _on_retry_timer(self, armed_generation) -> None:
 		"""Main thread. wx can deliver a timer after Stop(), so a stale or
@@ -446,7 +460,9 @@ class CatalogUpdater:
 			self._log_cache_problems(issues)
 			if document is not None:
 				catalog, issues = accept_remote_document(
-					self._bundled_source, document, runnable_providers=self._runnable_providers,
+					self._bundled_source,
+					document,
+					runnable_providers=self._runnable_providers,
 				)
 				if catalog is not None:
 					return catalog, SOURCE_CACHE
@@ -455,7 +471,9 @@ class CatalogUpdater:
 				self._log_cache_problems(
 					CatalogIssue("unreadable_cache", issue.location, issue.code) for issue in issues
 				)
-		catalog = load_overlay_catalog(self._bundled_source, None, runnable_providers=self._runnable_providers)
+		catalog = load_overlay_catalog(
+			self._bundled_source, None, runnable_providers=self._runnable_providers
+		)
 		return catalog, SOURCE_BUNDLED if has_local_items(catalog) else SOURCE_NONE
 
 	def _log_source(self, check, source) -> None:
@@ -463,12 +481,16 @@ class CatalogUpdater:
 		cache was used (spec section 17.6, items 6 and 7)."""
 		self._log.info(
 			"WordBridge: catalog source=%s fetch=%s host=%s",
-			source, _fetch_state(check), redact_url(check.url) if check.enabled else "(none)",
+			source,
+			_fetch_state(check),
+			redact_url(check.url) if check.enabled else "(none)",
 		)
 
 	def _log_cache_problems(self, issues) -> None:
 		for issue in issues:
-			self._log.warning("WordBridge: catalog cache problem code=%s type=%s", issue.code, loggable(issue.detail))
+			self._log.warning(
+				"WordBridge: catalog cache problem code=%s type=%s", issue.code, loggable(issue.detail)
+			)
 
 	def _is_current(self, generation) -> bool:
 		with self._lock:
@@ -488,7 +510,9 @@ class CatalogUpdater:
 		if document is None:
 			return None, None, issues[0], size
 		catalog, issues = accept_remote_document(
-			self._bundled_source, document, runnable_providers=self._runnable_providers,
+			self._bundled_source,
+			document,
+			runnable_providers=self._runnable_providers,
 		)
 		if catalog is None:
 			return None, None, issues[0], size
@@ -511,7 +535,11 @@ class CatalogUpdater:
 			try:
 				self._log_cache_problems(self._cache.store(check.key, document))
 			except Exception as error:  # noqa: BLE001
-				self._log.warning("WordBridge: catalog cache problem code=%s type=%s", "cache_write_failed", type(error).__name__)
+				self._log.warning(
+					"WordBridge: catalog cache problem code=%s type=%s",
+					"cache_write_failed",
+					type(error).__name__,
+				)
 		try:
 			self._post_to_ui(self._apply, generation, check, catalog, issue, size)
 		except Exception:  # noqa: BLE001, S110
@@ -530,21 +558,31 @@ class CatalogUpdater:
 				self._fetch = FETCH_SUCCEEDED
 			self._log.info(
 				"WordBridge: catalog fetched host=%s bytes=%d models=%d",
-				host, size, len(catalog.models),
+				host,
+				size,
+				len(catalog.models),
 			)
 			self._retry_count = 0
 			self._retries_stopped = False
 			self._cancel_retry_timer()
-			self._notify(CatalogChange(catalog_changed=True, outcome=FETCH_SUCCEEDED, user_initiated=self._user_initiated))
+			self._notify(
+				CatalogChange(
+					catalog_changed=True, outcome=FETCH_SUCCEEDED, user_initiated=self._user_initiated
+				)
+			)
 			return
 		with self._lock:
 			self._fetch = FETCH_FAILED
 		self._log.warning(
 			"WordBridge: catalog fetch failed host=%s code=%s type=%s",
-			host, issue.code, loggable(issue.detail),
+			host,
+			issue.code,
+			loggable(issue.detail),
 		)
 		self._schedule_retry()
-		self._notify(CatalogChange(catalog_changed=False, outcome=FETCH_FAILED, user_initiated=self._user_initiated))
+		self._notify(
+			CatalogChange(catalog_changed=False, outcome=FETCH_FAILED, user_initiated=self._user_initiated)
+		)
 
 
 _UPDATER = None

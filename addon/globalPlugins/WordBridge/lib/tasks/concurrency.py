@@ -8,7 +8,7 @@ def parallel_map(
 	max_workers: int = 20,
 	iterable_kwargs: Sequence[dict] | None = None,
 	*args,
-	**kwargs
+	**kwargs,
 ) -> list:
 	"""
 	Execute a function over a sequence in parallel using a thread pool.
@@ -26,8 +26,7 @@ def parallel_map(
 	with ThreadPoolExecutor(max_workers=max_workers) as executor:
 		if iterable_kwargs is None:
 			future_to_index = {
-				executor.submit(func, item, *args, **kwargs): i
-				for i, item in enumerate(iterable)
+				executor.submit(func, item, *args, **kwargs): i for i, item in enumerate(iterable)
 			}
 		else:
 			future_to_index = {

@@ -37,11 +37,13 @@ def load_catalog(source, *, runnable_providers):
 		source_issues = tuple(source_issues or ())
 	except Exception as error:  # noqa: BLE001
 		document = None
-		source_issues = (CatalogIssue(
-			"unreadable_source",
-			type(source).__name__,
-			f"{type(error).__name__}: {error}",
-		),)
+		source_issues = (
+			CatalogIssue(
+				"unreadable_source",
+				type(source).__name__,
+				f"{type(error).__name__}: {error}",
+			),
+		)
 	catalog = build_catalog(document, runnable_providers=runnable_providers)
 	issues = source_issues + catalog.issues
 	if catalog.selectable_items:

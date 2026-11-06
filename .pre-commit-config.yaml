@@ -19,3 +19,8 @@ repos:
         types_or: [file]
         files: ^(addon/.*\.py|tests/.*\.py|site_scons/.*\.py|buildVars\.py|sconstruct)$
         exclude: ^addon/globalPlugins/WordBridge/package/
+      - id: ruff-format
+        name: format with ruff
+        types_or: [file]
+        files: ^(addon/.*\.py|tests/.*\.py|site_scons/.*\.py|buildVars\.py|sconstruct)$
+        exclude: ^addon/globalPlugins/WordBridge/package/

@@ -69,7 +69,10 @@ def test_a_dual_membership_id_stored_on_coseeing_stays_on_coseeing():
 	# ds-x&DeepSeek is in both models and coseeings in the fixture above: a
 	# shipped entry with "coseeing": true. A user who picked it through
 	# Coseeing must not be silently moved onto their own API key.
-	assert normalize_selection(catalog(), "ds-x&DeepSeek", COSEEING_GROUP) == ("ds-x&DeepSeek", COSEEING_GROUP)
+	assert normalize_selection(catalog(), "ds-x&DeepSeek", COSEEING_GROUP) == (
+		"ds-x&DeepSeek",
+		COSEEING_GROUP,
+	)
 
 
 def test_a_dual_membership_id_stored_locally_stays_local():

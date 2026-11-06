@@ -59,13 +59,17 @@ def test_a_model_without_pricing_is_kept():
 
 
 def test_pricing_is_carried_into_the_price_entry_shape():
-	doc = document(models=[{
-		"provider": "OpenAI",
-		"model": "gpt-x",
-		"label": "GPT X",
-		"pricing": {"input_tokens": 1.25, "base_unit": 1000000},
-		"usage_key": "usage",
-	}])
+	doc = document(
+		models=[
+			{
+				"provider": "OpenAI",
+				"model": "gpt-x",
+				"label": "GPT X",
+				"pricing": {"input_tokens": 1.25, "base_unit": 1000000},
+				"usage_key": "usage",
+			}
+		]
+	)
 	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
 
 	assert catalog.get_model("gpt-x&OpenAI").price_entry() == {
@@ -77,13 +81,17 @@ def test_pricing_is_carried_into_the_price_entry_shape():
 
 
 def test_a_model_with_malformed_pricing_remains_selectable_but_is_unpriced():
-	doc = document(models=[{
-		"provider": "OpenAI",
-		"model": "gpt-x",
-		"label": "GPT X",
-		"pricing": ["not", "a", "mapping"],
-		"usage_key": "usage",
-	}])
+	doc = document(
+		models=[
+			{
+				"provider": "OpenAI",
+				"model": "gpt-x",
+				"label": "GPT X",
+				"pricing": ["not", "a", "mapping"],
+				"usage_key": "usage",
+			}
+		]
+	)
 	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
 
 	entry = catalog.get_model("gpt-x&OpenAI")
@@ -157,10 +165,12 @@ def test_an_entry_missing_its_label_is_dropped():
 
 
 def test_a_duplicate_id_keeps_the_first_entry():
-	doc = document(models=[
-		{"provider": "OpenAI", "model": "gpt-x", "label": "first"},
-		{"provider": "OpenAI", "model": "gpt-x", "label": "second"},
-	])
+	doc = document(
+		models=[
+			{"provider": "OpenAI", "model": "gpt-x", "label": "first"},
+			{"provider": "OpenAI", "model": "gpt-x", "label": "second"},
+		]
+	)
 	catalog = build_catalog(doc, runnable_providers=RUNNABLE)
 
 	assert catalog.labels_for("OpenAI") == ("first",)
@@ -281,8 +291,22 @@ def test_find_selection_reports_a_miss():
 	assert catalog.find_selection("nope", "local") == (-1, -1)
 
 
-CATALOG_DIR = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge" / "lib" / "catalog"
-STDLIB_ONLY = {"dataclasses", "json", "pathlib", "typing", "collections", "functools", "types", "copy", "urllib", "os", "tempfile"}
+CATALOG_DIR = (
+	Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "WordBridge" / "lib" / "catalog"
+)
+STDLIB_ONLY = {
+	"dataclasses",
+	"json",
+	"pathlib",
+	"typing",
+	"collections",
+	"functools",
+	"types",
+	"copy",
+	"urllib",
+	"os",
+	"tempfile",
+}
 
 
 def test_the_catalog_package_imports_only_the_standard_library():

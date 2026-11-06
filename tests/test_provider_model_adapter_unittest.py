@@ -28,8 +28,10 @@ pypinyin_module = types.ModuleType("pypinyin")
 pypinyin_module.lazy_pinyin = lambda text, style=None: list(text)
 pypinyin_module.pinyin = lambda text, style=None: [[char] for char in text]
 
+
 class _Style:
 	TONE3 = object()
+
 
 pypinyin_module.Style = _Style
 sys.modules.setdefault("_wb_vendor.pypinyin", pypinyin_module)
@@ -467,7 +469,8 @@ class ProviderModelAdapterTests(unittest.TestCase):
 				self.format_called = True
 				return {
 					"model": self.model_name,
-					"messages": [{"role": "system", "content": prompt_bundle.system_template}] + prompt_bundle.messages,
+					"messages": [{"role": "system", "content": prompt_bundle.system_template}]
+					+ prompt_bundle.messages,
 					**setting,
 				}
 

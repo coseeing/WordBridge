@@ -64,9 +64,7 @@ def _script_workflow(monkeypatch, *, segmentations, revisions, responder):
 	monkeypatch.setattr(
 		workflow_module, "get_segments_to_recorrect", lambda segments, typo_indices: list(segments)
 	)
-	monkeypatch.setattr(
-		workflow_module, "review_correction_errors", lambda text, corrected: corrected
-	)
+	monkeypatch.setattr(workflow_module, "review_correction_errors", lambda text, corrected: corrected)
 	monkeypatch.setattr(workflow_module, "strings_diff", lambda before, after: [])
 
 	executor = _FakeExecutor(responder)

@@ -46,6 +46,7 @@ class AuthHarness:
 		self.queue = deque()
 		self.choice = choice
 		self.prompts = 0
+
 		def make_auth():
 			self.auth = FakeAuth(self.close_started, self.close_release)
 			return self.auth

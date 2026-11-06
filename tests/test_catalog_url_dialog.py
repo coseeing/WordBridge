@@ -34,7 +34,13 @@ class FakeMessageDialog:
 	answer = None
 
 	def __init__(self, parent, message, title="", dialogType="STANDARD", *, buttons=None, helpId=""):
-		self.parent, self.message, self.title, self.dialog_type, self.buttons = parent, message, title, dialogType, buttons
+		self.parent, self.message, self.title, self.dialog_type, self.buttons = (
+			parent,
+			message,
+			title,
+			dialogType,
+			buttons,
+		)
 		self.default_focus = None
 		self.escape_id = None
 		if not self._is_message():
@@ -79,13 +85,18 @@ def dialog_fixture(monkeypatch, **settings):
 	FakeMessageDialog.alerts = []
 	FakeMessageDialog.alert_types = []
 	FakeMessageDialog.answer = None
-	monkeypatch.setattr(f.plugin.gui, "message", SimpleNamespace(
-		MessageDialog=FakeMessageDialog,
-		DefaultButtonSet=SimpleNamespace(YES_NO_CANCEL="YES_NO_CANCEL"),
-		ReturnCode=RETURN_CODE,
-		DialogType=SimpleNamespace(STANDARD="STANDARD", WARNING="WARNING", ERROR="ERROR"),
-		DefaultButton=SimpleNamespace(OK="OK"),
-	), raising=False)
+	monkeypatch.setattr(
+		f.plugin.gui,
+		"message",
+		SimpleNamespace(
+			MessageDialog=FakeMessageDialog,
+			DefaultButtonSet=SimpleNamespace(YES_NO_CANCEL="YES_NO_CANCEL"),
+			ReturnCode=RETURN_CODE,
+			DialogType=SimpleNamespace(STANDARD="STANDARD", WARNING="WARNING", ERROR="ERROR"),
+			DefaultButton=SimpleNamespace(OK="OK"),
+		),
+		raising=False,
+	)
 	f.order = []
 	f.panel = StubPanel(f.order)
 	repository = f.plugin.SettingsRepository(f.settings, f.dialogs.registry.current)
@@ -109,6 +120,7 @@ def _errors():
 
 # --- Task 12: the dialog and its OK -----------------------------------------
 
+
 def test_the_dialog_shows_the_stored_url_and_focuses_it(monkeypatch):
 	f = dialog_fixture(monkeypatch, catalog_url="http://localhost:8000")
 
@@ -122,7 +134,9 @@ def test_the_dialog_shows_the_stored_url_and_focuses_it(monkeypatch):
 	assert dialog.savedUrl is None
 
 
-@pytest.mark.parametrize("text, enabled", [("", False), ("   ", False), (DEFAULT_URL, True)], ids=["empty", "blank", "url"])
+@pytest.mark.parametrize(
+	"text, enabled", [("", False), ("   ", False), (DEFAULT_URL, True)], ids=["empty", "blank", "url"]
+)
 def test_test_is_enabled_only_for_non_blank_text(monkeypatch, text, enabled):
 	f = dialog_fixture(monkeypatch)
 	dialog = f.make_dialog()
@@ -137,7 +151,17 @@ LOCAL = "http://localhost:8000"
 OK_ROWS = [
 	# id, stored (None = the default), typed, status, answer, saved, closed, error, warning
 	("unchanged-same", None, DEFAULT_URL, "untested", None, None, True, None, None),
-	("unchanged-other-spelling", None, "  HTTPS://WORDBRIDGE.COSEEING.ORG/  ", "untested", None, None, True, None, None),
+	(
+		"unchanged-other-spelling",
+		None,
+		"  HTTPS://WORDBRIDGE.COSEEING.ORG/  ",
+		"untested",
+		None,
+		None,
+		True,
+		None,
+		None,
+	),
 	("passed", None, "  " + LOCAL + "  ", "passed", None, LOCAL, True, None, None),
 	("untested-yes", None, LOCAL, "untested", RETURN_CODE.YES, LOCAL, True, None, NOT_TESTED),
 	("untested-no", None, LOCAL, "untested", RETURN_CODE.NO, None, True, None, NOT_TESTED),
@@ -151,7 +175,9 @@ OK_ROWS = [
 
 
 @pytest.mark.parametrize(
-	"stored, typed, status, answer, saved, closed, error, warning", [row[1:] for row in OK_ROWS], ids=[row[0] for row in OK_ROWS],
+	"stored, typed, status, answer, saved, closed, error, warning",
+	[row[1:] for row in OK_ROWS],
+	ids=[row[0] for row in OK_ROWS],
 )
 def test_ok_table(monkeypatch, stored, typed, status, answer, saved, closed, error, warning):
 	settings = {} if stored is None else {"catalog_url": stored}
@@ -216,7 +242,11 @@ def test_the_warning_defaults_to_cancel(monkeypatch, failed, text):
 
 	[warning] = FakeMessageDialog.instances
 	assert (warning.parent, warning.message, warning.title, warning.dialog_type, warning.buttons) == (
-		dialog, text, "Warning", "WARNING", "YES_NO_CANCEL",
+		dialog,
+		text,
+		"Warning",
+		"WARNING",
+		"YES_NO_CANCEL",
 	)
 	assert warning.default_focus == RETURN_CODE.CANCEL
 	assert warning.escape_id == RETURN_CODE.CANCEL
@@ -234,6 +264,7 @@ def test_an_error_is_an_error_alert_on_the_dialog(monkeypatch):
 
 
 # --- translator comments and zh_TW entries ----------------------------------
+
 
 def _po_entries():
 	"""msgid -> msgstr for the single-line entries of nvda.po."""
@@ -264,8 +295,15 @@ def _translation_comment_blocks(path):
 			if previous is not None and previous.string in (".", "def"):
 				continue
 			line = token.start[0]
+			# xgettext takes the comment block right above the line of the
+			# string literal, not of `_(`: after ruff format splits a long
+			# call, a comment above a bare `_(` line is silently dropped.
+			string_line = next(
+				(later.start[0] for later in tokens[index + 2 :] if later.type == tokenize.STRING),
+				line,
+			)
 			block = []
-			above = line - 2
+			above = string_line - 2
 			while above >= 0 and lines[above].strip().startswith("#"):
 				block.insert(0, lines[above].strip())
 				above -= 1
@@ -306,16 +344,26 @@ def test_the_pot_takes_only_translators_comments():
 
 def _assert_translated(path, entries):
 	"""Each msgid sits in a `_(` call with a Translators comment (on the
-	call's line or the line after a bare `_(`), and nvda.po has its zh_TW."""
+	call's line, or inside a bare `_(` above the literal), and nvda.po has
+	its zh_TW."""
 	lines = path.read_text(encoding="utf8").splitlines()
 	calls = dict(_translation_calls(path))
 	po = _po_entries()
+
+	def bare_call_line(number):
+		"""The line of the bare `_(` the literal on `number` belongs to, or None."""
+		above = number - 1
+		while above > 1 and lines[above - 1].strip().startswith("#"):
+			above -= 1
+		return above if above >= 1 and lines[above - 1].rstrip().endswith("_(") else None
+
 	for msgid, msgstr in entries.items():
 		literal = '"' + msgid.replace('"', '\\"') + '"'
 		found = [number for number, line in enumerate(lines, 1) if "_(" + literal in line]
 		found += [
-			number - 1 for number, line in enumerate(lines, 1)
-			if line.strip().startswith(literal) and number > 1 and lines[number - 2].rstrip().endswith("_(")
+			call
+			for number, line in enumerate(lines, 1)
+			if line.strip().startswith(literal) and (call := bare_call_line(number)) is not None
 		]
 		assert found, msgid
 		for number in found:
@@ -342,6 +390,7 @@ def test_the_dialog_strings_have_translator_comments_and_translations():
 
 # --- Task 13: Test... -------------------------------------------------------
 
+
 def _probe(f, kind, detail="", models=0):
 	return f.plugin.dialogs.catalog_updater.ProbeResult(kind, detail, models)
 
@@ -356,7 +405,9 @@ def _progress(f):
 	return f.plugin.gui.IndeterminateProgressDialog.instances
 
 
-@pytest.mark.parametrize("text, error", [("ftp://x", MALFORMED), ("http://example.com", INSECURE)], ids=["invalid", "insecure"])
+@pytest.mark.parametrize(
+	"text, error", [("ftp://x", MALFORMED), ("http://example.com", INSECURE)], ids=["invalid", "insecure"]
+)
 def test_test_validates_first_without_a_request(monkeypatch, text, error):
 	f = dialog_fixture(monkeypatch)
 	threads = _record_threads(monkeypatch, f)
@@ -389,7 +440,11 @@ def test_test_runs_off_the_ui_thread_and_posts_the_result(monkeypatch):
 	assert probed == []
 	assert threads == [(dialog._runProbe, (LOCAL,))]
 	[progress] = _progress(f)
-	assert (progress.parent, progress.title, progress.message) == (dialog, "Set Model List URL", "Validating the model list URL...")
+	assert (progress.parent, progress.title, progress.message) == (
+		dialog,
+		"Set Model List URL",
+		"Validating the model list URL...",
+	)
 
 	target, args = threads[0]
 	target(*args)
@@ -431,18 +486,32 @@ RESULT_ROWS = [
 	("ok-1", ("ok", "", 1), "The model list loaded. It offers 1 model.", True),
 	("ok-many", ("ok", "", 12), "The model list loaded. It offers 12 models.", True),
 	("network", ("network", "OSError", 0), "The model list URL failed the test. " + NETWORK_TIP, False),
-	("http_status", ("http_status", "404", 0),
-		"The model list URL failed the test. The server answered with HTTP status 404. Check that the URL is correct.", False),
-	("not_a_list", ("not_a_list", "", 0),
+	(
+		"http_status",
+		("http_status", "404", 0),
+		"The model list URL failed the test. The server answered with HTTP status 404. Check that the URL is correct.",
+		False,
+	),
+	(
+		"not_a_list",
+		("not_a_list", "", 0),
 		"The model list URL failed the test. The server's answer is not a WordBridge model list. Check that the URL is correct.",
-		False),
-	("no_models", ("no_models", "", 0), "The model list URL failed the test. The model list offers no model WordBridge can use.", False),
+		False,
+	),
+	(
+		"no_models",
+		("no_models", "", 0),
+		"The model list URL failed the test. The model list offers no model WordBridge can use.",
+		False,
+	),
 	("failed", ("failed", "", 0), "The model list URL failed the test. " + OTHER_TIP, False),
 	("unavailable", ("unavailable", "", 0), "The model list URL failed the test. " + OTHER_TIP, False),
 ]
 
 
-@pytest.mark.parametrize("probe, message, ok", [row[1:] for row in RESULT_ROWS], ids=[row[0] for row in RESULT_ROWS])
+@pytest.mark.parametrize(
+	"probe, message, ok", [row[1:] for row in RESULT_ROWS], ids=[row[0] for row in RESULT_ROWS]
+)
 def test_test_result_messages(monkeypatch, probe, message, ok):
 	f = dialog_fixture(monkeypatch)
 	dialog = f.make_dialog()
@@ -526,8 +595,7 @@ TASK13_STRINGS = {
 	"The model list URL failed the test. {tip}": "模型清單網址測試失敗。{tip}",
 	NETWORK_TIP: "發生網路錯誤。請確認已連上網際網路，然後再試一次。",
 	"The server answered with HTTP status {status}. Check that the URL is correct.": "伺服器回應 HTTP 狀態碼 {status}。請確認網址是否正確。",
-	"The server's answer is not a WordBridge model list. Check that the URL is correct.":
-		"伺服器的回應不是 WordBridge 模型清單。請確認網址是否正確。",
+	"The server's answer is not a WordBridge model list. Check that the URL is correct.": "伺服器的回應不是 WordBridge 模型清單。請確認網址是否正確。",
 	"The model list offers no model WordBridge can use.": "這份模型清單沒有 WordBridge 可以使用的模型。",
 	OTHER_TIP: "請確認已連上網際網路，且網址正確。",
 }

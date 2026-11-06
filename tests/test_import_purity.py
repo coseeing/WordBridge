@@ -14,7 +14,9 @@ ADDON_PATH = PROJECT_ROOT / "addon" / "globalPlugins" / "WordBridge"
 # ModuleNotFoundError and takes the whole add-on down. Every other internal
 # import in the tree is relative; this scan is the gate that catches the next
 # one before it ships.
-TOP_LEVEL_INTERNAL_NAMES = frozenset({"lib", "dialogs", "configManager", "dictionary", "settings_repository", "catalog_updater"})
+TOP_LEVEL_INTERNAL_NAMES = frozenset(
+	{"lib", "dialogs", "configManager", "dictionary", "settings_repository", "catalog_updater"}
+)
 
 
 def _internal_python_files():
@@ -22,8 +24,7 @@ def _internal_python_files():
 	# add-on-internal source -- excluded deliberately, the same way the spec
 	# excludes it elsewhere.
 	return sorted(
-		path for path in ADDON_PATH.rglob("*.py")
-		if "package" not in path.relative_to(ADDON_PATH).parts
+		path for path in ADDON_PATH.rglob("*.py") if "package" not in path.relative_to(ADDON_PATH).parts
 	)
 
 
@@ -59,6 +60,7 @@ def test_no_addon_module_imports_an_internal_package_absolutely():
 		"because tests put the add-on directory on sys.path, and fail under "
 		f"NVDA: {offenders}"
 	)
+
 
 # Spec test 6 asks for "importing dialogs and the plugin module": a bare
 # `import dialogs` cannot work standalone, because dialogs.py imports its
@@ -136,7 +138,7 @@ def test_importing_the_plugin_reads_no_setting_file_and_calls_no_windll(tmp_path
 	assert ctypes_calls == "[]", f"the plugin called into ctypes at import: {ctypes_calls}"
 
 
-NVDA_STUBS = '''
+NVDA_STUBS = """
 import builtins
 import sys
 from types import SimpleNamespace
@@ -194,7 +196,7 @@ sys.modules["gui.contextHelp"] = sys.modules["gui"].contextHelp
 sys.modules["configobj.validate"] = SimpleNamespace(
 	VdtValueTooBigError=ValueError, VdtValueTooSmallError=ValueError
 )
-'''
+"""
 
 
 # Production-shaped: unlike PROBE above (and tests/conftest.py:17), the add-on

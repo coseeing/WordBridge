@@ -33,8 +33,10 @@ def invalid_url_message(error: str) -> str:
 	if error == "insecure_scheme":
 		# Translators: Shown when the model list URL uses plain http for a host other than this computer.
 		return _("The model list URL must start with https://. http:// is allowed only for localhost.")
-	# Translators: Shown when the model list URL is not a complete web address.
-	return _("Enter a complete web address, such as https://wordbridge.coseeing.org, or leave the field empty.")
+	return _(
+		# Translators: Shown when the model list URL is not a complete web address.
+		"Enter a complete web address, such as https://wordbridge.coseeing.org, or leave the field empty."
+	)
 
 
 def _start_probe_thread(target, args):
@@ -103,10 +105,14 @@ class CatalogUrlDialog(SettingsDialog):
 			size=(self.scaleSize(375), -1),
 			value=self._settings.catalog_url(),
 		)
-		self.urlCtrl.SetToolTip(wx.ToolTip(
-			# Translators: Tooltip of the model list URL field in the WordBridge settings panel.
-			_("The address WordBridge downloads the model list from. Leave it empty to use only the Coseeing default.")
-		))
+		self.urlCtrl.SetToolTip(
+			wx.ToolTip(
+				_(
+					# Translators: Tooltip of the model list URL field in the WordBridge settings panel.
+					"The address WordBridge downloads the model list from. Leave it empty to use only the Coseeing default."
+				)
+			)
+		)
 		# Translators: Button next to the model list URL field that checks whether the address offers a model list.
 		self.testButton = wx.Button(self, label=_("&Test..."))
 		guiHelper.BoxSizerHelper(self, sizer=self.urlCtrl.GetContainingSizer()).addItem(self.testButton)

@@ -39,7 +39,10 @@ def _load(monkeypatch, settings=None, log_warnings=None):
 	queued = []
 	auth_calls = []
 	plugin, _config, _gui = _load_nvda_plugin(
-		monkeypatch, settings if settings is not None else _settings(), auth_calls, queued,
+		monkeypatch,
+		settings if settings is not None else _settings(),
+		auth_calls,
+		queued,
 		log_warnings=log_warnings,
 	)
 	return plugin, queued, auth_calls
@@ -48,7 +51,9 @@ def _load(monkeypatch, settings=None, log_warnings=None):
 def test_the_config_spec_declares_catalog_url_with_the_default(monkeypatch):
 	plugin, _queued, _auth = _load(monkeypatch)
 
-	assert plugin.config.conf.spec["WordBridge"]["settings"]["catalog_url"] == f"string(default='{DEFAULT_URL}')"
+	assert (
+		plugin.config.conf.spec["WordBridge"]["settings"]["catalog_url"] == f"string(default='{DEFAULT_URL}')"
+	)
 
 
 def test_init_schedules_sign_in_then_fetch_start(monkeypatch):
@@ -56,7 +61,10 @@ def test_init_schedules_sign_in_then_fetch_start(monkeypatch):
 
 	instance = plugin.GlobalPlugin()
 
-	assert [callback for callback, _args in queued] == [instance._start_coseeing_auth, instance._start_catalog_fetch]
+	assert [callback for callback, _args in queued] == [
+		instance._start_coseeing_auth,
+		instance._start_catalog_fetch,
+	]
 	instance.terminate()
 
 
@@ -67,7 +75,9 @@ def test_init_uses_the_cache_for_the_configured_url(monkeypatch):
 
 	assert instance.catalog.get_model("gpt-6.1-sol&OpenAI") is not None
 	assert plugin.registry.current() is instance.catalog
-	assert plugin.catalog_updater.status() == plugin.catalog_updater.UpdaterStatus(source="cache", fetch="running")
+	assert plugin.catalog_updater.status() == plugin.catalog_updater.UpdaterStatus(
+		source="cache", fetch="running"
+	)
 	instance.terminate()
 
 
@@ -83,7 +93,9 @@ def test_init_with_an_empty_url_offers_the_bundled_models(monkeypatch):
 	assert instance.catalog.get_model("gpt-6.1-sol&OpenAI") is not None
 	assert instance.catalog.labels_for("Coseeing") == ("default",)
 	assert plugin.started_catalog_threads == []
-	assert plugin.catalog_updater.status() == plugin.catalog_updater.UpdaterStatus(source="bundled", fetch="off")
+	assert plugin.catalog_updater.status() == plugin.catalog_updater.UpdaterStatus(
+		source="bundled", fetch="off"
+	)
 	assert instance._needs_catalog_choice() is False
 	# The stored local model is in the bundled list: no Coseeing sign-in.
 	assert _auth == []
@@ -214,7 +226,11 @@ def test_a_fetched_payload_installs_the_bundled_provider_entries(monkeypatch):
 	for name, data in bundled_document()["providers"].items():
 		entry = instance.catalog.get_provider(name)
 		assert (entry.label, entry.url, entry.setting, entry.timeout0, entry.timeout_max) == (
-			data["label"], data["url"], data["setting"], data["timeout0"], data["timeout_max"],
+			data["label"],
+			data["url"],
+			data["setting"],
+			data["timeout0"],
+			data["timeout_max"],
 		), name
 	instance.terminate()
 
@@ -231,7 +247,13 @@ def test_a_fetched_payload_with_hostile_providers_installs_the_bundled_entries(m
 	instance = plugin.GlobalPlugin()
 	document = server_document()
 	document["providers"] = {
-		name: {"label": "Evil", "url": "https://evil.test/v1", "setting": {"evil": True}, "timeout0": 1, "timeout_max": 2}
+		name: {
+			"label": "Evil",
+			"url": "https://evil.test/v1",
+			"setting": {"evil": True},
+			"timeout0": 1,
+			"timeout_max": 2,
+		}
 		for name in document["providers"]
 	}
 	body = json.dumps(document).encode("utf8")
@@ -248,7 +270,11 @@ def test_a_fetched_payload_with_hostile_providers_installs_the_bundled_entries(m
 	for name, data in bundled_document()["providers"].items():
 		entry = instance.catalog.get_provider(name)
 		assert (entry.label, entry.url, entry.setting, entry.timeout0, entry.timeout_max) == (
-			data["label"], data["url"], data["setting"], data["timeout0"], data["timeout_max"],
+			data["label"],
+			data["url"],
+			data["setting"],
+			data["timeout0"],
+			data["timeout_max"],
 		), name
 	instance.terminate()
 
@@ -424,8 +450,15 @@ def test_a_fetch_finishing_after_terminate_writes_and_posts_nothing(monkeypatch)
 def test_the_production_request_forwards_the_fetch_arguments_unchanged(monkeypatch):
 	calls = []
 	plugin, _queued, _auth = _load(monkeypatch)
-	monkeypatch.setattr(plugin.requests, "get", lambda *args, **kwargs: calls.append((args, kwargs)) or "response")
-	kwargs = {"stream": True, "timeout": (5, 10), "allow_redirects": False, "headers": {"Accept": "application/json"}}
+	monkeypatch.setattr(
+		plugin.requests, "get", lambda *args, **kwargs: calls.append((args, kwargs)) or "response"
+	)
+	kwargs = {
+		"stream": True,
+		"timeout": (5, 10),
+		"allow_redirects": False,
+		"headers": {"Accept": "application/json"},
+	}
 
 	assert plugin._catalog_http_get("https://h.test/", **kwargs) == "response"
 	assert calls == [(("https://h.test/",), kwargs)]
@@ -449,12 +482,17 @@ def test_the_wired_fetch_sends_exactly_the_specified_request(monkeypatch):
 	target, args = plugin.started_catalog_threads[0]
 	target(*args)
 
-	assert calls == [((DEFAULT_URL,), {
-		"stream": True,
-		"timeout": (5, 10),
-		"allow_redirects": False,
-		"headers": {"Accept": "application/json"},
-	})]
+	assert calls == [
+		(
+			(DEFAULT_URL,),
+			{
+				"stream": True,
+				"timeout": (5, 10),
+				"allow_redirects": False,
+				"headers": {"Accept": "application/json"},
+			},
+		)
+	]
 	assert "verify" not in calls[0][1]
 	instance.terminate()
 
@@ -517,11 +555,16 @@ def _choice_fixture(monkeypatch, answer=None, **settings_overrides):
 	FakeMessageDialog.instances = []
 	FakeMessageDialog.answer = answer if answer is not None else RETURN_CODE.NO
 	FakeMessageDialog.on_show = None
-	monkeypatch.setattr(plugin.gui, "message", SimpleNamespace(
-		MessageDialog=FakeMessageDialog,
-		DefaultButtonSet=SimpleNamespace(YES_NO="YES_NO"),
-		ReturnCode=RETURN_CODE,
-	), raising=False)
+	monkeypatch.setattr(
+		plugin.gui,
+		"message",
+		SimpleNamespace(
+			MessageDialog=FakeMessageDialog,
+			DefaultButtonSet=SimpleNamespace(YES_NO="YES_NO"),
+			ReturnCode=RETURN_CODE,
+		),
+		raising=False,
+	)
 	monkeypatch.setattr(plugin.gui, "mainFrame", "main-frame", raising=False)
 	messages = []
 	monkeypatch.setattr(plugin, "ui", SimpleNamespace(message=messages.append))
@@ -533,8 +576,12 @@ def _choice_fixture(monkeypatch, answer=None, **settings_overrides):
 	monkeypatch.setattr(instance, "isTextValid", lambda text: True)
 	monkeypatch.setattr(instance, "isNVDASettingsDialogCreate", lambda: False)
 	return SimpleNamespace(
-		plugin=plugin, instance=instance, queued=queued, auth_calls=auth_calls,
-		messages=messages, started=started,
+		plugin=plugin,
+		instance=instance,
+		queued=queued,
+		auth_calls=auth_calls,
+		messages=messages,
+		started=started,
 	)
 
 
@@ -576,7 +623,10 @@ def test_the_dialog_has_the_spec_title_message_focus_and_escape(monkeypatch):
 
 	[dialog] = FakeMessageDialog.instances
 	assert (dialog.parent, dialog.title, dialog.message, dialog.buttons) == (
-		"main-frame", "WordBridge", SWITCH_MESSAGE, "YES_NO",
+		"main-frame",
+		"WordBridge",
+		SWITCH_MESSAGE,
+		"YES_NO",
 	)
 	assert dialog.default_focus == RETURN_CODE.NO
 	assert dialog.escape_id == RETURN_CODE.NO
@@ -621,7 +671,8 @@ def test_yes_after_the_model_list_arrived_still_switches_to_coseeing(monkeypatch
 	FakeMessageDialog.on_show = lambda: _deliver_the_model_list(f)
 	corrections = []
 	monkeypatch.setattr(
-		f.instance, "startCorrection",
+		f.instance,
+		"startCorrection",
 		lambda text: corrections.append((text, f.instance.settings.corrector_selection())),
 	)
 
@@ -692,7 +743,10 @@ def test_shutdown_during_the_dialog_starts_nothing(monkeypatch):
 
 def test_a_coseeing_user_never_sees_the_dialog(monkeypatch):
 	f = _choice_fixture(
-		monkeypatch, catalog_url=NO_CACHE_URL, corrector_config_id="default", execution_channel="Coseeing",
+		monkeypatch,
+		catalog_url=NO_CACHE_URL,
+		corrector_config_id="default",
+		execution_channel="Coseeing",
 	)
 
 	f.instance.script_correction(None)
@@ -713,7 +767,9 @@ def test_the_dialog_is_not_shown_once_a_catalog_is_loaded(monkeypatch):
 	f.instance.terminate()
 
 
-@pytest.mark.parametrize("url", ["", NO_CACHE_URL, "http://example.com/"], ids=["empty", "no-cache", "invalid"])
+@pytest.mark.parametrize(
+	"url", ["", NO_CACHE_URL, "http://example.com/"], ids=["empty", "no-cache", "invalid"]
+)
 def test_startup_skips_coseeing_sign_in_for_a_local_user_without_a_catalog(monkeypatch, url):
 	plugin, queued, auth_calls = _load(monkeypatch, _settings(catalog_url=url))
 	instance = plugin.GlobalPlugin()
@@ -726,7 +782,8 @@ def test_startup_skips_coseeing_sign_in_for_a_local_user_without_a_catalog(monke
 
 def test_startup_still_signs_a_coseeing_user_in_without_a_catalog(monkeypatch):
 	plugin, queued, auth_calls = _load(
-		monkeypatch, _settings(catalog_url="", corrector_config_id="default", execution_channel="Coseeing"),
+		monkeypatch,
+		_settings(catalog_url="", corrector_config_id="default", execution_channel="Coseeing"),
 	)
 	instance = plugin.GlobalPlugin()
 
@@ -740,7 +797,9 @@ def test_correct_typo_never_sends_a_local_users_text_to_coseeing_without_a_catal
 	f = _choice_fixture(monkeypatch, catalog_url=NO_CACHE_URL)
 	posts = []
 	monkeypatch.setattr(f.plugin.requests, "post", lambda *args, **kwargs: posts.append(args), raising=False)
-	monkeypatch.setattr(f.plugin, "get_coseeing_access_token", lambda **kwargs: pytest.fail("no Coseeing token request"))
+	monkeypatch.setattr(
+		f.plugin, "get_coseeing_access_token", lambda **kwargs: pytest.fail("no Coseeing token request")
+	)
 	f.instance.readDictionary = list
 
 	f.instance.correctTypo("原文")
@@ -752,6 +811,7 @@ def test_correct_typo_never_sends_a_local_users_text_to_coseeing_without_a_catal
 
 
 # --- Catalog retry wiring (retry spec sections 7.1, 14, 15.3; R9) ----------
+
 
 def _fail_the_startup_fetch(plugin, queued):
 	"""Run the queued fetch start, its thread (the harness refuses the
@@ -777,7 +837,9 @@ def test_a_failed_startup_fetch_arms_one_retry_through_the_seam(monkeypatch):
 def test_the_retry_seam_uses_wx_call_later_at_call_time(monkeypatch):
 	plugin, _queued, _auth = _load(monkeypatch)
 	calls = []
-	monkeypatch.setattr(plugin.wx, "CallLater", lambda delay_ms, callback: calls.append((delay_ms, callback)) or "handle")
+	monkeypatch.setattr(
+		plugin.wx, "CallLater", lambda delay_ms, callback: calls.append((delay_ms, callback)) or "handle"
+	)
 
 	def callback():
 		pass

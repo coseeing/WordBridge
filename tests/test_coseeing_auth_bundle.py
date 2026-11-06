@@ -9,10 +9,7 @@ from pathlib import Path
 
 import pytest
 
-PACKAGE_ROOT = (
-	Path(__file__).resolve().parent.parent
-	/ "addon" / "globalPlugins" / "WordBridge" / "package"
-)
+PACKAGE_ROOT = Path(__file__).resolve().parent.parent / "addon" / "globalPlugins" / "WordBridge" / "package"
 RUNTIME_BUNDLES = {
 	"py313-win_amd64": {
 		"authlib/__init__.py",
@@ -28,11 +25,7 @@ EXPECTED_PACKAGE_VERSIONS = {
 
 
 def _sanitized_windows_environment(dependencies: Path, bundle: Path) -> dict[str, str]:
-	env = {
-		key: os.environ[key]
-		for key in ("SystemRoot", "SystemDrive")
-		if key in os.environ
-	}
+	env = {key: os.environ[key] for key in ("SystemRoot", "SystemDrive") if key in os.environ}
 	env["PATH"] = os.pathsep.join((str(dependencies), str(bundle)))
 	return env
 

@@ -116,13 +116,18 @@ def failing():
 
 # --- Task 1: the schedule (R5, C1-C3) ---------------------------------------
 
-@pytest.mark.parametrize("maximum, expected", [
-	(32, [1, 2, 4, 8, 16, 32]),
-	(0, []),
-	(1, [1]),
-	(3, [1, 2]),
-	(40, [1, 2, 4, 8, 16, 32]),
-], ids=["max-32", "max-0", "max-1", "max-3", "max-40"])
+
+@pytest.mark.parametrize(
+	"maximum, expected",
+	[
+		(32, [1, 2, 4, 8, 16, 32]),
+		(0, []),
+		(1, [1]),
+		(3, [1, 2]),
+		(40, [1, 2, 4, 8, 16, 32]),
+	],
+	ids=["max-32", "max-0", "max-1", "max-3", "max-40"],
+)
 def test_retry_schedule_table(tmp_path, monkeypatch, maximum, expected):
 	monkeypatch.setattr(updater_module, "RETRY_MAX_WAIT_MINUTES", maximum)
 	h = retry_harness(tmp_path, {URL_A: failing()})
@@ -214,7 +219,9 @@ FAILURE_ROWS = {
 	"only-unknown-providers": lambda h, mp: _ok(_payload(provider="Mistral")),
 	"raised-exception": lambda h, mp: OSError("connect failed"),
 	"build-exception": lambda h, mp: _raise_in_build(mp) or _ok(_payload()),
-	"bundled-no-providers": lambda h, mp: setattr(h.updater, "_bundled_source", BundledWithoutProviders()) or _ok(_payload()),
+	"bundled-no-providers": lambda h, mp: (
+		setattr(h.updater, "_bundled_source", BundledWithoutProviders()) or _ok(_payload())
+	),
 }
 
 
@@ -240,6 +247,7 @@ def _with_cache(cache_class):
 		h.updater._cache = h.cache = cache_class(h.cache.inner)
 		h.responses[URL_A] = _ok(_payload("fresh"))
 		start(h)
+
 	return setup
 
 
@@ -367,7 +375,9 @@ def test_retry_log_lines_carry_only_attempt_and_delay(tmp_path):
 
 	exhaust(h)
 
-	assert records(h, SCHEDULED) == [("info", SCHEDULED, attempt, 2 ** (attempt - 1)) for attempt in range(1, 7)]
+	assert records(h, SCHEDULED) == [
+		("info", SCHEDULED, attempt, 2 ** (attempt - 1)) for attempt in range(1, 7)
+	]
 	assert records(h, STOPPED) == [("info", STOPPED, 6)]
 	text = h.log.text()
 	for secret in ("/catalog", "token", "secret", "connect"):
@@ -375,6 +385,7 @@ def test_retry_log_lines_carry_only_attempt_and_delay(tmp_path):
 
 
 # --- Task 2: URL changes reset the backoff (R10, C4) ------------------------
+
 
 @pytest.mark.parametrize("path", ["a-b", "a-b-a"])
 def test_a_retry_fetches_the_current_url_not_the_armed_one(tmp_path, path):
@@ -504,7 +515,9 @@ PANEL_OPEN_ROWS = [
 
 
 @pytest.mark.parametrize(
-	"state, result, new_threads", [row[1:] for row in PANEL_OPEN_ROWS], ids=[row[0] for row in PANEL_OPEN_ROWS],
+	"state, result, new_threads",
+	[row[1:] for row in PANEL_OPEN_ROWS],
+	ids=[row[0] for row in PANEL_OPEN_ROWS],
 )
 def test_retry_on_panel_open_conditions(tmp_path, state, result, new_threads):
 	h = retry_harness(tmp_path, {URL_A: failing()})
@@ -582,6 +595,7 @@ def test_module_retry_on_panel_open(tmp_path, installed):
 
 # --- Task 4: change events, listeners and close (C6, C14, R8) --------------
 
+
 def C(*args):
 	return updater_module.CatalogChange(*args)
 
@@ -629,6 +643,7 @@ def _event_startup(response):
 		h.updater.refresh(URL_A)
 		finish(h)
 		return recorder
+
 	return scenario
 
 
@@ -674,6 +689,7 @@ def _event_url_change(response):
 		h.updater.refresh(URL_B)
 		finish(h)
 		return recorder
+
 	return scenario
 
 
@@ -681,21 +697,37 @@ EVENT_ROWS = [
 	("refresh-same-key", _event_refresh_same_key, [(False, None)]),
 	("refresh-new-key", _event_refresh_new_key, [(True, None)]),
 	("refresh-empty-url", _event_refresh_empty, [(True, None)]),
-	("startup-success", _event_startup(lambda: _ok(_payload("fresh"))), [(False, None), (True, "succeeded", False)]),
+	(
+		"startup-success",
+		_event_startup(lambda: _ok(_payload("fresh"))),
+		[(False, None), (True, "succeeded", False)],
+	),
 	("startup-failure", _event_startup(failing), [(False, None), (False, "failed", False)]),
 	("timer-failure", _event_timer_failure, [(False, None), (False, "failed", False)]),
 	("panel-failure", _event_panel_failure, [(False, None), (False, "failed", True)]),
 	("url-change-failure", _event_url_change(failing), [(True, None), (False, "failed", True)]),
-	("url-change-success", _event_url_change(lambda: _ok(_payload("b"))), [(True, None), (True, "succeeded", True)]),
+	(
+		"url-change-success",
+		_event_url_change(lambda: _ok(_payload("b"))),
+		[(True, None), (True, "succeeded", True)],
+	),
 	# A timer retry after a user-initiated failure is a background retry again (R8).
-	("panel-then-timer-failure", _event_panel_then_timer_failure,
-		[(False, None), (False, "failed", True), (False, None), (False, "failed", False)]),
-	("url-change-then-timer-failure", _event_url_change_then_timer_failure,
-		[(True, None), (False, "failed", True), (False, None), (False, "failed", False)]),
+	(
+		"panel-then-timer-failure",
+		_event_panel_then_timer_failure,
+		[(False, None), (False, "failed", True), (False, None), (False, "failed", False)],
+	),
+	(
+		"url-change-then-timer-failure",
+		_event_url_change_then_timer_failure,
+		[(True, None), (False, "failed", True), (False, None), (False, "failed", False)],
+	),
 ]
 
 
-@pytest.mark.parametrize("scenario, expected", [row[1:] for row in EVENT_ROWS], ids=[row[0] for row in EVENT_ROWS])
+@pytest.mark.parametrize(
+	"scenario, expected", [row[1:] for row in EVENT_ROWS], ids=[row[0] for row in EVENT_ROWS]
+)
 def test_change_events_table(tmp_path, scenario, expected):
 	h = retry_harness(tmp_path, {URL_A: failing()})
 
@@ -707,6 +739,7 @@ def test_change_events_table(tmp_path, scenario, expected):
 def _synchronous(h):
 	"""The fetch runs inside start_thread and its result is applied at once:
 	nothing may depend on wx.CallAfter running later (final review m5)."""
+
 	def start_thread(target, args):
 		target(*args)
 
@@ -727,11 +760,15 @@ def _sync_timer(h):
 	timer.fire()
 
 
-@pytest.mark.parametrize("action, user_initiated", [
-	(_sync_panel_open, True),
-	(_sync_url_change, True),
-	(_sync_timer, False),
-], ids=["panel-open", "url-change", "timer"])
+@pytest.mark.parametrize(
+	"action, user_initiated",
+	[
+		(_sync_panel_open, True),
+		(_sync_url_change, True),
+		(_sync_timer, False),
+	],
+	ids=["panel-open", "url-change", "timer"],
+)
 def test_user_initiated_is_set_before_a_synchronous_fetch_completes(tmp_path, action, user_initiated):
 	h = retry_harness(tmp_path, {URL_A: failing(), URL_B: failing()})
 	start(h)
@@ -740,13 +777,19 @@ def test_user_initiated_is_set_before_a_synchronous_fetch_completes(tmp_path, ac
 
 	action(h)
 
-	assert [event for event in recorder.events if event.outcome is not None] == [C(False, "failed", user_initiated)]
+	assert [event for event in recorder.events if event.outcome is not None] == [
+		C(False, "failed", user_initiated)
+	]
 
 
-@pytest.mark.parametrize("response, expected", [
-	(lambda: _ok(_payload("fresh")), ("succeeded", ("fetched", "succeeded"), 1, 0)),
-	(failing, ("failed", ("none", "failed"), 0, 1)),
-], ids=["success", "failure"])
+@pytest.mark.parametrize(
+	"response, expected",
+	[
+		(lambda: _ok(_payload("fresh")), ("succeeded", ("fetched", "succeeded"), 1, 0)),
+		(failing, ("failed", ("none", "failed"), 0, 1)),
+	],
+	ids=["success", "failure"],
+)
 def test_listeners_see_the_new_state_when_notified(tmp_path, response, expected):
 	h = retry_harness(tmp_path, {URL_A: response()})
 	h.updater.initial_catalog(URL_A)
@@ -754,7 +797,9 @@ def test_listeners_see_the_new_state_when_notified(tmp_path, response, expected)
 
 	def listener(change):
 		status = h.updater.status()
-		seen.append((change.outcome, (status.source, status.fetch), len(h.installed), len(h.scheduler.live())))
+		seen.append(
+			(change.outcome, (status.source, status.fetch), len(h.installed), len(h.scheduler.live()))
+		)
 
 	h.updater.add_listener(listener)
 	h.updater.refresh(URL_A)
@@ -763,10 +808,14 @@ def test_listeners_see_the_new_state_when_notified(tmp_path, response, expected)
 	assert seen[-1] == expected
 
 
-@pytest.mark.parametrize("url, status", [
-	(URL_B, ("cache", "running")),
-	("", ("none", "off")),
-], ids=["new-url-with-cache", "empty-url"])
+@pytest.mark.parametrize(
+	"url, status",
+	[
+		(URL_B, ("cache", "running")),
+		("", ("none", "off")),
+	],
+	ids=["new-url-with-cache", "empty-url"],
+)
 def test_a_url_change_event_sees_the_d8_catalog_installed(tmp_path, url, status):
 	# The panel rebuilds from registry.current() when told; the D8 switch must
 	# already be installed, and an empty URL is never followed by a fetch.
@@ -926,7 +975,9 @@ START_FAILURE_ROWS = [
 
 
 @pytest.mark.parametrize(
-	"trigger, events, delay", [row[1:] for row in START_FAILURE_ROWS], ids=[row[0] for row in START_FAILURE_ROWS],
+	"trigger, events, delay",
+	[row[1:] for row in START_FAILURE_ROWS],
+	ids=[row[0] for row in START_FAILURE_ROWS],
 )
 def test_a_fetch_thread_that_cannot_start_is_a_failure(tmp_path, trigger, events, delay):
 	# Fix review N2: Thread.start() raising left fetch=running with no timer,
@@ -1008,6 +1059,7 @@ def test_uninstall_closes_the_installed_updater(tmp_path):
 
 # --- Task 5: the URL probe behind the dialog's "Test..." (C16) ------------
 
+
 def P(*args, **kwargs):
 	return updater_module.ProbeResult(*args, **kwargs)
 
@@ -1026,22 +1078,50 @@ PROBE_ROWS = [
 	("insecure", "http://example.com", None, "insecure_scheme", "", 0),
 	("empty", "  ", None, "empty", "", 0),
 	("network-raise", URL_A, lambda h, mp: OSError("connect failed"), "network", "OSError", 0),
-	("network-timeout", URL_A, lambda h, mp: setattr(h.updater, "_clock", _deadline_clock()) or _ok(_payload()), "network", None, 0),
+	(
+		"network-timeout",
+		URL_A,
+		lambda h, mp: setattr(h.updater, "_clock", _deadline_clock()) or _ok(_payload()),
+		"network",
+		None,
+		0,
+	),
 	("http-404", URL_A, lambda h, mp: FakeResponse(status_code=404), "http_status", "404", 0),
 	("non-json", URL_A, lambda h, mp: BodyResponse(b"<html>"), "not_a_list", None, 0),
 	("schema-2", URL_A, lambda h, mp: _ok(dict(_payload(), schema_version=2)), "not_a_list", None, 0),
-	("too-large", URL_A, lambda h, mp: BodyResponse(b"{}", headers={"Content-Length": str(TOO_MANY)}), "not_a_list", None, 0),
+	(
+		"too-large",
+		URL_A,
+		lambda h, mp: BodyResponse(b"{}", headers={"Content-Length": str(TOO_MANY)}),
+		"not_a_list",
+		None,
+		0,
+	),
 	("providers-ignored", URL_A, lambda h, mp: _ok(dict(_payload("fresh"), providers={})), "ok", "", 1),
 	("unknown-providers-only", URL_A, lambda h, mp: _ok(_payload(provider="Mistral")), "no_models", None, 0),
 	("no-models", URL_A, lambda h, mp: _ok(_payload(active=False)), "no_models", None, 0),
-	("build-exception", URL_A, lambda h, mp: _raise_in_accept(mp) or _ok(_payload()), "failed", "RuntimeError", 0),
-	("bundled-no-providers", URL_A,
+	(
+		"build-exception",
+		URL_A,
+		lambda h, mp: _raise_in_accept(mp) or _ok(_payload()),
+		"failed",
+		"RuntimeError",
+		0,
+	),
+	(
+		"bundled-no-providers",
+		URL_A,
 		lambda h, mp: setattr(h.updater, "_bundled_source", BundledWithoutProviders()) or _ok(_payload()),
-		"failed", "bundled_source_failed", 0),
+		"failed",
+		"bundled_source_failed",
+		0,
+	),
 ]
 
 
-@pytest.mark.parametrize("url, response, kind, detail, models", [row[1:] for row in PROBE_ROWS], ids=[row[0] for row in PROBE_ROWS])
+@pytest.mark.parametrize(
+	"url, response, kind, detail, models", [row[1:] for row in PROBE_ROWS], ids=[row[0] for row in PROBE_ROWS]
+)
 def test_probe_result_table(tmp_path, monkeypatch, url, response, kind, detail, models):
 	h = retry_harness(tmp_path)
 	if response is not None:
@@ -1068,9 +1148,17 @@ def test_probe_sends_the_d4_request(tmp_path):
 
 	h.updater.probe(URL_B)
 
-	assert calls == [(URL_B, {
-		"stream": True, "timeout": (5, 10), "allow_redirects": False, "headers": {"Accept": "application/json"},
-	})]
+	assert calls == [
+		(
+			URL_B,
+			{
+				"stream": True,
+				"timeout": (5, 10),
+				"allow_redirects": False,
+				"headers": {"Accept": "application/json"},
+			},
+		)
+	]
 
 
 def _updater_state(updater):

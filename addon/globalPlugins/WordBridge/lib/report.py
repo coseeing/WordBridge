@@ -56,8 +56,11 @@ def _prune_old_reports(reports_root: Path, keep: int, *, protect: Path | None = 
 	produced (and is about to hand back to the user) survives regardless.
 	"""
 	directories = sorted(
-		(path for path in reports_root.iterdir()
-		 if path.is_dir() and REPORT_DIR_PATTERN.fullmatch(path.name)),
+		(
+			path
+			for path in reports_root.iterdir()
+			if path.is_dir() and REPORT_DIR_PATTERN.fullmatch(path.name)
+		),
 		key=lambda path: path.name,
 	)
 	doomed = directories[:-keep] if keep > 0 else directories

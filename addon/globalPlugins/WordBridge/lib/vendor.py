@@ -24,16 +24,18 @@ from importlib.machinery import ExtensionFileLoader, ModuleSpec, PathFinder
 PREFIX = "_wb_vendor"
 
 # Must come from us.  Prefix-only; never a global top-level name.
-ISOLATED = frozenset({
-	"authlib",
-	"joserfc",
-	"jwt",
-	"coseeing_auth",
-	"pypinyin",
-	"zhon",
-	"hanzidentifier",
-	"chinese_converter",
-})
+ISOLATED = frozenset(
+	{
+		"authlib",
+		"joserfc",
+		"jwt",
+		"coseeing_auth",
+		"pypinyin",
+		"zhon",
+		"hanzidentifier",
+		"chinese_converter",
+	}
+)
 
 # Must come from the host, and deliberately not shipped: NVDA preloads all of
 # these.  The bundle used to carry copies that were never loaded; they were
@@ -53,17 +55,19 @@ ISOLATED = frozenset({
 # local relay certificate, and "Get external IP" hung forever.  The host copy
 # has everything we need except six files py2exe omits; those are gap-filled,
 # never replaced.
-HOST_ONLY = frozenset({
-	"requests",
-	"urllib3",
-	"certifi",
-	"idna",
-	"charset_normalizer",
-	"cffi",
-	"_cffi_backend",
-	"pycparser",
-	"cryptography",
-})
+HOST_ONLY = frozenset(
+	{
+		"requests",
+		"urllib3",
+		"certifi",
+		"idna",
+		"charset_normalizer",
+		"cffi",
+		"_cffi_backend",
+		"pycparser",
+		"cryptography",
+	}
+)
 
 STDLIB_GAPFILL_DIRNAME = "_stdlib_gapfill"
 CRYPTOGRAPHY_GAPFILL_DIRNAME = "_cryptography_gapfill"
@@ -75,14 +79,16 @@ CRYPTOGRAPHY_GAPFILL_DIRNAME = "_cryptography_gapfill"
 # 50.0.0: docs/superpowers/spikes/2026-09-22-host-rust-symbols-probe.py).
 # joserfc imports all of them at import time, and authlib's requests_client
 # imports joserfc, so Coseeing auth cannot load without them.
-CRYPTOGRAPHY_GAPFILL = frozenset({
-	"cryptography.hazmat.primitives.kdf",
-	"cryptography.hazmat.primitives.kdf.concatkdf",
-	"cryptography.hazmat.primitives.kdf.hkdf",
-	"cryptography.hazmat.primitives.kdf.pbkdf2",
-	"cryptography.hazmat.primitives.keywrap",
-	"cryptography.hazmat.primitives.padding",
-})
+CRYPTOGRAPHY_GAPFILL = frozenset(
+	{
+		"cryptography.hazmat.primitives.kdf",
+		"cryptography.hazmat.primitives.kdf.concatkdf",
+		"cryptography.hazmat.primitives.kdf.hkdf",
+		"cryptography.hazmat.primitives.kdf.pbkdf2",
+		"cryptography.hazmat.primitives.keywrap",
+		"cryptography.hazmat.primitives.padding",
+	}
+)
 
 
 def _make_sandbox_import(prefix, isolated, real_import):

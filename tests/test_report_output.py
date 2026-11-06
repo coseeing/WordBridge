@@ -15,8 +15,22 @@ sys.modules.setdefault("addonHandler", addon_handler)
 
 
 DIFF_DATA = [
-	{"operation": "equal", "before_text": "今天", "after_text": "今天", "before_descs": "", "after_descs": "", "tags": None},
-	{"operation": "replace", "before_text": "器", "after_text": "氣", "before_descs": "", "after_descs": "", "tags": ["x"]},
+	{
+		"operation": "equal",
+		"before_text": "今天",
+		"after_text": "今天",
+		"before_descs": "",
+		"after_descs": "",
+		"tags": None,
+	},
+	{
+		"operation": "replace",
+		"before_text": "器",
+		"after_text": "氣",
+		"before_descs": "",
+		"after_descs": "",
+		"tags": ["x"],
+	},
 ]
 
 
@@ -84,8 +98,7 @@ def test_retention_keeps_ten_reports_and_only_touches_matching_directories(tmp_p
 	from lib.report import REPORT_DIR_PATTERN
 
 	generated = sorted(
-		path.name for path in reports.iterdir()
-		if path.is_dir() and REPORT_DIR_PATTERN.fullmatch(path.name)
+		path.name for path in reports.iterdir() if path.is_dir() and REPORT_DIR_PATTERN.fullmatch(path.name)
 	)
 	# Normally exactly 10 survive. But all 12 calls above can land in the same
 	# wall-clock second (they did in this run), in which case the just-created

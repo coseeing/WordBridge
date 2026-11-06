@@ -31,20 +31,29 @@ def test_empty_access_token_is_rejected():
 		assert False, "empty access token must not create a bearer header"
 
 
-@pytest.mark.parametrize("access_token, expected_headers", [("access", {"Authorization": "Bearer access"}), (None, {})])
-def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatch, access_token, expected_headers):
+@pytest.mark.parametrize(
+	"access_token, expected_headers", [("access", {"Authorization": "Bearer access"}), (None, {})]
+)
+def test_proofreader_uses_completed_auth_future_and_preserves_payload(
+	monkeypatch, access_token, expected_headers
+):
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	queued = []
-	plugin_module, _config, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-flash&DeepSeek",
-		"execution_channel": "Coseeing",
-		"api_key": {},
-		"language": "zh_traditional",
-		"typo_correction_mode": "standard",
-		"customized_words_enable": False,
-		"auto_display_report": False,
-	}, [], queued)
+	plugin_module, _config, _ = _load_nvda_plugin(
+		monkeypatch,
+		{
+			"corrector_config_id": "deepseek-flash&DeepSeek",
+			"execution_channel": "Coseeing",
+			"api_key": {},
+			"language": "zh_traditional",
+			"typo_correction_mode": "standard",
+			"customized_words_enable": False,
+			"auto_display_report": False,
+		},
+		[],
+		queued,
+	)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	# correctTypo() now reads self.settings / self.correctorTaskConfig; see
 	# the plugin.settings comment in _load_nvda_plugin.
@@ -60,9 +69,15 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 	import dataclasses
 
 	sentinel_entry = plugin_module.catalog.get_coseeing("default")
-	instance.catalog = dataclasses.replace(plugin_module.catalog, coseeings=plugin_module.catalog.coseeings + (
-		dataclasses.replace(sentinel_entry, model="deepseek-flash", label="deepseek-flash", provider="DeepSeek"),
-	))
+	instance.catalog = dataclasses.replace(
+		plugin_module.catalog,
+		coseeings=plugin_module.catalog.coseeings
+		+ (
+			dataclasses.replace(
+				sentinel_entry, model="deepseek-flash", label="deepseek-flash", provider="DeepSeek"
+			),
+		),
+	)
 	monkeypatch.setattr(plugin_module.registry, "current", lambda: instance.catalog)
 	instance._degraded_catalog_announced = False
 	future = Future()
@@ -84,12 +99,16 @@ def test_proofreader_uses_completed_auth_future_and_preserves_payload(monkeypatc
 	monkeypatch.setattr(plugin_module, "strings_diff", lambda request, response: [])
 	monkeypatch.setattr(plugin_module.api, "copyToClip", lambda text: None, raising=False)
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=lambda message: None))
-	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
-		warning=lambda *args, **kwargs: None,
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	))
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args, **kwargs: None,
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		),
+	)
 	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
 
 	assert record == {
@@ -110,15 +129,20 @@ def test_degraded_catalog_announcement_fires_once_per_session(monkeypatch):
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	queued = []
-	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "default",
-		"execution_channel": "Coseeing",
-		"api_key": {},
-		"language": "zh_traditional",
-		"typo_correction_mode": "standard",
-		"customized_words_enable": False,
-		"auto_display_report": False,
-	}, [], queued)
+	plugin_module, _, _ = _load_nvda_plugin(
+		monkeypatch,
+		{
+			"corrector_config_id": "default",
+			"execution_channel": "Coseeing",
+			"api_key": {},
+			"language": "zh_traditional",
+			"typo_correction_mode": "standard",
+			"customized_words_enable": False,
+			"auto_display_report": False,
+		},
+		[],
+		queued,
+	)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	# correctTypo() now reads self.settings / self.correctorTaskConfig; see
 	# the plugin.settings comment in _load_nvda_plugin.
@@ -148,17 +172,23 @@ def test_degraded_catalog_announcement_fires_once_per_session(monkeypatch):
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
 	messages = []
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
-	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
-		warning=lambda *args, **kwargs: None,
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	))
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args, **kwargs: None,
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		),
+	)
 	monkeypatch.setattr(plugin_module, "strings_diff", lambda request, response: [])
 	monkeypatch.setattr(plugin_module.api, "copyToClip", lambda text: None, raising=False)
 
 	def post(url, **kwargs):
-		return SimpleNamespace(status_code=200, json=lambda: {"response": "修正", "interaction_id": "i-1", "cost": 0})
+		return SimpleNamespace(
+			status_code=200, json=lambda: {"response": "修正", "interaction_id": "i-1", "cost": 0}
+		)
 
 	monkeypatch.setattr(plugin_module.requests, "post", post, raising=False)
 
@@ -179,15 +209,20 @@ def test_proofreader_auth_failure_skips_post_and_queues_ui_notification(monkeypa
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	queued = []
-	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "default",
-		"execution_channel": "Coseeing",
-		"api_key": {},
-		"language": "zh_traditional",
-		"typo_correction_mode": "standard",
-		"customized_words_enable": False,
-		"auto_display_report": False,
-	}, [], queued)
+	plugin_module, _, _ = _load_nvda_plugin(
+		monkeypatch,
+		{
+			"corrector_config_id": "default",
+			"execution_channel": "Coseeing",
+			"api_key": {},
+			"language": "zh_traditional",
+			"typo_correction_mode": "standard",
+			"customized_words_enable": False,
+			"auto_display_report": False,
+		},
+		[],
+		queued,
+	)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	# correctTypo() now reads self.settings / self.correctorTaskConfig; see
 	# the plugin.settings comment in _load_nvda_plugin.
@@ -203,7 +238,9 @@ def test_proofreader_auth_failure_skips_post_and_queues_ui_notification(monkeypa
 	future.set_exception(RuntimeError("auth failed"))
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
 	posted = []
-	monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: posted.append(args), raising=False)
+	monkeypatch.setattr(
+		plugin_module.requests, "post", lambda *args, **kwargs: posted.append(args), raising=False
+	)
 	messages = []
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
 
@@ -220,15 +257,20 @@ def test_proofreader_termination_before_worker_request_skips_post_and_ui(monkeyp
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	queued = []
-	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "default",
-		"execution_channel": "Coseeing",
-		"api_key": {},
-		"language": "zh_traditional",
-		"typo_correction_mode": "standard",
-		"customized_words_enable": False,
-		"auto_display_report": False,
-	}, [], queued)
+	plugin_module, _, _ = _load_nvda_plugin(
+		monkeypatch,
+		{
+			"corrector_config_id": "default",
+			"execution_channel": "Coseeing",
+			"api_key": {},
+			"language": "zh_traditional",
+			"typo_correction_mode": "standard",
+			"customized_words_enable": False,
+			"auto_display_report": False,
+		},
+		[],
+		queued,
+	)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	# correctTypo() now reads self.settings / self.correctorTaskConfig; see
 	# the plugin.settings comment in _load_nvda_plugin.
@@ -245,8 +287,12 @@ def test_proofreader_termination_before_worker_request_skips_post_and_ui(monkeyp
 	future.set_result("access")
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
 	posted = []
-	monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: posted.append(args), raising=False)
-	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=lambda message: pytest.fail("UI updated")))
+	monkeypatch.setattr(
+		plugin_module.requests, "post", lambda *args, **kwargs: posted.append(args), raising=False
+	)
+	monkeypatch.setattr(
+		plugin_module, "ui", SimpleNamespace(message=lambda message: pytest.fail("UI updated"))
+	)
 	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
 	assert posted == []
 	assert queued == []
@@ -257,15 +303,20 @@ def test_proofreader_failures_use_stable_notification(monkeypatch, failure):
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	queued = []
-	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "default",
-		"execution_channel": "Coseeing",
-		"api_key": {},
-		"language": "zh_traditional",
-		"typo_correction_mode": "standard",
-		"customized_words_enable": False,
-		"auto_display_report": False,
-	}, [], queued)
+	plugin_module, _, _ = _load_nvda_plugin(
+		monkeypatch,
+		{
+			"corrector_config_id": "default",
+			"execution_channel": "Coseeing",
+			"api_key": {},
+			"language": "zh_traditional",
+			"typo_correction_mode": "standard",
+			"customized_words_enable": False,
+			"auto_display_report": False,
+		},
+		[],
+		queued,
+	)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	# correctTypo() now reads self.settings / self.correctorTaskConfig; see
 	# the plugin.settings comment in _load_nvda_plugin.
@@ -286,7 +337,12 @@ def test_proofreader_failures_use_stable_notification(monkeypatch, failure):
 		response = SimpleNamespace(status_code=503, json=lambda: {"detail": "secret"})
 		monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: response, raising=False)
 	elif failure == "connection":
-		monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("secret")), raising=False)
+		monkeypatch.setattr(
+			plugin_module.requests,
+			"post",
+			lambda *args, **kwargs: (_ for _ in ()).throw(OSError("secret")),
+			raising=False,
+		)
 	else:
 		response = SimpleNamespace(status_code=200, json=dict)
 		monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: response, raising=False)
@@ -304,14 +360,25 @@ def test_proofreader_failures_use_stable_notification(monkeypatch, failure):
 def test_feedback_connection_and_malformed_response_use_stable_messages(monkeypatch):
 	class ConnectionError(Exception):
 		pass
+
 	plugin_module, instance, queued, _, messages = _feedback_worker_fixture(
 		monkeypatch,
 		SimpleNamespace(status_code=500, json=lambda: {"unexpected": True}),
 	)
-	monkeypatch.setattr(plugin_module.requests, "exceptions", SimpleNamespace(
-		Timeout=type("Timeout", (Exception,), {}), RequestException=ConnectionError,
-	))
-	monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: (_ for _ in ()).throw(ConnectionError("secret")), raising=False)
+	monkeypatch.setattr(
+		plugin_module.requests,
+		"exceptions",
+		SimpleNamespace(
+			Timeout=type("Timeout", (Exception,), {}),
+			RequestException=ConnectionError,
+		),
+	)
+	monkeypatch.setattr(
+		plugin_module.requests,
+		"post",
+		lambda *args, **kwargs: (_ for _ in ()).throw(ConnectionError("secret")),
+		raising=False,
+	)
 	instance._send_coseeing_feedback("i-1", "回饋")
 	callback, args = queued.pop()
 	callback(*args)
@@ -329,14 +396,21 @@ def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeyp
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	queued = []
-	plugin_module, _, _gui = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-flash&DeepSeek",
-		"execution_channel": "Coseeing",
-		"api_key": {},
-	}, [], queued)
+	plugin_module, _, _gui = _load_nvda_plugin(
+		monkeypatch,
+		{
+			"corrector_config_id": "deepseek-flash&DeepSeek",
+			"execution_channel": "Coseeing",
+			"api_key": {},
+		},
+		[],
+		queued,
+	)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance._shutdown = threading.Event()
-	instance.latest_action = plugin_module.CorrectionAction(interaction_id="i-old", request="原文", response="修正")
+	instance.latest_action = plugin_module.CorrectionAction(
+		interaction_id="i-old", request="原文", response="修正"
+	)
 	future = Future()
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
 	record = {}
@@ -357,11 +431,14 @@ def test_feedback_snapshots_input_and_waits_for_auth_without_blocking_ui(monkeyp
 			# ShowModal runs a nested wx event loop; simulate a correction
 			# for a DIFFERENT task completing and publishing its snapshot
 			# while this dialog is still open, before returning ID_OK.
-			instance.latest_action = plugin_module.CorrectionAction(interaction_id="i-new", request="原文", response="修正")
+			instance.latest_action = plugin_module.CorrectionAction(
+				interaction_id="i-new", request="原文", response="修正"
+			)
 			return plugin_module.wx.ID_OK
 
 	monkeypatch.setattr(plugin_module, "FeedbackDialog", Dialog)
 	plugin_module.wx.ID_OK = plugin_module.wx.OK
+
 	def post(url, **kwargs):
 		record.update(url=url, **kwargs)
 		return SimpleNamespace(status_code=200, json=dict)
@@ -386,21 +463,29 @@ def test_feedback_auth_failure_skips_post_and_notifies_on_ui(monkeypatch):
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	queued = []
-	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-flash&DeepSeek",
-		"execution_channel": "Coseeing",
-		"api_key": {},
-	}, [], queued)
+	plugin_module, _, _ = _load_nvda_plugin(
+		monkeypatch,
+		{
+			"corrector_config_id": "deepseek-flash&DeepSeek",
+			"execution_channel": "Coseeing",
+			"api_key": {},
+		},
+		[],
+		queued,
+	)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance._shutdown = threading.Event()
 	future = Future()
 	future.set_exception(RuntimeError("auth failed"))
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
+
 	class Timeout(Exception):
 		pass
 
 	posted = []
-	monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: posted.append(args), raising=False)
+	monkeypatch.setattr(
+		plugin_module.requests, "post", lambda *args, **kwargs: posted.append(args), raising=False
+	)
 	monkeypatch.setattr(plugin_module.requests, "exceptions", SimpleNamespace(Timeout=Timeout), raising=False)
 	messages = []
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
@@ -418,11 +503,16 @@ def _feedback_worker_fixture(monkeypatch, response, access_token="access"):
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	queued = []
-	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-flash&DeepSeek",
-		"execution_channel": "Coseeing",
-		"api_key": {},
-	}, [], queued)
+	plugin_module, _, _ = _load_nvda_plugin(
+		monkeypatch,
+		{
+			"corrector_config_id": "deepseek-flash&DeepSeek",
+			"execution_channel": "Coseeing",
+			"api_key": {},
+		},
+		[],
+		queued,
+	)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance._shutdown = threading.Event()
 	future = Future()
@@ -435,6 +525,7 @@ def _feedback_worker_fixture(monkeypatch, response, access_token="access"):
 		lambda url, **kwargs: record.update(url=url, **kwargs) or response,
 		raising=False,
 	)
+
 	class Timeout(Exception):
 		pass
 
@@ -473,9 +564,12 @@ def test_feedback_401_notifies_on_ui_after_recording_http_error(monkeypatch):
 	assert "Authentication error" in messages[0]
 
 
-@pytest.mark.parametrize("response", [
-	SimpleNamespace(status_code=200, json=lambda: (_ for _ in ()).throw(ValueError("invalid json"))),
-])
+@pytest.mark.parametrize(
+	"response",
+	[
+		SimpleNamespace(status_code=200, json=lambda: (_ for _ in ()).throw(ValueError("invalid json"))),
+	],
+)
 def test_feedback_invalid_json_notifies_on_ui(monkeypatch, response):
 	_, instance, queued, _, messages = _feedback_worker_fixture(monkeypatch, response)
 
@@ -494,18 +588,28 @@ def test_feedback_timeout_notifies_on_ui(monkeypatch):
 		pass
 
 	queued = []
-	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "deepseek-flash&DeepSeek",
-		"execution_channel": "Coseeing",
-		"api_key": {},
-	}, [], queued)
+	plugin_module, _, _ = _load_nvda_plugin(
+		monkeypatch,
+		{
+			"corrector_config_id": "deepseek-flash&DeepSeek",
+			"execution_channel": "Coseeing",
+			"api_key": {},
+		},
+		[],
+		queued,
+	)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance._shutdown = threading.Event()
 	future = Future()
 	future.set_result("access")
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
 	monkeypatch.setattr(plugin_module.requests, "exceptions", SimpleNamespace(Timeout=Timeout), raising=False)
-	monkeypatch.setattr(plugin_module.requests, "post", lambda *args, **kwargs: (_ for _ in ()).throw(Timeout()), raising=False)
+	monkeypatch.setattr(
+		plugin_module.requests,
+		"post",
+		lambda *args, **kwargs: (_ for _ in ()).throw(Timeout()),
+		raising=False,
+	)
 	messages = []
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
 
@@ -531,15 +635,20 @@ def test_degraded_catalog_flag_is_set_only_after_the_notification_is_dispatched(
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	queued = []
-	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "default",
-		"execution_channel": "Coseeing",
-		"api_key": {},
-		"language": "zh_traditional",
-		"typo_correction_mode": "standard",
-		"customized_words_enable": False,
-		"auto_display_report": False,
-	}, [], queued)
+	plugin_module, _, _ = _load_nvda_plugin(
+		monkeypatch,
+		{
+			"corrector_config_id": "default",
+			"execution_channel": "Coseeing",
+			"api_key": {},
+			"language": "zh_traditional",
+			"typo_correction_mode": "standard",
+			"customized_words_enable": False,
+			"auto_display_report": False,
+		},
+		[],
+		queued,
+	)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
@@ -573,17 +682,23 @@ def test_degraded_catalog_flag_is_set_only_after_the_notification_is_dispatched(
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
 	messages = []
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
-	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
-		warning=lambda *args, **kwargs: None,
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	))
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args, **kwargs: None,
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		),
+	)
 	monkeypatch.setattr(plugin_module, "strings_diff", lambda request, response: [])
 	monkeypatch.setattr(plugin_module.api, "copyToClip", lambda text: None, raising=False)
 
 	def post(url, **kwargs):
-		return SimpleNamespace(status_code=200, json=lambda: {"response": "修正", "interaction_id": "i-1", "cost": 0})
+		return SimpleNamespace(
+			status_code=200, json=lambda: {"response": "修正", "interaction_id": "i-1", "cost": 0}
+		)
 
 	monkeypatch.setattr(plugin_module.requests, "post", post, raising=False)
 
@@ -608,15 +723,20 @@ def test_local_channel_notifies_and_returns_when_the_selected_model_is_gone(monk
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	queued = []
-	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "gpt-x&OpenAI",
-		"execution_channel": "local",
-		"api_key": {},
-		"language": "zh_traditional",
-		"typo_correction_mode": "standard",
-		"customized_words_enable": False,
-		"auto_display_report": False,
-	}, [], queued)
+	plugin_module, _, _ = _load_nvda_plugin(
+		monkeypatch,
+		{
+			"corrector_config_id": "gpt-x&OpenAI",
+			"execution_channel": "local",
+			"api_key": {},
+			"language": "zh_traditional",
+			"typo_correction_mode": "standard",
+			"customized_words_enable": False,
+			"auto_display_report": False,
+		},
+		[],
+		queued,
+	)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
@@ -629,15 +749,21 @@ def test_local_channel_notifies_and_returns_when_the_selected_model_is_gone(monk
 	# for -- normalize_selection() already keeps a *fresh* settings read from
 	# ever producing this, so the fake below stands in for the catalog having
 	# changed out from under an already-resolved selection.
-	monkeypatch.setattr(instance.settings, "corrector_selection", lambda catalog=None: ("ghost-model&OpenAI", "local"))
+	monkeypatch.setattr(
+		instance.settings, "corrector_selection", lambda catalog=None: ("ghost-model&OpenAI", "local")
+	)
 	messages = []
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
-	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
-		warning=lambda *args, **kwargs: None,
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	))
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args, **kwargs: None,
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		),
+	)
 
 	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
 
@@ -655,15 +781,20 @@ def test_local_channel_notifies_and_returns_when_the_selected_provider_is_gone(m
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
 	queued = []
-	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "",
-		"execution_channel": "",
-		"api_key": {},
-		"language": "zh_traditional",
-		"typo_correction_mode": "standard",
-		"customized_words_enable": False,
-		"auto_display_report": False,
-	}, [], queued)
+	plugin_module, _, _ = _load_nvda_plugin(
+		monkeypatch,
+		{
+			"corrector_config_id": "",
+			"execution_channel": "",
+			"api_key": {},
+			"language": "zh_traditional",
+			"typo_correction_mode": "standard",
+			"customized_words_enable": False,
+			"auto_display_report": False,
+		},
+		[],
+		queued,
+	)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
@@ -677,22 +808,31 @@ def test_local_channel_notifies_and_returns_when_the_selected_provider_is_gone(m
 	# the catalog changing out from under an already-resolved selection,
 	# which is exactly the race the ledger note flagged.
 	orphan_model = dataclasses.replace(
-		plugin_module.catalog.models[0], provider="GhostProvider", model="ghost-model",
+		plugin_module.catalog.models[0],
+		provider="GhostProvider",
+		model="ghost-model",
 	)
 	catalog = dataclasses.replace(
-		plugin_module.catalog, models=plugin_module.catalog.models + (orphan_model,),
+		plugin_module.catalog,
+		models=plugin_module.catalog.models + (orphan_model,),
 	)
 	instance.catalog = catalog
 	monkeypatch.setattr(plugin_module.registry, "current", lambda: catalog)
-	monkeypatch.setattr(instance.settings, "corrector_selection", lambda catalog=None: ("ghost-model&GhostProvider", "local"))
+	monkeypatch.setattr(
+		instance.settings, "corrector_selection", lambda catalog=None: ("ghost-model&GhostProvider", "local")
+	)
 	messages = []
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=messages.append))
-	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
-		warning=lambda *args, **kwargs: None,
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	))
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args, **kwargs: None,
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		),
+	)
 
 	plugin_module.GlobalPlugin.correctTypo(instance, "原文")
 
@@ -707,15 +847,20 @@ def test_local_channel_notifies_and_returns_when_the_selected_provider_is_gone(m
 def _local_plugin_instance(monkeypatch, queued):
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
-	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "gpt-6.1-sol&OpenAI",
-		"execution_channel": "local",
-		"api_key": {"OpenAI": "key"},
-		"language": "zh_traditional",
-		"typo_correction_mode": "standard",
-		"customized_words_enable": False,
-		"auto_display_report": False,
-	}, [], queued)
+	plugin_module, _, _ = _load_nvda_plugin(
+		monkeypatch,
+		{
+			"corrector_config_id": "gpt-6.1-sol&OpenAI",
+			"execution_channel": "local",
+			"api_key": {"OpenAI": "key"},
+			"language": "zh_traditional",
+			"typo_correction_mode": "standard",
+			"customized_words_enable": False,
+			"auto_display_report": False,
+		},
+		[],
+		queued,
+	)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig
@@ -726,12 +871,16 @@ def _local_plugin_instance(monkeypatch, queued):
 	instance._degraded_catalog_announced = False
 	monkeypatch.setattr(plugin_module.api, "copyToClip", lambda text: None, raising=False)
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=lambda message: None))
-	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
-		warning=lambda *args, **kwargs: None,
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	))
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args, **kwargs: None,
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		),
+	)
 	return plugin_module, instance
 
 
@@ -741,9 +890,15 @@ def test_local_channel_publishes_the_workflow_diff_without_recomputing_it(monkey
 	queued = []
 	plugin_module, instance = _local_plugin_instance(monkeypatch, queued)
 	runner_diff = [{"operation": "replace", "before_text": "原", "after_text": "修"}]
-	monkeypatch.setattr(plugin_module, "run_typo_correction", lambda **kwargs: SimpleNamespace(
-		corrected_text="修文", diff=runner_diff, cost=Decimal(0),
-	))
+	monkeypatch.setattr(
+		plugin_module,
+		"run_typo_correction",
+		lambda **kwargs: SimpleNamespace(
+			corrected_text="修文",
+			diff=runner_diff,
+			cost=Decimal(0),
+		),
+	)
 
 	def strings_diff(request, response):
 		raise AssertionError("the local channel must reuse TypoCorrectionResult.diff")
@@ -770,15 +925,20 @@ class _RecordingFuture:
 def _coseeing_plugin_instance(monkeypatch, queued, messages):
 	from test_coseeing_auth_nvda import _load_nvda_plugin
 
-	plugin_module, _, _ = _load_nvda_plugin(monkeypatch, {
-		"corrector_config_id": "default",
-		"execution_channel": "Coseeing",
-		"api_key": {},
-		"language": "zh_traditional",
-		"typo_correction_mode": "standard",
-		"customized_words_enable": False,
-		"auto_display_report": False,
-	}, [], queued)
+	plugin_module, _, _ = _load_nvda_plugin(
+		monkeypatch,
+		{
+			"corrector_config_id": "default",
+			"execution_channel": "Coseeing",
+			"api_key": {},
+			"language": "zh_traditional",
+			"typo_correction_mode": "standard",
+			"customized_words_enable": False,
+			"auto_display_report": False,
+		},
+		[],
+		queued,
+	)
 	instance = object.__new__(plugin_module.GlobalPlugin)
 	instance.settings = plugin_module.settings
 	instance.correctorTaskConfig = plugin_module.correctorTaskConfig

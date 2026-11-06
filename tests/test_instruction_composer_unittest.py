@@ -78,7 +78,10 @@ class InstructionComposerTests(unittest.TestCase):
 
 		self.assertIn("我說天器&", prompt_bundle.messages[-1]["content"])
 		self.assertIn("wo3 shuo1 tian1 qi4", prompt_bundle.messages[-1]["content"])
-		self.assertEqual(prompt_bundle.system_template, "輸入為文字與其正確拼音，請修正錯字並輸出正確文字:\n(文字&拼音) => 文字")
+		self.assertEqual(
+			prompt_bundle.system_template,
+			"輸入為文字與其正確拼音，請修正錯字並輸出正確文字:\n(文字&拼音) => 文字",
+		)
 
 
 if __name__ == "__main__":

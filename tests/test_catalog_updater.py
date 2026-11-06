@@ -7,8 +7,12 @@ from plugin_modules import load_plugin_module
 from shipped_catalog import bundled_document, served_document, server_document, shipped_overlay
 
 updater_module = load_plugin_module("catalog_updater")
-cache_module = __import__(updater_module.__name__.rsplit(".", 1)[0] + ".lib.catalog.cache", fromlist=["CatalogCache"])
-remote_module = __import__(updater_module.__name__.rsplit(".", 1)[0] + ".lib.catalog.remote", fromlist=["validate_catalog_url"])
+cache_module = __import__(
+	updater_module.__name__.rsplit(".", 1)[0] + ".lib.catalog.cache", fromlist=["CatalogCache"]
+)
+remote_module = __import__(
+	updater_module.__name__.rsplit(".", 1)[0] + ".lib.catalog.remote", fromlist=["validate_catalog_url"]
+)
 CatalogUpdater = updater_module.CatalogUpdater
 SUPPORTED = frozenset({"Anthropic", "DeepSeek", "Google", "Ollama", "OpenAI", "OpenRouter"})
 
@@ -93,7 +97,9 @@ class Harness:
 		self.installed = []
 		self.shutdown = threading.Event()
 		self.log = FakeLog()
-		self.cache = SpyCache(cache_module.CatalogCache(tmp_path / "catalog" / "remote-catalog.json", can_write=lambda: True))
+		self.cache = SpyCache(
+			cache_module.CatalogCache(tmp_path / "catalog" / "remote-catalog.json", can_write=lambda: True)
+		)
 		self.updater = CatalogUpdater(
 			bundled_source=BundledSentinel(),
 			cache=self.cache,
@@ -153,7 +159,9 @@ def test_startup_with_a_cache_uses_it(tmp_path):
 
 
 def _local_ids(catalog):
-	return [item.corrector_config_id for item in catalog.selectable_items if item.execution_channel == "local"]
+	return [
+		item.corrector_config_id for item in catalog.selectable_items if item.execution_channel == "local"
+	]
 
 
 def test_a_cache_of_the_served_document_loads_with_the_bundled_providers(tmp_path):
@@ -174,7 +182,13 @@ def test_a_cache_of_the_served_document_loads_with_the_bundled_providers(tmp_pat
 def _with_hostile_providers():
 	document = server_document()
 	document["providers"] = {
-		name: {"label": "Evil", "url": "https://evil.test/", "setting": {"evil": True}, "timeout0": 1, "timeout_max": 2}
+		name: {
+			"label": "Evil",
+			"url": "https://evil.test/",
+			"setting": {"evil": True},
+			"timeout0": 1,
+			"timeout_max": 2,
+		}
 		for name in document["providers"]
 	}
 	return document
@@ -184,7 +198,11 @@ def _assert_bundled_provider_entries(catalog):
 	for name, data in bundled_document()["providers"].items():
 		entry = catalog.get_provider(name)
 		assert (entry.label, entry.url, entry.setting, entry.timeout0, entry.timeout_max) == (
-			data["label"], data["url"], data["setting"], data["timeout0"], data["timeout_max"],
+			data["label"],
+			data["url"],
+			data["setting"],
+			data["timeout0"],
+			data["timeout_max"],
 		), name
 
 
@@ -235,8 +253,11 @@ def test_a_fetch_without_bundled_providers_is_logged_by_code(tmp_path):
 	assert h.installed == []
 	assert h.status() == ("none", "failed")
 	assert (
-		"warning", "WordBridge: catalog fetch failed host=%s code=%s type=%s",
-		"https://a.test", "bundled_source_failed", "no_providers",
+		"warning",
+		"WordBridge: catalog fetch failed host=%s code=%s type=%s",
+		"https://a.test",
+		"bundled_source_failed",
+		"no_providers",
 	) in h.log.records
 
 
@@ -261,7 +282,12 @@ def test_a_cached_payload_failing_acceptance_is_ignored(tmp_path):
 	# Spec section 10: a cached payload failing acceptance is an unreadable
 	# cache, logged with the type of problem only.
 	assert [record for record in h.log.records if record[0] == "warning"] == [
-		("warning", "WordBridge: catalog cache problem code=%s type=%s", "unreadable_cache", "remote_no_models"),
+		(
+			"warning",
+			"WordBridge: catalog cache problem code=%s type=%s",
+			"unreadable_cache",
+			"remote_no_models",
+		),
 	]
 
 
@@ -301,7 +327,13 @@ def test_a_failed_refresh_keeps_the_catalog_and_cache(tmp_path):
 	assert h.installed == []
 	assert h.status() == ("cache", "failed")
 	assert h.cache.inner.load(_key(URL_A))[0] == _payload("cached")
-	assert ("warning", "WordBridge: catalog fetch failed host=%s code=%s type=%s", "https://a.test", "remote_http_status", "500") in h.log.records
+	assert (
+		"warning",
+		"WordBridge: catalog fetch failed host=%s code=%s type=%s",
+		"https://a.test",
+		"remote_http_status",
+		"500",
+	) in h.log.records
 
 
 def test_a_rejected_payload_is_not_cached_or_installed(tmp_path):
@@ -467,7 +499,13 @@ def test_a_success_log_names_the_host_bytes_and_models(tmp_path):
 	h.threads[0].run()
 	h.deliver()
 
-	assert ("info", "WordBridge: catalog fetched host=%s bytes=%d models=%d", "https://a.test", len(body), 1) in h.log.records
+	assert (
+		"info",
+		"WordBridge: catalog fetched host=%s bytes=%d models=%d",
+		"https://a.test",
+		len(body),
+		1,
+	) in h.log.records
 
 
 def test_an_unexpected_exception_in_the_thread_reports_failure(tmp_path, monkeypatch):
@@ -620,10 +658,14 @@ def test_a_failed_cache_write_still_installs_the_catalog(tmp_path, cache_class):
 	assert "secret" not in h.log.text()
 
 
-@pytest.mark.parametrize("url", [
-	remote_module.DEFAULT_CATALOG_URL,
-	"HTTPS://WordBridge.Coseeing.ORG",
-], ids=["default-url", "upper-case-host"])
+@pytest.mark.parametrize(
+	"url",
+	[
+		remote_module.DEFAULT_CATALOG_URL,
+		"HTTPS://WordBridge.Coseeing.ORG",
+	],
+	ids=["default-url", "upper-case-host"],
+)
 def test_the_cache_is_stored_under_the_key_and_used_at_the_next_start(tmp_path, url):
 	# The URL as typed is not the key here (no trailing slash, upper case),
 	# so a cache stored under the URL would never be found again.
@@ -689,7 +731,10 @@ def test_a_failing_bundled_source_is_not_logged_as_a_bad_cache_payload(tmp_path)
 	assert catalog.degraded
 	assert h.status() == ("none", "running")
 	assert (
-		"warning", "WordBridge: catalog cache problem code=%s type=%s", "unreadable_cache", "bundled_source_failed",
+		"warning",
+		"WordBridge: catalog cache problem code=%s type=%s",
+		"unreadable_cache",
+		"bundled_source_failed",
 	) in h.log.records
 
 
@@ -735,6 +780,7 @@ def test_a_url_change_logs_the_new_source_and_a_same_url_refresh_does_not(tmp_pa
 # It is what the user can choose from until a remote payload is accepted,
 # and whenever none can be loaded -- including with the URL emptied.
 
+
 class ShippedBundled:
 	"""The shipped bundled file: providers, the sentinel and the models."""
 
@@ -748,7 +794,11 @@ def _bundled_harness(tmp_path, responses=None):
 	return h
 
 
-BUNDLED_LOCAL_IDS = [f"{entry['model']}&{entry['provider']}" for entry in bundled_document()["models"] if entry.get("active", True)]
+BUNDLED_LOCAL_IDS = [
+	f"{entry['model']}&{entry['provider']}"
+	for entry in bundled_document()["models"]
+	if entry.get("active", True)
+]
 
 
 def test_startup_without_a_cache_offers_the_bundled_models(tmp_path):
@@ -759,7 +809,13 @@ def test_startup_without_a_cache_offers_the_bundled_models(tmp_path):
 	assert _local_ids(catalog) == BUNDLED_LOCAL_IDS
 	assert catalog.labels_for("Coseeing") == ("default",)
 	assert h.status() == ("bundled", "running")
-	assert ("info", "WordBridge: catalog source=%s fetch=%s host=%s", "bundled", "running", "https://a.test") in h.log.records
+	assert (
+		"info",
+		"WordBridge: catalog source=%s fetch=%s host=%s",
+		"bundled",
+		"running",
+		"https://a.test",
+	) in h.log.records
 
 
 def test_a_cache_wins_over_the_bundled_models(tmp_path):

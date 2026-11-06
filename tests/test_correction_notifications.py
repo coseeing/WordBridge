@@ -52,12 +52,16 @@ def test_unformattable_cost_reports_an_explicit_unavailable_state(monkeypatch):
 	monkeypatch.setattr(plugin_module, "decimal_to_str_0", real_decimal_to_str_0)
 	notified = []
 	warnings = []
-	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
-		warning=lambda *args, **kwargs: warnings.append(args),
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	))
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args, **kwargs: warnings.append(args),
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		),
+	)
 
 	class _Unformattable:
 		# __str__ deliberately returns something Decimal(...) cannot parse.

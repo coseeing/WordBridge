@@ -37,7 +37,16 @@ class FakeRaw:
 
 
 class FakeResponse:
-	def __init__(self, status_code=200, headers=None, chunks=(), raise_on_iter=None, clock=None, tick_at=None, drip_seconds=0):
+	def __init__(
+		self,
+		status_code=200,
+		headers=None,
+		chunks=(),
+		raise_on_iter=None,
+		clock=None,
+		tick_at=None,
+		drip_seconds=0,
+	):
 		self.status_code = status_code
 		self.headers = headers if headers is not None else {}
 		self.chunks = list(chunks)
@@ -98,12 +107,17 @@ def test_the_call_uses_exactly_the_specified_arguments():
 
 	_fetch(FakeResponse(chunks=[b"{}"]), calls)
 
-	assert calls == [((URL,), {
-		"stream": True,
-		"timeout": (5, 10),
-		"allow_redirects": False,
-		"headers": {"Accept": "application/json"},
-	})]
+	assert calls == [
+		(
+			(URL,),
+			{
+				"stream": True,
+				"timeout": (5, 10),
+				"allow_redirects": False,
+				"headers": {"Accept": "application/json"},
+			},
+		)
+	]
 
 
 def test_status_200_returns_the_body():
@@ -123,7 +137,11 @@ def test_non_200_is_rejected_with_the_number(status):
 	result = _fetch(response)
 
 	assert result.body is None
-	assert (result.issue.code, result.issue.location, result.issue.detail) == ("remote_http_status", "fetch", str(status))
+	assert (result.issue.code, result.issue.location, result.issue.detail) == (
+		"remote_http_status",
+		"fetch",
+		str(status),
+	)
 	assert response.iterated is False
 
 
@@ -197,7 +215,9 @@ def test_an_exception_from_http_get_gives_request_failed_with_the_type_only():
 
 
 def test_an_exception_while_reading_gives_request_failed_and_closes():
-	response = FakeResponse(chunks=[b"a", b"b"], raise_on_iter=TimeoutError("read timed out: https://h.test/x"))
+	response = FakeResponse(
+		chunks=[b"a", b"b"], raise_on_iter=TimeoutError("read timed out: https://h.test/x")
+	)
 
 	result = _fetch(response)
 
@@ -205,12 +225,16 @@ def test_an_exception_while_reading_gives_request_failed_and_closes():
 	assert response.closed is True
 
 
-@pytest.mark.parametrize("make", [
-	lambda clock: FakeResponse(chunks=[b"{}"]),
-	lambda clock: FakeResponse(status_code=404),
-	lambda clock: FakeResponse(headers={"Content-Length": str(LIMIT + 1)}),
-	lambda clock: FakeResponse(chunks=[b"a", b"b"], clock=clock, tick_at={1: 21}),
-], ids=["ok", "status", "too-large-header", "timeout"])
+@pytest.mark.parametrize(
+	"make",
+	[
+		lambda clock: FakeResponse(chunks=[b"{}"]),
+		lambda clock: FakeResponse(status_code=404),
+		lambda clock: FakeResponse(headers={"Content-Length": str(LIMIT + 1)}),
+		lambda clock: FakeResponse(chunks=[b"a", b"b"], clock=clock, tick_at={1: 21}),
+	],
+	ids=["ok", "status", "too-large-header", "timeout"],
+)
 def test_the_response_is_closed_in_every_case(make):
 	clock = FakeClock()
 	response = make(clock)
@@ -239,11 +263,15 @@ def test_an_empty_read_ends_the_body():
 	assert response.consumed == 2  # the data, then the empty end-of-body read
 
 
-@pytest.mark.parametrize("headers", [
-	{"Content-Length": "100000"},
-	{},
-	{"Transfer-Encoding": "chunked"},
-], ids=["content-length", "close-delimited", "chunked"])
+@pytest.mark.parametrize(
+	"headers",
+	[
+		{"Content-Length": "100000"},
+		{},
+		{"Transfer-Encoding": "chunked"},
+	],
+	ids=["content-length", "close-delimited", "chunked"],
+)
 def test_a_dripping_server_times_out_at_the_deadline(headers):
 	# One byte per read, 0.4 s apart: every gap is far below the 10 s socket
 	# read timeout, so only the overall deadline can stop it.

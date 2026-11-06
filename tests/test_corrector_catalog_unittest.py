@@ -71,7 +71,9 @@ class CorrectorCatalogTests(unittest.TestCase):
 	def test_a_stored_coseeing_id_offered_on_coseeing_is_kept(self):
 		from lib.catalog.selection import normalize_selection
 
-		self.assertEqual(normalize_selection(shipped_catalog(), "default", "Coseeing"), ("default", "Coseeing"))
+		self.assertEqual(
+			normalize_selection(shipped_catalog(), "default", "Coseeing"), ("default", "Coseeing")
+		)
 
 	def test_a_stored_local_id_still_resolves_locally(self):
 		from lib.catalog.selection import normalize_selection

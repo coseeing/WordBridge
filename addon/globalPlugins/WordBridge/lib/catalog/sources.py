@@ -25,17 +25,21 @@ class BundledCatalogSource:
 			with path.open("r", encoding="utf8") as handle:
 				data = json.load(handle)
 		except (OSError, ValueError) as error:
-			issues.append(CatalogIssue(
-				"unreadable_file",
-				str(path.name),
-				f"{type(error).__name__}: {error}",
-			))
+			issues.append(
+				CatalogIssue(
+					"unreadable_file",
+					str(path.name),
+					f"{type(error).__name__}: {error}",
+				)
+			)
 			return None
 		if not isinstance(data, dict):
-			issues.append(CatalogIssue(
-				"unreadable_file",
-				str(path.name),
-				f"expected a JSON object, got {type(data).__name__}",
-			))
+			issues.append(
+				CatalogIssue(
+					"unreadable_file",
+					str(path.name),
+					f"expected a JSON object, got {type(data).__name__}",
+				)
+			)
 			return None
 		return data

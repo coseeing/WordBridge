@@ -48,7 +48,9 @@ def fetched_catalog(body: bytes, runnable_providers=SUPPORTED_PROVIDERS):
 	assert result.issue is None
 	document, issues = parse_remote_payload(result.body)
 	assert issues == ()
-	return load_overlay_catalog(BundledCatalogSource(ADDON_SETTING_DIR), document, runnable_providers=runnable_providers)
+	return load_overlay_catalog(
+		BundledCatalogSource(ADDON_SETTING_DIR), document, runnable_providers=runnable_providers
+	)
 
 
 def in_memory_catalog(remote_document):
@@ -76,13 +78,15 @@ def test_a_fetched_payload_behaves_exactly_like_the_same_documents_from_disk():
 
 def test_a_remote_document_can_add_a_model_with_no_code_change():
 	document = served_document()
-	document["models"] = document["models"] + [{
-		"provider": "OpenAI",
-		"model": "gpt-9-future",
-		"label": "GPT 9 Future",
-		"pricing": {"input_tokens": 1, "output_tokens": 2, "base_unit": 1000000},
-		"usage_key": "usage",
-	}]
+	document["models"] = document["models"] + [
+		{
+			"provider": "OpenAI",
+			"model": "gpt-9-future",
+			"label": "GPT 9 Future",
+			"pricing": {"input_tokens": 1, "output_tokens": 2, "base_unit": 1000000},
+			"usage_key": "usage",
+		}
+	]
 
 	catalog = fetched_catalog(_body(document))
 
@@ -94,7 +98,9 @@ def test_a_model_for_a_provider_this_release_does_not_bundle_is_dropped():
 	# Providers are bundled, so a remote document cannot add one: a model for
 	# a provider only a newer release has is dropped, its siblings kept.
 	document = served_document()
-	document["models"] = document["models"] + [{"provider": "Mistral", "model": "m-large", "label": "M Large"}]
+	document["models"] = document["models"] + [
+		{"provider": "Mistral", "model": "m-large", "label": "M Large"}
+	]
 
 	catalog = fetched_catalog(_body(document))
 
@@ -148,7 +154,9 @@ def test_a_source_reporting_no_issues_as_none_degrades_instead_of_raising():
 def test_issues_a_source_reports_reach_the_catalog():
 	issue = CatalogIssue("unreadable_file", "remote-payload.json", "simulated 500")
 
-	catalog = load_catalog(InMemorySource(server_document(), (issue,)), runnable_providers=SUPPORTED_PROVIDERS)
+	catalog = load_catalog(
+		InMemorySource(server_document(), (issue,)), runnable_providers=SUPPORTED_PROVIDERS
+	)
 
 	assert issue in catalog.issues
 

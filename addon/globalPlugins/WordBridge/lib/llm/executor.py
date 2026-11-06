@@ -6,6 +6,7 @@ from .result import LLMExecutionResult
 
 try:
 	import addonHandler
+
 	addonHandler.initTranslation()
 except ImportError:
 	pass
@@ -16,6 +17,7 @@ except ImportError:
 try:
 	_  # noqa: B018
 except NameError:
+
 	def _(s):
 		return s
 
@@ -34,7 +36,9 @@ class LLMExecutor:
 	def ensure_connection(self):
 		self.provider_object.try_connection()
 
-	def execute(self, input_text: str, prompt_strategy, text_policy, previous_results: list | None = None) -> LLMExecutionResult:
+	def execute(
+		self, input_text: str, prompt_strategy, text_policy, previous_results: list | None = None
+	) -> LLMExecutionResult:
 		previous_results = previous_results or []
 		if not text_policy.has_target_language(input_text):
 			return LLMExecutionResult(input_text, input_text, {}, {})

@@ -35,10 +35,12 @@ class CatalogIssue:
 # CatalogIssue, so a caller like the settings panel can ask "was anything
 # actually dropped" without hard-coding the validation vocabulary itself
 # (lib/catalog owns it, and may not reach _()).
-LINT_ISSUE_CODES = frozenset({
-	"unreferenced_provider",
-	"unknown_provider",
-})
+LINT_ISSUE_CODES = frozenset(
+	{
+		"unreferenced_provider",
+		"unknown_provider",
+	}
+)
 
 
 def is_dropped_issue(issue: CatalogIssue) -> bool:
@@ -122,21 +124,25 @@ class CorrectorCatalog:
 		for entry in self.models:
 			if not entry.active:
 				continue
-			groups.setdefault(entry.provider, []).append(SelectableItem(
-				provider_group=entry.provider,
-				corrector_config_id=entry.corrector_config_id,
-				execution_channel=LOCAL_CHANNEL,
-				label=entry.label,
-			))
+			groups.setdefault(entry.provider, []).append(
+				SelectableItem(
+					provider_group=entry.provider,
+					corrector_config_id=entry.corrector_config_id,
+					execution_channel=LOCAL_CHANNEL,
+					label=entry.label,
+				)
+			)
 		for entry in self.coseeings:
 			if not entry.active:
 				continue
-			groups.setdefault(COSEEING_GROUP, []).append(SelectableItem(
-				provider_group=COSEEING_GROUP,
-				corrector_config_id=entry.corrector_config_id,
-				execution_channel=COSEEING_GROUP,
-				label=entry.label,
-			))
+			groups.setdefault(COSEEING_GROUP, []).append(
+				SelectableItem(
+					provider_group=COSEEING_GROUP,
+					corrector_config_id=entry.corrector_config_id,
+					execution_channel=COSEEING_GROUP,
+					label=entry.label,
+				)
+			)
 		object.__setattr__(self, "_groups", {name: tuple(items) for name, items in groups.items()})
 
 	@property
@@ -154,11 +160,7 @@ class CorrectorCatalog:
 
 	@property
 	def selectable_items(self) -> tuple:
-		return tuple(
-			item
-			for group in self.provider_groups
-			for item in self._groups[group]
-		)
+		return tuple(item for group in self.provider_groups for item in self._groups[group])
 
 	def get_model(self, corrector_config_id: str):
 		for entry in self.models:

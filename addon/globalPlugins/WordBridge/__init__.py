@@ -97,7 +97,9 @@ if not _CRYPTOGRAPHY_GAPFILL_INSTALLED:
 for _gapfill_name, _gapfill_error in _STDLIB_GAPFILL_FAILURES:
 	log.warning(
 		"WordBridge: stdlib gap-fill module failed to load name=%s type=%s: %s",
-		_gapfill_name, type(_gapfill_error).__name__, _gapfill_error,
+		_gapfill_name,
+		type(_gapfill_error).__name__,
+		_gapfill_error,
 	)
 
 CORRECTOR_TASK_CONFIG_PATH = os.path.join(PATH, "setting", "task", "corrector.json")
@@ -173,6 +175,7 @@ def _schedule_catalog_retry(delay_ms, callback):
 
 def _start_catalog_thread(target, args):
 	return catalog_updater.start_daemon_thread(target, args)
+
 
 # Progress cue cadence, preserved from the sleep-polling loop this replaced:
 # the wave started immediately and repeated, the beep started after a beat.
@@ -254,15 +257,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# total-catch approach for exactly this reason.
 			log.warning(
 				"WordBridge: could not load the corrector task config type=%s: %s",
-				type(error).__name__, error,
+				type(error).__name__,
+				error,
 			)
 			# Deferred the same way _start_coseeing_auth is deferred below:
 			# self._notify() -> self._run_on_ui() schedules the real
 			# ui.message() call via wx.CallAfter() instead of calling it here,
 			# synchronously, mid-construction, before NVDA's UI is ready for it.
-			self._notify(_(
-				"The bundled correction settings file is damaged; WordBridge is using its built-in defaults."
-			))
+			self._notify(
+				_(
+					"The bundled correction settings file is damaged; WordBridge is using its built-in defaults."
+				)
+			)
 			return CorrectorTaskConfig(
 				template_name={"standard": "Standard_v1.json", "lite": "Lite_v1.json"},
 				optional_guidance_enable={"keep_non_chinese_char": True, "no_explanation": True},
@@ -375,7 +381,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		for issue in catalog.issues:
 			log.warning(
 				"WordBridge: catalog issue code=%s location=%s: %s",
-				issue.code, loggable(issue.location), loggable(issue.detail),
+				issue.code,
+				loggable(issue.location),
+				loggable(issue.detail),
 			)
 
 	def terminate(self, *args, **kwargs):
@@ -441,10 +449,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def _run_on_ui(self, function, *args):
 		if self._shutdown.is_set():
 			return
+
 		def deliver():
 			if self._shutdown.is_set():
 				return
 			function(*args)
+
 		try:
 			wx.CallAfter(deliver)
 		except Exception:  # noqa: BLE001
@@ -507,14 +517,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def onSettings(self, evt):
 		wx.CallAfter(
-			gui.mainFrame.popupSettingsDialog,
-			gui.settingsDialogs.NVDASettingsDialog,
-			LLMSettingsPanel
+			gui.mainFrame.popupSettingsDialog, gui.settingsDialogs.NVDASettingsDialog, LLMSettingsPanel
 		)
 
 	def OnPreview(self, file):
 		def openfile():
 			os.startfile(file)
+
 		self._run_on_ui(openfile)
 
 	def showReport(self, diff_data):
@@ -535,16 +544,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		max_char_count = self.settings.max_char_count()
 		if len(text) > max_char_count:
 			ui.message(
-				_("The number of characters is {len_text}, which exceeds the maximum, {max_char_count}.").format(
-					len_text=len(text),
-					max_char_count=max_char_count
-				)
+				_(
+					"The number of characters is {len_text}, which exceeds the maximum, {max_char_count}."
+				).format(len_text=len(text), max_char_count=max_char_count)
 			)
 			log.warning(
-				_("The number of characters is {len_text}, which exceeds the maximum, {max_char_count}.").format(
-					len_text=len(text),
-					max_char_count=max_char_count
-				)
+				_(
+					"The number of characters is {len_text}, which exceeds the maximum, {max_char_count}."
+				).format(len_text=len(text), max_char_count=max_char_count)
 			)
 			return False
 		elif len(text) == 0:
@@ -601,11 +608,19 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if execution_channel == LOCAL_CHANNEL:
 			model_entry = catalog.get_model(corrector_config_id)
 			if model_entry is None:
-				self._notify(_("The selected model is no longer available. Please choose another one in WordBridge settings."))
+				self._notify(
+					_(
+						"The selected model is no longer available. Please choose another one in WordBridge settings."
+					)
+				)
 				return
 			provider_entry = catalog.get_provider(model_entry.provider)
 			if provider_entry is None:
-				self._notify(_("The selected provider is no longer available. Please choose another one in WordBridge settings."))
+				self._notify(
+					_(
+						"The selected provider is no longer available. Please choose another one in WordBridge settings."
+					)
+				)
 				return
 			credential = {"api_key": self.settings.api_key(model_entry.provider)}
 
@@ -631,8 +646,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				# The user has already been notified. Re-raising here only
 				# leaves an unhandled exception in a worker thread, which
 				# lands in the NVDA log with nothing to act on.
-				self._notify(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
-				log.warning(_("Sorry, an error occurred during the program execution, the details are: {e}").format(e=e))
+				self._notify(
+					_("Sorry, an error occurred during the program execution, the details are: {e}").format(
+						e=e
+					)
+				)
+				log.warning(
+					_("Sorry, an error occurred during the program execution, the details are: {e}").format(
+						e=e
+					)
+				)
 				return
 			response = result.corrected_text
 			diff = result.diff
@@ -656,7 +679,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				"customized_words": customized_words,
 			}
 			try:
-				data = self._post_coseeing_request(f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data)
+				data = self._post_coseeing_request(
+					f"{COSEEING_BASE_URL}/proofreader", headers=headers, json=data
+				)
 			except Exception as error:  # noqa: BLE001
 				timeout_type = getattr(getattr(requests, "exceptions", None), "Timeout", None)
 				message = (
@@ -669,12 +694,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			if data is None or self._shutdown.is_set():
 				return
 			if data.status_code == 401:
-				self._notify(_("Authentication error. Please sign in to Coseeing or check your account permissions."))
+				self._notify(
+					_("Authentication error. Please sign in to Coseeing or check your account permissions.")
+				)
 				return
 			elif data.status_code == 429:
 				self._notify(
-					_("Rate limit reached for requests or you exceeded your current quota. ") +\
-					_("Please reduce the frequency of sending requests or check your account balance.")
+					_("Rate limit reached for requests or you exceeded your current quota. ")
+					+ _("Please reduce the frequency of sending requests or check your account balance.")
 				)
 				return
 			elif data.status_code >= 400:
@@ -690,12 +717,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				return
 			diff = strings_diff(request, response)
 
-		self._run_on_ui(self._publish_latest_action, CorrectionAction(
-			request=request,
-			response=response,
-			diff=diff,
-			interaction_id=interaction_id,
-		))
+		self._run_on_ui(
+			self._publish_latest_action,
+			CorrectionAction(
+				request=request,
+				response=response,
+				diff=diff,
+				interaction_id=interaction_id,
+			),
+		)
 
 		if request == response:
 			self._notify(_("No errors in the selected text."))
@@ -721,7 +751,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if self._shutdown.is_set():
 			return
 		if self.correct_typo_thread is not None and self.correct_typo_thread.is_alive():
-			self._notify(_("Only one proofreading task can run at a time. Please wait until the current task has finished before starting another."))
+			self._notify(
+				_(
+					"Only one proofreading task can run at a time. Please wait until the current task has finished before starting another."
+				)
+			)
 			return
 
 		self.correct_typo_thread = threading.Thread(target=self._run_correction, args=(text,), daemon=True)
@@ -784,10 +818,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def script_correction(self, gesture):
 		if self.isNVDASettingsDialogCreate():
 			ui.message(
-				_("The function cannot be executed. Please finish the configuration and close the setting window.")
+				_(
+					"The function cannot be executed. Please finish the configuration and close the setting window."
+				)
 			)
 			log.warning(
-				_("The function cannot be executed. Please finish the configuration and close the setting window.")
+				_(
+					"The function cannot be executed. Please finish the configuration and close the setting window."
+				)
 			)
 			return
 
@@ -808,9 +846,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	)
 	def script_openWordBridgeSettings(self, gesture):
 		wx.CallAfter(
-			gui.mainFrame.popupSettingsDialog,
-			gui.settingsDialogs.NVDASettingsDialog,
-			LLMSettingsPanel
+			gui.mainFrame.popupSettingsDialog, gui.settingsDialogs.NVDASettingsDialog, LLMSettingsPanel
 		)
 
 	@script(
@@ -850,9 +886,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			if self._shutdown.is_set():
 				return
 			with FeedbackDialog(
-				gui.mainFrame,
-				latest_action.request,
-				latest_action.response
+				gui.mainFrame, latest_action.request, latest_action.response
 			) as feedbackDialog:
 				if feedbackDialog.ShowModal() != wx.ID_OK:
 					return
@@ -888,13 +922,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		message = None
 		try:
 			response = self._post_coseeing_request(
-				f"{COSEEING_BASE_URL}/feedback", headers=headers,
-				json={"interaction_id": interaction_id, "review_content": feedback_value}
+				f"{COSEEING_BASE_URL}/feedback",
+				headers=headers,
+				json={"interaction_id": interaction_id, "review_content": feedback_value},
 			)
 			if response is None or self._shutdown.is_set():
 				return
 			if response.status_code == 401:
-				message = _("Authentication error. Please sign in to Coseeing or check your account permissions.")
+				message = _(
+					"Authentication error. Please sign in to Coseeing or check your account permissions."
+				)
 			elif response.status_code >= 400:
 				message = _("Sorry, the Coseeing feedback request failed. Please try again later.")
 			else:

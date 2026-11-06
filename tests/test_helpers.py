@@ -36,6 +36,7 @@ def run_workflow_or_skip_transient_failure(workflow, test_text, batch_mode=True)
 			pytest.skip(f"Transient provider failure: {message}")
 		raise
 
+
 def print_test_results(model_name, test_text, response, diff, corrector):
 	cost = corrector.get_total_cost()
 

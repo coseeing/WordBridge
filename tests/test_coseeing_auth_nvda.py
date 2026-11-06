@@ -39,7 +39,9 @@ _TEMPORARY_IMPORT_MODULES = {
 	"addonHandler": types.ModuleType("addonHandler"),
 	"_wb_vendor.authlib": types.ModuleType("_wb_vendor.authlib"),
 	"_wb_vendor.authlib.integrations": types.ModuleType("_wb_vendor.authlib.integrations"),
-	"_wb_vendor.authlib.integrations.base_client": types.ModuleType("_wb_vendor.authlib.integrations.base_client"),
+	"_wb_vendor.authlib.integrations.base_client": types.ModuleType(
+		"_wb_vendor.authlib.integrations.base_client"
+	),
 	"_wb_vendor.authlib.integrations.base_client.errors": types.ModuleType(
 		"_wb_vendor.authlib.integrations.base_client.errors"
 	),
@@ -48,8 +50,7 @@ _TEMPORARY_IMPORT_MODULES = {
 }
 _MISSING_MODULE = object()
 _ORIGINAL_IMPORT_MODULES = {
-	name: sys.modules.get(name, _MISSING_MODULE)
-	for name in _TEMPORARY_IMPORT_MODULES
+	name: sys.modules.get(name, _MISSING_MODULE) for name in _TEMPORARY_IMPORT_MODULES
 }
 _TEMPORARY_IMPORT_MODULES["addonHandler"].initTranslation = lambda: None
 _TEMPORARY_IMPORT_MODULES["_wb_vendor.authlib.integrations.base_client.errors"].OAuthError = OAuthError
@@ -93,11 +94,16 @@ def seeded_catalog_cache_path():
 
 		_SEEDED_CATALOG_CACHE = tempfile.TemporaryDirectory(prefix="wordbridge-catalog-cache-")
 		path = Path(_SEEDED_CATALOG_CACHE.name) / "remote-catalog.json"
-		path.write_text(json.dumps({
-			"cache_version": 1,
-			"url_key": DEFAULT_CATALOG_KEY,
-			"document": served_document(),
-		}), encoding="utf8")
+		path.write_text(
+			json.dumps(
+				{
+					"cache_version": 1,
+					"url_key": DEFAULT_CATALOG_KEY,
+					"document": served_document(),
+				}
+			),
+			encoding="utf8",
+		)
 	return Path(_SEEDED_CATALOG_CACHE.name) / "remote-catalog.json"
 
 
@@ -247,7 +253,10 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	monkeypatch.setitem(sys.modules, "gui", gui)
 	# The panel imports ExpandoTextCtrl when it builds the URL group; the
 	# widget stubs replace it with their Widget.
-	monkeypatch.setitem(sys.modules, "wx.lib.expando", SimpleNamespace(ExpandoTextCtrl=type("ExpandoTextCtrl", (), {})))
+	monkeypatch.setitem(
+		sys.modules, "wx.lib.expando", SimpleNamespace(ExpandoTextCtrl=type("ExpandoTextCtrl", (), {}))
+	)
+
 	class SettingsPanel:
 		"""The part of NVDA's SettingsPanel (gui/settingsDialogs.py:362-491)
 		the WordBridge panel uses, recording what a live update does to it.
@@ -347,42 +356,71 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 			self.DestroyLater()
 			self.SetReturnCode(Wx.ID_CANCEL)
 
-	monkeypatch.setitem(sys.modules, "gui.settingsDialogs", SimpleNamespace(
-		SettingsPanel=SettingsPanel, SettingsDialog=SettingsDialog,
-	))
-	monkeypatch.setitem(sys.modules, "gui.contextHelp", SimpleNamespace(ContextHelpMixin=type("ContextHelpMixin", (), {})))
+	monkeypatch.setitem(
+		sys.modules,
+		"gui.settingsDialogs",
+		SimpleNamespace(
+			SettingsPanel=SettingsPanel,
+			SettingsDialog=SettingsDialog,
+		),
+	)
+	monkeypatch.setitem(
+		sys.modules, "gui.contextHelp", SimpleNamespace(ContextHelpMixin=type("ContextHelpMixin", (), {}))
+	)
 	monkeypatch.setitem(sys.modules, "globalPluginHandler", SimpleNamespace(GlobalPlugin=ParentPlugin))
 	monkeypatch.setitem(sys.modules, "addonHandler", SimpleNamespace(initTranslation=lambda: None))
 	monkeypatch.setitem(sys.modules, "api", SimpleNamespace())
-	warning_sink = (lambda *args, **kwargs: log_warnings.append(args[0] if args else kwargs)) if log_warnings is not None else (lambda *args, **kwargs: None)
+	warning_sink = (
+		(lambda *args, **kwargs: log_warnings.append(args[0] if args else kwargs))
+		if log_warnings is not None
+		else (lambda *args, **kwargs: None)
+	)
 	monkeypatch.setitem(
 		sys.modules,
 		"logHandler",
-		SimpleNamespace(log=SimpleNamespace(
-			warning=warning_sink,
-			info=lambda *args, **kwargs: None,
-			debug=lambda *args, **kwargs: None,
-			exception=lambda *args, **kwargs: None,
-		)),
+		SimpleNamespace(
+			log=SimpleNamespace(
+				warning=warning_sink,
+				info=lambda *args, **kwargs: None,
+				debug=lambda *args, **kwargs: None,
+				exception=lambda *args, **kwargs: None,
+			)
+		),
 	)
 	played = []
-	monkeypatch.setitem(sys.modules, "nvwave", SimpleNamespace(
-		playWaveFile=lambda *args, **kwargs: played.append((args, kwargs)),
-		played=played,
-	))
-	monkeypatch.setitem(sys.modules, "scriptHandler", SimpleNamespace(script=lambda **kwargs: lambda function: function))
+	monkeypatch.setitem(
+		sys.modules,
+		"nvwave",
+		SimpleNamespace(
+			playWaveFile=lambda *args, **kwargs: played.append((args, kwargs)),
+			played=played,
+		),
+	)
+	monkeypatch.setitem(
+		sys.modules, "scriptHandler", SimpleNamespace(script=lambda **kwargs: lambda function: function)
+	)
 	monkeypatch.setitem(sys.modules, "textInfos", SimpleNamespace(POSITION_SELECTION=object()))
 	beeps = []
-	monkeypatch.setitem(sys.modules, "tones", SimpleNamespace(
-		beep=lambda *args: beeps.append(args),
-		beeps=beeps,
-	))
+	monkeypatch.setitem(
+		sys.modules,
+		"tones",
+		SimpleNamespace(
+			beep=lambda *args: beeps.append(args),
+			beeps=beeps,
+		),
+	)
 	monkeypatch.setitem(sys.modules, "ui", SimpleNamespace(message=lambda *args: None))
-	monkeypatch.setitem(sys.modules, "_wb_vendor.hanzidentifier", SimpleNamespace(has_chinese=lambda text: True))
-	monkeypatch.setitem(sys.modules, "configobj.validate", SimpleNamespace(
-		VdtValueTooBigError=ValueError,
-		VdtValueTooSmallError=ValueError,
-	))
+	monkeypatch.setitem(
+		sys.modules, "_wb_vendor.hanzidentifier", SimpleNamespace(has_chinese=lambda text: True)
+	)
+	monkeypatch.setitem(
+		sys.modules,
+		"configobj.validate",
+		SimpleNamespace(
+			VdtValueTooBigError=ValueError,
+			VdtValueTooSmallError=ValueError,
+		),
+	)
 	monkeypatch.setitem(sys.modules, "configobj", SimpleNamespace(validate=sys.modules["configobj.validate"]))
 	# GlobalPlugin.__init__ now builds a catalog, which pulls in the real
 	# lib.llm package (SUPPORTED_PROVIDERS) -- unlike lib.application.task_runner
@@ -420,7 +458,9 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	package.__path__ = [str(ADDON_PATH)]
 	monkeypatch.setitem(sys.modules, package_name, package)
 	auth_module = type(sys)(f"{package_name}.lib.coseeing_auth")
-	auth_module.start_coseeing_auth = lambda channel, **kwargs: auth_calls.append(channel) if channel == "Coseeing" else None
+	auth_module.start_coseeing_auth = lambda channel, **kwargs: (
+		auth_calls.append(channel) if channel == "Coseeing" else None
+	)
 	clean_future = Future()
 	clean_future.set_result(None)
 	auth_module.clean_coseeing_auth = lambda: clean_future
@@ -436,17 +476,33 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	lib_package.__path__ = [str(ADDON_PATH / "lib")]
 	monkeypatch.setitem(sys.modules, f"{package_name}.lib", lib_package)
 	monkeypatch.setitem(sys.modules, auth_module.__name__, auth_module)
-	monkeypatch.setitem(sys.modules, f"{package_name}.lib.coseeing", SimpleNamespace(build_coseeing_headers=build_coseeing_headers))
-	monkeypatch.setitem(sys.modules, f"{package_name}.lib.decimalUtils", SimpleNamespace(decimal_to_str_0=str))
-	monkeypatch.setitem(sys.modules, f"{package_name}.lib.tasks.typo.utils", SimpleNamespace(strings_diff=lambda *args: []))
-	monkeypatch.setitem(sys.modules, f"{package_name}.lib.viewHTML", SimpleNamespace(text2template=lambda *args: None))
-	monkeypatch.setitem(sys.modules, f"{package_name}.lib.application.task_runner", SimpleNamespace(run_typo_correction=lambda *args, **kwargs: None))
+	monkeypatch.setitem(
+		sys.modules,
+		f"{package_name}.lib.coseeing",
+		SimpleNamespace(build_coseeing_headers=build_coseeing_headers),
+	)
+	monkeypatch.setitem(
+		sys.modules, f"{package_name}.lib.decimalUtils", SimpleNamespace(decimal_to_str_0=str)
+	)
+	monkeypatch.setitem(
+		sys.modules, f"{package_name}.lib.tasks.typo.utils", SimpleNamespace(strings_diff=lambda *args: [])
+	)
+	monkeypatch.setitem(
+		sys.modules, f"{package_name}.lib.viewHTML", SimpleNamespace(text2template=lambda *args: None)
+	)
+	monkeypatch.setitem(
+		sys.modules,
+		f"{package_name}.lib.application.task_runner",
+		SimpleNamespace(run_typo_correction=lambda *args, **kwargs: None),
+	)
 	dictionary_package = type(sys)(f"{package_name}.dictionary")
 	dictionary_package.__path__ = [str(ADDON_PATH / "dictionary")]
 	dictionary_package.WBW_DICTIONARY_PATH = "/tmp/wordbridge-test-dictionary"
 	dictionary_package.default_dictionary_repository = lambda: SimpleNamespace(load=list)
 	monkeypatch.setitem(sys.modules, dictionary_package.__name__, dictionary_package)
-	monkeypatch.setitem(sys.modules, f"{package_name}.dictionary.dialog", SimpleNamespace(DictionaryEntryDialog=object))
+	monkeypatch.setitem(
+		sys.modules, f"{package_name}.dictionary.dialog", SimpleNamespace(DictionaryEntryDialog=object)
+	)
 
 	monkeypatch.setattr("builtins._", lambda text: text, raising=False)
 	spec = importlib.util.spec_from_file_location(
@@ -504,8 +560,12 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	monkeypatch.setattr(
 		plugin,
 		"_start_catalog_thread",
-		lambda target, args: plugin.started_catalog_threads.append((target, args)) or SimpleNamespace(
-			is_alive=lambda: False, join=lambda timeout=None: None,
+		lambda target, args: (
+			plugin.started_catalog_threads.append((target, args))
+			or SimpleNamespace(
+				is_alive=lambda: False,
+				join=lambda timeout=None: None,
+			)
 		),
 		raising=False,
 	)
@@ -530,7 +590,9 @@ def _load_nvda_plugin(monkeypatch, settings, auth_calls, queued, *, auth_availab
 	)
 	plugin.registry.initialize(plugin.catalog)
 	plugin.correctorTaskConfig = plugin.load_corrector_task_config(plugin.CORRECTOR_TASK_CONFIG_PATH)
-	plugin.settings = plugin.SettingsRepository(config.conf["WordBridge"]["settings"], plugin.registry.current)
+	plugin.settings = plugin.SettingsRepository(
+		config.conf["WordBridge"]["settings"], plugin.registry.current
+	)
 
 	return plugin, config, gui
 
@@ -563,7 +625,8 @@ def test_global_plugin_starts_normalized_coseeing_auth_and_guards_queued_callbac
 	# Two deferred callbacks: the sign-in, then the catalog fetch start
 	# (covered by tests/test_catalog_plugin_wiring.py).
 	assert [queued_callback for queued_callback, _ in queued] == [
-		instance._start_coseeing_auth, instance._start_catalog_fetch,
+		instance._start_coseeing_auth,
+		instance._start_catalog_fetch,
 	]
 	callback, args = queued.pop(0)
 	queued.clear()
@@ -612,8 +675,12 @@ def test_plugin_load_logs_the_unavailable_auth_reason(monkeypatch):
 	}
 
 	_load_nvda_plugin(
-		monkeypatch, settings, auth_calls, queued,
-		auth_available=False, log_warnings=warnings,
+		monkeypatch,
+		settings,
+		auth_calls,
+		queued,
+		auth_available=False,
+		log_warnings=warnings,
 	)
 
 	assert warnings == [_STUB_UNAVAILABLE_REASON]
@@ -630,8 +697,12 @@ def test_plugin_load_does_not_log_when_auth_is_available(monkeypatch):
 	}
 
 	_load_nvda_plugin(
-		monkeypatch, settings, auth_calls, queued,
-		auth_available=True, log_warnings=warnings,
+		monkeypatch,
+		settings,
+		auth_calls,
+		queued,
+		auth_available=True,
+		log_warnings=warnings,
 	)
 
 	assert warnings == []
@@ -644,7 +715,8 @@ def test_plugin_load_warns_when_the_cryptography_gapfill_is_missing(monkeypatch)
 	"""
 	real_isdir = os.path.isdir
 	monkeypatch.setattr(
-		os.path, "isdir",
+		os.path,
+		"isdir",
 		lambda path: False if str(path).endswith("_cryptography_gapfill") else real_isdir(path),
 	)
 	warnings = []
@@ -661,16 +733,19 @@ def test_plugin_load_warns_when_the_cryptography_gapfill_is_missing(monkeypatch)
 	]
 
 
-@pytest.mark.parametrize("payload", [
-	# Each of these parses as JSON but isn't the expected mapping shape, so
-	# raw_config["template_name"] (configManager.py) raises TypeError, not
-	# one of OSError/ValueError/KeyError -- the exact gap that let a corrupt
-	# task config take plugin construction down.
-	"[1, 2]",
-	'"hello"',
-	"123",
-	"null",
-])
+@pytest.mark.parametrize(
+	"payload",
+	[
+		# Each of these parses as JSON but isn't the expected mapping shape, so
+		# raw_config["template_name"] (configManager.py) raises TypeError, not
+		# one of OSError/ValueError/KeyError -- the exact gap that let a corrupt
+		# task config take plugin construction down.
+		"[1, 2]",
+		'"hello"',
+		"123",
+		"null",
+	],
+)
 def test_corrupt_task_config_type_error_falls_back_and_notifies(monkeypatch, tmp_path, payload):
 	settings = {
 		"corrector_config_id": "gemini-3.1-pro-preview&Google",
@@ -691,7 +766,8 @@ def test_corrupt_task_config_type_error_falls_back_and_notifies(monkeypatch, tmp
 
 	assert task_config.template_name == {"standard": "Standard_v1.json", "lite": "Lite_v1.json"}
 	assert task_config.optional_guidance_enable == {
-		"keep_non_chinese_char": True, "no_explanation": True,
+		"keep_non_chinese_char": True,
+		"no_explanation": True,
 	}
 	# The notification is deferred (self._notify() -> wx.CallAfter()), the
 	# same way _start_coseeing_auth is -- ui.message() is never called
@@ -727,7 +803,8 @@ def test_corrupt_task_config_key_error_falls_back_and_notifies(monkeypatch, tmp_
 
 	assert task_config.template_name == {"standard": "Standard_v1.json", "lite": "Lite_v1.json"}
 	assert task_config.optional_guidance_enable == {
-		"keep_non_chinese_char": True, "no_explanation": True,
+		"keep_non_chinese_char": True,
+		"no_explanation": True,
 	}
 	callback, args = queued.pop()
 	callback(*args)
@@ -760,7 +837,9 @@ def test_task_config_fallback_matches_the_shipped_corrector_json(monkeypatch, tm
 	assert fallback.optional_guidance_enable == shipped["optional_guidance_enable"]
 
 
-def test_real_init_falls_back_to_shipped_defaults_and_notifies_on_a_corrupt_task_config(monkeypatch, tmp_path):
+def test_real_init_falls_back_to_shipped_defaults_and_notifies_on_a_corrupt_task_config(
+	monkeypatch, tmp_path
+):
 	"""Pins the self._shutdown reorder in GlobalPlugin.__init__.
 
 	Every other fallback test above constructs its instance via
@@ -790,10 +869,12 @@ def test_real_init_falls_back_to_shipped_defaults_and_notifies_on_a_corrupt_task
 	instance = plugin.GlobalPlugin()
 
 	assert instance.correctorTaskConfig.template_name == {
-		"standard": "Standard_v1.json", "lite": "Lite_v1.json",
+		"standard": "Standard_v1.json",
+		"lite": "Lite_v1.json",
 	}
 	assert instance.correctorTaskConfig.optional_guidance_enable == {
-		"keep_non_chinese_char": True, "no_explanation": True,
+		"keep_non_chinese_char": True,
+		"no_explanation": True,
 	}
 	# _load_corrector_task_config() -- and the wx.CallAfter() its deferred
 	# notification schedules -- runs before wx.CallAfter(self._start_coseeing_auth,
@@ -988,7 +1069,8 @@ def test_settings_panel_uses_clean_button_without_legacy_credential_controls(mon
 	assert panel.coseeingCleanButton.bindings[plugin.wx.EVT_BUTTON] == panel.onCleanCoseeingAuth
 	assert "Coseeing" not in panel.accountTextCtrlMap
 	assert "Coseeing" not in {
-		endpoint for endpoint, control in panel.accountTextCtrlMap.items()
+		endpoint
+		for endpoint, control in panel.accountTextCtrlMap.items()
 		if isinstance(control, plugin.wx.TextCtrl)
 	}
 
@@ -1213,7 +1295,9 @@ def test_settings_panel_summary_line_appears_only_when_the_catalog_has_issues(mo
 	settings = _panel_settings()
 	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
 	dialogs = plugin.dialogs
-	_helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	_helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(
+		monkeypatch, plugin, gui, config
+	)
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
 
 	clean_catalog = dataclasses.replace(plugin.catalog, issues=())
@@ -1248,7 +1332,9 @@ def test_settings_panel_summary_line_is_silent_for_the_shipped_healthy_catalog(m
 	settings = _panel_settings()
 	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
 	dialogs = plugin.dialogs
-	_helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	_helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(
+		monkeypatch, plugin, gui, config
+	)
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
 
 	# The real, unmodified shipped catalog -- not a fabricated fixture -- is
@@ -1275,12 +1361,16 @@ def test_settings_panel_summary_line_ignores_lint_issues_and_uses_correct_gramma
 	settings = _panel_settings()
 	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
 	dialogs = plugin.dialogs
-	_helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	_helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(
+		monkeypatch, plugin, gui, config
+	)
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
 
 	from lib.catalog.model import CatalogIssue
 
-	lint_issue = CatalogIssue("unreferenced_provider", "providers.OpenRouter", "no models entry names this provider")
+	lint_issue = CatalogIssue(
+		"unreferenced_provider", "providers.OpenRouter", "no models entry names this provider"
+	)
 	first_dropped = CatalogIssue("unreadable_file", "ai/Google-broken.json", "ValueError: boom")
 	second_dropped = CatalogIssue("duplicate_entry", "models[3]", "'gpt&OpenAI' already defined")
 
@@ -1288,7 +1378,9 @@ def test_settings_panel_summary_line_ignores_lint_issues_and_uses_correct_gramma
 	monkeypatch.setattr(dialogs.registry, "current", lambda: one_dropped_catalog)
 	panel = _make_panel(monkeypatch, dialogs, Sizer)
 	assert panel.catalogIssuesText is not None
-	assert panel.catalogIssuesText.label == "1 catalog entry could not be loaded; see the NVDA log for details."
+	assert (
+		panel.catalogIssuesText.label == "1 catalog entry could not be loaded; see the NVDA log for details."
+	)
 
 	two_dropped_catalog = dataclasses.replace(
 		plugin.catalog, issues=(lint_issue, first_dropped, second_dropped)
@@ -1296,7 +1388,10 @@ def test_settings_panel_summary_line_ignores_lint_issues_and_uses_correct_gramma
 	monkeypatch.setattr(dialogs.registry, "current", lambda: two_dropped_catalog)
 	panel = _make_panel(monkeypatch, dialogs, Sizer)
 	assert panel.catalogIssuesText is not None
-	assert panel.catalogIssuesText.label == "2 catalog entries could not be loaded; see the NVDA log for details."
+	assert (
+		panel.catalogIssuesText.label
+		== "2 catalog entries could not be loaded; see the NVDA log for details."
+	)
 
 
 def test_settings_panel_renders_provider_group_captions_through_their_catalog_labels(monkeypatch):
@@ -1311,7 +1406,9 @@ def test_settings_panel_renders_provider_group_captions_through_their_catalog_la
 	settings = _panel_settings()
 	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
 	dialogs = plugin.dialogs
-	helper_calls, static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	helper_calls, static_box_captions, Sizer = _install_settings_panel_widget_stubs(
+		monkeypatch, plugin, gui, config
+	)
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
 
 	original = plugin.catalog
@@ -1352,18 +1449,27 @@ def test_the_sentinel_model_label_is_rendered_through_the_translation_map(monkey
 	settings = _panel_settings()
 	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
 	dialogs = plugin.dialogs
-	helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(
+		monkeypatch, plugin, gui, config
+	)
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
 
 	# The shipped catalogs offer only the sentinel on Coseeing now (U8), so
 	# the non-sentinel entry this test needs is a fixture (spec section 16.2).
 	sentinel_entry = plugin.catalog.get_coseeing(dialogs.SENTINEL_ID)
-	original = dataclasses.replace(plugin.catalog, coseeings=plugin.catalog.coseeings + (
-		dataclasses.replace(sentinel_entry, model="deepseek-flash", label="deepseek-flash", provider="DeepSeek"),
-	))
+	original = dataclasses.replace(
+		plugin.catalog,
+		coseeings=plugin.catalog.coseeings
+		+ (
+			dataclasses.replace(
+				sentinel_entry, model="deepseek-flash", label="deepseek-flash", provider="DeepSeek"
+			),
+		),
+	)
 	other_coseeings = tuple(
 		dataclasses.replace(entry, label="RAW SENTINEL LABEL FROM CATALOG")
-		if entry.corrector_config_id == dialogs.SENTINEL_ID else entry
+		if entry.corrector_config_id == dialogs.SENTINEL_ID
+		else entry
 		for entry in original.coseeings
 	)
 	assert other_coseeings != original.coseeings, "fixture did not find the sentinel entry"
@@ -1379,8 +1485,7 @@ def test_the_sentinel_model_label_is_rendered_through_the_translation_map(monkey
 	# Every other Coseeing-offered model's label must still pass through
 	# untouched -- only the sentinel is mapped.
 	untranslated_labels = {
-		entry.label for entry in original.coseeings
-		if entry.corrector_config_id != dialogs.SENTINEL_ID
+		entry.label for entry in original.coseeings if entry.corrector_config_id != dialogs.SENTINEL_ID
 	}
 	assert untranslated_labels, "fixture needs at least one non-sentinel Coseeing entry"
 	assert untranslated_labels <= set(choices)
@@ -1406,13 +1511,16 @@ def test_refreshing_the_model_choice_still_renders_the_sentinel_through_the_tran
 	settings = _panel_settings()
 	plugin, config, gui = _load_nvda_plugin(monkeypatch, settings, auth_calls, queued)
 	dialogs = plugin.dialogs
-	_helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(monkeypatch, plugin, gui, config)
+	_helper_calls, _static_box_captions, Sizer = _install_settings_panel_widget_stubs(
+		monkeypatch, plugin, gui, config
+	)
 	monkeypatch.setattr(dialogs, "has_saved_coseeing_refresh_token", lambda: False)
 
 	original = plugin.catalog
 	other_coseeings = tuple(
 		dataclasses.replace(entry, label="RAW SENTINEL LABEL FROM CATALOG")
-		if entry.corrector_config_id == dialogs.SENTINEL_ID else entry
+		if entry.corrector_config_id == dialogs.SENTINEL_ID
+		else entry
 		for entry in original.coseeings
 	)
 	assert other_coseeings != original.coseeings, "fixture did not find the sentinel entry"
@@ -1537,6 +1645,7 @@ def test_clean_button_stays_disabled_when_cleanup_fails_after_native_logout(monk
 
 	logout = Future()
 	cleanup = Future()
+
 	class Session:
 		def logout_local(self):
 			return logout
@@ -1572,10 +1681,14 @@ def _install_nvda(monkeypatch, *, dialog, wx, config=None, ui=None, log=None, ca
 		call_after = lambda function, *args: function(*args)
 	monkeypatch.setitem(sys.modules, "config", config)
 	monkeypatch.setitem(sys.modules, "wx", SimpleNamespace(CallAfter=call_after, **vars(wx)))
-	monkeypatch.setitem(sys.modules, "gui", SimpleNamespace(
-		mainFrame="frame",
-		message=SimpleNamespace(MessageDialog=dialog, DefaultButtonSet=wx.DefaultButtonSet),
-	))
+	monkeypatch.setitem(
+		sys.modules,
+		"gui",
+		SimpleNamespace(
+			mainFrame="frame",
+			message=SimpleNamespace(MessageDialog=dialog, DefaultButtonSet=wx.DefaultButtonSet),
+		),
+	)
 	monkeypatch.setitem(sys.modules, "ui", ui)
 	monkeypatch.setitem(sys.modules, "logHandler", SimpleNamespace(log=log))
 	monkeypatch.setattr(module, "_", lambda text: text, raising=False)
@@ -1592,7 +1705,9 @@ def test_coseeing_channel_reconsiders_guest(monkeypatch):
 	calls = []
 	completed = Future()
 	completed.set_result(None)
-	monkeypatch.setattr(module, "get_coseeing_access_token", lambda **kw: calls.append(kw) or completed, raising=False)
+	monkeypatch.setattr(
+		module, "get_coseeing_access_token", lambda **kw: calls.append(kw) or completed, raising=False
+	)
 	module.start_coseeing_auth("Coseeing")
 	assert calls == [{"reconsider_guest": True, "silent": True}]
 
@@ -1641,6 +1756,7 @@ def test_coseeing_channel_stays_silent_when_auth_unavailable_and_silent_requeste
 def test_nvda_adapter_maps_dialog_choices(monkeypatch):
 	settings = {"api_key": {"Coseeing": "old", "OpenAI": "keep"}}
 	saved = []
+
 	class Conf(dict):
 		def save(self):
 			saved.append(True)
@@ -1650,12 +1766,16 @@ def test_nvda_adapter_maps_dialog_choices(monkeypatch):
 	class Dialog:
 		result = 0
 		created = []  # noqa: RUF012
+
 		def __init__(self, *args, **kwargs):
 			self.__class__.created.append((args, kwargs))
+
 		def setYesNoLabels(self, yes, no):
 			self.labels = (yes, no)
+
 		def ShowModal(self):
 			return self.result
+
 		def Destroy(self):
 			self.destroyed = True
 
@@ -1669,22 +1789,33 @@ def test_nvda_adapter_maps_dialog_choices(monkeypatch):
 
 	class Ui:
 		messages = []  # noqa: RUF012
+
 		def message(self, text):
 			self.messages.append(text)
 
 	monkeypatch.setitem(__import__("sys").modules, "config", config)
 	monkeypatch.setitem(__import__("sys").modules, "wx", Wx)
-	monkeypatch.setitem(__import__("sys").modules, "gui", SimpleNamespace(
-		mainFrame="frame",
-		message=SimpleNamespace(MessageDialog=Dialog, DefaultButtonSet=Wx.DefaultButtonSet),
-	))
+	monkeypatch.setitem(
+		__import__("sys").modules,
+		"gui",
+		SimpleNamespace(
+			mainFrame="frame",
+			message=SimpleNamespace(MessageDialog=Dialog, DefaultButtonSet=Wx.DefaultButtonSet),
+		),
+	)
 	monkeypatch.setitem(__import__("sys").modules, "ui", Ui())
-	monkeypatch.setitem(__import__("sys").modules, "logHandler", SimpleNamespace(log=SimpleNamespace(
-		warning=lambda *args, **kwargs: None,
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	)))
+	monkeypatch.setitem(
+		__import__("sys").modules,
+		"logHandler",
+		SimpleNamespace(
+			log=SimpleNamespace(
+				warning=lambda *args, **kwargs: None,
+				info=lambda *args, **kwargs: None,
+				debug=lambda *args, **kwargs: None,
+				exception=lambda *args, **kwargs: None,
+			)
+		),
+	)
 	monkeypatch.setattr(module, "_", lambda text: text, raising=False)
 	adapter = module._NvdaAuthAdapter()
 	for result, expected in ((Wx.ID_YES, "login"), (Wx.ID_NO, "guest"), (Wx.ID_CANCEL, "cancel")):
@@ -1696,12 +1827,16 @@ def test_nvda_dialog_is_destroyed_after_each_choice(monkeypatch):
 	class Dialog:
 		result = 0
 		instances = []  # noqa: RUF012
+
 		def __init__(self, *args, **kwargs):
 			self.__class__.instances.append(self)
+
 		def setYesNoLabels(self, yes, no):
 			pass
+
 		def ShowModal(self):
 			return self.result
+
 		def Destroy(self):
 			self.destroyed = True
 
@@ -1709,22 +1844,33 @@ def test_nvda_dialog_is_destroyed_after_each_choice(monkeypatch):
 		ID_YES = 1
 		ID_NO = 2
 		ID_CANCEL = 3
+
 		class DefaultButtonSet:
 			YES_NO = 4
 
 	monkeypatch.setitem(__import__("sys").modules, "config", SimpleNamespace(conf={}))
 	monkeypatch.setitem(__import__("sys").modules, "wx", Wx)
-	monkeypatch.setitem(__import__("sys").modules, "gui", SimpleNamespace(
-		mainFrame="frame",
-		message=SimpleNamespace(MessageDialog=Dialog, DefaultButtonSet=Wx.DefaultButtonSet),
-	))
+	monkeypatch.setitem(
+		__import__("sys").modules,
+		"gui",
+		SimpleNamespace(
+			mainFrame="frame",
+			message=SimpleNamespace(MessageDialog=Dialog, DefaultButtonSet=Wx.DefaultButtonSet),
+		),
+	)
 	monkeypatch.setitem(__import__("sys").modules, "ui", SimpleNamespace(message=lambda text: None))
-	monkeypatch.setitem(__import__("sys").modules, "logHandler", SimpleNamespace(log=SimpleNamespace(
-		warning=lambda *args, **kwargs: None,
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	)))
+	monkeypatch.setitem(
+		__import__("sys").modules,
+		"logHandler",
+		SimpleNamespace(
+			log=SimpleNamespace(
+				warning=lambda *args, **kwargs: None,
+				info=lambda *args, **kwargs: None,
+				debug=lambda *args, **kwargs: None,
+				exception=lambda *args, **kwargs: None,
+			)
+		),
+	)
 	monkeypatch.setattr(module, "_", lambda text: text, raising=False)
 	adapter = module._NvdaAuthAdapter()
 	Dialog.result = Wx.ID_CANCEL
@@ -1753,52 +1899,73 @@ def test_shutdown_permanently_blocks_singleton_resurrection(monkeypatch):
 
 def test_dialog_uses_nvda_2026_yes_no_buttons(monkeypatch):
 	created = []
+
 	class Dialog:
 		def __init__(self, parent, message, title, dialog_type=None, *, buttons=None):
 			created.append((parent, message, title, dialog_type, buttons))
+
 		def setYesNoLabels(self, yes, no):
 			self.labels = (yes, no)
+
 		def ShowModal(self):
 			return 3
+
 		def Destroy(self):
 			pass
+
 	class Wx:
 		ID_YES = 1
 		ID_NO = 2
 		ID_CANCEL = 3
+
 		class DefaultButtonSet:
 			YES_NO = 4
+
 	_install_nvda(monkeypatch, dialog=Dialog, wx=Wx)
 	adapter = module._NvdaAuthAdapter()
 	assert adapter.prompt_login() == "cancel"
 	assert created == [
-		("frame", "Sign in to Coseeing to use this service, or continue as a guest.", "Coseeing authentication", None, 4),
+		(
+			"frame",
+			"Sign in to Coseeing to use this service, or continue as a guest.",
+			"Coseeing authentication",
+			None,
+			4,
+		),
 	]
 
 
 def test_shutdown_cancels_only_active_dialog(monkeypatch):
 	shown = Event()
 	finish = Event()
+
 	class Dialog:
 		def __init__(self, *args, **kwargs):
 			pass
+
 		def setYesNoLabels(self, yes, no):
 			pass
+
 		def ShowModal(self):
 			shown.set()
 			finish.wait(timeout=1)
 			return 3
+
 		def EndModal(self, result):
 			assert result == 3
 			finish.set()
+
 		def Destroy(self):
 			self.destroyed = True
+
 	class Wx:
 		ID_YES = 1
 		ID_NO = 2
 		ID_CANCEL = 3
+
 		class DefaultButtonSet:
 			YES_NO = 4
+
 	_install_nvda(monkeypatch, dialog=Dialog, wx=Wx)
 	adapter = module._NvdaAuthAdapter()
 	thread = Thread(target=adapter.prompt_login)
@@ -1812,25 +1979,36 @@ def test_shutdown_cancels_only_active_dialog(monkeypatch):
 
 def test_client_factory_injects_exact_windows_credential_target(monkeypatch):
 	constructed = []
+
 	class Store:
 		def __init__(self, target):
 			self.target = target
 			constructed.append(("store", target))
+
 	class Client:
 		def __init__(self, config, *, refresh_token_store):
 			self.config = config
 			self.store = refresh_token_store
 			constructed.append(("client", config, refresh_token_store))
+
 	class FutureClient:
 		def __init__(self, client):
 			self.client = client
+
 	class Wx:
 		class DefaultButtonSet:
 			YES_NO = 4
+
 	_install_nvda(monkeypatch, dialog=object, wx=Wx)
-	monkeypatch.setitem(sys.modules, "_wb_vendor.coseeing_auth", SimpleNamespace(
-		CoseeingAuthClient=Client, FutureAuthClient=FutureClient, WindowsCredentialStore=Store,
-	))
+	monkeypatch.setitem(
+		sys.modules,
+		"_wb_vendor.coseeing_auth",
+		SimpleNamespace(
+			CoseeingAuthClient=Client,
+			FutureAuthClient=FutureClient,
+			WindowsCredentialStore=Store,
+		),
+	)
 	config = object()
 	monkeypatch.setattr(module, "build_auth_config", lambda: config)
 	result = module._NvdaAuthAdapter().client_factory()
@@ -1843,6 +2021,7 @@ def test_saved_refresh_token_state_is_local_existence_check(monkeypatch, value, 
 	class Store:
 		def load(self):
 			return value
+
 	monkeypatch.setattr(module, "_new_refresh_token_store", lambda: Store(), raising=False)
 	assert module.has_saved_coseeing_refresh_token() is expected
 
@@ -1851,6 +2030,7 @@ def test_saved_refresh_token_read_failure_is_treated_as_absent(monkeypatch):
 	class Store:
 		def load(self):
 			raise RuntimeError("native storage unavailable")
+
 	monkeypatch.setattr(module, "_new_refresh_token_store", lambda: Store(), raising=False)
 	assert module.has_saved_coseeing_refresh_token() is False
 
@@ -1872,7 +2052,9 @@ def test_clean_logs_out_then_resets_singleton(monkeypatch):
 	monkeypatch.setattr(module, "_get_singleton_pair", lambda: (Session(), module._singleton_adapter))
 	monkeypatch.setattr(module, "_singleton_adapter", Adapter())
 	monkeypatch.setattr(
-		module, "_reset_captured_coseeing_auth", lambda session, adapter: calls.append("reset") or cleanup,
+		module,
+		"_reset_captured_coseeing_auth",
+		lambda session, adapter: calls.append("reset") or cleanup,
 		raising=False,
 	)
 	result = module.clean_coseeing_auth()
@@ -1888,9 +2070,11 @@ def test_clean_logout_failure_notifies_without_reset_or_secret_logging(monkeypat
 	logout = Future()
 	calls = []
 	logs = []
+
 	class Wx:
 		class DefaultButtonSet:
 			YES_NO = 4
+
 	_install_nvda(
 		monkeypatch,
 		dialog=object,
@@ -1904,15 +2088,20 @@ def test_clean_logout_failure_notifies_without_reset_or_secret_logging(monkeypat
 
 	adapter = module._NvdaAuthAdapter()
 	notify_completion = adapter.notify_clean_completion
+
 	def notify(done):
 		calls.append(("notify", done))
 		notify_completion(done)
+
 	adapter.notify_clean_completion = notify
 
 	monkeypatch.setattr(module, "_get_singleton_pair", lambda: (Session(), adapter))
 	monkeypatch.setattr(module, "_singleton_adapter", adapter)
-	monkeypatch.setattr(module, "_reset_captured_coseeing_auth", lambda session, adapter: calls.append("reset"), raising=False)
+	monkeypatch.setattr(
+		module, "_reset_captured_coseeing_auth", lambda session, adapter: calls.append("reset"), raising=False
+	)
 	result = module.clean_coseeing_auth()
+
 	class TokenPersistenceError(RuntimeError):
 		pass
 
@@ -1930,9 +2119,11 @@ def test_clean_cleanup_failure_notifies_through_shutting_down_adapter(monkeypatc
 	cleanup = Future()
 	messages = []
 	logs = []
+
 	class Wx:
 		class DefaultButtonSet:
 			YES_NO = 4
+
 	_install_nvda(
 		monkeypatch,
 		dialog=object,
@@ -1944,9 +2135,12 @@ def test_clean_cleanup_failure_notifies_through_shutting_down_adapter(monkeypatc
 	class Session:
 		def logout_local(self):
 			return logout
+
 	adapter = module._NvdaAuthAdapter()
 	monkeypatch.setattr(module, "_get_singleton_pair", lambda: (Session(), adapter), raising=False)
-	monkeypatch.setattr(module, "_reset_captured_coseeing_auth", lambda session, captured: cleanup, raising=False)
+	monkeypatch.setattr(
+		module, "_reset_captured_coseeing_auth", lambda session, captured: cleanup, raising=False
+	)
 	result = module.clean_coseeing_auth()
 	logout.set_result(None)
 	adapter._shutting_down = True
@@ -1964,8 +2158,17 @@ def test_clean_resets_only_captured_singleton_after_intervening_reset(monkeypatc
 	new_cleanup = Future()
 	old_session = SimpleNamespace(logout_local=lambda: logout, close=lambda: old_cleanup)
 	new_session = SimpleNamespace(close=lambda: new_cleanup)
-	old_adapter = SimpleNamespace(_shutting_down=False, post_ui=lambda function, *args: function(*args), close_active_dialog=lambda: None, notify_completion=lambda done: None)
-	new_adapter = SimpleNamespace(_shutting_down=False, post_ui=lambda function, *args: function(*args), close_active_dialog=lambda: None)
+	old_adapter = SimpleNamespace(
+		_shutting_down=False,
+		post_ui=lambda function, *args: function(*args),
+		close_active_dialog=lambda: None,
+		notify_completion=lambda done: None,
+	)
+	new_adapter = SimpleNamespace(
+		_shutting_down=False,
+		post_ui=lambda function, *args: function(*args),
+		close_active_dialog=lambda: None,
+	)
 	monkeypatch.setattr(module, "_singleton_session", old_session)
 	monkeypatch.setattr(module, "_singleton_adapter", old_adapter)
 	monkeypatch.setattr(module, "_shutdown_future", None)
@@ -1986,14 +2189,17 @@ def test_singleton_creation_is_locked(monkeypatch):
 	entered = Event()
 	release = Event()
 	instances = []
+
 	class Adapter:
 		def __init__(self):
 			entered.set()
 			release.wait(timeout=1)
+
 		def session(self, **kwargs):
 			instance = object()
 			instances.append(instance)
 			return instance
+
 	monkeypatch.setattr(module, "_NvdaAuthAdapter", Adapter)
 	monkeypatch.setattr(module, "_singleton_adapter", None)
 	monkeypatch.setattr(module, "_singleton_session", None)
@@ -2012,13 +2218,19 @@ def test_singleton_creation_is_locked(monkeypatch):
 def test_queued_notification_is_suppressed_after_shutdown(monkeypatch):
 	queued = []
 	messages = []
+
 	class Dialog:
 		pass
+
 	class Wx:
 		class DefaultButtonSet:
 			YES_NO = 4
+
 	_install_nvda(
-		monkeypatch, dialog=Dialog, wx=Wx, ui=SimpleNamespace(message=messages.append),
+		monkeypatch,
+		dialog=Dialog,
+		wx=Wx,
+		ui=SimpleNamespace(message=messages.append),
 		call_after=lambda function, *args: queued.append((function, args)),
 	)
 	adapter = module._NvdaAuthAdapter()
@@ -2033,15 +2245,21 @@ def test_queued_notification_is_suppressed_after_shutdown(monkeypatch):
 
 def test_dialog_close_logging_uses_exception_type_without_sensitive_text(monkeypatch):
 	logs = []
+
 	class Dialog:
 		def EndModal(self, result):
 			raise RuntimeError("refresh-token-secret")
+
 	class Wx:
 		ID_CANCEL = 3
+
 		class DefaultButtonSet:
 			YES_NO = 4
+
 	_install_nvda(
-		monkeypatch, dialog=Dialog, wx=Wx,
+		monkeypatch,
+		dialog=Dialog,
+		wx=Wx,
 		log=SimpleNamespace(warning=lambda *args: logs.append(args)),
 	)
 	adapter = module._NvdaAuthAdapter()
@@ -2055,15 +2273,20 @@ def test_dialog_close_logging_uses_exception_type_without_sensitive_text(monkeyp
 
 def test_shutdown_reuses_existing_singleton_cleanup_future(monkeypatch):
 	cleanup = Future()
+
 	class Session:
 		def close(self):
 			return cleanup
+
 	class Adapter:
 		_shutting_down = False
+
 		def post_ui(self, function, *args):
 			function(*args)
+
 		def close_active_dialog(self):
 			pass
+
 	monkeypatch.setattr(module, "_singleton_session", Session())
 	monkeypatch.setattr(module, "_singleton_adapter", Adapter())
 	monkeypatch.setattr(module, "_shutdown_future", None)
@@ -2088,8 +2311,10 @@ def test_concurrent_shutdown_callers_share_blocked_client_cleanup(monkeypatch):
 
 	class Adapter:
 		_shutting_down = False
+
 		def post_ui(self, function, *args):
 			function(*args)
+
 		def close_active_dialog(self):
 			pass
 
@@ -2097,10 +2322,12 @@ def test_concurrent_shutdown_callers_share_blocked_client_cleanup(monkeypatch):
 	second_returned = Event()
 	base_lock = RLock()
 	first_thread = None
+
 	class PublicationGate:
 		def __enter__(self):
 			base_lock.acquire()
 			return self
+
 		def __exit__(self, exc_type, exc_value, traceback):
 			base_lock.release()
 			if current_thread() is first_thread and not first_released.is_set():
@@ -2138,17 +2365,24 @@ def test_failure_log_names_the_mapped_cause(monkeypatch):
 	the library attached, or the two are indistinguishable in NVDA's log.
 	"""
 	logs = []
+
 	class Dialog:
 		pass
+
 	class Wx:
 		class DefaultButtonSet:
 			YES_NO = 4
+
 	_install_nvda(
-		monkeypatch, dialog=Dialog, wx=Wx,
+		monkeypatch,
+		dialog=Dialog,
+		wx=Wx,
 		log=SimpleNamespace(warning=lambda *args: logs.append(args)),
 	)
+
 	class _SanitizedCause(Exception):
 		pass
+
 	error = RuntimeError("mapped")
 	error.operation = "login"
 	error.stage = "token_exchange"
@@ -2167,13 +2401,18 @@ def test_failure_log_never_renders_an_unsanitized_cause(monkeypatch):
 	token, URL or user text can reach the log through it.
 	"""
 	logs = []
+
 	class Dialog:
 		pass
+
 	class Wx:
 		class DefaultButtonSet:
 			YES_NO = 4
+
 	_install_nvda(
-		monkeypatch, dialog=Dialog, wx=Wx,
+		monkeypatch,
+		dialog=Dialog,
+		wx=Wx,
 		log=SimpleNamespace(warning=lambda *args: logs.append(args)),
 	)
 	error = RuntimeError("mapped")

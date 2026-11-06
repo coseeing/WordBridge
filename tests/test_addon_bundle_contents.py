@@ -120,7 +120,14 @@ def test_bundle_ships_the_cryptography_gapfill_and_no_cryptography_of_its_own(bu
 	"""Without the gap-fill Coseeing auth cannot import on NVDA's trimmed
 	cryptography; with a cryptography of our own, NVDA Remote breaks."""
 	gapfill = "globalPlugins/WordBridge/package/_cryptography_gapfill/cryptography/hazmat/primitives/"
-	for relative in ("kdf/__init__.py", "kdf/concatkdf.py", "kdf/hkdf.py", "kdf/pbkdf2.py", "keywrap.py", "padding.py"):
+	for relative in (
+		"kdf/__init__.py",
+		"kdf/concatkdf.py",
+		"kdf/hkdf.py",
+		"kdf/pbkdf2.py",
+		"keywrap.py",
+		"padding.py",
+	):
 		assert any(name.endswith(gapfill + relative) for name in bundle_names), relative
 	assert not any(name.endswith("cryptography/hazmat/bindings/_rust.pyd") for name in bundle_names)
 	assert not any(name.endswith("cryptography/__init__.py") for name in bundle_names)

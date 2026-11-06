@@ -77,7 +77,13 @@ def test_corrector_task_config_is_the_only_prompt_setting_file():
 def test_provider_catalogs_preserve_approved_and_unaffected_models():
 	expected = {
 		"OpenAI": {"gpt-6.1-sol", "gpt-6.1-terra", "gpt-6-sol", "gpt-6-luna"},
-		"Anthropic": {"claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5", "claude-sonnet-5"},
+		"Anthropic": {
+			"claude-opus-5-5",
+			"claude-sonnet-5-5",
+			"claude-haiku-5-5",
+			"claude-opus-5",
+			"claude-sonnet-5",
+		},
 		"DeepSeek": {"deepseek-flash", "deepseek-v4-pro"},
 		"Google": {
 			"gemini-3.1-pro-preview",

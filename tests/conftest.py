@@ -25,6 +25,7 @@ from lib import vendor
 vendor.install(vendor.default_roots(package_path))
 vendor.install_stdlib_gapfill(package_path)
 
+
 def _install_translation():
 	# NVDA's initTranslation() installs _ into builtins. A no-op stub leaves
 	# _ undefined everywhere, which makes it impossible to tell a correctly
@@ -46,6 +47,7 @@ _addon_handler_stub.initTranslation = _install_translation
 sys.modules.setdefault("addonHandler", _addon_handler_stub)
 _install_translation()
 
+
 @pytest.fixture
 def model_config():
 	def _make_config(model_name, provider):
@@ -54,12 +56,11 @@ def model_config():
 			"provider": provider,
 			"language": "zh_traditional",
 			"template_name": "Standard_v1.json",
-			"optional_guidance_enable": {
-				"keep_non_chinese_char": True,
-				"no_explanation": False
-			}
+			"optional_guidance_enable": {"keep_non_chinese_char": True, "no_explanation": False},
 		}
+
 	return _make_config
+
 
 @pytest.fixture
 def credentials():
@@ -86,12 +87,14 @@ def credentials():
 		return {
 			"api_key": api_key,
 		}
+
 	return _get_credentials
+
 
 @pytest.fixture
 def test_data():
 	return {
 		"basic_text": "這是測試文字",
 		"text_with_typo": "今天天器真好",
-		"expected_correction": "今天天氣真好"
+		"expected_correction": "今天天氣真好",
 	}

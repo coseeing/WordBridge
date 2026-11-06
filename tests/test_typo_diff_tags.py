@@ -46,8 +46,10 @@ def test_analyze_diff_flags_a_traditional_to_simplified_change():
 
 	simplified = {"體": "体", "体": "体"}
 	traditional = {"體": "體", "体": "體"}
-	with patch.object(utils, "to_simplified", lambda char: simplified.get(char, char)), \
-			patch.object(utils, "to_traditional", lambda char: traditional.get(char, char)):
+	with (
+		patch.object(utils, "to_simplified", lambda char: simplified.get(char, char)),
+		patch.object(utils, "to_traditional", lambda char: traditional.get(char, char)),
+	):
 		assert "Tranditional to simplified" in utils.analyze_diff("體", "体")
 
 
@@ -56,16 +58,20 @@ def test_analyze_diff_flags_a_simplified_to_traditional_change():
 
 	simplified = {"體": "体", "体": "体"}
 	traditional = {"體": "體", "体": "體"}
-	with patch.object(utils, "to_simplified", lambda char: simplified.get(char, char)), \
-			patch.object(utils, "to_traditional", lambda char: traditional.get(char, char)):
+	with (
+		patch.object(utils, "to_simplified", lambda char: simplified.get(char, char)),
+		patch.object(utils, "to_traditional", lambda char: traditional.get(char, char)),
+	):
 		assert "Simplified to tranditional" in utils.analyze_diff("体", "體")
 
 
 def test_analyze_diff_does_not_flag_a_plain_typo_as_a_conversion():
 	from lib.tasks.typo import utils
 
-	with patch.object(utils, "to_simplified", lambda char: char), \
-			patch.object(utils, "to_traditional", lambda char: char):
+	with (
+		patch.object(utils, "to_simplified", lambda char: char),
+		patch.object(utils, "to_traditional", lambda char: char),
+	):
 		tags = utils.analyze_diff("器", "氣")
 
 	assert "Tranditional to simplified" not in tags

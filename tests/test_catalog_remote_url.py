@@ -73,16 +73,19 @@ def test_empty_path_and_slash_share_a_key():
 	assert validate_catalog_url("https://h.test").key == validate_catalog_url("https://h.test/").key
 
 
-@pytest.mark.parametrize("url, redacted", [
-	("https://h.test:8443/secret?token=x", "https://h.test:8443"),
-	("https://h.test/p", "https://h.test"),
-	("http://[::1]:8000/x", "http://[::1]:8000"),
-	("https://u:p@h.test/", "https://h.test"),
-	("https://[::1", "<invalid url>"),
-	(b"https://h.test/secret", "<invalid url>"),
-	(None, "<invalid url>"),
-	(42, "<invalid url>"),
-])
+@pytest.mark.parametrize(
+	"url, redacted",
+	[
+		("https://h.test:8443/secret?token=x", "https://h.test:8443"),
+		("https://h.test/p", "https://h.test"),
+		("http://[::1]:8000/x", "http://[::1]:8000"),
+		("https://u:p@h.test/", "https://h.test"),
+		("https://[::1", "<invalid url>"),
+		(b"https://h.test/secret", "<invalid url>"),
+		(None, "<invalid url>"),
+		(42, "<invalid url>"),
+	],
+)
 def test_redact_url(url, redacted):
 	assert redact_url(url) == redacted
 
@@ -94,18 +97,33 @@ def test_default_catalog_url_is_valid_https():
 	assert check.key.startswith("https://")
 
 
-@pytest.mark.parametrize("value, logged", [
-	("plain text", "plain text"),
-	("模型", "模型"),
-	("a\nb", "a\\nb"),
-	("a\r\nb", "a\\r\\nb"),
-	("\x1b[0m", "\\x1b[0m"),
-	("tab\there", "tab\\there"),
-	("　", "\\u3000"),
-	("\ud800", "\\ud800"),
-	(None, "None"),
-	(5, "5"),
-], ids=["plain", "cjk", "newline", "crlf", "escape", "tab", "ideographic-space", "lone-surrogate", "none", "int"])
+@pytest.mark.parametrize(
+	"value, logged",
+	[
+		("plain text", "plain text"),
+		("模型", "模型"),
+		("a\nb", "a\\nb"),
+		("a\r\nb", "a\\r\\nb"),
+		("\x1b[0m", "\\x1b[0m"),
+		("tab\there", "tab\\there"),
+		("　", "\\u3000"),
+		("\ud800", "\\ud800"),
+		(None, "None"),
+		(5, "5"),
+	],
+	ids=[
+		"plain",
+		"cjk",
+		"newline",
+		"crlf",
+		"escape",
+		"tab",
+		"ideographic-space",
+		"lone-surrogate",
+		"none",
+		"int",
+	],
+)
 def test_loggable_escapes_what_could_break_a_log_line(value, logged):
 	assert loggable(value) == logged
 

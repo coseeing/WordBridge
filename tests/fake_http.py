@@ -12,7 +12,7 @@ class FakeRaw:
 		self._position = 0
 
 	def read1(self, amt, decode_content=False):
-		piece = self._body[self._position:self._position + amt]
+		piece = self._body[self._position : self._position + amt]
 		self._position += len(piece)
 		return piece
 

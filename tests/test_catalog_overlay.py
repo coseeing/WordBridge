@@ -78,7 +78,13 @@ def test_providers_and_coseeings_come_from_bundled_and_models_from_remote():
 
 def _hostile_providers(document):
 	document["providers"] = {
-		name: {"label": "Evil", "url": "https://evil.test/v1", "setting": {"evil": True}, "timeout0": 1, "timeout_max": 2}
+		name: {
+			"label": "Evil",
+			"url": "https://evil.test/v1",
+			"setting": {"evil": True},
+			"timeout0": 1,
+			"timeout_max": 2,
+		}
 		for name in document["providers"]
 	}
 	return document
@@ -93,7 +99,11 @@ def test_remote_providers_never_reach_a_provider_entry():
 	for name, data in bundled["providers"].items():
 		entry = catalog.get_provider(name)
 		assert (entry.label, entry.url, entry.setting, entry.timeout0, entry.timeout_max) == (
-			data["label"], data["url"], data["setting"], data["timeout0"], data["timeout_max"],
+			data["label"],
+			data["url"],
+			data["setting"],
+			data["timeout0"],
+			data["timeout_max"],
 		), name
 	assert [(issue.code, issue.location) for issue in catalog.issues] == [
 		("unreferenced_provider", "providers.OpenRouter"),
@@ -103,7 +113,9 @@ def test_remote_providers_never_reach_a_provider_entry():
 def test_remote_extra_keys_add_no_issue():
 	# Every NVDA start and fetch logs each issue as a warning; keys the
 	# add-on does not read must not add a line.
-	remote = dict(server_document(), coseeings=[{"model": "remote-only", "label": "remote-only"}], extra={"x": 1})
+	remote = dict(
+		server_document(), coseeings=[{"model": "remote-only", "label": "remote-only"}], extra={"x": 1}
+	)
 
 	_document, issues = overlay_documents(bundled_document(), remote)
 
@@ -210,7 +222,8 @@ def test_a_broken_bundled_file_plus_a_good_remote_gives_the_sentinel_and_no_loca
 	# bundled file is named as the cause.
 	served = {key: value for key, value in _remote().items() if key != "providers"}
 	assert accept_remote_document(broken, served, runnable_providers=SUPPORTED_PROVIDERS) == (
-		None, (CatalogIssue("bundled_source_failed", "bundled", "no_providers"),),
+		None,
+		(CatalogIssue("bundled_source_failed", "bundled", "no_providers"),),
 	)
 
 
@@ -258,7 +271,9 @@ def test_a_remote_model_for_a_provider_the_bundled_file_lacks_is_dropped(provide
 
 	catalog = _load(StaticSource(bundled_document()), remote)
 
-	assert ("unknown_provider", f"models[{index}]") in [(issue.code, issue.location) for issue in catalog.issues]
+	assert ("unknown_provider", f"models[{index}]") in [
+		(issue.code, issue.location) for issue in catalog.issues
+	]
 	assert all(entry.model != "m-new" for entry in catalog.models)
 	assert len([item for item in catalog.selectable_items if item.execution_channel == LOCAL_CHANNEL]) == 16
 
@@ -283,7 +298,9 @@ def test_the_shipped_target_files_overlay_as_section_7_4():
 	assert "coseeings" not in server
 
 	catalog = load_overlay_catalog(
-		BundledCatalogSource(ADDON_SETTING_DIR), server, runnable_providers=SUPPORTED_PROVIDERS,
+		BundledCatalogSource(ADDON_SETTING_DIR),
+		server,
+		runnable_providers=SUPPORTED_PROVIDERS,
 	)
 
 	assert catalog.provider_groups == ("Anthropic", "DeepSeek", "Google", "OpenAI", COSEEING_GROUP)
@@ -315,4 +332,6 @@ def test_the_shipped_target_files_overlay_as_section_7_4():
 	assert [(entry.corrector_config_id, entry.active, entry.price_entry()) for entry in catalog.models] == [
 		(entry.corrector_config_id, entry.active, entry.price_entry()) for entry in today.models
 	]
-	assert any(entry.price_entry() for entry in catalog.models), "reference has no prices -- test would be vacuous"
+	assert any(entry.price_entry() for entry in catalog.models), (
+		"reference has no prices -- test would be vacuous"
+	)

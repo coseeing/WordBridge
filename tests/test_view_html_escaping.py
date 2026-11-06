@@ -43,7 +43,9 @@ def _render(monkeypatch, tmp_path, diff):
 
 
 def test_inline_config_contains_no_raw_angle_brackets(monkeypatch, tmp_path):
-	html = _render(monkeypatch, tmp_path, [{"operation": "replace", "before_text": PAYLOAD, "after_text": PAYLOAD}])
+	html = _render(
+		monkeypatch, tmp_path, [{"operation": "replace", "before_text": PAYLOAD, "after_text": PAYLOAD}]
+	)
 	config = _inline_config(html)
 	assert "<" not in config
 	assert ">" not in config
@@ -66,13 +68,16 @@ def test_numeric_character_reference_is_decoded_then_escaped(monkeypatch, tmp_pa
 	assert "\\u003c/script\\u003e" in config
 
 
-@pytest.mark.parametrize("character, escape", [
-	("<", "\\u003c"),
-	(">", "\\u003e"),
-	("&", "\\u0026"),
-	("\u2028", "\\u2028"),
-	("\u2029", "\\u2029"),
-])
+@pytest.mark.parametrize(
+	"character, escape",
+	[
+		("<", "\\u003c"),
+		(">", "\\u003e"),
+		("&", "\\u0026"),
+		("\u2028", "\\u2028"),
+		("\u2029", "\\u2029"),
+	],
+)
 def test_each_dangerous_character_is_escaped(monkeypatch, character, escape):
 	view_html = _load_view_html(monkeypatch)
 	assert view_html._escape_for_inline_script(character) == escape

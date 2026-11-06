@@ -36,8 +36,13 @@ def _panel_fixture(monkeypatch, **settings_overrides):
 		return _make_panel(monkeypatch, dialogs, Sizer)
 
 	return SimpleNamespace(
-		plugin=plugin, dialogs=dialogs, settings=settings, queued=queued, auth_calls=auth_calls,
-		helper_calls=helper_calls, make_panel=make_panel,
+		plugin=plugin,
+		dialogs=dialogs,
+		settings=settings,
+		queued=queued,
+		auth_calls=auth_calls,
+		helper_calls=helper_calls,
+		make_panel=make_panel,
 	)
 
 
@@ -51,11 +56,16 @@ def _save(panel):
 
 # --- Task 14: the URL group (R12, C18, C20, spec 20.1/20.4) ----------------
 
-@pytest.mark.parametrize("stored, shown", [
-	({"catalog_url": "http://localhost:8000"}, "http://localhost:8000"),
-	({}, DEFAULT_URL),
-	({"catalog_url": ""}, "No model list URL"),
-], ids=["stored", "default", "empty"])
+
+@pytest.mark.parametrize(
+	"stored, shown",
+	[
+		({"catalog_url": "http://localhost:8000"}, "http://localhost:8000"),
+		({}, DEFAULT_URL),
+		({"catalog_url": ""}, "No model list URL"),
+	],
+	ids=["stored", "default", "empty"],
+)
 def test_the_url_group_is_last_with_a_read_only_box_and_a_change_button(monkeypatch, stored, shown):
 	f = _panel_fixture(monkeypatch, **stored)
 
@@ -77,17 +87,28 @@ def test_the_url_group_is_last_with_a_read_only_box_and_a_change_button(monkeypa
 
 def _group_holding(panel, control):
 	return next(
-		child for child in panel.settingsSizer.children
+		child
+		for child in panel.settingsSizer.children
 		if hasattr(child, "GetStaticBox") and control in child.children
 	)
 
 
-@pytest.mark.parametrize("caption, members, labels", [
-	("Personal dictionary", ("customizedWordEnable", "wordDictionaryCtrl"),
-		["Apply personal dictionary", "Edit dictionary"]),
-	("Sound effects", ("soundEffectsEnable", "soundEffectsCtrl"),
-		["Enable sound effect cues", "Sound effect credits"]),
-], ids=["dictionary", "sound"])
+@pytest.mark.parametrize(
+	"caption, members, labels",
+	[
+		(
+			"Personal dictionary",
+			("customizedWordEnable", "wordDictionaryCtrl"),
+			["Apply personal dictionary", "Edit dictionary"],
+		),
+		(
+			"Sound effects",
+			("soundEffectsEnable", "soundEffectsCtrl"),
+			["Enable sound effect cues", "Sound effect credits"],
+		),
+	],
+	ids=["dictionary", "sound"],
+)
 def test_a_setting_and_its_button_share_a_group(monkeypatch, caption, members, labels):
 	# As NVDA's "NVDA Development" group: the controls keep their full
 	# labels and are children of the group's box.
@@ -282,40 +303,78 @@ def test_the_panel_has_no_url_validation(monkeypatch):
 def test_the_url_group_strings_have_translator_comments_and_translations():
 	from test_catalog_url_dialog import ADDON, _assert_translated
 
-	_assert_translated(ADDON / "dialogs.py", {
-		"No model list URL": "未設定模型清單網址",
-		"Change...": "變更...",
-		"Model list URL": "模型清單網址",
-	})
+	_assert_translated(
+		ADDON / "dialogs.py",
+		{
+			"No model list URL": "未設定模型清單網址",
+			"Change...": "變更...",
+			"Model list URL": "模型清單網址",
+		},
+	)
 
 
 def test_the_group_captions_have_translator_comments_and_translations():
 	from test_catalog_url_dialog import ADDON, _assert_translated
 
-	_assert_translated(ADDON / "dialogs.py", {
-		"Personal dictionary": "個人化辭典",
-		"Sound effects": "音效",
-	})
+	_assert_translated(
+		ADDON / "dialogs.py",
+		{
+			"Personal dictionary": "個人化辭典",
+			"Sound effects": "音效",
+		},
+	)
 
 
 STATUS_TABLE = [
 	("off", "none", "off", "The model list URL is empty, so only the Coseeing default is available."),
 	("invalid", "none", "invalid", "The model list URL is invalid, so no model list was loaded."),
-	("loading", "none", "running", "The model list is still loading. Until it loads, only the Coseeing default is available."),
-	("failed", "none", "failed", "The model list could not be loaded, so only the Coseeing default is available. See the NVDA log for details."),
-	("stale", "cache", "failed", "The model list could not be updated. WordBridge is using the list it saved earlier."),
+	(
+		"loading",
+		"none",
+		"running",
+		"The model list is still loading. Until it loads, only the Coseeing default is available.",
+	),
+	(
+		"failed",
+		"none",
+		"failed",
+		"The model list could not be loaded, so only the Coseeing default is available. See the NVDA log for details.",
+	),
+	(
+		"stale",
+		"cache",
+		"failed",
+		"The model list could not be updated. WordBridge is using the list it saved earlier.",
+	),
 	("cache-running", "cache", "running", None),
 	# The add-on's release-time model list is in use: the list is not short,
 	# so a load in progress says nothing, like cache/running.
-	("bundled-off", "bundled", "off", "The model list URL is empty, so WordBridge is using the model list that came with the add-on."),
-	("bundled-invalid", "bundled", "invalid", "The model list URL is invalid, so WordBridge is using the model list that came with the add-on."),
+	(
+		"bundled-off",
+		"bundled",
+		"off",
+		"The model list URL is empty, so WordBridge is using the model list that came with the add-on.",
+	),
+	(
+		"bundled-invalid",
+		"bundled",
+		"invalid",
+		"The model list URL is invalid, so WordBridge is using the model list that came with the add-on.",
+	),
 	("bundled-running", "bundled", "running", None),
-	("bundled-failed", "bundled", "failed", "The model list could not be updated. WordBridge is using the model list that came with the add-on."),
+	(
+		"bundled-failed",
+		"bundled",
+		"failed",
+		"The model list could not be updated. WordBridge is using the model list that came with the add-on.",
+	),
 	("fetched", "fetched", "succeeded", None),
 ]
 
 
-@pytest.mark.parametrize("source, fetch, message", [row[1:] for row in STATUS_TABLE], ids=[row[0] for row in STATUS_TABLE])
+@pytest.mark.parametrize(
+	"source, fetch, message", [row[1:] for row in STATUS_TABLE], ids=[row[0] for row in STATUS_TABLE]
+)
 def test_catalog_status_message_table(monkeypatch, source, fetch, message):
 	f = _panel_fixture(monkeypatch)
 
@@ -346,7 +405,9 @@ def _line_shown(panel, line):
 
 def test_no_status_line_when_the_list_is_fresh(monkeypatch):
 	f = _panel_fixture(monkeypatch)
-	monkeypatch.setattr(f.dialogs.catalog_updater, "status", lambda: _status(f.dialogs, "fetched", "succeeded"))
+	monkeypatch.setattr(
+		f.dialogs.catalog_updater, "status", lambda: _status(f.dialogs, "fetched", "succeeded")
+	)
 
 	panel = f.make_panel()
 
@@ -363,7 +424,9 @@ def test_the_dropped_entries_line_is_silent_for_the_shipped_overlay(monkeypatch)
 	assert _line_shown(panel, panel.catalogIssuesText) is False
 
 
-@pytest.mark.parametrize("source, fetch, message", [row[1:] for row in STATUS_TABLE], ids=[row[0] for row in STATUS_TABLE])
+@pytest.mark.parametrize(
+	"source, fetch, message", [row[1:] for row in STATUS_TABLE], ids=[row[0] for row in STATUS_TABLE]
+)
 def test_the_panel_description_is_the_status_line(monkeypatch, source, fetch, message):
 	# R11: NVDA reads panelDescription as the property page's description
 	# when focus enters the panel (gui/settingsDialogs.py:504-505).
@@ -379,12 +442,18 @@ def test_the_panel_description_is_the_status_line(monkeypatch, source, fetch, me
 
 def test_both_lines_exist_in_their_place_when_empty(monkeypatch):
 	f = _panel_fixture(monkeypatch)
-	monkeypatch.setattr(f.dialogs.catalog_updater, "status", lambda: _status(f.dialogs, "fetched", "succeeded"))
+	monkeypatch.setattr(
+		f.dialogs.catalog_updater, "status", lambda: _status(f.dialogs, "fetched", "succeeded")
+	)
 
 	panel = f.make_panel()
 
 	controls = f.plugin.panel_added_controls
-	assert controls.index(panel.catalogIssuesText) < controls.index(panel.catalogStatusText) < controls.index(panel.providerList)
+	assert (
+		controls.index(panel.catalogIssuesText)
+		< controls.index(panel.catalogStatusText)
+		< controls.index(panel.providerList)
+	)
 	assert not _line_shown(panel, panel.catalogIssuesText)
 	assert not _line_shown(panel, panel.catalogStatusText)
 
@@ -416,14 +485,18 @@ def real_updater(f, tmp_path, http_get, schedule=None):
 
 	updater = module.CatalogUpdater(
 		bundled_source=f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting"),
-		cache=cache_module.CatalogCache(tmp_path / "catalog" / "remote-catalog.json", can_write=lambda: False),
+		cache=cache_module.CatalogCache(
+			tmp_path / "catalog" / "remote-catalog.json", can_write=lambda: False
+		),
 		runnable_providers=f.plugin.SUPPORTED_PROVIDERS,
 		http_get=http_get,
 		post_to_ui=lambda function, *args: posted.append((function, args)),
 		install=install,
 		shutdown=threading.Event(),
 		log=_Log(),
-		start_thread=lambda target, args: threads.append((target, args)) or SimpleNamespace(is_alive=lambda: False),
+		start_thread=lambda target, args: (
+			threads.append((target, args)) or SimpleNamespace(is_alive=lambda: False)
+		),
 		schedule=schedule,
 	)
 	updater.threads, updater.posted, updater.installed = threads, posted, installed
@@ -489,7 +562,8 @@ def _coseeing_only(f):
 	"""No local models at all: only the Coseeing default (source "none")."""
 	overlay = __import__(f.plugin.__name__ + ".lib.catalog.overlay", fromlist=["load_overlay_catalog"])
 	return overlay.load_overlay_catalog(
-		_BundledWithoutModels(f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting")), None,
+		_BundledWithoutModels(f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting")),
+		None,
 		runnable_providers=f.plugin.SUPPORTED_PROVIDERS,
 	)
 
@@ -502,7 +576,8 @@ def test_account_box_captions_are_the_same_with_and_without_a_fetched_list(monke
 	f = _panel_fixture(monkeypatch)
 	overlay = __import__(f.plugin.__name__ + ".lib.catalog.overlay", fromlist=["load_overlay_catalog"])
 	fetched = overlay.load_overlay_catalog(
-		f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting"), served_document(),
+		f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting"),
+		served_document(),
 		runnable_providers=f.plugin.SUPPORTED_PROVIDERS,
 	)
 	bundled_only = _coseeing_only(f)
@@ -516,7 +591,8 @@ def test_account_box_captions_are_the_same_with_and_without_a_fetched_list(monke
 def _served_overlay(f, document, runnable_providers=None):
 	overlay = __import__(f.plugin.__name__ + ".lib.catalog.overlay", fromlist=["load_overlay_catalog"])
 	return overlay.load_overlay_catalog(
-		f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting"), document,
+		f.plugin.BundledCatalogSource(str(f.plugin.PATH) + "/setting"),
+		document,
 		runnable_providers=f.plugin.SUPPORTED_PROVIDERS if runnable_providers is None else runnable_providers,
 	)
 
@@ -534,7 +610,9 @@ def test_a_model_for_a_provider_this_release_lacks_is_not_counted_in_the_dropped
 
 	catalog = _served_overlay(f, document)
 
-	assert ("unknown_provider", f"models[{index}]") in [(issue.code, issue.location) for issue in catalog.issues]
+	assert ("unknown_provider", f"models[{index}]") in [
+		(issue.code, issue.location) for issue in catalog.issues
+	]
 	assert f.dialogs._dropped_entries_message(catalog) is None
 
 
@@ -572,7 +650,10 @@ def test_an_unresolved_stored_selection_survives_an_untouched_save(monkeypatch):
 	_save(panel)
 	_run_queued(f)
 
-	assert (f.settings["corrector_config_id"], f.settings["execution_channel"]) == ("gpt-6-luna&OpenAI", "local")
+	assert (f.settings["corrector_config_id"], f.settings["execution_channel"]) == (
+		"gpt-6-luna&OpenAI",
+		"local",
+	)
 	assert f.settings["language"] == "zh_simplified"
 	# The user's channel is still local: no Coseeing sign-in prompt.
 	assert f.auth_calls == []
@@ -651,7 +732,8 @@ def test_a_changed_choice_overwrites_the_unresolved_selection(monkeypatch):
 
 	first_openai = f.plugin.catalog.items_for("OpenAI")[0]
 	assert (f.settings["corrector_config_id"], f.settings["execution_channel"]) == (
-		first_openai.corrector_config_id, "local",
+		first_openai.corrector_config_id,
+		"local",
 	)
 	assert f.auth_calls == []
 
@@ -677,4 +759,7 @@ def test_a_resolved_selection_is_saved_as_before(monkeypatch):
 
 	_save(panel)
 
-	assert (f.settings["corrector_config_id"], f.settings["execution_channel"]) == ("gpt-6.1-sol&OpenAI", "local")
+	assert (f.settings["corrector_config_id"], f.settings["execution_channel"]) == (
+		"gpt-6.1-sol&OpenAI",
+		"local",
+	)

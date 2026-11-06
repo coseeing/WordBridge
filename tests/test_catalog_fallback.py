@@ -30,13 +30,15 @@ class RaisingSource:
 def test_a_usable_document_is_not_replaced():
 	document = {
 		"schema_version": SCHEMA_VERSION,
-		"providers": {"OpenAI": {
-			"label": "OpenAI",
-			"url": "https://example.invalid",
-			"setting": {},
-			"timeout0": 10,
-			"timeout_max": 20,
-		}},
+		"providers": {
+			"OpenAI": {
+				"label": "OpenAI",
+				"url": "https://example.invalid",
+				"setting": {},
+				"timeout0": 10,
+				"timeout_max": 20,
+			}
+		},
 		"models": [{"provider": "OpenAI", "model": "gpt-x", "label": "GPT X"}],
 		"coseeings": [],
 	}
@@ -84,13 +86,15 @@ def test_a_partially_broken_document_stays_undegraded_and_keeps_all_issues():
 
 	document = {
 		"schema_version": SCHEMA_VERSION,
-		"providers": {"OpenAI": {
-			"label": "OpenAI",
-			"url": "https://example.invalid",
-			"setting": {},
-			"timeout0": 10,
-			"timeout_max": 20,
-		}},
+		"providers": {
+			"OpenAI": {
+				"label": "OpenAI",
+				"url": "https://example.invalid",
+				"setting": {},
+				"timeout0": 10,
+				"timeout_max": 20,
+			}
+		},
 		"models": [
 			{"provider": "OpenAI", "model": "gpt-x", "label": "GPT X"},
 			{"provider": "OpenAI", "model": "broken"},  # no label -> incomplete_entry, skipped

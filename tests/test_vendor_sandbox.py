@@ -18,10 +18,7 @@ from lib.vendor import _make_sandbox_import
 
 ISOLATED = frozenset({"alpha", "beta"})
 
-PACKAGE_ROOT = (
-	Path(__file__).resolve().parent.parent
-	/ "addon" / "globalPlugins" / "WordBridge" / "package"
-)
+PACKAGE_ROOT = Path(__file__).resolve().parent.parent / "addon" / "globalPlugins" / "WordBridge" / "package"
 ADDON_ROOT = PACKAGE_ROOT.parent
 
 
@@ -100,9 +97,7 @@ def sandbox_root(tmp_path):
 	alpha = tmp_path / "alpha"
 	alpha.mkdir()
 	(alpha / "__init__.py").write_text(
-		"def get():\n"
-		"\timport beta\n"
-		"\treturn beta.VALUE\n",
+		"def get():\n\timport beta\n\treturn beta.VALUE\n",
 		encoding="utf8",
 	)
 	beta = tmp_path / "beta"
@@ -111,9 +106,7 @@ def sandbox_root(tmp_path):
 	gamma = tmp_path / "gamma"
 	gamma.mkdir()
 	(gamma / "__init__.py").write_text(
-		"import json\n"
-		"def get_json():\n"
-		"\treturn json\n",
+		"import json\ndef get_json():\n\treturn json\n",
 		encoding="utf8",
 	)
 	return tmp_path
@@ -133,10 +126,7 @@ def install_sandbox():
 	for prefix in installed:
 		for name in [n for n in sys.modules if n == prefix or n.startswith(prefix + ".")]:
 			del sys.modules[name]
-		sys.meta_path[:] = [
-			finder for finder in sys.meta_path
-			if getattr(finder, "prefix", None) != prefix
-		]
+		sys.meta_path[:] = [finder for finder in sys.meta_path if getattr(finder, "prefix", None) != prefix]
 
 
 def test_namespace_path_holds_only_roots_that_exist(sandbox_root, install_sandbox):
@@ -185,14 +175,9 @@ def test_install_is_idempotent(sandbox_root, install_sandbox):
 	assert len(sys.meta_path) == finders_after_first
 
 
-def test_install_reinstalls_a_missing_finder_when_the_namespace_still_exists(
-	sandbox_root, install_sandbox
-):
+def test_install_reinstalls_a_missing_finder_when_the_namespace_still_exists(sandbox_root, install_sandbox):
 	first = install_sandbox([str(sandbox_root)], "_wb_t2a", {"alpha"})
-	sys.meta_path[:] = [
-		finder for finder in sys.meta_path
-		if getattr(finder, "prefix", None) != "_wb_t2a"
-	]
+	sys.meta_path[:] = [finder for finder in sys.meta_path if getattr(finder, "prefix", None) != "_wb_t2a"]
 
 	second = install_sandbox([str(sandbox_root)], "_wb_t2a", {"alpha"})
 
@@ -201,9 +186,7 @@ def test_install_reinstalls_a_missing_finder_when_the_namespace_still_exists(
 	assert len(matching) == 1
 
 
-def test_install_recreates_a_missing_namespace_without_duplicating_the_finder(
-	sandbox_root, install_sandbox
-):
+def test_install_recreates_a_missing_namespace_without_duplicating_the_finder(sandbox_root, install_sandbox):
 	first = install_sandbox([str(sandbox_root)], "_wb_t2b", {"alpha"})
 	del sys.modules["_wb_t2b"]
 
@@ -215,9 +198,7 @@ def test_install_recreates_a_missing_namespace_without_duplicating_the_finder(
 	assert len(matching) == 1
 
 
-def test_lazy_import_inside_a_function_resolves_to_the_sandbox(
-	sandbox_root, install_sandbox, monkeypatch
-):
+def test_lazy_import_inside_a_function_resolves_to_the_sandbox(sandbox_root, install_sandbox, monkeypatch):
 	"""B's defining property: interception survives to call time.
 
 	A host `beta` exists and would win any resolution that is not sandboxed.
@@ -253,14 +234,24 @@ def test_finder_declines_every_namespace_portion_under_the_prefix(sandbox_root, 
 	vendored package.  All three must fail here, while an ordinary
 	category-2-style package under the same prefix still resolves.
 	"""
-	for dirname in (vendor.STDLIB_GAPFILL_DIRNAME, vendor.CRYPTOGRAPHY_GAPFILL_DIRNAME, "_coseeing_auth_deps", "__pycache__"):
+	for dirname in (
+		vendor.STDLIB_GAPFILL_DIRNAME,
+		vendor.CRYPTOGRAPHY_GAPFILL_DIRNAME,
+		"_coseeing_auth_deps",
+		"__pycache__",
+	):
 		namespace_dir = sandbox_root / dirname
 		namespace_dir.mkdir()
 		(namespace_dir / "stub.py").write_text("VALUE = 'stub'\n", encoding="utf8")
 
 	install_sandbox([str(sandbox_root)], "_wb_t6", {"alpha"})
 
-	for dirname in (vendor.STDLIB_GAPFILL_DIRNAME, vendor.CRYPTOGRAPHY_GAPFILL_DIRNAME, "_coseeing_auth_deps", "__pycache__"):
+	for dirname in (
+		vendor.STDLIB_GAPFILL_DIRNAME,
+		vendor.CRYPTOGRAPHY_GAPFILL_DIRNAME,
+		"_coseeing_auth_deps",
+		"__pycache__",
+	):
 		with pytest.raises(ModuleNotFoundError):
 			importlib.import_module(f"_wb_t6.{dirname}")
 
@@ -342,7 +333,11 @@ def test_runtime_key_matches_the_bundle_directory_actually_on_disk(monkeypatch):
 	monkeypatch.setattr(struct, "calcsize", lambda fmt: 8)
 	deps_dir = (
 		Path(__file__).resolve().parent.parent
-		/ "addon" / "globalPlugins" / "WordBridge" / "package" / "_coseeing_auth_deps"
+		/ "addon"
+		/ "globalPlugins"
+		/ "WordBridge"
+		/ "package"
+		/ "_coseeing_auth_deps"
 	)
 
 	assert (deps_dir / "py313-win_amd64").is_dir()
@@ -457,9 +452,7 @@ def test_gapfill_registers_a_module_the_host_lacks(tmp_path, monkeypatch):
 		sys.modules.pop("wbfakegap", None)
 
 
-def test_gapfill_registers_a_module_whose_name_has_a_single_leading_underscore(
-	tmp_path, monkeypatch
-):
+def test_gapfill_registers_a_module_whose_name_has_a_single_leading_underscore(tmp_path, monkeypatch):
 	"""A single leading underscore must not be excluded like __init__.py is:
 	NVDA's stripped stdlib can drop a private helper module (e.g. _pydecimal)
 	just as easily as a public one, and the data-driven gap-fill must still
@@ -492,9 +485,7 @@ def test_gapfill_records_a_failure_without_raising_when_our_own_copy_fails_to_ex
 	"""
 	directory = tmp_path / "_stdlib_gapfill"
 	directory.mkdir()
-	(directory / "wbbrokengap.py").write_text(
-		"import this_module_does_not_exist_anywhere\n", encoding="utf8"
-	)
+	(directory / "wbbrokengap.py").write_text("import this_module_does_not_exist_anywhere\n", encoding="utf8")
 	(directory / "wbgoodgap.py").write_text("VALUE = 'gapfill'\n", encoding="utf8")
 	monkeypatch.delitem(sys.modules, "wbbrokengap", raising=False)
 	monkeypatch.delitem(sys.modules, "wbgoodgap", raising=False)
@@ -579,7 +570,9 @@ def test_unavailable_reason_distinguishes_missing_directory_from_broken_bundle(m
 		name="_wb_vendor.authlib.integrations.base_client.errors",
 	)
 	monkeypatch.setattr(coseeing_auth, "_AUTH_IMPORT_ERROR", same_error)
-	monkeypatch.setattr(coseeing_auth, "_AUTH_IMPORT_MODULE", "_wb_vendor.authlib.integrations.base_client.errors")
+	monkeypatch.setattr(
+		coseeing_auth, "_AUTH_IMPORT_MODULE", "_wb_vendor.authlib.integrations.base_client.errors"
+	)
 	monkeypatch.setattr(coseeing_auth.vendor, "runtime_key", lambda: "py313-win_amd64")
 
 	directory_absent = types.ModuleType("_wb_vendor")
@@ -588,7 +581,10 @@ def test_unavailable_reason_distinguishes_missing_directory_from_broken_bundle(m
 	message_directory_absent = coseeing_auth.unavailable_reason()
 
 	bundle_present_but_broken = types.ModuleType("_wb_vendor")
-	bundle_present_but_broken.__path__ = [r"C:\addon\package", r"C:\addon\package\_coseeing_auth_deps\py313-win_amd64"]
+	bundle_present_but_broken.__path__ = [
+		r"C:\addon\package",
+		r"C:\addon\package\_coseeing_auth_deps\py313-win_amd64",
+	]
 	monkeypatch.setitem(sys.modules, "_wb_vendor", bundle_present_but_broken)
 	message_bundle_present = coseeing_auth.unavailable_reason()
 
@@ -622,7 +618,9 @@ def test_unavailable_reason_flags_a_host_only_name_going_missing(monkeypatch):
 
 	error = ModuleNotFoundError("No module named 'requests'", name="requests")
 	monkeypatch.setattr(coseeing_auth, "_AUTH_IMPORT_ERROR", error)
-	monkeypatch.setattr(coseeing_auth, "_AUTH_IMPORT_MODULE", "_wb_vendor.authlib.integrations.base_client.errors")
+	monkeypatch.setattr(
+		coseeing_auth, "_AUTH_IMPORT_MODULE", "_wb_vendor.authlib.integrations.base_client.errors"
+	)
 
 	message = coseeing_auth.unavailable_reason()
 
@@ -716,7 +714,9 @@ def test_coseeing_auth_reports_unavailable_when_no_bundle_resolves(tmp_path):
 	"""
 	subprocess.run(
 		[sys.executable, "-S", "-c", textwrap.dedent(code), str(addon), str(package)],
-		check=True, capture_output=True, text=True,
+		check=True,
+		capture_output=True,
+		text=True,
 	)
 
 
@@ -747,7 +747,12 @@ def test_local_correction_imports_resolve_through_the_prefix():
 	):
 		source = ADDON_ROOT / relative
 		text = source.read_text(encoding="utf8")
-		for bare in ("from pypinyin", "from chinese_converter", "import chinese_converter", "from hanzidentifier"):
+		for bare in (
+			"from pypinyin",
+			"from chinese_converter",
+			"import chinese_converter",
+			"from hanzidentifier",
+		):
 			assert f"\n{bare}" not in f"\n{text}", f"{relative} still imports {bare!r} bare"
 
 
@@ -814,8 +819,6 @@ def test_plugin_entry_point_installs_the_sandbox_before_importing_coseeing_auth(
 	assert install_index < first_relative_import_after_install_index
 	assert install_index < coseeing_auth_import_index
 	assert install_index < hanzidentifier_import_index
-
-
 
 
 # --- cryptography: the host's copy, with the files py2exe left out filled in ---
@@ -897,9 +900,7 @@ def test_no_cryptography_is_bundled():
 def test_the_cryptography_gapfill_ships_verbatim():
 	root = PACKAGE_ROOT / vendor.CRYPTOGRAPHY_GAPFILL_DIRNAME
 	shipped = {
-		path.relative_to(root).as_posix()
-		for path in root.rglob("*.py")
-		if "__pycache__" not in path.parts
+		path.relative_to(root).as_posix() for path in root.rglob("*.py") if "__pycache__" not in path.parts
 	}
 	assert shipped == set(_CRYPTOGRAPHY_GAPFILL_SHA256)
 	for relative, expected in _CRYPTOGRAPHY_GAPFILL_SHA256.items():
@@ -1071,9 +1072,16 @@ def test_nvda_remote_certificate_survives_coseeing_auth_loading(tmp_path):
 	""")
 	result = subprocess.run(
 		[
-			sys.executable, "-c", code,
-			str(ADDON_ROOT / "lib"), str(PACKAGE_ROOT), str(runtimes[0]), str(trimmed),
+			sys.executable,
+			"-c",
+			code,
+			str(ADDON_ROOT / "lib"),
+			str(PACKAGE_ROOT),
+			str(runtimes[0]),
+			str(trimmed),
 		],
-		check=False, capture_output=True, text=True,
+		check=False,
+		capture_output=True,
+		text=True,
 	)
 	assert result.returncode == 0, f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"

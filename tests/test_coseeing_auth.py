@@ -46,23 +46,28 @@ coseeing_errors = types.ModuleType("_wb_vendor.coseeing_auth.errors")
 for error in (LoginError, RestoreError, TokenUnavailableError, TokenValidationError, ClientClosedError):
 	setattr(coseeing_auth, error.__name__, error)
 	setattr(coseeing_errors, error.__name__, error)
-sys.modules.update({
-	"addonHandler": addon_handler,
-	"_wb_vendor.authlib": authlib,
-	"_wb_vendor.authlib.integrations": authlib_integrations,
-	"_wb_vendor.authlib.integrations.base_client": authlib_base_client,
-	"_wb_vendor.authlib.integrations.base_client.errors": authlib_errors,
-	"_wb_vendor.coseeing_auth": coseeing_auth,
-	"_wb_vendor.coseeing_auth.errors": coseeing_errors,
-})
+sys.modules.update(
+	{
+		"addonHandler": addon_handler,
+		"_wb_vendor.authlib": authlib,
+		"_wb_vendor.authlib.integrations": authlib_integrations,
+		"_wb_vendor.authlib.integrations.base_client": authlib_base_client,
+		"_wb_vendor.authlib.integrations.base_client.errors": authlib_errors,
+		"_wb_vendor.coseeing_auth": coseeing_auth,
+		"_wb_vendor.coseeing_auth.errors": coseeing_errors,
+	}
+)
 
 import lib.coseeing_auth as auth_module
 from lib.coseeing_auth import AuthSessionState, CoseeingAuthSession
 
 for module_name in (
-	"addonHandler", "_wb_vendor.authlib", "_wb_vendor.authlib.integrations",
+	"addonHandler",
+	"_wb_vendor.authlib",
+	"_wb_vendor.authlib.integrations",
 	"_wb_vendor.authlib.integrations.base_client",
-	"_wb_vendor.authlib.integrations.base_client.errors", "_wb_vendor.coseeing_auth",
+	"_wb_vendor.authlib.integrations.base_client.errors",
+	"_wb_vendor.coseeing_auth",
 	"_wb_vendor.coseeing_auth.errors",
 ):
 	sys.modules.pop(module_name, None)
@@ -136,9 +141,7 @@ def test_auth_error_classes_bind_when_the_sandbox_resolves_the_bundle(tmp_path):
 	(deps / "authlib" / "__init__.py").write_text("", encoding="utf-8")
 	(deps / "authlib" / "integrations" / "__init__.py").write_text("", encoding="utf-8")
 	(authlib_base_client / "__init__.py").write_text("", encoding="utf-8")
-	(authlib_base_client / "errors.py").write_text(
-		"class OAuthError(Exception):\n\tpass\n", encoding="utf-8"
-	)
+	(authlib_base_client / "errors.py").write_text("class OAuthError(Exception):\n\tpass\n", encoding="utf-8")
 
 	code = """
 	import sys
@@ -162,7 +165,9 @@ def test_auth_error_classes_bind_when_the_sandbox_resolves_the_bundle(tmp_path):
 	"""
 	subprocess.run(
 		[sys.executable, "-S", "-c", textwrap.dedent(code), str(addon), str(package)],
-		check=True, capture_output=True, text=True,
+		check=True,
+		capture_output=True,
+		text=True,
 	)
 
 
@@ -188,7 +193,8 @@ def test_saved_session_restore_returns_access_without_manual_refresh_callbacks()
 	h.resolve("access")
 	assert result.result(timeout=1) == "access"
 	assert [call[0] for call in h.auth.calls] == [
-		"restore_saved_session", "get_access_token",
+		"restore_saved_session",
+		"get_access_token",
 	]
 	assert h.prompts == 0
 
@@ -243,7 +249,7 @@ def test_overlapping_live_waiters_receive_the_same_result():
 
 
 @pytest.mark.parametrize(
-"code,prompted",
+	"code,prompted",
 	[("refresh_rejected", True), ("token_endpoint_network_error", False)],
 )
 def test_restore_failure_classification(code, prompted):
@@ -269,10 +275,13 @@ def _login_session(h):
 	h.auth.calls.clear()
 
 
-@pytest.mark.parametrize("error", [
-	TokenUnavailableError("synthetic", code="refresh_rejected"),
-	TokenUnavailableError("synthetic", code="refresh_unavailable"),
-])
+@pytest.mark.parametrize(
+	"error",
+	[
+		TokenUnavailableError("synthetic", code="refresh_rejected"),
+		TokenUnavailableError("synthetic", code="refresh_unavailable"),
+	],
+)
 def test_current_session_recovery_errors_prompt_without_login(error):
 	h = AuthHarness(CoseeingAuthSession, choice="login")
 	_login_session(h)
@@ -345,16 +354,22 @@ def test_default_access_token_mode_follows_shared_validity_history(monkeypatch):
 	state.refresh_token_was_valid = True
 	auth_module.get_coseeing_access_token()
 
-	assert calls == [{"reconsider_guest": False, "silent": True}, {"reconsider_guest": False, "silent": False}]
+	assert calls == [
+		{"reconsider_guest": False, "silent": True},
+		{"reconsider_guest": False, "silent": False},
+	]
 
 
-@pytest.mark.parametrize("error", [
-	OAuthError(error="invalid_grant"),
-	TokenValidationError("synthetic", code="jwt_invalid", operation="access_token"),
-	TokenValidationError("synthetic", code="jwt_invalid", operation="id_token"),
-	TokenValidationError("synthetic", code="scope_missing", operation="access_token"),
-	TokenValidationError("synthetic", code="nonce_mismatch", operation="id_token"),
-])
+@pytest.mark.parametrize(
+	"error",
+	[
+		OAuthError(error="invalid_grant"),
+		TokenValidationError("synthetic", code="jwt_invalid", operation="access_token"),
+		TokenValidationError("synthetic", code="jwt_invalid", operation="id_token"),
+		TokenValidationError("synthetic", code="scope_missing", operation="access_token"),
+		TokenValidationError("synthetic", code="nonce_mismatch", operation="id_token"),
+	],
+)
 def test_invalid_authentication_error_prompts(error):
 	h = AuthHarness(CoseeingAuthSession, choice="login")
 	_login_session(h)
@@ -608,6 +623,7 @@ def test_callback_ui_submission_failure_fails_waiters_and_clears_operation():
 			queue.append((fn, args))
 
 	from coseeing_auth_helpers import FakeAuth
+
 	auth = FakeAuth()
 	session = CoseeingAuthSession(
 		client_factory=lambda: auth,
@@ -839,6 +855,7 @@ def test_close_schedule_failure_waits_for_admitted_request_client_handoff():
 		prompt_login=lambda: "guest",
 	)
 	result = session.get_access_token()
+
 	def run_queued_request():
 		callback, args = queue.pop(0)
 		callback(*args)

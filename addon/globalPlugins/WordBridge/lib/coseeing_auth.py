@@ -124,8 +124,7 @@ def unavailable_reason() -> str:
 	if top_level in vendor.HOST_ONLY:
 		detail = f"{detail} (host environment changed: {top_level!r} is expected from NVDA, not the bundle)"
 	return (
-		f"Coseeing auth dependencies unavailable "
-		f"(runtime={runtime}, _wb_vendor.__path__={roots}, {detail})"
+		f"Coseeing auth dependencies unavailable (runtime={runtime}, _wb_vendor.__path__={roots}, {detail})"
 	)
 
 
@@ -425,7 +424,9 @@ class CoseeingAuthSession:
 		elif choice == "login":
 			try:
 				future = self._call_client("login")
-				self._watch(future, lambda result: self._login_succeeded(result, silent=silent), silent=silent)
+				self._watch(
+					future, lambda result: self._login_succeeded(result, silent=silent), silent=silent
+				)
 			except Exception as error:  # noqa: BLE001
 				self._fail(error, silent=silent)
 		else:
@@ -569,10 +570,12 @@ class _NvdaAuthAdapter:
 		config = build_auth_config()
 		from _wb_vendor.coseeing_auth import CoseeingAuthClient, FutureAuthClient
 
-		return FutureAuthClient(CoseeingAuthClient(
-			config,
-			refresh_token_store=_new_refresh_token_store(),
-		))
+		return FutureAuthClient(
+			CoseeingAuthClient(
+				config,
+				refresh_token_store=_new_refresh_token_store(),
+			)
+		)
 
 	def prompt_login(self) -> str:
 		dialog = self._gui.message.MessageDialog(
@@ -607,7 +610,10 @@ class _NvdaAuthAdapter:
 		except Exception as error:  # noqa: BLE001
 			self._log.warning(
 				"Coseeing auth dialog close failed type=%s operation=%s stage=%s code=%s",
-				type(error).__name__, "shutdown", "dialog", "close_failed",
+				type(error).__name__,
+				"shutdown",
+				"dialog",
+				"close_failed",
 			)
 
 	def session(self, *, auth_state: AuthSessionState | None = None) -> CoseeingAuthSession:
@@ -638,7 +644,11 @@ class _NvdaAuthAdapter:
 			code = getattr(error, "code", "unknown")
 			self._log.warning(
 				"Coseeing auth failure type=%s operation=%s stage=%s code=%s cause=%s",
-				type(error).__name__, operation, stage, code, _cause_summary(error),
+				type(error).__name__,
+				operation,
+				stage,
+				code,
+				_cause_summary(error),
 			)
 			try:
 				self.post_ui(self._deliver_notification, notify_during_shutdown)
@@ -681,7 +691,9 @@ def has_seen_valid_refresh_token() -> bool:
 	return _auth_state.refresh_token_was_valid
 
 
-def get_coseeing_access_token(*, reconsider_guest: bool = False, silent: bool | None = None) -> Future[str | None]:
+def get_coseeing_access_token(
+	*, reconsider_guest: bool = False, silent: bool | None = None
+) -> Future[str | None]:
 	if silent is None:
 		silent = not has_seen_valid_refresh_token()
 	try:

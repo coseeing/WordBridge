@@ -26,9 +26,7 @@ STORAGE_PACKAGES = (
 	"server/app/package/coseeing_auth/storage",
 	"addon/globalPlugins/WordBridge/package/coseeing_auth/storage",
 )
-STORAGE_SOURCES = [
-	f"{package}/{module}" for package in STORAGE_PACKAGES for module in STORAGE_MODULES
-]
+STORAGE_SOURCES = [f"{package}/{module}" for package in STORAGE_PACKAGES for module in STORAGE_MODULES]
 
 
 def _git(*args: str) -> subprocess.CompletedProcess:

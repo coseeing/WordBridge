@@ -194,12 +194,16 @@ def test_latest_action_is_published_as_one_snapshot_on_the_ui_thread(monkeypatch
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
 	monkeypatch.setattr(plugin_module, "strings_diff", lambda request, response: ["d"])
 	monkeypatch.setattr(plugin_module.api, "copyToClip", lambda text: None, raising=False)
-	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
-		warning=lambda *args, **kwargs: None,
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	))
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args, **kwargs: None,
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		),
+	)
 	monkeypatch.setattr(
 		plugin_module.requests,
 		"post",
@@ -247,12 +251,16 @@ def test_feedback_reads_one_internally_consistent_snapshot_despite_nested_event_
 	future.set_result(None)
 	monkeypatch.setattr(plugin_module, "get_coseeing_access_token", lambda: future)
 	monkeypatch.setattr(plugin_module, "ui", SimpleNamespace(message=lambda *args, **kwargs: None))
-	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
-		warning=lambda *args, **kwargs: None,
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	))
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args, **kwargs: None,
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		),
+	)
 
 	dialog_args = []
 	record = {}
@@ -314,12 +322,16 @@ def test_feedback_thread_is_not_started_once_terminate_ran_inside_showmodal(monk
 	)
 	instance.correct_typo_thread = None
 	instance._feedback_thread = None
-	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
-		warning=lambda *args, **kwargs: None,
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	))
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args, **kwargs: None,
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		),
+	)
 	gui.settingsDialogs.NVDASettingsDialog.categoryClasses = [plugin_module.LLMSettingsPanel]
 
 	future = Future()
@@ -360,7 +372,9 @@ def test_feedback_thread_is_not_started_once_terminate_ran_inside_showmodal(monk
 	show, args = queued.pop()
 	show(*args)
 
-	assert instance._feedback_thread is None, "no feedback thread should start once terminate() has already run"
+	assert instance._feedback_thread is None, (
+		"no feedback thread should start once terminate() has already run"
+	)
 	assert auth_calls == ["shutdown"]
 	assert posts == []
 
@@ -374,12 +388,16 @@ def test_terminate_returns_within_budget_while_a_worker_is_blocked(monkeypatch):
 	queued = []
 	plugin_module = _plugin(monkeypatch, queued)
 	instance = _instance(plugin_module)
-	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
-		warning=lambda *args, **kwargs: None,
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	))
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args, **kwargs: None,
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		),
+	)
 	plugin_module.gui.settingsDialogs.NVDASettingsDialog.categoryClasses = [plugin_module.LLMSettingsPanel]
 
 	release = threading.Event()
@@ -407,12 +425,16 @@ def test_terminate_is_safe_when_called_twice(monkeypatch):
 	auth_calls = []
 	plugin_module, _, gui = _load_nvda_plugin(monkeypatch, SETTINGS, auth_calls, [])
 	instance = _instance(plugin_module)
-	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
-		warning=lambda *args, **kwargs: None,
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	))
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args, **kwargs: None,
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		),
+	)
 	gui.settingsDialogs.NVDASettingsDialog.categoryClasses = [plugin_module.LLMSettingsPanel]
 	instance.correct_typo_thread = None
 	instance._feedback_thread = None
@@ -511,12 +533,16 @@ def test_terminate_runs_cleanup_tail_when_join_raises_keyboardinterrupt(monkeypa
 	auth_calls = []
 	plugin_module, _, gui = _load_nvda_plugin(monkeypatch, SETTINGS, auth_calls, [])
 	instance = _instance(plugin_module)
-	monkeypatch.setattr(plugin_module, "log", SimpleNamespace(
-		warning=lambda *args, **kwargs: None,
-		info=lambda *args, **kwargs: None,
-		debug=lambda *args, **kwargs: None,
-		exception=lambda *args, **kwargs: None,
-	))
+	monkeypatch.setattr(
+		plugin_module,
+		"log",
+		SimpleNamespace(
+			warning=lambda *args, **kwargs: None,
+			info=lambda *args, **kwargs: None,
+			debug=lambda *args, **kwargs: None,
+			exception=lambda *args, **kwargs: None,
+		),
+	)
 	gui.settingsDialogs.NVDASettingsDialog.categoryClasses = [plugin_module.LLMSettingsPanel]
 
 	class ExplodingWorker:

@@ -8,6 +8,7 @@ from requests.utils import urlparse
 
 try:
 	import addonHandler
+
 	addonHandler.initTranslation()
 except ImportError:
 	pass
@@ -18,6 +19,7 @@ except ImportError:
 try:
 	_  # noqa: B018
 except NameError:
+
 	def _(s):
 		return s
 
@@ -56,14 +58,18 @@ class Provider:
 	def handle_errors(self, response):
 		if response.status_code != 200:
 			if response.status_code == 401:
-				# Translators: Reported when the AI service provider rejects the user's API key (HTTP 401).
-				raise Exception(_("Authentication error. Please check if the service provider's key is correct."))  # noqa: TRY002
+				raise Exception(  # noqa: TRY002
+					# Translators: Reported when the AI service provider rejects the user's API key (HTTP 401).
+					_("Authentication error. Please check if the service provider's key is correct.")
+				)
 			if response.status_code == 403:
 				# Translators: Reported when the AI service provider refuses requests from the user's location (HTTP 403).
 				raise Exception(_("Country, region, or territory not supported."))  # noqa: TRY002
 			if response.status_code == 404:
-				# Translators: Reported when the AI service provider does not know the selected model (HTTP 404).
-				raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))  # noqa: TRY002
+				raise Exception(  # noqa: TRY002
+					# Translators: Reported when the AI service provider does not know the selected model (HTTP 404).
+					_("Service does not exist. Please check if the model does not exist or has expired.")
+				)
 			if response.status_code == 429:
 				raise Exception(  # noqa: TRY002
 					# Translators: First sentence reported when the AI service provider limits the user's requests
@@ -96,7 +102,9 @@ class Provider:
 				# carries the request URL, and a URL may carry a credential.
 				log.error(
 					"Try = %d, %s, an error occurred when sending %s request",
-					r + 1, request_error, self.name,
+					r + 1,
+					request_error,
+					self.name,
 				)
 
 		raise Exception(  # noqa: TRY002
@@ -130,7 +138,9 @@ class Provider:
 				# Same rule as try_connection(): never str(e).
 				log.error(
 					"Try = %d, %s, an error occurred when sending %s request",
-					r + 1, request_error, self.name,
+					r + 1,
+					request_error,
+					self.name,
 				)
 				current_backoff = min(current_backoff * (1 + random.random()), 3)
 				time.sleep(current_backoff)
@@ -206,7 +216,9 @@ PROVIDER_CLASSES = {
 }
 
 
-def get_provider(provider_name: str, credential: dict, retries: int = 2, backoff: int = 1, *, provider_entry) -> Provider:
+def get_provider(
+	provider_name: str, credential: dict, retries: int = 2, backoff: int = 1, *, provider_entry
+) -> Provider:
 	provider_class = PROVIDER_CLASSES.get(provider_name)
 	if not provider_class:
 		raise ValueError(f"Unsupported provider: {provider_name}")

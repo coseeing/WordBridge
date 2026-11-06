@@ -247,16 +247,18 @@ class TaskArchitectureTests(unittest.TestCase):
 				return Decimal("0.0001")
 
 			def get_execution_metrics(self):
-				return [{
-					"original_text": "天器真好",
-					"output_text": "天氣真好",
-					"request_payload": {"payload": "天氣真好"},
-					"raw_response": {"raw": "天氣真好"},
-					"usage": {"prompt_tokens": 1, "completion_tokens": 1},
-					"raw_usage": {"prompt_tokens": 1, "completion_tokens": 1},
-					"latency_ms": 12.5,
-					"request_cost": "0.0001",
-				}]
+				return [
+					{
+						"original_text": "天器真好",
+						"output_text": "天氣真好",
+						"request_payload": {"payload": "天氣真好"},
+						"raw_response": {"raw": "天氣真好"},
+						"usage": {"prompt_tokens": 1, "completion_tokens": 1},
+						"raw_usage": {"prompt_tokens": 1, "completion_tokens": 1},
+						"latency_ms": 12.5,
+						"request_cost": "0.0001",
+					}
+				]
 
 		workflow = TypoCorrectionWorkflow(
 			executor=FakeExecutor(),
@@ -320,6 +322,7 @@ class TaskArchitectureTests(unittest.TestCase):
 		original_get_provider = task_factory.get_provider
 		original_get_provider_model_adapter = task_factory.get_provider_model_adapter
 		try:
+
 			def fake_get_provider(provider_name, credential, retries=2, backoff=1, *, provider_entry):
 				captured["provider_name"] = provider_name
 				return FakeProvider()
@@ -403,15 +406,17 @@ class TaskArchitectureTests(unittest.TestCase):
 					"request_count": 1,
 					"total_latency_ms": 123.4,
 				},
-				"requests": [{
-					"request_payload": {
-						"messages": [
-							{"role": "system", "content": "你是校正器"},
-							{"role": "user", "content": "原始文字"},
-						],
-					},
-					"output_text": "修正結果",
-				}],
+				"requests": [
+					{
+						"request_payload": {
+							"messages": [
+								{"role": "system", "content": "你是校正器"},
+								{"role": "user", "content": "原始文字"},
+							],
+						},
+						"output_text": "修正結果",
+					}
+				],
 			},
 		)
 
@@ -502,14 +507,18 @@ class _nvda_module_stubs:
 		global_plugin_handler.GlobalPlugin = object
 		sys.modules["globalPluginHandler"] = global_plugin_handler
 		sys.modules["api"] = types.SimpleNamespace(copyToClip=lambda text: None, getFocusObject=lambda: None)
-		sys.modules["logHandler"] = types.SimpleNamespace(log=types.SimpleNamespace(
-			warning=lambda *args, **kwargs: None,
-			info=lambda *args, **kwargs: None,
-			debug=lambda *args, **kwargs: None,
-			exception=lambda *args, **kwargs: None,
-		))
+		sys.modules["logHandler"] = types.SimpleNamespace(
+			log=types.SimpleNamespace(
+				warning=lambda *args, **kwargs: None,
+				info=lambda *args, **kwargs: None,
+				debug=lambda *args, **kwargs: None,
+				exception=lambda *args, **kwargs: None,
+			)
+		)
 		sys.modules["nvwave"] = types.SimpleNamespace(playWaveFile=lambda *args, **kwargs: None)
-		sys.modules["scriptHandler"] = types.SimpleNamespace(script=lambda **kwargs: lambda function: function)
+		sys.modules["scriptHandler"] = types.SimpleNamespace(
+			script=lambda **kwargs: lambda function: function
+		)
 		sys.modules["textInfos"] = types.SimpleNamespace(POSITION_SELECTION=object())
 		sys.modules["tones"] = types.SimpleNamespace(beep=lambda *args: None)
 		sys.modules["ui"] = types.SimpleNamespace(message=lambda message: None)
@@ -521,38 +530,59 @@ class _nvda_module_stubs:
 		dictionary_package.default_dictionary_repository = lambda: types.SimpleNamespace(load=list)
 		sys.modules["WordBridge.dictionary"] = dictionary_package
 		sys.modules["WordBridge.dictionary.dialog"] = types.SimpleNamespace(DictionaryEntryDialog=object)
-		sys.modules["WordBridge.lib.coseeing"] = types.SimpleNamespace(build_coseeing_headers=lambda token: {} if token is None else {"Authorization": f"Bearer {token}"})
-		sys.modules["WordBridge.lib.decimalUtils"] = types.SimpleNamespace(decimal_to_str_0=lambda cost: str(cost))
-		sys.modules["WordBridge.lib.tasks.typo.utils"] = types.SimpleNamespace(strings_diff=lambda request, response: [])
+		sys.modules["WordBridge.lib.coseeing"] = types.SimpleNamespace(
+			build_coseeing_headers=lambda token: {} if token is None else {"Authorization": f"Bearer {token}"}
+		)
+		sys.modules["WordBridge.lib.decimalUtils"] = types.SimpleNamespace(
+			decimal_to_str_0=lambda cost: str(cost)
+		)
+		sys.modules["WordBridge.lib.tasks.typo.utils"] = types.SimpleNamespace(
+			strings_diff=lambda request, response: []
+		)
 		sys.modules["WordBridge.lib.viewHTML"] = types.SimpleNamespace(text2template=lambda src, dst: None)
 		if self.captured_runner_args is not None:
+
 			def run_typo_correction(
-				*, request, batch_mode, provider_name, model_name, credential,
-				provider_entry, price_entry, language,
-				template_name, corrector_mode, optional_guidance_enable,
-				customized_words, retries, backoff,
+				*,
+				request,
+				batch_mode,
+				provider_name,
+				model_name,
+				credential,
+				provider_entry,
+				price_entry,
+				language,
+				template_name,
+				corrector_mode,
+				optional_guidance_enable,
+				customized_words,
+				retries,
+				backoff,
 			):
 				# provider_entry/price_entry are required, keyword-only, and
 				# there is no **kwargs catch-all -- an unexpected or a missing
 				# keyword from the real call site both raise a TypeError
 				# instead of this stub silently accepting the drift.
-				self.captured_runner_args.update({
-					"request": request,
-					"batch_mode": batch_mode,
-					"provider_name": provider_name,
-					"model_name": model_name,
-					"credential": credential,
-					"provider_entry": provider_entry,
-					"price_entry": price_entry,
-					"language": language,
-					"template_name": template_name,
-					"corrector_mode": corrector_mode,
-					"optional_guidance_enable": optional_guidance_enable,
-					"customized_words": customized_words,
-					"retries": retries,
-					"backoff": backoff,
-				})
+				self.captured_runner_args.update(
+					{
+						"request": request,
+						"batch_mode": batch_mode,
+						"provider_name": provider_name,
+						"model_name": model_name,
+						"credential": credential,
+						"provider_entry": provider_entry,
+						"price_entry": price_entry,
+						"language": language,
+						"template_name": template_name,
+						"corrector_mode": corrector_mode,
+						"optional_guidance_enable": optional_guidance_enable,
+						"customized_words": customized_words,
+						"retries": retries,
+						"backoff": backoff,
+					}
+				)
 				return types.SimpleNamespace(corrected_text=request, diff=[], cost=Decimal(0))
+
 			sys.modules["WordBridge.lib.application.task_runner"] = types.SimpleNamespace(
 				run_typo_correction=run_typo_correction,
 			)
@@ -595,17 +625,22 @@ class _nvda_module_stubs:
 
 class _FakeConf(dict):
 	def __init__(self):
-		super().__init__({
-			"WordBridge": {"settings": {
-				"corrector_config_id": "gpt-6.1-sol&OpenAI",
-				"execution_channel": "local",
-				"language": "zh_traditional",
-				"typo_correction_mode": "standard",
-				"api_key": {"OpenAI": "test-key"},
-				"customized_words_enable": False,
-				"auto_display_report": False,
-				"sound_effects_enable": False,
-			}}})
+		super().__init__(
+			{
+				"WordBridge": {
+					"settings": {
+						"corrector_config_id": "gpt-6.1-sol&OpenAI",
+						"execution_channel": "local",
+						"language": "zh_traditional",
+						"typo_correction_mode": "standard",
+						"api_key": {"OpenAI": "test-key"},
+						"customized_words_enable": False,
+						"auto_display_report": False,
+						"sound_effects_enable": False,
+					}
+				}
+			}
+		)
 		self.spec = {}
 
 

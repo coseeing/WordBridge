@@ -176,7 +176,11 @@ def check_remote_document(document) -> tuple:
 	# check, which only ever sees the bundled file and the overlay's own
 	# schema_version 1.
 	if type(version) is not int or version != SCHEMA_VERSION:
-		shown = repr(version) if version is None or type(version) in (int, float, bool) else type(version).__name__
+		shown = (
+			repr(version)
+			if version is None or type(version) in (int, float, bool)
+			else type(version).__name__
+		)
 		return _issue("remote_schema_version", f"expected {SCHEMA_VERSION}, got {shown}")
 	if not isinstance(document.get("models"), list):
 		return _issue("remote_malformed", "models must be a list")

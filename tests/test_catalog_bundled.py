@@ -26,7 +26,9 @@ def shipped_catalog():
 	directly)."""
 	_document, issues = BundledCatalogSource(SETTING_DIR).load()
 	assert issues == ()
-	return load_overlay_catalog(BundledCatalogSource(SETTING_DIR), None, runnable_providers=SUPPORTED_PROVIDERS)
+	return load_overlay_catalog(
+		BundledCatalogSource(SETTING_DIR), None, runnable_providers=SUPPORTED_PROVIDERS
+	)
 
 
 def _write_catalog(root: Path, document: dict) -> Path:
@@ -86,7 +88,11 @@ def test_the_bundled_catalog_alone_offers_the_shipped_model_list():
 	catalog = shipped_catalog()
 
 	def local_items(c):
-		return [(item.corrector_config_id, item.label) for item in c.selectable_items if item.execution_channel == "local"]
+		return [
+			(item.corrector_config_id, item.label)
+			for item in c.selectable_items
+			if item.execution_channel == "local"
+		]
 
 	assert local_items(catalog) == local_items(shipped_overlay())
 	assert catalog.labels_for(COSEEING_GROUP) == ("default",)
@@ -160,6 +166,7 @@ def test_the_bundled_providers_build_completely():
 
 # --- Drift guard between the add-on and the server (spec 11) --------------
 
+
 def _canonical(value):
 	# Text, not ==: True == 1 and 0.0 == 0 in Python, so == would accept a
 	# false that became 0 or a 0.0 that became 0 (spec finding 8).
@@ -196,7 +203,11 @@ def test_the_bundled_models_equal_the_server_models():
 
 def _first_differing_index(bundled, server):
 	for index in range(max(len(bundled), len(server))):
-		if index >= len(bundled) or index >= len(server) or _canonical(bundled[index]) != _canonical(server[index]):
+		if (
+			index >= len(bundled)
+			or index >= len(server)
+			or _canonical(bundled[index]) != _canonical(server[index])
+		):
 			return index
 	return None
 
@@ -217,12 +228,16 @@ def _false_to_int(bundled, server):
 	bundled["OpenAI"]["setting"]["store"] = 0
 
 
-@pytest.mark.parametrize("mutate, expected", [
-	(_server_gains, "Mistral"),
-	(_bundled_loses, "Google"),
-	(_float_to_int, "DeepSeek"),
-	(_false_to_int, "OpenAI"),
-], ids=["server-gains", "bundled-loses", "float-to-int", "false-to-int"])
+@pytest.mark.parametrize(
+	"mutate, expected",
+	[
+		(_server_gains, "Mistral"),
+		(_bundled_loses, "Google"),
+		(_float_to_int, "DeepSeek"),
+		(_false_to_int, "OpenAI"),
+	],
+	ids=["server-gains", "bundled-loses", "float-to-int", "false-to-int"],
+)
 def test_the_drift_message_names_the_first_differing_provider(mutate, expected):
 	bundled = copy.deepcopy(bundled_document()["providers"])
 	server = copy.deepcopy(bundled_document()["providers"])
@@ -252,7 +267,11 @@ def test_every_provider_entry_matches_its_canonical_document_value():
 		entry = catalog.get_provider(name)
 		assert entry is not None, name
 		assert (entry.label, entry.url, entry.setting, entry.timeout0, entry.timeout_max) == (
-			data["label"], data["url"], data["setting"], data["timeout0"], data["timeout_max"],
+			data["label"],
+			data["url"],
+			data["setting"],
+			data["timeout0"],
+			data["timeout_max"],
 		), name
 
 

@@ -5,6 +5,7 @@ the real shipped file rather than the stubs the other auth tests install --
 the point of the helper is what it renders in production, and a stub would
 prove nothing about that.
 """
+
 import importlib.util
 from pathlib import Path
 
@@ -12,7 +13,12 @@ import pytest
 
 ERRORS_PATH = (
 	Path(__file__).resolve().parents[1]
-	/ "addon" / "globalPlugins" / "WordBridge" / "package" / "coseeing_auth" / "errors.py"
+	/ "addon"
+	/ "globalPlugins"
+	/ "WordBridge"
+	/ "package"
+	/ "coseeing_auth"
+	/ "errors.py"
 )
 
 

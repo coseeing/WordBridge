@@ -99,14 +99,25 @@ def test_replace_dialog_labels_original_text_before_corrected_text():
 	)
 	corrected_description_index = html.index("正確詞")
 
-	assert original_label_index < original_description_index < corrected_label_index < corrected_description_index
+	assert (
+		original_label_index
+		< original_description_index
+		< corrected_label_index
+		< corrected_description_index
+	)
 
 
 def test_dialog_uses_paragraphs_for_text_and_lists_only_for_descriptions():
 	html = _open_replace_dialog_html()
 
-	assert '<div class="correction-dialog__entry"><p class="correction-dialog__text">錯</p><ul><li>錯字詞</li></ul></div>' in html
-	assert '<div class="correction-dialog__entry"><p class="correction-dialog__text">對</p><ul><li>正確詞</li></ul></div>' in html
+	assert (
+		'<div class="correction-dialog__entry"><p class="correction-dialog__text">錯</p><ul><li>錯字詞</li></ul></div>'
+		in html
+	)
+	assert (
+		'<div class="correction-dialog__entry"><p class="correction-dialog__text">對</p><ul><li>正確詞</li></ul></div>'
+		in html
+	)
 	assert "<ul><li>錯:" not in html
 
 

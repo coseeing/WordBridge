@@ -73,11 +73,13 @@ class OverlaySource:
 		issues = tuple(bundled_issues or ()) + overlay_issues
 		if not _offers_coseeing(document["coseeings"]):
 			document["coseeings"] = [dict(entry) for entry in FALLBACK_DOCUMENT["coseeings"]]
-			issues += (CatalogIssue(
-				"bundled_coseeings_fallback",
-				"coseeings",
-				"no active Coseeing entry in the bundled catalog; using the built-in default",
-			),)
+			issues += (
+				CatalogIssue(
+					"bundled_coseeings_fallback",
+					"coseeings",
+					"no active Coseeing entry in the bundled catalog; using the built-in default",
+				),
+			)
 		return document, issues
 
 
@@ -116,4 +118,6 @@ def accept_remote_document(bundled_source, document, *, runnable_providers) -> t
 		return None, (CatalogIssue("bundled_source_failed", "bundled", "no_providers"),)
 	if has_local_items(catalog):
 		return catalog, ()
-	return None, (CatalogIssue("remote_no_models", "payload", "the payload offers no selectable local model"),)
+	return None, (
+		CatalogIssue("remote_no_models", "payload", "the payload offers no selectable local model"),
+	)

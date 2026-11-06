@@ -83,6 +83,7 @@ def _text(row_id):
 
 # --- Task 8: wiring, status line, description, lifecycle ------------------
 
+
 def test_the_panel_registers_one_listener(monkeypatch):
 	f = live_fixture(monkeypatch)
 
@@ -97,7 +98,9 @@ def test_the_status_line_and_description_follow_live_updates(monkeypatch):
 	shown = panel.settingsSizer.IsShown
 
 	for source, fetch, row in [
-		("none", "failed", "failed"), ("fetched", "succeeded", None), ("none", "running", "loading"),
+		("none", "failed", "failed"),
+		("fetched", "succeeded", None),
+		("none", "running", "loading"),
 	]:
 		set_status(f, source, fetch)
 		f.fake.emit(change(f))
@@ -183,7 +186,11 @@ def test_a_hidden_panel_retrying_with_the_cache_sends_no_layout_event(monkeypatc
 
 
 def _status_line(panel):
-	return (panel.catalogStatusText.label, panel.settingsSizer.IsShown(panel.catalogStatusText), panel.panelDescription)
+	return (
+		panel.catalogStatusText.label,
+		panel.settingsSizer.IsShown(panel.catalogStatusText),
+		panel.panelDescription,
+	)
 
 
 def test_a_same_key_retry_with_the_cache_keeps_the_stale_line(monkeypatch):
@@ -236,8 +243,12 @@ def test_a_same_key_retry_with_the_bundled_list_keeps_its_line(monkeypatch):
 	assert _status_line(panel) == ("", False, "")
 
 
-@pytest.mark.parametrize("retried, expected", [(True, "bundled-failed"), (False, None)], ids=["r1-started", "already-running"])
-def test_the_panel_opens_on_the_bundled_line_when_its_fetch_starts_from_a_failure(monkeypatch, retried, expected):
+@pytest.mark.parametrize(
+	"retried, expected", [(True, "bundled-failed"), (False, None)], ids=["r1-started", "already-running"]
+)
+def test_the_panel_opens_on_the_bundled_line_when_its_fetch_starts_from_a_failure(
+	monkeypatch, retried, expected
+):
 	f = live_fixture(monkeypatch)
 	set_status(f, "bundled", "failed" if retried else "running")
 
@@ -263,8 +274,12 @@ def test_a_url_change_with_the_cache_hides_the_stale_line(monkeypatch):
 	assert _status_line(panel) == ("", False, "")
 
 
-@pytest.mark.parametrize("retried, expected", [(True, "stale"), (False, None)], ids=["r1-started", "already-running"])
-def test_the_panel_opens_on_the_stale_line_when_its_fetch_starts_from_a_cache_failure(monkeypatch, retried, expected):
+@pytest.mark.parametrize(
+	"retried, expected", [(True, "stale"), (False, None)], ids=["r1-started", "already-running"]
+)
+def test_the_panel_opens_on_the_stale_line_when_its_fetch_starts_from_a_cache_failure(
+	monkeypatch, retried, expected
+):
 	f = live_fixture(monkeypatch)
 	set_status(f, "cache", "failed" if retried else "running")
 
@@ -289,7 +304,10 @@ def test_a_raising_panel_open_retry_still_builds_the_panel(monkeypatch):
 	set_status(f, "none", "failed")
 	warnings = []
 	monkeypatch.setattr(
-		f.dialogs, "log", SimpleNamespace(warning=lambda *args, **kwargs: warnings.append(args)), raising=False,
+		f.dialogs,
+		"log",
+		SimpleNamespace(warning=lambda *args, **kwargs: warnings.append(args)),
+		raising=False,
 	)
 
 	def retry_on_panel_open():
@@ -356,7 +374,10 @@ def _shipped(f):
 def _shipped_without(*ids):
 	def build(f):
 		catalog = f.plugin.catalog
-		return dataclasses.replace(catalog, models=tuple(m for m in catalog.models if m.corrector_config_id not in ids))
+		return dataclasses.replace(
+			catalog, models=tuple(m for m in catalog.models if m.corrector_config_id not in ids)
+		)
+
 	return build
 
 
@@ -386,19 +407,50 @@ SOL = ("gpt-6.1-sol&OpenAI", "local")
 DEEPSEEK_PRO = ("deepseek-v4-pro&DeepSeek", "local")
 SELECTION_ROWS = [
 	("fresh-untouched", _coseeing_only, _shipped, ("", ""), None, DEFAULT, DEFAULT),
-	("stored-local-unresolved-untouched", _coseeing_only, _shipped, ("gpt-6-luna&OpenAI", "local"), None,
-		("gpt-6-luna&OpenAI", "local"), ("gpt-6-luna&OpenAI", "local")),
+	(
+		"stored-local-unresolved-untouched",
+		_coseeing_only,
+		_shipped,
+		("gpt-6-luna&OpenAI", "local"),
+		None,
+		("gpt-6-luna&OpenAI", "local"),
+		("gpt-6-luna&OpenAI", "local"),
+	),
 	("touched-pick-kept", _shipped, _shipped, SOL, ("DeepSeek", 0), DEEPSEEK_PRO, SOL),
-	("touched-pick-gone-stored-present", _shipped, _shipped_without("deepseek-v4-pro&DeepSeek"), SOL, ("DeepSeek", 0),
-		SOL, SOL),
-	("touched-pick-gone-stored-absent", _shipped, _shipped_without("deepseek-v4-pro&DeepSeek", SOL[0]), SOL,
-		("DeepSeek", 0), DEFAULT, DEFAULT),
-	("stored-coseeing-non-default", _coseeing_only, _shipped, ("gpt-6-luna&OpenAI", "Coseeing"), None, DEFAULT, DEFAULT),
+	(
+		"touched-pick-gone-stored-present",
+		_shipped,
+		_shipped_without("deepseek-v4-pro&DeepSeek"),
+		SOL,
+		("DeepSeek", 0),
+		SOL,
+		SOL,
+	),
+	(
+		"touched-pick-gone-stored-absent",
+		_shipped,
+		_shipped_without("deepseek-v4-pro&DeepSeek", SOL[0]),
+		SOL,
+		("DeepSeek", 0),
+		DEFAULT,
+		DEFAULT,
+	),
+	(
+		"stored-coseeing-non-default",
+		_coseeing_only,
+		_shipped,
+		("gpt-6-luna&OpenAI", "Coseeing"),
+		None,
+		DEFAULT,
+		DEFAULT,
+	),
 ]
 
 
 @pytest.mark.parametrize(
-	"old, new, stored, touched, expected, baseline", [row[1:] for row in SELECTION_ROWS], ids=[row[0] for row in SELECTION_ROWS],
+	"old, new, stored, touched, expected, baseline",
+	[row[1:] for row in SELECTION_ROWS],
+	ids=[row[0] for row in SELECTION_ROWS],
 )
 def test_live_selection_table(monkeypatch, old, new, stored, touched, expected, baseline):
 	f = live_fixture(monkeypatch, corrector_config_id=stored[0], execution_channel=stored[1])
@@ -412,7 +464,9 @@ def test_live_selection_table(monkeypatch, old, new, stored, touched, expected, 
 
 	assert panel.catalog is new_catalog
 	assert _item_ids(panel.selection.current_item()) == expected
-	assert (panel.providerList.GetSelection(), panel.modelList.GetSelection()) == new_catalog.find_selection(*expected)
+	assert (panel.providerList.GetSelection(), panel.modelList.GetSelection()) == new_catalog.find_selection(
+		*expected
+	)
 	assert panel._restoredIndices == new_catalog.find_selection(*baseline)
 
 
@@ -550,7 +604,10 @@ def test_a_pick_made_after_apply_survives_a_rebuild(monkeypatch):
 	rebuild_with(f, panel, _shipped(f))
 
 	assert _item_ids(panel.selection.current_item()) == SOL
-	assert (panel.providerList.GetSelection(), panel.modelList.GetSelection()) == panel.catalog.find_selection(*SOL)
+	assert (
+		panel.providerList.GetSelection(),
+		panel.modelList.GetSelection(),
+	) == panel.catalog.find_selection(*SOL)
 	panel.onSave()
 	assert _stored(f) == SOL
 
@@ -630,7 +687,13 @@ def test_a_failing_widget_update_leaves_the_panel_on_the_old_catalog(monkeypatch
 	# matching the widgets, and the next update picks the right item.
 	f = live_fixture(monkeypatch, corrector_config_id=SOL[0], execution_channel=SOL[1])
 	panel = f.make_panel()
-	before = (panel.catalog, panel.selection, panel._storedSelection, panel._restoredIndices, panel._keptUserPick)
+	before = (
+		panel.catalog,
+		panel.selection,
+		panel._storedSelection,
+		panel._restoredIndices,
+		panel._keptUserPick,
+	)
 	new_catalog = _without_group(f, "DeepSeek")
 
 	def broken(items):
@@ -640,15 +703,24 @@ def test_a_failing_widget_update_leaves_the_panel_on_the_old_catalog(monkeypatch
 	with pytest.raises(RuntimeError):
 		rebuild_with(f, panel, new_catalog)
 
-	assert (panel.catalog, panel.selection, panel._storedSelection, panel._restoredIndices, panel._keptUserPick) == before
+	assert (
+		panel.catalog,
+		panel.selection,
+		panel._storedSelection,
+		panel._restoredIndices,
+		panel._keptUserPick,
+	) == before
 	del panel.providerList.SetItems
 	rebuild_with(f, panel, new_catalog)
 	assert panel.catalog is new_catalog
 	assert _item_ids(panel.selection.current_item()) == SOL
-	assert (panel.providerList.GetSelection(), panel.modelList.GetSelection()) == new_catalog.find_selection(*SOL)
+	assert (panel.providerList.GetSelection(), panel.modelList.GetSelection()) == new_catalog.find_selection(
+		*SOL
+	)
 
 
 # --- Task 10 (R13): account boxes up front, and the dropped-entries line --
+
 
 def _shown_boxes(panel):
 	return [group for group, box in panel.accountGroupSizerMap.items() if panel.settingsSizer.IsShown(box)]
@@ -670,7 +742,11 @@ def test_every_supported_provider_has_a_box_in_a_fixed_order(monkeypatch, catalo
 	groups = _account_groups(f)
 	assert list(panel.accountGroupSizerMap) == groups
 	assert set(panel.accountTextCtrlMap) == set(groups) - {"Coseeing"}
-	boxes = [child for child in panel.settingsSizer.children if any(child is box for box in panel.accountGroupSizerMap.values())]
+	boxes = [
+		child
+		for child in panel.settingsSizer.children
+		if any(child is box for box in panel.accountGroupSizerMap.values())
+	]
 	assert boxes == [panel.accountGroupSizerMap[group] for group in groups]
 	assert _shown_boxes(panel) == ["Coseeing"]
 
@@ -691,7 +767,11 @@ def test_a_live_update_creates_no_window_and_only_shows_hides_and_relabels(monke
 	children = list(panel.settingsSizer.children)
 	catalog = _shipped(f)
 	relabelled = dataclasses.replace(
-		catalog, providers={**catalog.providers, "OpenAI": dataclasses.replace(catalog.providers["OpenAI"], label="OpenAI EU")},
+		catalog,
+		providers={
+			**catalog.providers,
+			"OpenAI": dataclasses.replace(catalog.providers["OpenAI"], label="OpenAI EU"),
+		},
 	)
 
 	for new, shown, caption in [
@@ -780,7 +860,9 @@ KEY_ROWS = [
 ]
 
 
-@pytest.mark.parametrize("stored, path, expected", [row[1:] for row in KEY_ROWS], ids=[row[0] for row in KEY_ROWS])
+@pytest.mark.parametrize(
+	"stored, path, expected", [row[1:] for row in KEY_ROWS], ids=[row[0] for row in KEY_ROWS]
+)
 def test_no_blank_api_key_is_written(monkeypatch, stored, path, expected):
 	# R13: boxes exist for providers the user never used; neither reading
 	# their keys nor an OK may add empty entries, and no stored key is lost.
@@ -829,15 +911,20 @@ def test_a_vanished_providers_box_is_hidden_and_its_key_saved_unchanged(monkeypa
 	assert f.settings["api_key"]["DeepSeek"] == "k"
 
 
-@pytest.mark.parametrize("steps", [
-	("bundled", "shipped"),
-	("shipped", "bundled"),
-	("without-Anthropic", "without-Google"),
-], ids=["gain", "lose", "swap"])
+@pytest.mark.parametrize(
+	"steps",
+	[
+		("bundled", "shipped"),
+		("shipped", "bundled"),
+		("without-Anthropic", "without-Google"),
+	],
+	ids=["gain", "lose", "swap"],
+)
 def test_refreshing_account_info_never_raises_for_any_group_change(monkeypatch, steps):
 	f = live_fixture(monkeypatch)
 	catalogs = {
-		"bundled": _coseeing_only, "shipped": _shipped,
+		"bundled": _coseeing_only,
+		"shipped": _shipped,
 		"without-Anthropic": lambda f: _without_group(f, "Anthropic"),
 		"without-Google": lambda f: _without_group(f, "Google"),
 	}
@@ -857,7 +944,11 @@ def test_a_changed_provider_label_updates_the_box_caption(monkeypatch):
 	panel = f.make_panel()
 	catalog = _shipped(f)
 	relabelled = dataclasses.replace(
-		catalog, providers={**catalog.providers, "OpenAI": dataclasses.replace(catalog.providers["OpenAI"], label="OpenAI EU")},
+		catalog,
+		providers={
+			**catalog.providers,
+			"OpenAI": dataclasses.replace(catalog.providers["OpenAI"], label="OpenAI EU"),
+		},
 	)
 
 	rebuild_with(f, panel, relabelled)
@@ -887,12 +978,17 @@ def test_the_dropped_entries_line_follows_the_new_catalog(monkeypatch):
 	catalog = _shipped(f)
 
 	rebuild_with(f, panel, dataclasses.replace(catalog, issues=(first, second)))
-	assert panel.catalogIssuesText.label == "2 catalog entries could not be loaded; see the NVDA log for details."
+	assert (
+		panel.catalogIssuesText.label
+		== "2 catalog entries could not be loaded; see the NVDA log for details."
+	)
 	assert panel.settingsSizer.IsShown(panel.catalogIssuesText) is True
 	assert panel.layout_events == 1
 
 	rebuild_with(f, panel, dataclasses.replace(catalog, issues=(first,)))
-	assert panel.catalogIssuesText.label == "1 catalog entry could not be loaded; see the NVDA log for details."
+	assert (
+		panel.catalogIssuesText.label == "1 catalog entry could not be loaded; see the NVDA log for details."
+	)
 	assert panel.layout_events == 1
 
 	rebuild_with(f, panel, dataclasses.replace(catalog, issues=()))
@@ -901,6 +997,7 @@ def test_the_dropped_entries_line_follows_the_new_catalog(monkeypatch):
 
 
 # --- Task 11: deferral while a drop-down is open or focus would be hidden --
+
 
 def _timers(f):
 	return f.plugin.wx.timers
@@ -1037,6 +1134,7 @@ def test_the_drop_down_probe(monkeypatch, winuser, expected):
 	if winuser == "absent":
 		monkeypatch.delitem(sys.modules, "winUser", raising=False)
 	else:
+
 		def send_message(handle, message, wparam, lparam):
 			calls.append((handle, message, wparam, lparam))
 			return 1 if winuser == "dropped" else 0
@@ -1062,7 +1160,9 @@ ANNOUNCEMENT_ROWS = [
 ]
 
 
-@pytest.mark.parametrize("event, expected", [row[1:] for row in ANNOUNCEMENT_ROWS], ids=[row[0] for row in ANNOUNCEMENT_ROWS])
+@pytest.mark.parametrize(
+	"event, expected", [row[1:] for row in ANNOUNCEMENT_ROWS], ids=[row[0] for row in ANNOUNCEMENT_ROWS]
+)
 def test_announcements_table(monkeypatch, event, expected):
 	f = live_fixture(monkeypatch)
 	panel = f.make_panel()
@@ -1099,7 +1199,9 @@ SILENT_ROWS = [
 ]
 
 
-@pytest.mark.parametrize("event, condition", [row[1:] for row in SILENT_ROWS], ids=[row[0] for row in SILENT_ROWS])
+@pytest.mark.parametrize(
+	"event, condition", [row[1:] for row in SILENT_ROWS], ids=[row[0] for row in SILENT_ROWS]
+)
 def test_no_announcement_when(monkeypatch, event, condition):
 	f = live_fixture(monkeypatch)
 	panel = f.make_panel()
@@ -1164,7 +1266,9 @@ def test_a_description_change_alone_speaks_nothing(monkeypatch):
 def test_the_new_strings_have_translator_comments_and_zh_tw_translations():
 	from test_catalog_url_dialog import ADDON, _assert_translated
 
-	_assert_translated(ADDON / "dialogs.py", {UPDATED: "模型清單已更新。", UPDATE_FAILED: "模型清單更新失敗。"})
+	_assert_translated(
+		ADDON / "dialogs.py", {UPDATED: "模型清單已更新。", UPDATE_FAILED: "模型清單更新失敗。"}
+	)
 
 
 def test_the_panel_follows_a_real_updater_end_to_end(monkeypatch, tmp_path):
@@ -1176,7 +1280,9 @@ def test_the_panel_follows_a_real_updater_end_to_end(monkeypatch, tmp_path):
 	monkeypatch.setattr(f.dialogs, "ui", SimpleNamespace(message=messages.append))
 	network = {"get": _refuse}
 	scheduler = FakeScheduler()
-	updater = real_updater(f, tmp_path, lambda url, **kwargs: network["get"](url, **kwargs), schedule=scheduler)
+	updater = real_updater(
+		f, tmp_path, lambda url, **kwargs: network["get"](url, **kwargs), schedule=scheduler
+	)
 	url = "https://wordbridge.coseeing.org"
 	f.dialogs.registry.replace(updater.initial_catalog(url))
 	updater.refresh(url)

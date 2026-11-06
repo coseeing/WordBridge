@@ -54,7 +54,9 @@ PARSE_TABLE = [
 ]
 
 
-@pytest.mark.parametrize("body, code, detail", [row[1:] for row in PARSE_TABLE], ids=[row[0] for row in PARSE_TABLE])
+@pytest.mark.parametrize(
+	"body, code, detail", [row[1:] for row in PARSE_TABLE], ids=[row[0] for row in PARSE_TABLE]
+)
 def test_parse_remote_payload_table(body, code, detail):
 	document, issues = parse_remote_payload(body)
 
@@ -136,7 +138,9 @@ def test_empty_models_is_rejected():
 
 
 def _local_ids(catalog):
-	return [item.corrector_config_id for item in catalog.selectable_items if item.execution_channel == "local"]
+	return [
+		item.corrector_config_id for item in catalog.selectable_items if item.execution_channel == "local"
+	]
 
 
 def test_a_payload_without_providers_is_accepted():
@@ -170,14 +174,18 @@ def _bundled_with(providers):
 
 _ABSENT = object()
 NO_PROVIDERS_ROWS = {
-	"unreadable-file": lambda: StaticBundled(None, (CatalogIssue("unreadable_file", "catalog.json", "ValueError"),)),
+	"unreadable-file": lambda: StaticBundled(
+		None, (CatalogIssue("unreadable_file", "catalog.json", "ValueError"),)
+	),
 	"no-providers-key": lambda: _bundled_with(_ABSENT),
 	"empty-providers": lambda: _bundled_with({}),
 	"providers-list": lambda: _bundled_with([]),
-	"all-incomplete": lambda: _bundled_with({
-		name: {key: value for key, value in data.items() if key != "setting"}
-		for name, data in bundled_document()["providers"].items()
-	}),
+	"all-incomplete": lambda: _bundled_with(
+		{
+			name: {key: value for key, value in data.items() if key != "setting"}
+			for name, data in bundled_document()["providers"].items()
+		}
+	),
 }
 
 
@@ -187,7 +195,9 @@ def test_a_bundled_file_without_usable_providers_is_reported_as_such(row):
 	# models that leaves no provider means a broken installation, not a bad
 	# payload: remote_no_models would send the reader of the log to the server.
 	catalog, issues = accept_remote_document(
-		NO_PROVIDERS_ROWS[row](), _server_document(), runnable_providers=SUPPORTED_PROVIDERS,
+		NO_PROVIDERS_ROWS[row](),
+		_server_document(),
+		runnable_providers=SUPPORTED_PROVIDERS,
 	)
 
 	assert catalog is None
@@ -201,7 +211,9 @@ def test_one_incomplete_bundled_provider_drops_only_its_models():
 	del providers["OpenAI"]["setting"]
 
 	catalog, issues = accept_remote_document(
-		_bundled_with(providers), _server_document(), runnable_providers=SUPPORTED_PROVIDERS,
+		_bundled_with(providers),
+		_server_document(),
+		runnable_providers=SUPPORTED_PROVIDERS,
 	)
 
 	assert issues == ()
@@ -218,7 +230,15 @@ PROVIDERS_VALUES = {
 	"string": "x",
 	"number": 7,
 	"empty-mapping": {},
-	"hostile-mapping": {"OpenAI": {"label": "Evil", "url": "https://evil.test/", "setting": {}, "timeout0": 1, "timeout_max": 2}},
+	"hostile-mapping": {
+		"OpenAI": {
+			"label": "Evil",
+			"url": "https://evil.test/",
+			"setting": {},
+			"timeout0": 1,
+			"timeout_max": 2,
+		}
+	},
 	"server-providers": json.loads(SERVER_BYTES)["providers"],
 }
 
@@ -250,7 +270,9 @@ def test_a_failing_bundled_source_is_reported_as_such():
 		def load(self):
 			raise OSError("catalog.json unreadable")
 
-	catalog, issues = accept_remote_document(RaisingSource(), _server_document(), runnable_providers=SUPPORTED_PROVIDERS)
+	catalog, issues = accept_remote_document(
+		RaisingSource(), _server_document(), runnable_providers=SUPPORTED_PROVIDERS
+	)
 
 	assert catalog is None
 	assert [(issue.code, issue.location, issue.detail) for issue in issues] == [
@@ -289,7 +311,11 @@ def test_accept_applies_the_document_checks(document, code):
 	assert [(issue.code, issue.location) for issue in issues] == [(code, "payload")]
 
 
-@pytest.mark.parametrize("document, code", [row[1:] for row in ACCEPT_DOCUMENT_TABLE], ids=[row[0] for row in ACCEPT_DOCUMENT_TABLE])
+@pytest.mark.parametrize(
+	"document, code",
+	[row[1:] for row in ACCEPT_DOCUMENT_TABLE],
+	ids=[row[0] for row in ACCEPT_DOCUMENT_TABLE],
+)
 def test_check_remote_document_matches_the_accept_path(document, code):
 	assert [issue.code for issue in check_remote_document(document)] == [code]
 
