@@ -208,3 +208,39 @@ def test_prune_old_reports_orders_by_name_not_mtime(tmp_path):
 
 	assert not older_name.exists()
 	assert newer_name.exists()
+
+
+# --- text2template's title fallback ---------------------------------------
+
+
+def test_text2template_falls_back_to_the_default_title_for_a_file_descriptor(tmp_path, monkeypatch):
+	# open() accepts a file descriptor, os.path.basename() does not.
+	import os
+
+	from lib import viewHTML
+
+	(tmp_path / "index.template").write_text(viewHTML.CONTENT_CONFIG_PLACEHOLDER, encoding="utf8")
+	monkeypatch.setattr(viewHTML, "TEMPLATES_PATH", str(tmp_path))
+	source = tmp_path / "report.txt"
+	source.write_text("內容", encoding="utf8")
+	fd = os.open(source, os.O_RDONLY)
+
+	viewHTML.text2template(fd, tmp_path / "out.html")
+
+	assert '"title": "WordBridge"' in (tmp_path / "out.html").read_text(encoding="utf8")
+
+
+def test_text2template_lets_keyboard_interrupt_through(tmp_path, monkeypatch):
+	# The title fallback is for a source without a name, not for Ctrl+C.
+	from lib import viewHTML
+
+	source = tmp_path / "report.txt"
+	source.write_text("內容", encoding="utf8")
+
+	def interrupted(path):
+		raise KeyboardInterrupt
+
+	monkeypatch.setattr(viewHTML.os.path, "basename", interrupted)
+
+	with pytest.raises(KeyboardInterrupt):
+		viewHTML.text2template(str(source), tmp_path / "out.html")
