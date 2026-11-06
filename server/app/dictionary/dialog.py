@@ -1,17 +1,16 @@
-import csv
-import os
-
 import addonHandler
 import gui
 import wx
 from gui import guiHelper, nvdaControls
 from gui.settingsDialogs import SettingsDialog
 
-from . import WBW_DICTIONARY_PATH
+from . import default_dictionary_repository
 
 addonHandler.initTranslation()
 
 GUIDELINE_TEXT = _(
+	# Translators: Help text of the WordBridge personal dictionary, shown when its Help button is pressed.
+	# Keep the numbered rules and the examples' pinyin and zhuyin as they are.
 	"""Guideline:
 Users can add words to improve the accuracy of added terms. It is recommended to add specialized terms that may not be present in the model's training data or terms that the model frequently make mistakes. The pronunciation (pinyin or zhuyin) of an added word is optional, but providing it can help improve correctness.
 
@@ -45,15 +44,16 @@ class AddDictionaryEntryDialog(
 	helpId = "WordBridgeDictionary"
 
 	def __init__(self, parent):
-		# Translators: This is the label for the add symbol dialog.
+		# Translators: Title of the dialog that adds a word to the WordBridge personal dictionary.
 		super().__init__(parent, title=_("Add a New Word"))
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
 		sHelper = guiHelper.BoxSizerHelper(self, orientation=wx.VERTICAL)
 
-		# Translators: This is the label for the edit field in the add symbol dialog.
 		addPanel = wx.Panel(self)
 		sizer = wx.GridBagSizer(2, 2)
 
+		# Translators: Label of the field for the new word in the dialog that adds a word to the WordBridge
+		# personal dictionary.
 		addWordTextLabel = wx.StaticText(addPanel, label=_("&Word:"))
 		sizer.Add(addWordTextLabel, pos=(0, 0), flag=wx.LEFT, border=10)
 		self.addWordEdit = wx.TextCtrl(
@@ -61,6 +61,8 @@ class AddDictionaryEntryDialog(
 		)
 		sizer.Add(self.addWordEdit, pos=(0, 1))
 
+		# Translators: Label of the optional field for the new word's pronunciation in the dialog that adds a
+		# word to the WordBridge personal dictionary.
 		self.pronunciationTextxtLabel = wx.StaticText(addPanel, label=_("&Pronunciation (Pinyin or Zhuyin):"))
 		sizer.Add(self.pronunciationTextxtLabel, pos=(1, 0), flag=wx.LEFT, border=10)
 		self.addPronunciationEdit = wx.TextCtrl(
@@ -85,12 +87,10 @@ class DictionaryEntryDialog(SettingsDialog):
 	helpId = "WordBridgeDictionary"
 
 	def __init__(self, parent):
-		self.path = os.path.join(WBW_DICTIONARY_PATH, "data.csv")
-		if not os.path.exists(self.path):
-			open(self.path, "w", encoding="utf-8").close()
-		with open(self.path, "r", encoding="utf-8") as file:
-			self.data = list(csv.DictReader(file))
+		self.repository = default_dictionary_repository()
+		self.data = self.repository.load()
 
+		# Translators: Title of the WordBridge personal dictionary dialog.
 		self.title = _("WordBridge Dictionary")
 		super().__init__(
 			parent,
@@ -102,7 +102,7 @@ class DictionaryEntryDialog(SettingsDialog):
 		self.pendingRemovals = {}
 
 		sHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
-		# Translators: The label of a text field to search for symbols in the speech symbols dialog.
+		# Translators: Label of the field that filters the word list in the WordBridge personal dictionary.
 		filterText = _("&Filter by:")
 		self.filterEdit = sHelper.addLabeledControl(
 			labelText=filterText,
@@ -114,12 +114,16 @@ class DictionaryEntryDialog(SettingsDialog):
 		sHelper.addItem(
 			wx.StaticText(
 				self,
+				# Translators: First line of the explanation at the top of the WordBridge personal dictionary;
+				# the next line follows it.
 				label=_("User can add words to improve the accuracy of these terms.\n")
+				# Translators: Second line of the explanation at the top of the WordBridge personal
+				# dictionary.
 				+ _("Please press Help button for more details."),
 			),
 		)
 
-		# Translators: The label for symbols list in symbol pronunciation dialog.
+		# Translators: Label of the word list in the WordBridge personal dictionary.
 		wordsText = _("&Words")
 		self.wordsList = sHelper.addLabeledControl(
 			wordsText,
@@ -129,14 +133,16 @@ class DictionaryEntryDialog(SettingsDialog):
 			style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_VIRTUAL,
 		)
 
-		# Translators: The label for a column in symbols list used to identify a word.
+		# Translators: Label of the column of words in the word list of the WordBridge personal dictionary.
 		self.wordsList.AppendColumn(_("Word"), width=self.scaleSize(150))
-		# Translators: The label for a column in symbols list used to identify a pronunciation.
+		# Translators: Label of the column of pronunciations in the word list of the WordBridge personal
+		# dictionary.
 		self.wordsList.AppendColumn(_("Pronunciation (Pinyin or Zhuyin)"))
 
 		self.wordsList.Bind(wx.EVT_LIST_ITEM_FOCUSED, self.onListItemFocused)
 
-		# Translators: The label for the group of controls in symbol pronunciation dialog to change the pronunciation of a word.
+		# Translators: Label of the group of controls in the WordBridge personal dictionary that change the
+		# selected word and its pronunciation.
 		changeWordText = _("Edit selected word and its pronunciation (pinyin or zhuyin)")
 		changeWordSizer = wx.StaticBoxSizer(wx.VERTICAL, self, label=changeWordText)
 		changeWordGroup = guiHelper.BoxSizerHelper(self, sizer=changeWordSizer)
@@ -154,10 +160,11 @@ class DictionaryEntryDialog(SettingsDialog):
 
 			return wrapWithEventSkip
 
-		# Translators: The label for the edit field in dialog to change the pronunciation text of a word.
 		modifyPanel = wx.Panel(self)
 		sizer = wx.GridBagSizer(2, 2)
 
+		# Translators: Label of the field that changes the selected word in the WordBridge personal
+		# dictionary.
 		self.wordTextLabel = wx.StaticText(modifyPanel, label=_("Selected &Word:"))
 		sizer.Add(self.wordTextLabel, pos=(0, 0), flag=wx.LEFT, border=10)
 		self.wordEdit = wx.TextCtrl(
@@ -169,6 +176,8 @@ class DictionaryEntryDialog(SettingsDialog):
 
 		self.pronunciationTextxtLabel = wx.StaticText(
 			modifyPanel,
+			# Translators: Label of the field that changes the selected word's pronunciation in the WordBridge
+			# personal dictionary.
 			label=_("&Pronunciation (Pinyin or Zhuyin): "),
 		)
 		sizer.Add(self.pronunciationTextxtLabel, pos=(1, 0), flag=wx.LEFT, border=10)
@@ -184,13 +193,15 @@ class DictionaryEntryDialog(SettingsDialog):
 		changeWordHelper.addItem(modifyPanel)
 
 		bHelper = sHelper.addItem(guiHelper.ButtonHelper(orientation=wx.HORIZONTAL))
-		# Translators: The label for a button in the Symbol Pronunciation dialog to add a new symbol.
+		# Translators: Label of the button in the WordBridge personal dictionary that adds a new word.
 		addButton = bHelper.addButton(self, label=_("&Add"))
 
-		# Translators: The label for a button in the Symbol Pronunciation dialog to remove a symbol.
+		# Translators: Label of the button in the WordBridge personal dictionary that removes the selected
+		# word.
 		self.removeButton = bHelper.addButton(self, label=_("Re&move"))
 		self.removeButton.Disable()
 
+		# Translators: Label of the button in the WordBridge personal dictionary that shows its help.
 		self.helpButton = bHelper.addButton(self, label=_("&Help"))
 
 		addButton.Bind(wx.EVT_BUTTON, self.OnAddClick)
@@ -288,10 +299,10 @@ class DictionaryEntryDialog(SettingsDialog):
 		for index, word in enumerate(self.words):
 			if text == word.text:
 				gui.messageBox(
-					# Translators: An error reported in the Symbol Pronunciation dialog
-					# when adding a symbol that is already present.
+					# Translators: Error reported in the WordBridge personal dictionary when the word being
+					# added is already in it; %s is the word.
 					_('Word "%s" is already present.') % text,
-					# Translators: title of an error message
+					# Translators: Title of an error message.
 					_("Error"),
 					wx.OK | wx.ICON_ERROR,
 				)
@@ -344,6 +355,7 @@ class DictionaryEntryDialog(SettingsDialog):
 		dialog.SetSizer(dialogSizer)
 		textctrl.SetFocus()
 
+		# Translators: Label of the button that closes the help of the WordBridge personal dictionary.
 		closeButton = wx.Button(dialog, label=_("Close"))
 		closeButton.Bind(wx.EVT_BUTTON, lambda event: dialog.EndModal(wx.ID_OK))
 		dialogSizer.Add(closeButton, 0, wx.ALL | wx.CENTER, 10)
@@ -355,20 +367,7 @@ class DictionaryEntryDialog(SettingsDialog):
 		self.onWordEdited()
 		self.editingItem = None
 
-		data = []
-		for word in self.words:
-			data.append(
-				{
-					"text": word.text,
-					"pronunciation": word.pronunciation,
-				},
-			)
-
-		with open(self.path, "w", encoding="utf-8", newline="") as file:
-			writer = csv.DictWriter(file, fieldnames=["text", "pronunciation"])
-			writer.writeheader()
-			for row in data:
-				writer.writerow(row)
+		self.repository.save({"text": word.text, "pronunciation": word.pronunciation} for word in self.words)
 
 		super().onOk(evt)
 
