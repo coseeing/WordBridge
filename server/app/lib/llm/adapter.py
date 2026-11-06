@@ -53,10 +53,7 @@ class OpenAIAdapter(ProviderModelAdapter):
 
 		payload["model"] = self.model_name
 		payload["instructions"] = prompt_bundle.system_template
-		payload["input"] = [
-			self._build_input_item(message)
-			for message in deepcopy(prompt_bundle.messages)
-		]
+		payload["input"] = [self._build_input_item(message) for message in deepcopy(prompt_bundle.messages)]
 		return payload
 
 	def parse_response(self, response):
@@ -74,6 +71,7 @@ class OpenAIAdapter(ProviderModelAdapter):
 				if content.get("type") == "output_text":
 					return content["text"]
 		raise KeyError("No output_text found in Responses API payload")
+
 
 class AnthropicAdapter(ProviderModelAdapter):
 	def format_request(self, prompt_bundle, setting: dict):
@@ -114,7 +112,8 @@ class OpenRouterAdapter(ProviderModelAdapter):
 	def format_request(self, prompt_bundle, setting: dict):
 		return {
 			"model": self.model_name,
-			"messages": [{"role": "system", "content": prompt_bundle.system_template}] + deepcopy(prompt_bundle.messages),
+			"messages": [{"role": "system", "content": prompt_bundle.system_template}]
+			+ deepcopy(prompt_bundle.messages),
 			"stream": False,
 			"options": {**deepcopy(setting)},
 		}
@@ -127,7 +126,8 @@ class DeepSeekAdapter(ProviderModelAdapter):
 	def format_request(self, prompt_bundle, setting: dict):
 		payload = {
 			"model": self.model_name,
-			"messages": [{"role": "system", "content": prompt_bundle.system_template}] + deepcopy(prompt_bundle.messages),
+			"messages": [{"role": "system", "content": prompt_bundle.system_template}]
+			+ deepcopy(prompt_bundle.messages),
 			"stream": False,
 			**deepcopy(setting),
 		}
@@ -147,7 +147,12 @@ ADAPTER_CLASSES = {
 }
 
 
-def get_provider_model_adapter(provider_name: str, model_name: str, *, price_entry: dict) -> ProviderModelAdapter:
+def get_provider_model_adapter(
+	provider_name: str,
+	model_name: str,
+	*,
+	price_entry: dict,
+) -> ProviderModelAdapter:
 	adapter_class = ADAPTER_CLASSES.get(provider_name)
 	if not adapter_class:
 		raise ValueError(f"Unsupported provider/model adapter: {provider_name}/{model_name}")

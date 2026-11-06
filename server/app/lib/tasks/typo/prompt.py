@@ -1,6 +1,6 @@
-from copy import deepcopy
 import json
 import os
+from copy import deepcopy
 
 from pypinyin import Style, lazy_pinyin
 
@@ -15,8 +15,8 @@ class TypoPromptStrategy(BasePromptStrategy):
 		self,
 		language: str,
 		template_name: str,
-		optional_guidance_enable: dict = None,
-		customized_words: list = None,
+		optional_guidance_enable: dict | None = None,
+		customized_words: list | None = None,
 	):
 		self.language = language
 		self.optional_guidance_enable = optional_guidance_enable or {}
@@ -92,7 +92,10 @@ class TypoPromptStrategy(BasePromptStrategy):
 					# necessarily Chinese ones, so it needs the total pronunciation
 					# lookup; get_char_pinyin()'s strict contract is what guards the
 					# correction path instead.
-					if len(set(lookup_char_pinyin(word[j])) & set(lookup_char_pinyin(input_text[i + j]))) == 0:
+					if (
+						len(set(lookup_char_pinyin(word[j])) & set(lookup_char_pinyin(input_text[i + j])))
+						== 0
+					):
 						flag = False
 						break
 				if flag:
@@ -113,7 +116,9 @@ class TypoPromptStrategy(BasePromptStrategy):
 
 		word_candidate = self._find_word_candidate(input_info["input_text"], self.customized_words)
 		if word_candidate:
-			system_template = system_template + "\n" + optional_guidance["customized_words"] + "、".join(word_candidate)
+			system_template = (
+				system_template + "\n" + optional_guidance["customized_words"] + "、".join(word_candidate)
+			)
 
 		if not guidance_list:
 			return system_template
@@ -128,7 +133,10 @@ class LiteTypoPromptStrategy(TypoPromptStrategy):
 	def _render_input_messages(self, template: list, preprocessed_text: str, input_info: dict, text_policy):
 		for i in range(len(template)):
 			template[i]["content"] = template[i]["content"].replace("{{text_input}}", preprocessed_text)
-			template[i]["content"] = template[i]["content"].replace("{{QUESTION}}", text_policy.question_string)
+			template[i]["content"] = template[i]["content"].replace(
+				"{{QUESTION}}",
+				text_policy.question_string,
+			)
 			template[i]["content"] = template[i]["content"].replace("{{ANSWER}}", text_policy.answer_string)
 		return template
 
@@ -142,6 +150,9 @@ class StandardTypoPromptStrategy(TypoPromptStrategy):
 		for i in range(len(template)):
 			template[i]["content"] = template[i]["content"].replace("{{text_input}}", preprocessed_text)
 			template[i]["content"] = template[i]["content"].replace("{{phone_input}}", phone)
-			template[i]["content"] = template[i]["content"].replace("{{QUESTION}}", text_policy.question_string)
+			template[i]["content"] = template[i]["content"].replace(
+				"{{QUESTION}}",
+				text_policy.question_string,
+			)
 			template[i]["content"] = template[i]["content"].replace("{{ANSWER}}", text_policy.answer_string)
 		return template

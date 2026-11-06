@@ -5,7 +5,14 @@ from ..base import BaseTextPolicy
 
 
 class TypoTextPolicy(BaseTextPolicy):
-	def __init__(self, language: str, prefix: str = "", suffix: str = "", question_string: str = "", answer_string: str = ""):
+	def __init__(
+		self,
+		language: str,
+		prefix: str = "",
+		suffix: str = "",
+		question_string: str = "",
+		answer_string: str = "",
+	):
 		self.language = language
 		self.prefix = prefix
 		self.suffix = suffix
@@ -23,9 +30,9 @@ class TypoTextPolicy(BaseTextPolicy):
 
 		prefix_to_strip = self.prefix + self.answer_string
 		if prefix_to_strip and text.startswith(prefix_to_strip):
-			text = text[len(prefix_to_strip):]
+			text = text[len(prefix_to_strip) :]
 		if self.suffix and text.endswith(self.suffix):
-			text = text[:-len(self.suffix)]
+			text = text[: -len(self.suffix)]
 
 		# input_text_tmp is empty whenever input_text is and there is no
 		# prefix/suffix, so every subscript below needs its own guard. The

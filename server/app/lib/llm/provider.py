@@ -6,8 +6,11 @@ import time
 import requests
 from requests.utils import urlparse
 
+from .errors import LLMServiceError
+
 try:
 	import addonHandler
+
 	addonHandler.initTranslation()
 except ImportError:
 	pass
@@ -16,8 +19,9 @@ except ImportError:
 # it, so only define a fallback when no _ is reachable at all -- which is the
 # case outside NVDA, for example when workspace/evals imports this module.
 try:
-	_
+	_  # noqa: B018
 except NameError:
+
 	def _(s):
 		return s
 
@@ -56,24 +60,35 @@ class Provider:
 	def handle_errors(self, response):
 		if response.status_code != 200:
 			if response.status_code == 401:
-				raise Exception(_("Authentication error. Please check if the service provider's key is correct."))
+				raise LLMServiceError(
+					# Translators: Reported when the AI service provider rejects the user's API key (HTTP 401).
+					_("Authentication error. Please check if the service provider's key is correct."),
+				)
 			if response.status_code == 403:
-				raise Exception(_("Country, region, or territory not supported."))
+				# Translators: Reported when the AI service provider refuses requests from the user's location (HTTP 403).
+				raise LLMServiceError(_("Country, region, or territory not supported."))
 			if response.status_code == 404:
-				raise Exception(_("Service does not exist. Please check if the model does not exist or has expired."))
+				raise LLMServiceError(
+					# Translators: Reported when the AI service provider does not know the selected model (HTTP 404).
+					_("Service does not exist. Please check if the model does not exist or has expired."),
+				)
 			if response.status_code == 429:
-				raise Exception(
+				raise LLMServiceError(
+					# Translators: First sentence reported when the AI service provider limits the user's requests
+					# (HTTP 429); the next sentence follows it directly, so keep the trailing space.
 					_("Rate limit reached for requests or you exceeded your current quota. ")
-					+ _("Please reduce the frequency of sending requests or check your account balance.")
+					# Translators: Second sentence reported when the AI service provider limits the user's requests
+					# (HTTP 429).
+					+ _("Please reduce the frequency of sending requests or check your account balance."),
 				)
 			if response.status_code == 503:
-				raise Exception(_("The server is currently overloaded, please try again later."))
+				# Translators: Reported when the AI service provider is too busy to answer (HTTP 503).
+				raise LLMServiceError(_("The server is currently overloaded, please try again later."))
 			message = json.loads(response.text)["error"]["message"]
-			raise Exception(
-				_("An error occurred, status code = ") + "{status_code}, {message}".format(
-					status_code=response.status_code,
-					message=message,
-				)
+			raise LLMServiceError(
+				# Translators: Reported for any other error from the AI service provider; the HTTP status code
+				# and the provider's own (untranslated) message follow it, as "401, message".
+				_("An error occurred, status code = ") + f"{response.status_code}, {message}",
 			)
 
 	def try_connection(self, timeout=10, try_count=1):
@@ -83,19 +98,23 @@ class Provider:
 			try:
 				requests.get(url, timeout=timeout)
 				return
-			except Exception as e:
+			except Exception as e:  # noqa: BLE001
 				request_error = type(e).__name__
 				# Only the exception type: str() of a requests exception
 				# carries the request URL, and a URL may carry a credential.
 				log.error(
 					"Try = %d, %s, an error occurred when sending %s request",
-					r + 1, request_error, self.name,
+					r + 1,
+					request_error,
+					self.name,
 				)
 
-		raise Exception(
+		raise LLMServiceError(
+			# Translators: Reported when the AI service provider cannot be reached; {request_error} is the
+			# name of the network error, for example ConnectTimeout.
 			_("HTTP request error ({request_error}). Please check the network setting.").format(
-				request_error=request_error
-			)
+				request_error=request_error,
+			),
 		)
 
 	def send(self, payload, model_name=None):
@@ -116,21 +135,25 @@ class Provider:
 					timeout=timeout,
 				)
 				break
-			except Exception as e:
+			except Exception as e:  # noqa: BLE001
 				request_error = type(e).__name__
 				# Same rule as try_connection(): never str(e).
 				log.error(
 					"Try = %d, %s, an error occurred when sending %s request",
-					r + 1, request_error, self.name,
+					r + 1,
+					request_error,
+					self.name,
 				)
 				current_backoff = min(current_backoff * (1 + random.random()), 3)
 				time.sleep(current_backoff)
 
 		if response is None:
-			raise Exception(
+			raise LLMServiceError(
+				# Translators: Reported when the AI service provider cannot be reached; {request_error} is the
+				# name of the network error, for example ConnectTimeout.
 				_("HTTP request error ({request_error}). Please check the network setting.").format(
-					request_error=request_error
-				)
+					request_error=request_error,
+				),
 			)
 
 		self.handle_errors(response)
@@ -195,7 +218,14 @@ PROVIDER_CLASSES = {
 }
 
 
-def get_provider(provider_name: str, credential: dict, retries: int = 2, backoff: int = 1, *, provider_entry) -> Provider:
+def get_provider(
+	provider_name: str,
+	credential: dict,
+	retries: int = 2,
+	backoff: int = 1,
+	*,
+	provider_entry,
+) -> Provider:
 	provider_class = PROVIDER_CLASSES.get(provider_name)
 	if not provider_class:
 		raise ValueError(f"Unsupported provider: {provider_name}")

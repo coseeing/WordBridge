@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 
-
 COSEEING_GROUP = "Coseeing"
 LOCAL_CHANNEL = "local"
 
@@ -26,13 +25,22 @@ class CatalogIssue:
 
 # Issue codes that flag a lint-level quirk in the source data -- legal,
 # nothing dropped -- rather than an entry, provider or document that was
-# actually rejected. "unreferenced_provider" (a provider no models entry
-# names) is the only one document.py, sources.py or fallback.py emit that
-# means this: every other code they emit means something was dropped. Kept
-# here, next to CatalogIssue, so a caller like the settings panel can ask
-# "was anything actually dropped" without hard-coding the validation
-# vocabulary itself (lib/catalog owns it, and may not reach _()).
-LINT_ISSUE_CODES = frozenset({"unreferenced_provider"})
+# actually rejected: "unreferenced_provider" (a provider no models entry
+# names) and "unknown_provider" (a
+# remote model for a provider this release does not bundle: expected once
+# providers ship with the add-on, since the server may list models for a
+# provider only a newer release has; still logged -- OQ1 -> B, decided by
+# the user on 2026-11-05). Every other code
+# lib/catalog emits means something was dropped. Kept here, next to
+# CatalogIssue, so a caller like the settings panel can ask "was anything
+# actually dropped" without hard-coding the validation vocabulary itself
+# (lib/catalog owns it, and may not reach _()).
+LINT_ISSUE_CODES = frozenset(
+	{
+		"unreferenced_provider",
+		"unknown_provider",
+	},
+)
 
 
 def is_dropped_issue(issue: CatalogIssue) -> bool:
@@ -116,21 +124,25 @@ class CorrectorCatalog:
 		for entry in self.models:
 			if not entry.active:
 				continue
-			groups.setdefault(entry.provider, []).append(SelectableItem(
-				provider_group=entry.provider,
-				corrector_config_id=entry.corrector_config_id,
-				execution_channel=LOCAL_CHANNEL,
-				label=entry.label,
-			))
+			groups.setdefault(entry.provider, []).append(
+				SelectableItem(
+					provider_group=entry.provider,
+					corrector_config_id=entry.corrector_config_id,
+					execution_channel=LOCAL_CHANNEL,
+					label=entry.label,
+				),
+			)
 		for entry in self.coseeings:
 			if not entry.active:
 				continue
-			groups.setdefault(COSEEING_GROUP, []).append(SelectableItem(
-				provider_group=COSEEING_GROUP,
-				corrector_config_id=entry.corrector_config_id,
-				execution_channel=COSEEING_GROUP,
-				label=entry.label,
-			))
+			groups.setdefault(COSEEING_GROUP, []).append(
+				SelectableItem(
+					provider_group=COSEEING_GROUP,
+					corrector_config_id=entry.corrector_config_id,
+					execution_channel=COSEEING_GROUP,
+					label=entry.label,
+				),
+			)
 		object.__setattr__(self, "_groups", {name: tuple(items) for name, items in groups.items()})
 
 	@property
@@ -148,11 +160,7 @@ class CorrectorCatalog:
 
 	@property
 	def selectable_items(self) -> tuple:
-		return tuple(
-			item
-			for group in self.provider_groups
-			for item in self._groups[group]
-		)
+		return tuple(item for group in self.provider_groups for item in self._groups[group])
 
 	def get_model(self, corrector_config_id: str):
 		for entry in self.models:

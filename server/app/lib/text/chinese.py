@@ -1,5 +1,4 @@
-from hanzidentifier import identify
-from hanzidentifier import MIXED, SIMPLIFIED, TRADITIONAL
+from hanzidentifier import MIXED, SIMPLIFIED, TRADITIONAL, identify
 
 try:
 	from languageHandler import getLanguage
@@ -10,7 +9,7 @@ except ImportError:
 
 
 SEPERATOR = "﹐，,.。﹒．｡!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ "
-PUNCTUATION = "﹐，,.。﹒．｡:׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t\"\'#$%&()*+-/<=>@[\\]^_`{|}~"
+PUNCTUATION = "﹐，,.。﹒．｡:׃∶˸︓﹕：!ǃⵑ︕！;;︔﹔；?︖﹖？⋯ \n\r\t\"'#$%&()*+-/<=>@[\\]^_`{|}~"
 
 ZH_UNICODE_INTERVALS = [
 	["\u4e00", "\u9fff"],

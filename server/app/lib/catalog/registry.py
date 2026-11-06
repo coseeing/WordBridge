@@ -12,6 +12,19 @@ def initialize(catalog) -> None:
 	_CATALOG = catalog
 
 
+def replace(catalog) -> None:
+	"""Swap the live catalog. Main thread only (see GlobalPlugin._install_catalog).
+
+	Readers take one reference with current() and keep it, so a swap can
+	never show them two catalogs. Replacing before initialize() is a wiring
+	bug, not a state to recover from.
+	"""
+	global _CATALOG
+	if _CATALOG is None:
+		raise RuntimeError("catalog registry replaced before initialize()")
+	_CATALOG = catalog
+
+
 def current():
 	if _CATALOG is None:
 		raise RuntimeError("catalog registry used before initialize()")

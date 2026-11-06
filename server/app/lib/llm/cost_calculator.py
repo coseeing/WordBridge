@@ -39,7 +39,7 @@ class CostCalculator:
 		return dict(total_usage)
 
 	def get_total_cost(self, response_history: list) -> Decimal:
-		cost = Decimal("0")
+		cost = Decimal(0)
 		usages = self.get_total_usage(response_history)
 		for key, value in usages.items():
 			cost += (

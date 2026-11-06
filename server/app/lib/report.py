@@ -9,7 +9,6 @@ from pathlib import Path
 from .paths import user_workspace_root
 from .viewHTML import text2template
 
-
 log = logging.getLogger(__name__)
 
 ADDON_PATH = Path(__file__).resolve().parent.parent
@@ -31,7 +30,7 @@ def _new_report_dir_name() -> str:
 	# The random suffix keeps two reports generated within the same second
 	# apart. The timestamp prefix sorts lexicographically in chronological
 	# order, which is what retention relies on.
-	return f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(2)}"
+	return f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(2)}"  # noqa: DTZ005
 
 
 def _provision_modules(reports_root: Path) -> None:
@@ -57,8 +56,11 @@ def _prune_old_reports(reports_root: Path, keep: int, *, protect: Path | None = 
 	produced (and is about to hand back to the user) survives regardless.
 	"""
 	directories = sorted(
-		(path for path in reports_root.iterdir()
-		 if path.is_dir() and REPORT_DIR_PATTERN.fullmatch(path.name)),
+		(
+			path
+			for path in reports_root.iterdir()
+			if path.is_dir() and REPORT_DIR_PATTERN.fullmatch(path.name)
+		),
 		key=lambda path: path.name,
 	)
 	doomed = directories[:-keep] if keep > 0 else directories

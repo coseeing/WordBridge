@@ -1,6 +1,5 @@
-import random
-
 from difflib import SequenceMatcher
+
 from chinese_converter import to_simplified, to_traditional
 from pypinyin import pinyin
 
@@ -9,7 +8,7 @@ from ...text.chinese import (
 	get_descs,
 	is_chinese_character,
 )
-from .chinese_dictionary import get_pinyin_to_string, get_string_to_pinyin
+from .chinese_dictionary import get_string_to_pinyin
 
 # create_single_char_mapping() maps each distinct token to one character from
 # the CJK block starting at U+4E00, so it cannot encode more tokens than the
@@ -31,28 +30,6 @@ def get_char_pinyin(char: str) -> list:
 	if not is_chinese_character(char):
 		raise ValueError(f"get_char_pinyin expects a single Chinese character, got {char!r}")
 	return lookup_char_pinyin(char)
-
-
-def typo_augmentation(text: str, is_traditional: bool, error_rate: float = 0.125) -> str:
-	if not is_traditional:
-		text = to_traditional(text)
-
-	string_to_pinyin = get_string_to_pinyin()
-	pinyin_to_string = get_pinyin_to_string()
-	text_aug = ""
-	for char in text:
-		if char not in string_to_pinyin or random.random() > error_rate:
-			text_aug += char
-			continue
-
-		pronounce = random.choice(string_to_pinyin[char])
-		char_aug = random.choice(pinyin_to_string[pronounce])
-		text_aug += char_aug
-
-	if not is_traditional:
-		text_aug = to_simplified(text_aug)
-
-	return text_aug
 
 
 def tokenizer(text):
@@ -146,15 +123,21 @@ def strings_diff(string_before: str, string_after: str) -> dict:
 
 	matcher_ops = []
 	for op, index_start_before, index_end_before, index_start_after, index_end_after in matcher.get_opcodes():
-		if op != "replace" or (index_end_before - index_start_before) == (index_end_after - index_start_after):
+		if op != "replace" or (index_end_before - index_start_before) == (
+			index_end_after - index_start_after
+		):
 			matcher_ops.append((op, index_start_before, index_end_before, index_start_after, index_end_after))
 		elif index_end_before - index_start_before < index_end_after - index_start_after:
 			index_middle = index_start_after + (index_end_before - index_start_before)
-			matcher_ops.append(("replace", index_start_before, index_end_before, index_start_after, index_middle))
+			matcher_ops.append(
+				("replace", index_start_before, index_end_before, index_start_after, index_middle),
+			)
 			matcher_ops.append(("insert", index_end_before, index_end_before, index_middle, index_end_after))
 		else:
 			index_middle = index_start_before + (index_end_after - index_start_after)
-			matcher_ops.append(("replace", index_start_before, index_middle, index_start_after, index_end_after))
+			matcher_ops.append(
+				("replace", index_start_before, index_middle, index_start_after, index_end_after),
+			)
 			matcher_ops.append(("delete", index_middle, index_end_before, index_end_after, index_end_after))
 
 	diff = []
@@ -168,7 +151,7 @@ def strings_diff(string_before: str, string_after: str) -> dict:
 					"before_descs": "",
 					"after_descs": "",
 					"tags": None,
-				}
+				},
 			)
 			continue
 		if op != "replace":
@@ -180,17 +163,23 @@ def strings_diff(string_before: str, string_after: str) -> dict:
 					"before_descs": get_descs("".join(tokens_before[index_start_before:index_end_before])),
 					"after_descs": get_descs("".join(tokens_after[index_start_after:index_end_after])),
 					"tags": None,
-				}
+				},
 			)
 			continue
 
 		for i in range(index_end_before - index_start_before):
 			operation_dict = {
 				"operation": op,
-				"before_text": "".join(tokens_before[(index_start_before + i):(index_start_before + i + 1)]),
-				"after_text": "".join(tokens_after[(index_start_after + i):(index_start_after + i + 1)]),
-				"before_descs": get_descs("".join(tokens_before[(index_start_before + i):(index_start_before + i + 1)])),
-				"after_descs": get_descs("".join(tokens_after[(index_start_after + i):(index_start_after + i + 1)])),
+				"before_text": "".join(
+					tokens_before[(index_start_before + i) : (index_start_before + i + 1)],
+				),
+				"after_text": "".join(tokens_after[(index_start_after + i) : (index_start_after + i + 1)]),
+				"before_descs": get_descs(
+					"".join(tokens_before[(index_start_before + i) : (index_start_before + i + 1)]),
+				),
+				"after_descs": get_descs(
+					"".join(tokens_after[(index_start_after + i) : (index_start_after + i + 1)]),
+				),
 				"tags": None,
 			}
 			operation_dict["tags"] = analyze_diff(
@@ -262,7 +251,7 @@ def get_segments_to_recorrect(segments: list, typo_indices: list, max_length: in
 		for j in range(index_start, index_end):
 			if j in typo_indices:
 				is_error = True
-				text_with_tag += ("[[" + text[j] + "]]")
+				text_with_tag += "[[" + text[j] + "]]"
 			else:
 				text_with_tag += text[j]
 		if is_error:

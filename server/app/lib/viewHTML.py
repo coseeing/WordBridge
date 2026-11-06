@@ -45,7 +45,8 @@ def text2template(src, dst, title=None):
 			if len(name) > 1:
 				name = name[:-1]
 			title = ".".join(name)
-		except BaseException:
+		except TypeError:
+			# A file descriptor: open() takes one, os.path.basename() does not.
 			title = "WordBridge"
 
 	content_config = {

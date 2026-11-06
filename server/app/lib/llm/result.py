@@ -12,4 +12,4 @@ class LLMExecutionResult:
 	usage: dict[str, Any] = field(default_factory=dict)
 	raw_usage: dict[str, Any] = field(default_factory=dict)
 	latency_ms: float = 0.0
-	request_cost: Decimal = Decimal("0")
+	request_cost: Decimal = Decimal(0)

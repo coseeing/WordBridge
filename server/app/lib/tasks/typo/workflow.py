@@ -1,6 +1,7 @@
 import time
 
 from ..concurrency import parallel_map
+from .result import TypoCorrectionResult
 from .utils import (
 	find_correction_errors,
 	get_segments_to_recorrect,
@@ -8,7 +9,6 @@ from .utils import (
 	strings_diff,
 	text_segmentation,
 )
-from .result import TypoCorrectionResult
 
 
 class TypoCorrectionWorkflow:
@@ -49,8 +49,7 @@ class TypoCorrectionWorkflow:
 			segments_to_recorrect = get_segments_to_recorrect(segments_revised, typo_indices)
 			use_history = i >= self.max_correction_attempts / 3
 			history_for_correction = [
-				recorrection_history.get(segment, []) if use_history else []
-				for segment in segments_revised
+				recorrection_history.get(segment, []) if use_history else [] for segment in segments_revised
 			]
 
 			if batch_mode:
