@@ -2,6 +2,7 @@ import logging
 import time
 from decimal import Decimal
 
+from .errors import LLMServiceError
 from .result import LLMExecutionResult
 
 try:
@@ -62,7 +63,7 @@ class LLMExecutor:
 			sentence = self.adapter_object.parse_response(response_json)
 		except KeyError:
 			log.error("%s", response_json)
-			raise Exception(  # noqa: TRY002
+			raise LLMServiceError(
 				# Translators: Reported when the AI service provider's answer has an unexpected shape;
 				# {response} is that answer, shown as received.
 				_("Parsing error. Unexpected server response. Response: {response}").format(

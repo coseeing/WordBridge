@@ -8,6 +8,7 @@ from .adapter import (
 	ProviderModelAdapter,
 	get_provider_model_adapter,
 )
+from .errors import LLMServiceError
 from .executor import LLMExecutor
 from .prompt_bundle import PromptBundle
 from .provider import (
@@ -38,6 +39,7 @@ __all__ = [
 	"GoogleProvider",
 	"LLMExecutionResult",
 	"LLMExecutor",
+	"LLMServiceError",
 	"OpenAIAdapter",
 	"OpenAIProvider",
 	"OpenRouterAdapter",
