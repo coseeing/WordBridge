@@ -3,29 +3,27 @@ import logging
 import os
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import List, Literal, Optional
+from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastcrud import FastCRUD, crud_router
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import NoResultFound
-
-from .dependencies import get_db
-from .dependenciesA import get_session
-
-from .models.models import Interaction as InteractionModel
-from .models.schemas import Interaction as InteractionSchema
-from .user.models import User as UserModel
-from .user.schemas import User as UserSchema
-from .user.auth import get_optional_user, require_superuser
+from sqlalchemy.orm import Session
 
 from .correction_config import SETTING_DIR, load_correction_settings, resolve_model
+from .dependencies import get_db
+from .dependenciesA import get_session
 from .lib.application.task_runner import run_typo_correction
 from .lib.decimalUtils import decimal_to_str_0
 from .lib.tasks.typo.utils import strings_diff
+from .models.models import Interaction as InteractionModel
+from .models.schemas import Interaction as InteractionSchema
 from .settings import SETTINGS
+from .user.auth import get_optional_user, require_superuser
+from .user.models import User as UserModel
+from .user.schemas import User as UserSchema
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +96,7 @@ class ProofreaderRequest(BaseModel):
 	corrector_config_id: str = Field(min_length=1)
 	language: Literal["zh_traditional", "zh_simplified"]
 	typo_correction_mode: str
-	customized_words: List[str] = Field(default_factory=list)
+	customized_words: list[str] = Field(default_factory=list)
 
 	@field_validator("typo_correction_mode")
 	@classmethod
@@ -117,7 +115,7 @@ def get_client_ip(request: Request) -> str:
 	return ip
 
 
-def _storable_ip(ip: Optional[str]) -> str:
+def _storable_ip(ip: str | None) -> str:
 	"""Normalize a client IP value so it always fits ip_address (String(45)).
 
 	Applied to whatever get_client_ip() returned, before it is used for a
@@ -138,10 +136,10 @@ def _sum_cost(db: Session, *, since: datetime, user_id_is_none: bool, user_id=No
 	if ip_address is not None:
 		query = query.filter(InteractionModel.ip_address == ip_address)
 	total = query.scalar()
-	return Decimal(str(total)) if total is not None else Decimal("0")
+	return Decimal(str(total)) if total is not None else Decimal(0)
 
 
-def _enforce_quota(db: Session, *, user: Optional[UserModel], client_ip: str, text: str) -> None:
+def _enforce_quota(db: Session, *, user: UserModel | None, client_ip: str, text: str) -> None:
 	if user is None and len(text) > SETTINGS.guest_text_limit:
 		raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=_QUOTA_EXCEEDED_DETAIL)
 
@@ -176,7 +174,7 @@ def catalog():
 def proofreader(
 	http_request: Request,
 	data: ProofreaderRequest,
-	user: Optional[UserModel] = Depends(get_optional_user),
+	user: UserModel | None = Depends(get_optional_user),
 	db: Session = Depends(get_db),
 ):
 	client_ip = _storable_ip(get_client_ip(http_request))
@@ -285,7 +283,7 @@ class FeedbackRequest(BaseModel):
 @app.post("/feedback")
 def feedback(
 	data: FeedbackRequest,
-	user: Optional[UserModel] = Depends(get_optional_user),
+	user: UserModel | None = Depends(get_optional_user),
 	db: Session = Depends(get_db),
 ):
 	try:

@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 import app.main as main_module
 from app.correction_config import SETTING_DIR
 
-
 CATALOG_PATH = SETTING_DIR / "catalog.json"
 
 
@@ -72,7 +71,7 @@ def test_load_catalog_bytes_keeps_every_other_key_in_file_order(tmp_path):
 	assert list(served) == ["schema_version", "models", "extra"]
 	assert served == {"schema_version": 1, "models": models, "extra": {"x": 1}}
 	# UTF-8 text, as in the file, not \u escapes.
-	assert "模型".encode("utf8") in content
+	assert "模型".encode() in content
 
 
 def test_load_catalog_bytes_accepts_a_file_without_providers(tmp_path):

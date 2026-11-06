@@ -128,8 +128,8 @@ def test_a_malformed_value_stops_startup(name, value):
 def test_a_zero_quota_is_allowed():
 	settings = load_settings(dict(COMPLETE, GUEST_IP_QUOTA="0", GUEST_GLOBAL_QUOTA="0"))
 
-	assert settings.guest_ip_quota == Decimal("0")
-	assert settings.guest_global_quota == Decimal("0")
+	assert settings.guest_ip_quota == Decimal(0)
+	assert settings.guest_global_quota == Decimal(0)
 
 
 def test_the_database_url_escapes_the_credentials():

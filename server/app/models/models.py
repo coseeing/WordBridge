@@ -1,11 +1,15 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import TYPE_CHECKING
 
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import Column, Double, Integer, String, DateTime, Text, ForeignKey, Numeric
 
 from ..baseModel import Base
+
+if TYPE_CHECKING:
+	# Only for the annotation: app.user.models imports this module.
+	from ..user.models import User
 
 
 class Interaction(Base):

@@ -190,7 +190,6 @@ class _Reader:
 
 	def _reject(self, name, reason):
 		self.problems.append(f"{name} {reason}")
-		return None
 
 
 load_dotenv(ENV_FILE)

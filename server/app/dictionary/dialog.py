@@ -1,10 +1,11 @@
-import gui
-from gui import guiHelper, nvdaControls
-from gui.settingsDialogs import SettingsDialog
-import wx
-import addonHandler
 import csv
 import os
+
+import addonHandler
+import gui
+import wx
+from gui import guiHelper, nvdaControls
+from gui.settingsDialogs import SettingsDialog
 
 from . import WBW_DICTIONARY_PATH
 
@@ -85,17 +86,13 @@ class DictionaryEntryDialog(SettingsDialog):
 
 	def __init__(self, parent):
 		self.path = os.path.join(WBW_DICTIONARY_PATH, 'data.csv')
-		data = []
 		if not os.path.exists(self.path):
 			open(self.path, 'w', encoding='utf-8').close()
 		with open(self.path, 'r', encoding='utf-8') as file:
-			reader = csv.DictReader(file)
-			for row in reader:
-				data.append(row)
-		self.data = data
+			self.data = list(csv.DictReader(file))
 
 		self.title = _("WordBridge Dictionary")
-		super(DictionaryEntryDialog, self).__init__(
+		super().__init__(
 			parent,
 			resizeable=True,
 		)
@@ -251,7 +248,7 @@ class DictionaryEntryDialog(SettingsDialog):
 		elif column == 1:
 			return word.pronunciation
 		else:
-			raise ValueError("Unknown column: %d" % column)
+			raise ValueError(f"Unknown column: {column}")
 
 	def onWordEdited(self):
 		if self.editingItem is not None:
@@ -368,7 +365,7 @@ class DictionaryEntryDialog(SettingsDialog):
 			for row in data:
 				writer.writerow(row)
 
-		super(DictionaryEntryDialog, self).onOk(evt)
+		super().onOk(evt)
 
 	def _refreshVisibleItems(self):
 		count = self.wordsList.GetCountPerPage()

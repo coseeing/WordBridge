@@ -94,7 +94,7 @@ def _sync_before_write() -> None:
 	IntegrityError recovery path below can be exercised deterministically
 	instead of relying on incidental thread scheduling.
 	"""
-	return None
+	return
 
 
 def _lookup_by_sub(db: Session, sub: str) -> User | None:

@@ -7,9 +7,8 @@ from sqlalchemy import create_engine, func
 from sqlalchemy.orm import Session
 
 from app.baseModel import Base
-from app.user.models import User
 from app.user.linking import fetch_userinfo, resolve_local_user
-
+from app.user.models import User
 
 VALID_USERINFO = {"sub": "s1", "email": "a@example.org", "email_verified": True}
 

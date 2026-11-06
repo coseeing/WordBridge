@@ -25,6 +25,8 @@ exclude = [
 	# paths are relative to the configuration file.
 	# Third-party packages vendored into the add-on
 	"./addon/globalPlugins/WordBridge/package",
+	# The coseeing_auth library vendored into the server
+	"./server/app/package",
 ]
 
 [tool.ruff.format]
@@ -49,6 +51,16 @@ extend-unsafe-fixes = [
 	"I001",
 ]
 logger-objects = ["logHandler.log"]
+
+[tool.ruff.lint.isort]
+# The server's package, imported as app from server/. Not src = ["server"]:
+# that would also take the alembic package for server/alembic.
+known-first-party = ["app"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declares dependencies as argument defaults; Depends() is the
+# framework's marker, not a shared mutable default.
+extend-immutable-calls = ["fastapi.Depends"]
 
 [tool.ruff.lint.per-file-ignores]
 # sconstruct contains many inbuilt functions not recognised by the lint,

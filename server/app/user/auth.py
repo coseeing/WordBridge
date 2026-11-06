@@ -22,7 +22,6 @@ Layering (spec: "SSO dependencies and local users"):
 """
 
 import threading
-from typing import Optional
 
 from fastapi import Depends, Header, HTTPException
 from sqlalchemy.orm import Session
@@ -45,7 +44,7 @@ _SUPERUSER_REQUIRED_DETAIL = "superuser privileges are required"
 _INACTIVE_USER_DETAIL = "this account has been deactivated"
 
 
-def get_bearer_token(authorization: Optional[str] = Header(default=None)) -> Optional[str]:
+def get_bearer_token(authorization: str | None = Header(default=None)) -> str | None:
 	"""Extract the Bearer token from an optional `Authorization` header.
 
 	Returns `None` when the header is absent entirely (a guest request).
@@ -62,7 +61,7 @@ def get_bearer_token(authorization: Optional[str] = Header(default=None)) -> Opt
 
 
 _verifier_lock = threading.Lock()
-_verifier: Optional[TokenVerifier] = None
+_verifier: TokenVerifier | None = None
 
 
 def get_token_verifier() -> TokenVerifier:
@@ -83,9 +82,9 @@ def get_token_verifier() -> TokenVerifier:
 
 
 def get_verified_sub(
-	token: Optional[str] = Depends(get_bearer_token),
+	token: str | None = Depends(get_bearer_token),
 	verifier: TokenVerifier = Depends(get_token_verifier),
-) -> Optional[str]:
+) -> str | None:
 	"""Cryptographically verify `token`, if any, and return its subject.
 
 	Called for every request that carries a token -- this is the one
@@ -105,10 +104,10 @@ def get_verified_sub(
 
 
 def get_optional_user(
-	sub: Optional[str] = Depends(get_verified_sub),
-	token: Optional[str] = Depends(get_bearer_token),
+	sub: str | None = Depends(get_verified_sub),
+	token: str | None = Depends(get_bearer_token),
 	db: Session = Depends(get_db),
-) -> Optional[User]:
+) -> User | None:
 	"""Resolve the local `User` for a verified subject, or `None` for a guest.
 
 	A request with no token at all is unaffected -- it stays a guest. Only
@@ -126,7 +125,7 @@ def get_optional_user(
 	return user
 
 
-def require_user(user: Optional[User] = Depends(get_optional_user)) -> User:
+def require_user(user: User | None = Depends(get_optional_user)) -> User:
 	"""Require a resolved local user, raising 401 for guests."""
 	if user is None:
 		raise HTTPException(status_code=401, detail=_AUTH_REQUIRED_DETAIL)

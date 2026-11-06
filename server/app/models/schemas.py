@@ -1,6 +1,6 @@
 from datetime import datetime
+
 from pydantic import BaseModel
-from typing import Optional
 
 
 class Interaction(BaseModel):
@@ -9,15 +9,15 @@ class Interaction(BaseModel):
 	response_time: datetime
 	request_content: str
 	response_content: str
-	ip_address: Optional[str]
+	ip_address: str | None
 	cost: float
 	model: str
 	version: str
-	category: Optional[str]
+	category: str | None
 	user_id: int
-	machine_id: Optional[int]
-	review_content: Optional[str]
-	review_user_id: Optional[int]
+	machine_id: int | None
+	review_content: str | None
+	review_user_id: int | None
 
 	class Config:
 		from_attributes = True

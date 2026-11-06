@@ -27,8 +27,11 @@ os.environ.update({
 	"QUOTA_WINDOW_HOURS": "24",
 })
 
-from app.baseModel import Base  # noqa: E402
-from app.user.models import User  # noqa: E402
+from app.baseModel import Base
+
+# Imported for its side effect: it maps the user table onto Base.metadata,
+# which the fixtures below create.
+from app.user.models import User  # noqa: F401
 
 
 @pytest.fixture
