@@ -485,7 +485,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self._notify(_("This task's cost is unavailable."))
 			return
 		self._notify(_("This task costs {cost} USD.").format(cost=cost_text))
-		log.info(_("This task costs {cost} USD.").format(cost=cost_text))
+		log.info(f"This task costs {cost_text} USD.")
 
 	def _publish_latest_action(self, action):
 		# Sole writer of self.latest_action. Must only ever be invoked via
@@ -549,18 +549,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				).format(len_text=len(text), max_char_count=max_char_count)
 			)
 			log.warning(
-				_(
-					"The number of characters is {len_text}, which exceeds the maximum, {max_char_count}."
-				).format(len_text=len(text), max_char_count=max_char_count)
+				f"The number of characters is {len(text)}, which exceeds the maximum, {max_char_count}."
 			)
 			return False
 		elif len(text) == 0:
 			ui.message(_("No text is selected, unable to analyze."))
-			log.warning(_("No text is selected, unable to analyze."))
+			log.warning("No text is selected, unable to analyze.")
 			return False
 		elif not has_chinese(text):
 			ui.message(_("The selected text does not contain Chinese characters, unable to analyze."))
-			log.warning(_("The selected text does not contain Chinese characters, unable to analyze."))
+			log.warning("The selected text does not contain Chinese characters, unable to analyze.")
 			return False
 
 		return True
@@ -651,11 +649,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 						e=e
 					)
 				)
-				log.warning(
-					_("Sorry, an error occurred during the program execution, the details are: {e}").format(
-						e=e
-					)
-				)
+				log.warning(f"Sorry, an error occurred during the program execution, the details are: {e}")
 				return
 			response = result.corrected_text
 			diff = result.diff
@@ -729,12 +723,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		if request == response:
 			self._notify(_("No errors in the selected text."))
-			log.info(_("No errors in the selected text."))
+			log.info("No errors in the selected text.")
 			return
 
 		self._run_on_ui(api.copyToClip, response)
 		self._notify(_("The corrected text has been copied to the clipboard."))
-		log.info(_("The corrected text has been copied to the clipboard."))
+		log.info("The corrected text has been copied to the clipboard.")
 
 		self._report_cost(cost)
 
@@ -823,9 +817,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				)
 			)
 			log.warning(
-				_(
-					"The function cannot be executed. Please finish the configuration and close the setting window."
-				)
+				"The function cannot be executed. Please finish the configuration and close the setting window."
 			)
 			return
 
@@ -857,7 +849,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		diff = self.latest_action.diff
 		if diff is None:
 			ui.message(_("No report has been generated yet."))
-			log.warning(_("No report has been generated yet."))
+			log.warning("No report has been generated yet.")
 			return
 
 		self.showReport(diff)
@@ -879,7 +871,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if latest_action.interaction_id is None:
 			ui.message(_("You have not run a typos correction task with the Coseeing service provider yet."))
 
-			log.warning(_("You have not run a typos correction task with the Coseeing service provider yet."))
+			log.warning("You have not run a typos correction task with the Coseeing service provider yet.")
 			return
 
 		def show():

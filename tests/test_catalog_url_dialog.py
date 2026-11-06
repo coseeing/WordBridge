@@ -4,6 +4,7 @@ _load_nvda_plugin and the widget stubs are imported at function scope (via
 test_catalog_settings_panel's fixture), never at module scope.
 """
 
+import ast
 import importlib
 import io
 import re
@@ -319,16 +320,73 @@ def _translation_calls(path):
 	]
 
 
-TRANSLATED_SOURCES = ["dialogs.py", "catalog_url_dialog.py", "lib/llm/provider.py", "lib/llm/executor.py"]
+PROJECT_ROOT = ADDON.parents[2]
 
 
-@pytest.mark.parametrize("name", TRANSLATED_SOURCES)
+def _i18n_sources():
+	"""Every Python file `scons pot` extracts strings from (buildVars.pythonSources).
+
+	Read from buildVars.py's own list, so a directory added there is checked
+	here too. buildVars.py itself is checked separately by NVDA's template.
+	"""
+	tree = ast.parse((PROJECT_ROOT / "buildVars.py").read_text(encoding="utf8"))
+	patterns = next(
+		ast.literal_eval(node.value)
+		for node in tree.body
+		if isinstance(node, ast.AnnAssign) and getattr(node.target, "id", None) == "pythonSources"
+	)
+	return sorted({path for pattern in patterns for path in PROJECT_ROOT.glob(pattern)})
+
+
+TRANSLATED_SOURCES = [
+	path.relative_to(ADDON).as_posix() for path in _i18n_sources() if _translation_comment_blocks(path)
+]
+
+
+COMMENTED_SOURCES = ["dialogs.py", "catalog_url_dialog.py", "lib/llm/provider.py", "lib/llm/executor.py"]
+
+
+@pytest.mark.parametrize("name", COMMENTED_SOURCES)
 def test_every_translatable_string_has_a_translators_comment(name):
 	# C23: no tests/test_translator_comments.py exists in this repository.
 	calls = _translation_calls(ADDON / name)
 
 	assert calls
 	assert [line for line, commented in calls if not commented] == []
+
+
+def _translated_log_calls(path):
+	"""Lines of log.<level>(...) calls whose message goes through _()."""
+	tree = ast.parse(path.read_text(encoding="utf8"))
+
+	def translated(node):
+		if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "_":
+			return True
+		return (
+			isinstance(node, ast.Call)
+			and isinstance(node.func, ast.Attribute)
+			and node.func.attr == "format"
+			and translated(node.func.value)
+		)
+
+	return [
+		node.lineno
+		for node in ast.walk(tree)
+		if isinstance(node, ast.Call)
+		and isinstance(node.func, ast.Attribute)
+		and isinstance(node.func.value, ast.Name)
+		and node.func.value.id == "log"
+		and node.args
+		and translated(node.args[0])
+	]
+
+
+@pytest.mark.parametrize("name", TRANSLATED_SOURCES)
+def test_log_messages_are_not_translated(name):
+	# NVDA translates what is presented to the user, not its log: the log is
+	# read by developers in English, and a translated duplicate of a spoken
+	# message would hand translators the same string twice.
+	assert _translated_log_calls(ADDON / name) == []
 
 
 def test_the_pot_takes_only_translators_comments():
