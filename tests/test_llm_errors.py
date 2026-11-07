@@ -108,3 +108,98 @@ def test_an_unexpected_response_shape_is_an_llm_service_error():
 		pytest.raises(LLMServiceError, match="Parsing error. Unexpected server response."),
 	):
 		llm_executor.execute("原文", _Strategy(), _Policy())
+
+
+# --- kind: what kind of failure, for the Coseeing server's error codes -------
+
+
+@pytest.mark.parametrize(
+	"status, text, kind, message",
+	[
+		(401, "", "configuration", "Authentication error."),
+		(403, "", "configuration", "Country, region, or territory not supported."),
+		(404, "", "configuration", "Service does not exist."),
+		(429, "", "rate_limited", "Rate limit reached for requests"),
+		(503, "", "overloaded", "The server is currently overloaded"),
+		(
+			529,
+			'{"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}}',
+			"overloaded",
+			"An error occurred, status code = 529, Overloaded",
+		),
+		(500, '{"error": {"message": "boom"}}', "other", "An error occurred, status code = 500, boom"),
+	],
+	ids=["401", "403", "404", "429", "503", "529", "other"],
+)
+def test_an_http_error_has_its_kind(status, text, kind, message):
+	response = SimpleNamespace(status_code=status, text=text, reason="Reason")
+
+	with pytest.raises(LLMServiceError) as raised:
+		_provider().handle_errors(response)
+
+	assert raised.value.kind == kind
+	assert str(raised.value).startswith(message)
+
+
+@pytest.mark.parametrize(
+	"body",
+	[
+		"<html>bad gateway</html>",
+		"{}",
+		'{"error": {}}',
+		'{"error": "x"}',
+		'{"error": {"message": 5}}',
+		"[1]",
+		"",
+	],
+	ids=["html", "empty-object", "no-message", "error-string", "message-not-text", "list", "empty"],
+)
+@pytest.mark.parametrize("reason", ["Bad Gateway", None], ids=["reason", "no-reason"])
+def test_other_status_bodies_never_crash(body, reason):
+	response = SimpleNamespace(status_code=502, text=body)
+	if reason is not None:
+		response.reason = reason
+
+	with pytest.raises(LLMServiceError) as raised:
+		_provider().handle_errors(response)
+
+	assert raised.value.kind == "other"
+	assert str(raised.value) == f"An error occurred, status code = 502, {reason or ''}"
+	for fragment in ("html", '"error"', "[1]", "{", "x"):
+		assert fragment not in str(raised.value)
+
+
+def test_unreachable_errors_have_kind_unreachable():
+	with (
+		patch.object(provider_module.requests, "post", side_effect=OSError("down")),
+		patch.object(provider_module, "log", MagicMock()),
+		patch.object(provider_module.time, "sleep"),
+		pytest.raises(LLMServiceError) as on_send,
+	):
+		_provider().send({})
+	with (
+		patch.object(provider_module.requests, "get", side_effect=OSError("down")),
+		patch.object(provider_module, "log", MagicMock()),
+		pytest.raises(LLMServiceError) as on_try,
+	):
+		_provider().try_connection(try_count=1)
+
+	assert on_send.value.kind == on_try.value.kind == "unreachable"
+
+
+def test_an_unexpected_response_shape_has_kind_other():
+	adapter = _Adapter()
+	adapter.model_name = "m"
+	llm_executor = executor_module.LLMExecutor(_Provider(), adapter)
+
+	with patch.object(executor_module, "log", MagicMock()), pytest.raises(LLMServiceError) as raised:
+		llm_executor.execute("原文", _Strategy(), _Policy())
+
+	assert raised.value.kind == "other"
+
+
+def test_the_kind_defaults_to_other_and_must_be_known():
+	assert LLMServiceError("x").kind == "other"
+	assert str(LLMServiceError("x", kind="overloaded")) == "x"
+	with pytest.raises(ValueError, match="made_up"):
+		LLMServiceError("x", kind="made_up")

@@ -73,6 +73,7 @@ class LLMExecutor:
 				_("Parsing error. Unexpected server response. Response: {response}").format(
 					response=response_json,
 				),
+				kind="other",
 			)
 
 		response_text = text_policy.normalize_response(sentence)

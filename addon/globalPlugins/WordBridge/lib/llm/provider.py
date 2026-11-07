@@ -29,6 +29,23 @@ except NameError:
 log = logging.getLogger(__name__)
 
 
+def _error_detail(response) -> str:
+	"""The provider's error.message, or else the HTTP reason, never the body.
+
+	Error bodies are not always the documented JSON (a proxy's HTML page, an
+	empty body, another shape); the body itself is never shown.
+	"""
+	try:
+		document = json.loads(response.text)
+	except (TypeError, ValueError):
+		document = None
+	error = document.get("error") if isinstance(document, dict) else None
+	message = error.get("message") if isinstance(error, dict) else None
+	if isinstance(message, str):
+		return message
+	return getattr(response, "reason", None) or ""
+
+
 class Provider:
 	def __init__(self, credential: dict, retries: int = 2, backoff: int = 1, *, provider_entry):
 		self.credential = credential
@@ -63,14 +80,20 @@ class Provider:
 				raise LLMServiceError(
 					# Translators: Reported when the AI service provider rejects the user's API key (HTTP 401).
 					_("Authentication error. Please check if the service provider's key is correct."),
+					kind="configuration",
 				)
 			if response.status_code == 403:
-				# Translators: Reported when the AI service provider refuses requests from the user's location (HTTP 403).
-				raise LLMServiceError(_("Country, region, or territory not supported."))
+				raise LLMServiceError(
+					# Translators: Reported when the AI service provider refuses requests from the user's location
+					# (HTTP 403).
+					_("Country, region, or territory not supported."),
+					kind="configuration",
+				)
 			if response.status_code == 404:
 				raise LLMServiceError(
 					# Translators: Reported when the AI service provider does not know the selected model (HTTP 404).
 					_("Service does not exist. Please check if the model does not exist or has expired."),
+					kind="configuration",
 				)
 			if response.status_code == 429:
 				raise LLMServiceError(
@@ -80,15 +103,20 @@ class Provider:
 					# Translators: Second sentence reported when the AI service provider limits the user's requests
 					# (HTTP 429).
 					+ _("Please reduce the frequency of sending requests or check your account balance."),
+					kind="rate_limited",
 				)
 			if response.status_code == 503:
-				# Translators: Reported when the AI service provider is too busy to answer (HTTP 503).
-				raise LLMServiceError(_("The server is currently overloaded, please try again later."))
-			message = json.loads(response.text)["error"]["message"]
+				raise LLMServiceError(
+					# Translators: Reported when the AI service provider is too busy to answer (HTTP 503).
+					_("The server is currently overloaded, please try again later."),
+					kind="overloaded",
+				)
 			raise LLMServiceError(
 				# Translators: Reported for any other error from the AI service provider; the HTTP status code
 				# and the provider's own (untranslated) message follow it, as "401, message".
-				_("An error occurred, status code = ") + f"{response.status_code}, {message}",
+				_("An error occurred, status code = ") + f"{response.status_code}, {_error_detail(response)}",
+				# Anthropic answers 529 when it is overloaded.
+				kind="overloaded" if response.status_code == 529 else "other",
 			)
 
 	def try_connection(self, timeout=10, try_count=1):
@@ -115,6 +143,7 @@ class Provider:
 			_("HTTP request error ({request_error}). Please check the network setting.").format(
 				request_error=request_error,
 			),
+			kind="unreachable",
 		)
 
 	def send(self, payload, model_name=None):
@@ -154,6 +183,7 @@ class Provider:
 				_("HTTP request error ({request_error}). Please check the network setting.").format(
 					request_error=request_error,
 				),
+				kind="unreachable",
 			)
 
 		self.handle_errors(response)
