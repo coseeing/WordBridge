@@ -14,7 +14,9 @@ from fastapi.testclient import TestClient
 
 import app.main as main_module
 from app.dependencies import get_db
+from app.errors import _PROVIDER_DETAILS, PROVIDER_CODES, provider_failure
 from app.lib.llm import LLMServiceError
+from app.lib.llm.errors import KINDS
 from app.models.models import Interaction
 from app.package.coseeing_auth.errors import DiscoveryError
 from app.user.auth import get_optional_user, get_token_verifier
@@ -187,6 +189,19 @@ def test_each_kind_maps_to_its_provider_code(db, monkeypatch, kind, code):
 	assert "raw provider text" not in response.text
 	assert DEEPSEEK_KEY not in response.text
 	assert db.query(Interaction).count() == 0
+
+
+def test_every_kind_has_a_code_and_a_detail():
+	# LLMServiceError accepts only KINDS, so provider_failure() can look the
+	# kind up directly; this keeps the two tables in step with the lib.
+	assert set(PROVIDER_CODES) == set(_PROVIDER_DETAILS) == KINDS
+
+
+def test_a_kind_without_a_code_fails_loudly():
+	# Not reachable through LLMServiceError; a lib that adds a kind without
+	# a code here must not be passed off as a plain provider_error.
+	with pytest.raises(KeyError, match="made_up"):
+		provider_failure(SimpleNamespace(kind="made_up"))
 
 
 def test_provider_failure_logs_provider_and_kind_but_never_the_key(db, monkeypatch, caplog):

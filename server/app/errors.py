@@ -50,9 +50,13 @@ class ApiError(HTTPException):
 
 
 def provider_failure(error: LLMServiceError) -> ApiError:
-	"""The 502 for an AI service failure; its text stays out of the body."""
-	kind = error.kind if error.kind in PROVIDER_CODES else "other"
-	return ApiError(502, PROVIDER_CODES[kind], _PROVIDER_DETAILS[kind])
+	"""The 502 for an AI service failure; its text stays out of the body.
+
+	LLMServiceError only accepts KINDS, and both tables cover every kind
+	(tests/test_error_codes.py), so the lookup is direct: a kind with no
+	code is a bug and raises KeyError.
+	"""
+	return ApiError(502, PROVIDER_CODES[error.kind], _PROVIDER_DETAILS[error.kind])
 
 
 def service_error() -> ApiError:
