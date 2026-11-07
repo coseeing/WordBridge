@@ -13,7 +13,7 @@ class Interaction(BaseModel):
 	cost: float
 	model: str
 	version: str
-	category: str | None
+	template: str
 	user_id: int
 	machine_id: int | None
 	review_content: str | None

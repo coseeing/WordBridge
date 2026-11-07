@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 SETTING_DIR = Path(__file__).parent / "setting"
 CORRECTOR_TASK_CONFIG_PATH = SETTING_DIR / "task" / "corrector.json"
+# Written by server/sync_addon_code.py from buildVars.py.
+ADDON_VERSION_PATH = SETTING_DIR / "addon_version.txt"
 
 
 @dataclass(frozen=True)
@@ -111,6 +113,26 @@ def load_correction_settings(
 	if missing:
 		raise SettingsError("Provider API keys are missing: " + ", ".join(missing))
 	return replace(correction_settings, api_keys=api_keys)
+
+
+def load_addon_version(path: Path = ADDON_VERSION_PATH) -> str:
+	"""The add-on version this server's code and prompts correspond to.
+
+	Recorded with every correction. Raises ValueError when the file is
+	missing or blank, so a broken image stops at startup.
+	"""
+	try:
+		version = path.read_text(encoding="utf-8").strip()
+	except FileNotFoundError as error:
+		raise ValueError(f"{path.name} is missing; run python3 server/sync_addon_code.py") from error
+	if not version:
+		raise ValueError(f"{path.name} is empty; run python3 server/sync_addon_code.py")
+	return version
+
+
+def template_stem(template_name: str) -> str:
+	"""The template file name as recorded: without .json (Standard_v1)."""
+	return template_name.removesuffix(".json")
 
 
 def resolve_model(settings: CorrectionSettings, requested_id: str):

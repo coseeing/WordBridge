@@ -6,7 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from app.correction_config import api_key_variable, load_correction_settings, resolve_model
+from app.correction_config import (
+	api_key_variable,
+	load_addon_version,
+	load_correction_settings,
+	resolve_model,
+	template_stem,
+)
 from app.lib.llm import PROVIDER_CLASSES
 from app.settings import SettingsError
 
@@ -202,3 +208,32 @@ def test_importing_app_settings_needs_no_api_key():
 	)
 
 	assert result.returncode == 0, result.stderr
+
+
+# --- add-on version and template names ------------------------------------------
+
+
+def test_load_addon_version_reads_the_file(tmp_path):
+	path = tmp_path / "addon_version.txt"
+	path.write_text("2026.11.1\n", encoding="utf-8")
+
+	assert load_addon_version(path) == "2026.11.1"
+
+
+def test_the_bundled_version_file_loads():
+	assert load_addon_version() == "2026.11.1"
+
+
+@pytest.mark.parametrize("content", [None, " \n"], ids=["missing", "blank"])
+def test_a_missing_or_blank_version_file_stops_startup(tmp_path, content):
+	path = tmp_path / "addon_version.txt"
+	if content is not None:
+		path.write_text(content, encoding="utf-8")
+
+	with pytest.raises(ValueError, match="addon_version.txt"):
+		load_addon_version(path)
+
+
+def test_template_stem_drops_the_json_suffix():
+	assert template_stem("Standard_v1.json") == "Standard_v1"
+	assert template_stem("Lite_v1.json") == "Lite_v1"

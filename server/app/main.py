@@ -12,7 +12,13 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
 from .client_ip import CLOUDFLARE_RANGES_PATH, load_cloudflare_networks, select_client_ip
-from .correction_config import SETTING_DIR, load_correction_settings, resolve_model
+from .correction_config import (
+	SETTING_DIR,
+	load_addon_version,
+	load_correction_settings,
+	resolve_model,
+	template_stem,
+)
 from .dependencies import get_async_session, get_db
 from .lib.application.task_runner import run_typo_correction
 from .lib.decimalUtils import decimal_to_str_0
@@ -61,6 +67,9 @@ def load_catalog_bytes(path) -> bytes:
 
 # The file only changes with a deployment, so it is read once.
 CATALOG_BYTES = load_catalog_bytes(SETTING_DIR / "catalog.json")
+
+# Recorded with every correction; a missing or blank file stops startup.
+ADDON_VERSION = load_addon_version()
 
 # Bundled with the image; a missing file or a bad line stops startup.
 CLOUDFLARE_NETWORKS = load_cloudflare_networks(CLOUDFLARE_RANGES_PATH)
@@ -261,10 +270,10 @@ def proofreader(
 		ip_address=client_ip,
 		cost=cost,
 		model=model_entry.corrector_config_id,
-		version="20260425",
+		version=ADDON_VERSION,
+		template=template_stem(template_name),
 		user=user,
 	)
-	interaction.category = "1"
 
 	try:
 		db.add(interaction)

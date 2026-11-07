@@ -12,6 +12,7 @@ import app.main as main_module
 from app.baseModel import Base
 from app.dependencies import get_async_session, get_db
 from app.models.models import Interaction
+from app.models.schemas import Interaction as InteractionSchema
 from app.user.auth import get_optional_user, get_token_verifier
 from app.user.models import User
 
@@ -73,10 +74,10 @@ def _seed_interaction(db, *, user=None):
 		ip_address="1.2.3.4",
 		cost=0,
 		model="deepseek-flash&DeepSeek",
-		version="20260425",
+		version="2026.11.1",
+		template="Standard_v1",
 		user=user,
 	)
-	interaction.category = "1"
 	db.add(interaction)
 	db.commit()
 	db.refresh(interaction)
@@ -171,6 +172,12 @@ def test_interactions_list_superuser_is_200(db):
 	response = client.get("/interactions?page=1&itemsPerPage=5")
 	assert response.status_code == 200
 	assert response.json()["items_per_page"] == 5
+
+
+def test_the_admin_schema_has_template_not_category():
+	assert "template" in InteractionSchema.model_fields
+	assert "category" not in InteractionSchema.model_fields
+	assert "category" not in Interaction.__table__.c
 
 
 # --- /login, /register: no longer provided ----------------------------------

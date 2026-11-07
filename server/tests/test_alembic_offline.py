@@ -34,3 +34,21 @@ def test_offline_upgrade_prints_the_sql():
 	assert "ALTER TABLE user ADD COLUMN sso_sub" in result.stdout
 	assert "UPDATE alembic_version SET version_num='20260923_sso_user'" in result.stdout
 	assert "placeholder" not in result.stderr
+
+
+def test_offline_sql_contains_the_new_migration():
+	result = run_alembic_sql("upgrade", "20260923_sso_user:head", "--sql")
+
+	assert result.returncode == 0, result.stderr
+	assert "ALTER TABLE interaction DROP INDEX user_id, ADD INDEX user_id (user_id)" in result.stdout
+	assert (
+		"CREATE INDEX ix_interaction_user_id_request_time ON interaction (user_id, request_time)"
+		in result.stdout
+	)
+	assert (
+		"CREATE INDEX ix_interaction_ip_address_request_time ON interaction (ip_address, request_time)"
+		in result.stdout
+	)
+	assert "ALTER TABLE interaction MODIFY version VARCHAR(32) NOT NULL" in result.stdout
+	assert "ALTER TABLE interaction DROP COLUMN category" in result.stdout
+	assert "version_num='20261107_interaction_template'" in result.stdout

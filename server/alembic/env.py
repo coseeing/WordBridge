@@ -14,6 +14,8 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
+import app.models.models
+import app.user.models  # noqa: F401 -- maps the user table onto Base.metadata
 from app.baseModel import Base
 
 target_metadata = Base.metadata

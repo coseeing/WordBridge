@@ -69,10 +69,10 @@ def _seed_interaction(db, *, cost, ip_address=None, user=None, age=timedelta(min
 		ip_address=ip_address,
 		cost=cost,
 		model="deepseek-flash&DeepSeek",
-		version="20260425",
+		version="2026.11.1",
+		template="Standard_v1",
 		user=user,
 	)
-	interaction.category = "1"
 	db.add(interaction)
 	db.commit()
 	return interaction
@@ -580,3 +580,21 @@ def test_no_peer_and_no_header_is_stored_as_invalid():
 
 	assert main_module.get_client_ip(request) is None
 	assert main_module._storable_ip(main_module.get_client_ip(request)) == "invalid"
+
+
+# --- version and template ------------------------------------------------------
+
+
+def test_the_stored_version_is_the_add_on_version(db, fake_run_typo_correction):
+	response = _client(db).post("/proofreader", json=PAYLOAD)
+
+	stored = db.query(Interaction).filter(Interaction.id == response.json()["interaction_id"]).one()
+	assert stored.version == main_module.ADDON_VERSION == "2026.11.1"
+
+
+@pytest.mark.parametrize("mode, template", [("standard", "Standard_v1"), ("lite", "Lite_v1")])
+def test_the_stored_template_is_the_template_stem(db, fake_run_typo_correction, mode, template):
+	response = _client(db).post("/proofreader", json=dict(PAYLOAD, typo_correction_mode=mode))
+
+	stored = db.query(Interaction).filter(Interaction.id == response.json()["interaction_id"]).one()
+	assert stored.template == template
