@@ -117,6 +117,8 @@ def test_explicit_model_success(db, fake_run_typo_correction, monkeypatch):
 	assert response.status_code == 200
 	assert fake_run_typo_correction[0]["provider_name"] == "OpenAI"
 	assert fake_run_typo_correction[0]["model_name"] == "gpt-6-luna"
+	# OpenAI's key (tests/conftest.py), not the default model's DeepSeek key.
+	assert fake_run_typo_correction[0]["credential"] == {"api_key": "test-key-openai"}
 
 	stored = db.query(Interaction).filter(Interaction.id == response.json()["interaction_id"]).one()
 	assert stored.model == "gpt-6-luna&OpenAI"
