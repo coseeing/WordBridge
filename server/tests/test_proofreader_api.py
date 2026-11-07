@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from starlette.datastructures import Headers
 
 import app.main as main_module
+from app.correction_config import load_addon_version
 from app.dependencies import get_db
 from app.models.models import Interaction
 from app.user.auth import get_optional_user
@@ -589,7 +590,7 @@ def test_the_stored_version_is_the_add_on_version(db, fake_run_typo_correction):
 	response = _client(db).post("/proofreader", json=PAYLOAD)
 
 	stored = db.query(Interaction).filter(Interaction.id == response.json()["interaction_id"]).one()
-	assert stored.version == main_module.ADDON_VERSION == "2026.11.1"
+	assert stored.version == main_module.ADDON_VERSION == load_addon_version()
 
 
 @pytest.mark.parametrize("mode, template", [("standard", "Standard_v1"), ("lite", "Lite_v1")])

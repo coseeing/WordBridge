@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -7,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.correction_config import (
+	ADDON_VERSION_PATH,
 	api_key_variable,
 	load_addon_version,
 	load_correction_settings,
@@ -221,7 +223,9 @@ def test_load_addon_version_reads_the_file(tmp_path):
 
 
 def test_the_bundled_version_file_loads():
-	assert load_addon_version() == "2026.11.1"
+	# tests/test_server_addon_copy.py checks the file against buildVars.py.
+	assert load_addon_version() == ADDON_VERSION_PATH.read_text(encoding="utf-8").strip()
+	assert re.fullmatch(r"\d{4}\.\d+\.\d+", load_addon_version())
 
 
 @pytest.mark.parametrize("content", [None, " \n"], ids=["missing", "blank"])

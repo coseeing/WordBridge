@@ -7,6 +7,7 @@ on one side only, or changes the rewrite rule without the copies.
 """
 
 import importlib.util
+import re
 from pathlib import Path
 
 import pytest
@@ -60,9 +61,13 @@ def test_the_prompt_directories_are_copied():
 
 
 def test_the_version_file_matches_build_vars():
-	assert sync_addon_code.read_addon_version() == "2026.11.1"
+	# Read buildVars.py a second, simpler way, so a version bump needs no
+	# test change and a broken read_addon_version() still fails here.
+	declared = re.search(r'addon_version="([^"]+)"', sync_addon_code.BUILDVARS.read_text(encoding="utf-8"))
+	assert declared is not None
+	assert sync_addon_code.read_addon_version() == declared.group(1)
 	written = sync_addon_code.ADDON_VERSION_FILE.read_text(encoding="utf-8")
-	assert written == sync_addon_code.read_addon_version() + "\n"
+	assert written == declared.group(1) + "\n"
 
 
 def test_read_addon_version_reads_the_keyword(tmp_path):
