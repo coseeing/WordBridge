@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-import app.correction_config as correction_config
+from app import correction_config
 from app.correction_config import (
 	ADDON_VERSION_PATH,
 	api_key_variable,

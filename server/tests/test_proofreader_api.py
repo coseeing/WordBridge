@@ -556,7 +556,12 @@ def test_a_forged_cf_header_from_a_non_edge_peer_is_ignored(db, fake_run_typo_co
 	],
 	ids=["edge-last", "forged-edge-first"],
 )
-def test_separate_forwarded_for_lines_are_read_as_one_list(db, fake_run_typo_correction, forwarded_for, stored):
+def test_separate_forwarded_for_lines_are_read_as_one_list(
+	db,
+	fake_run_typo_correction,
+	forwarded_for,
+	stored,
+):
 	headers = [("X-Forwarded-For", value) for value in forwarded_for]
 	headers.append(("CF-Connecting-IP", "198.51.100.7"))
 

@@ -106,7 +106,9 @@ def _fake_trees(tmp_path):
 
 
 def _snapshot(root):
-	return {path.relative_to(root).as_posix(): path.read_bytes() for path in root.rglob("*") if path.is_file()}
+	return {
+		path.relative_to(root).as_posix(): path.read_bytes() for path in root.rglob("*") if path.is_file()
+	}
 
 
 def test_sync_replaces_only_the_copied_dirs(tmp_path):
@@ -121,13 +123,19 @@ def test_sync_replaces_only_the_copied_dirs(tmp_path):
 	assert (server_app / "setting/task/c.json").read_text(encoding="utf-8") == "c"
 	assert (server_app / "lib/a.py").read_text(encoding="utf-8") == "a"
 	assert (server_app / "setting/addon_version.txt").read_text(encoding="utf-8") == "9.9.9\n"
-	assert (server_app / "lib/b.py").read_text(encoding="utf-8") == (addon / "lib/b.py").read_text(encoding="utf-8")
+	unchanged = (addon / "lib/b.py").read_text(encoding="utf-8")
+	assert (server_app / "lib/b.py").read_text(encoding="utf-8") == unchanged
 
 
 def test_sync_drops_the_prefix_from_the_unprefixed_files(tmp_path):
 	addon, server_app, buildvars = _fake_trees(tmp_path)
 
-	sync_addon_code.sync(addon=addon, server_app=server_app, buildvars=buildvars, unprefixed=frozenset({"lib/b.py"}))
+	sync_addon_code.sync(
+		addon=addon,
+		server_app=server_app,
+		buildvars=buildvars,
+		unprefixed=frozenset({"lib/b.py"}),
+	)
 
 	assert (server_app / "lib/b.py").read_text(encoding="utf-8") == "from pkg import name\nimport other\n"
 	assert (server_app / "lib/a.py").read_text(encoding="utf-8") == "a"
