@@ -1,9 +1,11 @@
+import dataclasses
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.datastructures import Headers
 
 import app.main as main_module
 from app.dependencies import get_db
@@ -501,3 +503,68 @@ def test_superuser_is_exempt_from_quota(db, fake_run_typo_correction, monkeypatc
 	response = client.post("/proofreader", json=PAYLOAD)
 
 	assert response.status_code == 200
+
+
+# --- client IP (CLIENT_IP_SOURCE; conftest sets cloudflare) -------------------
+
+_EDGE = "173.245.48.1"
+
+
+def _stored_ip(db, response):
+	assert response.status_code == 200
+	return db.query(Interaction).filter(Interaction.id == response.json()["interaction_id"]).one().ip_address
+
+
+def test_cloudflare_mode_stores_cf_connecting_ip_from_an_edge(db, fake_run_typo_correction):
+	response = _client(db).post(
+		"/proofreader",
+		json=PAYLOAD,
+		headers={"X-Forwarded-For": f"9.9.9.9, {_EDGE}", "CF-Connecting-IP": "198.51.100.7"},
+	)
+
+	assert _stored_ip(db, response) == "198.51.100.7"
+
+
+def test_a_forged_cf_header_from_a_non_edge_peer_is_ignored(db, fake_run_typo_correction):
+	response = _client(db).post(
+		"/proofreader",
+		json=PAYLOAD,
+		headers={"X-Forwarded-For": f"{_EDGE}, 203.0.113.5", "CF-Connecting-IP": "198.51.100.7"},
+	)
+
+	assert _stored_ip(db, response) == "203.0.113.5"
+
+
+def test_guests_behind_one_edge_have_separate_quotas(db, fake_run_typo_correction):
+	_seed_interaction(db, cost=Decimal("0.06"), ip_address="198.51.100.7")
+	client = _client(db)
+	headers = {"X-Forwarded-For": _EDGE}
+
+	blocked = client.post(
+		"/proofreader", json=PAYLOAD, headers={**headers, "CF-Connecting-IP": "198.51.100.7"}
+	)
+	other = client.post("/proofreader", json=PAYLOAD, headers={**headers, "CF-Connecting-IP": "198.51.100.8"})
+
+	assert blocked.status_code == 429
+	assert _stored_ip(db, other) == "198.51.100.8"
+
+
+def test_proxy_mode_ignores_cf_connecting_ip(db, fake_run_typo_correction, monkeypatch):
+	monkeypatch.setattr(
+		main_module, "SETTINGS", dataclasses.replace(main_module.SETTINGS, client_ip_source="proxy")
+	)
+
+	response = _client(db).post(
+		"/proofreader",
+		json=PAYLOAD,
+		headers={"X-Forwarded-For": f"9.9.9.9, {_EDGE}", "CF-Connecting-IP": "198.51.100.7"},
+	)
+
+	assert _stored_ip(db, response) == _EDGE
+
+
+def test_no_peer_and_no_header_is_stored_as_invalid():
+	request = SimpleNamespace(headers=Headers({}), client=None)
+
+	assert main_module.get_client_ip(request) is None
+	assert main_module._storable_ip(main_module.get_client_ip(request)) == "invalid"

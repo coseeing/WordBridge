@@ -11,6 +11,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
+from .client_ip import CLOUDFLARE_RANGES_PATH, load_cloudflare_networks, select_client_ip
 from .correction_config import SETTING_DIR, load_correction_settings, resolve_model
 from .dependencies import get_async_session, get_db
 from .lib.application.task_runner import run_typo_correction
@@ -61,6 +62,9 @@ def load_catalog_bytes(path) -> bytes:
 # The file only changes with a deployment, so it is read once.
 CATALOG_BYTES = load_catalog_bytes(SETTING_DIR / "catalog.json")
 
+# Bundled with the image; a missing file or a bad line stops startup.
+CLOUDFLARE_NETWORKS = load_cloudflare_networks(CLOUDFLARE_RANGES_PATH)
+
 # Applies to every caller (guest, authenticated, superuser). Chosen comfortably
 # below both limits a request that exceeds it can otherwise blow past only
 # *after* the paid provider call already ran: create_single_char_mapping's
@@ -72,10 +76,10 @@ CATALOG_BYTES = load_catalog_bytes(SETTING_DIR / "catalog.json")
 # app/settings.py) remains a separate, guest-only check.
 REQUEST_TEXT_MAX_LENGTH = 8000
 
-# Interaction.ip_address is String(45). This does not change get_client_ip()'s
-# X-Forwarded-For trust model (keeping that as-is for this phase is
-# plan-mandated) -- it only guards against a client-controlled value too long
-# to store. Without this, an oversized value reaches the INSERT only *after*
+# Interaction.ip_address is String(45). get_client_ip() takes the address
+# from headers (app/client_ip.py explains which and why), and the TCP peer
+# can also be something other than an address, so the value is length-checked
+# before use. Without this, an oversized value reaches the INSERT only *after*
 # the paid provider call has already run; the INSERT fails under MySQL strict
 # mode, the transaction rolls back, and the cost of a call that already
 # happened is never recorded against any guest quota. Normalizing before the
@@ -104,13 +108,15 @@ class ProofreaderRequest(BaseModel):
 		return value
 
 
-def get_client_ip(request: Request) -> str:
-	x_forwarded_for = request.headers.get("X-Forwarded-For")
-	if x_forwarded_for:
-		ip = x_forwarded_for.split(",")[0].strip()
-	else:
-		ip = request.client.host
-	return ip
+def get_client_ip(request: Request) -> str | None:
+	"""The guest's address under CLIENT_IP_SOURCE (see app/client_ip.py)."""
+	return select_client_ip(
+		forwarded_for=request.headers.getlist("x-forwarded-for"),
+		cf_connecting_ip=request.headers.get("cf-connecting-ip"),
+		peer_host=request.client.host if request.client else None,
+		source=SETTINGS.client_ip_source,
+		cloudflare_networks=CLOUDFLARE_NETWORKS,
+	)
 
 
 def _storable_ip(ip: str | None) -> str:
