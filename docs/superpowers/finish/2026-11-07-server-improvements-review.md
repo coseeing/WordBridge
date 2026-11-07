@@ -295,4 +295,53 @@ spec §19.4 的八項都還沒做（這裡沒有 NVDA）：訪客超過 128 字�
 
 ## 修正記錄
 
-（§3.4 填寫）
+§3.4 修正，Opus 5.5，2026-11-07。範圍 `8b9a797..a99b2d4`（加上本記錄的 commit）。兩個修正 session：第一個做了 7 個 commit 後被使用者停下；第二個先在拋棄式 worktree 逐一驗證那 7 個（還原修正或套用原本的錯誤，看測試是否變紅），全部正確，保留不重做，再修剩下的項目。帳本的對應條目在 `.superpowers/sdd/2026-11-07-server-improvements/progress.md` 的「§3.4 fixes」段。
+
+這次只有 Minor，依 §3.4 不做修正 review。
+
+### 本審閱的 Minor
+
+| # | 結果 | commit | 測試怎麼抓到原本的錯 |
+| --- | --- | --- | --- |
+| m1 | 已修：zh_TW 四句改用「帳戶」，spec §17 字串表同步（Ruling） | `672330b` | 先改 `tests/test_coseeing_error_codes.py` 的 zh_TW 表 → 1 failed；改 `.po` 後綠；`msgfmt --check` 三個都 ok，未翻譯 0 |
+| m2 | 已修：`_coded()` 要求 body 的欄位恰好是 `detail`、`code`（長度錯誤再加 `limit`） | `369b3bf` | 突變 M20（永遠寫 `limit`）原本 0 failed，現在 17 failed |
+| m3 | 已修：直接查表，未知 kind 丟 `KeyError`；新測試釘住 `PROVIDER_CODES == _PROVIDER_DETAILS == KINDS`（Ruling） | `3ab01e1` | `test_a_kind_without_a_code_fails_loudly` 修正前紅 |
+| m4 | 不改安裝指令，只改 Dockerfile 註解（Ruling）。實測 uv 0.13.5：在非 venv 的 CPython 3.14.9（含 pip、setuptools、wheel、six）上 `uv pip sync --system` 移除 setuptools、wheel、six、packaging，**保留 pip**；stdlib venv 也保留 pip；只有 pip 的底上 sync 與 `uv pip install -r` 結果同為 38 個套件。審閱的前提（sync 會移除 pip）不成立，所以照 spec §14.3 留 `sync` | `2c2d89b` | 註解，無測試。Docker 不在此環境，真正的 `python:3.14-slim-trixie` 映像檔**未驗證**；第一次 build 時跑 `docker run --rm <image> python -m pip --version` |
+| m5 | 不修（審閱建議不修）。交接：第一次登入或 `email_verified` 未確認的使用者，`resolve_local_user` 在 `_lookup_by_sub` 開交易後才呼叫 UserInfo，期間持有連線，上限 `SSO_USERINFO_TIMEOUT_SECONDS`（正式 6 秒）。日後動連線池時，在 `_lookup_by_sub` 後先 `db.commit()` 再呼叫 UserInfo | — | — |
+| m6 | 不修（審閱建議不修）。交接：「全體訪客、24 小時」配額查詢在訪客列佔視窗 27% 時 MariaDB 選全表掃描（表的大小目前無影響）。訪客列成長到讓它變慢時，考慮 `(request_time, user_id)` 順序的索引或覆蓋索引 | — | — |
+
+### 帳本延後的 Minor
+
+| # | 結果 | commit | 驗證 |
+| --- | --- | --- | --- |
+| M1 | 已修：版本測試對照 `buildVars.py`（獨立的 regex）與版本檔，不再寫死 `2026.11.1` | `cb9df72`（第一個 session） | 在 scratch 把版本改成 `2026.12.0` 並重新 sync：新測試全綠，`8b9a797` 的測試 2+2 failed；`read_addon_version()` 回傳常數 → 3 failed |
+| M2 | 已修：`sync()` 先讀版本、先檢查 UNPREFIXED 檔案，再動任何目錄 | `fe7b7cf`（第一個 session） | 改回「複製後才讀版本」→ `…without_a_version` failed；還原整個檔案 → 4 failed |
+| M3 | 已修：`sync(unprefixed=UNPREFIXED)`，假樹傳自己的集合或 `frozenset()`，真的 sync 缺檔時在任何變動前丟 `FileNotFoundError`；取代 Task 1 的 Ruling | `fe7b7cf`（第一個 session） | 拿掉缺檔檢查 → `…missing_unprefixed_file` failed；真的 `sync_addon_code.py` 跑完 `git status` 乾淨 |
+| M4 | 已修：`test_explicit_model_success` 斷言 OpenAI 的 key | `a256572`（第一個 session） | 永遠給 DeepSeek 的 key：舊測試全綠，新測試 1 failed |
+| M5 | 已修：`main.py` 註解說明啟動也檢查 API key | `f5b0bf0`（第一個 session） | 註解；內容與 `load_correction_settings()` 相符 |
+| M6 | 已修：離線 SQL 的 stdout／stderr 都不含 `DB_PASS` | `c40c4fe`（第一個 session） | 在 offline 模式印出含密碼的 URL → 1 failed |
+| M-B2-1 | 已修：spec §18 改為停伺服器 → 備份 → 用新映像檔 `docker compose run --rm <service> python -m alembic upgrade head`（先 `--sql` 審閱）→ 啟動；回滾也要先停伺服器 | `5bdf417` | 文件 |
+| M-B2-2 | 已修：API 測試送兩行 `X-Forwarded-For` | `8f7ad65`（第一個 session） | `getlist` 改 `get` → 2 failed（審閱的 M30） |
+| M-B2-3 | 已修：recorder 記下執行的 SQL，斷言 guard 查詢全文（`> 8`）；斷言 `alter_column("interaction", "template", server_default=None)` | `3db1f2b` | 門檻 8→80（審閱的 M19）、拿掉 template 的 `alter_column`、拿掉其 `server_default` 參數，各 1 failed |
+| M-B2-4 (a) | 已修：`downgrade --sql` 開頭以 SQL 註解列出 guard 查詢，並說只有它回 0 才執行其餘（Ruling）；spec §18 寫明 downgrade 在線上跑 | `5b36fa9` | 新測試修正前紅；MariaDB 上把這段 SQL 餵給 `mariadb` client 可正常執行，結果與線上 downgrade 相同 |
+| M-B2-4 (b) | 已修：downgrade 先刪 `ix_interaction_user_id_request_time`（唯一可能撞 FK 1553 的那個）再刪 ip 索引 | `d4dc103` | 新的順序斷言修正前紅 |
+| M-B2-4 (c) | 已修：「1 interaction row has」／「N interaction rows have」 | `ba501b4` | `[one]` 修正前紅 |
+| M-B2-5 | 已修：與 M1 同一個 commit | `cb9df72`（第一個 session） | 同 M1 |
+| M-B2-6 | 已修：啟動時版本長度 > `Interaction.version` 或 template stem > `Interaction.template` 就停（Ruling：`correction_config` 引入 `app.models.models` 取欄位長度） | `d0e423e` | 新測試 2 個修正前紅（剛好等於上限的那個本來就綠） |
+| M-B2-7 | 已修：spec §5.5 記下殘餘風險（另一個 Cloudflare zone／Worker 可設 `CF-Connecting-IP`；`GUEST_GLOBAL_QUOTA` 封頂；Authenticated Origin Pulls 是完整解法），§21 列入非目標 | `5bdf417` | 文件 |
+| M-B2-8 | 已修：IPv4-mapped 位址回傳純 IPv4（peer 與 `CF-Connecting-IP` 都是） | `7b9e95e`（第一個 session） | 還原 `client_ip.py` → 3 failed |
+| — | 格式：worktree 沒有安裝 git hook，commit 沒跑 prek；`prek run --all-files` 修了兩個 session 的測試格式 | `a99b2d4` | prek 6/6 Passed |
+
+### MariaDB 重跑（migration 有改）
+
+MariaDB 11.8.6，私有實例 `127.0.0.1:3309`，datadir 在 scratchpad，`sql_mode=STRICT_TRANS_TABLES,…`；底是 `918566c` 的 `create_all` 加一列 `20260425`。`stamp` → `upgrade head` → `alembic check` 乾淨；加一列 `2026.11.1` 後 `downgrade -1` 得到 `RuntimeError: 1 interaction row has a version longer than 8 characters … Nothing was changed.`，head 與 schema 不變；刪列後 `downgrade -1` 與起點排序比對相同；再 `upgrade head` 與第一次逐字相同、check 乾淨；離線 downgrade SQL 經 `mariadb` client 執行，結果與線上 downgrade 相同。結束後已停止。
+
+### 最終驗證（§7）
+
+- 伺服器：`263 passed`（250 + 13 個新測試）。
+- 附加元件：`1231 passed, 25 skipped, 3 subtests passed`（1228 + 3）。
+- `prek run --all-files` 6/6 Passed；`git diff --check 8b9a797..HEAD` 乾淨；`msgfmt --check` 三個 ok、未翻譯 0；commit 無 `Co-Authored-By`、無 `.pot`／`.mo`。
+
+### 仍未驗證
+
+Docker 映像檔 build 與映像檔內的 `pip`（m4）；正式環境的 MariaDB 11.3.2；Traefik 的 `X-Forwarded-*` 與 spec §5.7 部署後檢查；Windows／NVDA 上的語音（§七，含改成「帳戶」的四句 zh_TW）。
