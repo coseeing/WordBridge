@@ -27,6 +27,7 @@ from fastapi import Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
+from app.errors import ApiError
 from app.package.coseeing_auth.errors import DiscoveryError, ScopeError, TokenValidationError
 from app.package.coseeing_auth.models import AuthConfig
 from app.package.coseeing_auth.oidc import OidcProtocol
@@ -99,7 +100,7 @@ def get_verified_sub(
 	except TokenValidationError:
 		raise HTTPException(status_code=401, detail=_TOKEN_INVALID_DETAIL)
 	except DiscoveryError:
-		raise HTTPException(status_code=503, detail=_DISCOVERY_UNAVAILABLE_DETAIL)
+		raise ApiError(503, "sso_unavailable", _DISCOVERY_UNAVAILABLE_DETAIL)
 	return claims.subject
 
 
@@ -121,7 +122,7 @@ def get_optional_user(
 		return None
 	user = resolve_local_user(db, sub, token)
 	if not user.is_active:
-		raise HTTPException(status_code=403, detail=_INACTIVE_USER_DETAIL)
+		raise ApiError(403, "account_disabled", _INACTIVE_USER_DETAIL)
 	return user
 
 

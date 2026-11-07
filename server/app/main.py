@@ -1,5 +1,6 @@
 import json
 import logging
+import traceback
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Literal
@@ -20,8 +21,17 @@ from .correction_config import (
 	template_stem,
 )
 from .dependencies import get_async_session, get_db
+from .errors import (
+	ApiError,
+	api_error_handler,
+	masked,
+	provider_failure,
+	service_error,
+	unexpected_error_handler,
+)
 from .lib.application.task_runner import run_typo_correction
 from .lib.decimalUtils import decimal_to_str_0
+from .lib.llm import LLMServiceError
 from .lib.tasks.typo.utils import strings_diff
 from .models.models import Interaction as InteractionModel
 from .models.schemas import Interaction as InteractionSchema
@@ -33,6 +43,8 @@ from .user.schemas import User as UserSchema
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+app.add_exception_handler(ApiError, api_error_handler)
+app.add_exception_handler(Exception, unexpected_error_handler)
 
 # Process-wide deployment settings for the /proofreader correction workflow
 # (bundled catalog + task config). Validates the deployment default model at
@@ -79,10 +91,9 @@ CLOUDFLARE_NETWORKS = load_cloudflare_networks(CLOUDFLARE_RANGES_PATH)
 # *after* the paid provider call already ran: create_single_char_mapping's
 # diffing raises ValueError around ~20000 tokens (~10k CJK characters), and
 # request_content/response_content are MySQL TEXT columns (65,535 bytes,
-# ~21.8k CJK characters). This is a payload validation failure (422), not a
-# quota failure, and is checked before the quota check and before the
-# provider call. The much tighter guest text limit (GUEST_TEXT_LIMIT, from
-# app/settings.py) remains a separate, guest-only check.
+# ~21.8k CJK characters). It is checked first, before the guest text limit
+# (GUEST_TEXT_LIMIT, from app/settings.py, guests only), the quota check and
+# the provider call, and answers 413 text_too_long with the limit.
 REQUEST_TEXT_MAX_LENGTH = 8000
 
 # Interaction.ip_address is String(45). get_client_ip() takes the address
@@ -96,14 +107,12 @@ REQUEST_TEXT_MAX_LENGTH = 8000
 IP_ADDRESS_MAX_LENGTH = 45
 _INVALID_IP_PLACEHOLDER = "invalid"
 
-_QUOTA_EXCEEDED_DETAIL = (
-	"Rate limit reached for requests or you exceeded your current quota. "
-	"Please reduce the frequency of sending requests or check your account balance."
-)
+_MODEL_UNAVAILABLE_DETAIL = "The requested model is unavailable."
 
 
 class ProofreaderRequest(BaseModel):
-	request: str = Field(min_length=1, max_length=REQUEST_TEXT_MAX_LENGTH)
+	# The upper limit is checked in proofreader(), to answer 413 with a code.
+	request: str = Field(min_length=1)
 	corrector_config_id: str = Field(min_length=1)
 	language: Literal["zh_traditional", "zh_simplified"]
 	typo_correction_mode: str
@@ -159,9 +168,24 @@ def _sum_cost(
 	return Decimal(str(total)) if total is not None else Decimal(0)
 
 
-def _enforce_quota(db: Session, *, user: UserModel | None, client_ip: str, text: str) -> None:
+def _enforce_length(*, user: UserModel | None, text: str) -> None:
+	if len(text) > REQUEST_TEXT_MAX_LENGTH:
+		raise ApiError(
+			status.HTTP_413_CONTENT_TOO_LARGE,
+			"text_too_long",
+			f"The text is longer than {REQUEST_TEXT_MAX_LENGTH} characters.",
+			limit=REQUEST_TEXT_MAX_LENGTH,
+		)
 	if user is None and len(text) > SETTINGS.guest_text_limit:
-		raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=_QUOTA_EXCEEDED_DETAIL)
+		raise ApiError(
+			status.HTTP_413_CONTENT_TOO_LARGE,
+			"guest_text_too_long",
+			f"Guests can send up to {SETTINGS.guest_text_limit} characters.",
+			limit=SETTINGS.guest_text_limit,
+		)
+
+
+def _enforce_quota(db: Session, *, user: UserModel | None, client_ip: str) -> None:
 
 	since = datetime.now(timezone.utc) - SETTINGS.quota_window
 
@@ -170,13 +194,21 @@ def _enforce_quota(db: Session, *, user: UserModel | None, client_ip: str, text:
 			return
 		user_cost = _sum_cost(db, since=since, user_id_is_none=False, user_id=user.id)
 		if user_cost >= Decimal(str(user.quota)):
-			raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=_QUOTA_EXCEEDED_DETAIL)
+			raise ApiError(
+				status.HTTP_429_TOO_MANY_REQUESTS,
+				"user_quota_exceeded",
+				"This account's quota has been used up.",
+			)
 		return
 
 	ip_cost = _sum_cost(db, since=since, user_id_is_none=True, ip_address=client_ip)
 	global_cost = _sum_cost(db, since=since, user_id_is_none=True)
 	if ip_cost >= SETTINGS.guest_ip_quota or global_cost >= SETTINGS.guest_global_quota:
-		raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=_QUOTA_EXCEEDED_DETAIL)
+		raise ApiError(
+			status.HTTP_429_TOO_MANY_REQUESTS,
+			"guest_quota_exceeded",
+			"The guest quota has been used up.",
+		)
 
 
 @app.get("/")
@@ -200,22 +232,17 @@ def proofreader(
 	client_ip = _storable_ip(get_client_ip(http_request))
 	text = data.request
 
-	_enforce_quota(db, user=user, client_ip=client_ip, text=text)
+	_enforce_length(user=user, text=text)
+	_enforce_quota(db, user=user, client_ip=client_ip)
 
 	try:
 		model_entry = resolve_model(CORRECTION_SETTINGS, data.corrector_config_id)
 	except LookupError:
-		raise HTTPException(
-			status_code=status.HTTP_404_NOT_FOUND,
-			detail="The requested model is unavailable.",
-		)
+		raise ApiError(status.HTTP_422_UNPROCESSABLE_CONTENT, "model_unavailable", _MODEL_UNAVAILABLE_DETAIL)
 
 	provider_entry = CORRECTION_SETTINGS.catalog.get_provider(model_entry.provider)
 	if provider_entry is None:
-		raise HTTPException(
-			status_code=status.HTTP_404_NOT_FOUND,
-			detail="The requested model is unavailable.",
-		)
+		raise ApiError(status.HTTP_422_UNPROCESSABLE_CONTENT, "model_unavailable", _MODEL_UNAVAILABLE_DETAIL)
 
 	# Read and checked at startup (load_correction_settings), so every
 	# servable model's provider has one.
@@ -228,7 +255,12 @@ def proofreader(
 	# free while the AI service answers (seconds to tens of seconds). The
 	# write below takes a connection again; `user` belongs to this session,
 	# expires here and reloads on that write.
-	db.commit()
+	try:
+		db.commit()
+	except Exception:
+		db.rollback()
+		logger.exception("failed to end the quota check transaction")
+		raise service_error()
 
 	request_time = datetime.now(timezone.utc)
 	try:
@@ -248,14 +280,26 @@ def proofreader(
 			retries=2,
 			backoff=1,
 		)
-	except Exception:
-		# Never surface exception details (may include the credential) to the
-		# client or the log.
-		logger.exception("proofreader execution failed for provider %s", model_entry.provider)
-		raise HTTPException(
-			status_code=status.HTTP_502_BAD_GATEWAY,
-			detail="The proofreading service failed to process the request.",
+	except LLMServiceError as error:
+		# Details go to the log, never to the client, and never with a key:
+		# the AI service's own text can echo the key it was sent.
+		logger.warning(
+			"AI service %s failed (%s): %s",
+			model_entry.provider,
+			error.kind,
+			masked(str(error), CORRECTION_SETTINGS.api_keys.values()),
 		)
+		raise provider_failure(error)
+	except Exception:  # noqa: BLE001 -- logged with its traceback below, then a 500
+		# A bug, not an AI service failure: the full traceback goes to the log,
+		# with the keys masked in case an exception's text carries one, and
+		# never to the client.
+		logger.error(
+			"proofreader execution failed for provider %s:\n%s",
+			model_entry.provider,
+			masked(traceback.format_exc(), CORRECTION_SETTINGS.api_keys.values()),
+		)
+		raise service_error()
 	response_time = datetime.now(timezone.utc)
 
 	response_text = result.corrected_text
@@ -282,10 +326,7 @@ def proofreader(
 	except Exception:
 		db.rollback()
 		logger.exception("failed to persist proofreader interaction")
-		raise HTTPException(
-			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-			detail="Failed to record the correction result.",
-		)
+		raise service_error()
 
 	return {
 		"request": text,

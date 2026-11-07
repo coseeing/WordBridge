@@ -171,6 +171,7 @@ def test_verified_sub_cannot_steal_email_owned_by_another_user(db, monkeypatch):
 		resolve_local_user(db, "s1", "access-token")
 
 	assert excinfo.value.status_code == 409
+	assert excinfo.value.code == "account_conflict"
 	db.refresh(stale)
 	db.refresh(other)
 	assert stale.account == "old@example.org"
@@ -202,6 +203,7 @@ def test_email_linked_to_other_sub_is_not_reassigned(db, monkeypatch):
 		assert False, "expected conflict"
 	except HTTPException as error:
 		assert error.status_code == 409
+		assert error.code == "account_conflict"
 	db.refresh(user)
 	assert user.sso_sub == "s1"
 
@@ -257,6 +259,7 @@ def test_mismatched_sub_returns_403_and_creates_nothing(db, monkeypatch):
 		resolve_local_user(db, "s1", "access-token")
 
 	assert excinfo.value.status_code == 403
+	assert excinfo.value.code == "account_unverified"
 	assert db.query(User).count() == 0
 
 
@@ -267,6 +270,7 @@ def test_email_verified_truthy_but_not_strict_true_returns_403(db, monkeypatch):
 		resolve_local_user(db, "s1", "access-token")
 
 	assert excinfo.value.status_code == 403
+	assert excinfo.value.code == "account_unverified"
 	assert db.query(User).count() == 0
 
 
@@ -277,6 +281,7 @@ def test_blank_email_returns_403(db, monkeypatch):
 		resolve_local_user(db, "s1", "access-token")
 
 	assert excinfo.value.status_code == 403
+	assert excinfo.value.code == "account_unverified"
 	assert db.query(User).count() == 0
 
 
@@ -287,6 +292,7 @@ def test_missing_email_returns_403(db, monkeypatch):
 		resolve_local_user(db, "s1", "access-token")
 
 	assert excinfo.value.status_code == 403
+	assert excinfo.value.code == "account_unverified"
 
 
 # --- fetch_userinfo itself --------------------------------------------------
@@ -314,6 +320,7 @@ def test_fetch_userinfo_connection_error_returns_503(monkeypatch):
 		fetch_userinfo("secret-token")
 
 	assert excinfo.value.status_code == 503
+	assert excinfo.value.code == "sso_unavailable"
 
 
 def test_fetch_userinfo_timeout_returns_503(monkeypatch):
@@ -326,6 +333,7 @@ def test_fetch_userinfo_timeout_returns_503(monkeypatch):
 		fetch_userinfo("secret-token")
 
 	assert excinfo.value.status_code == 503
+	assert excinfo.value.code == "sso_unavailable"
 
 
 def test_fetch_userinfo_non_200_returns_503(monkeypatch):
@@ -335,6 +343,7 @@ def test_fetch_userinfo_non_200_returns_503(monkeypatch):
 		fetch_userinfo("secret-token")
 
 	assert excinfo.value.status_code == 503
+	assert excinfo.value.code == "sso_unavailable"
 
 
 def test_fetch_userinfo_unparseable_json_returns_503(monkeypatch):
@@ -347,6 +356,7 @@ def test_fetch_userinfo_unparseable_json_returns_503(monkeypatch):
 		fetch_userinfo("secret-token")
 
 	assert excinfo.value.status_code == 503
+	assert excinfo.value.code == "sso_unavailable"
 
 
 def test_fetch_userinfo_non_object_json_returns_503(monkeypatch):
@@ -359,6 +369,7 @@ def test_fetch_userinfo_non_object_json_returns_503(monkeypatch):
 		fetch_userinfo("secret-token")
 
 	assert excinfo.value.status_code == 503
+	assert excinfo.value.code == "sso_unavailable"
 
 
 def test_fetch_userinfo_sends_bearer_token_and_returns_payload(monkeypatch):
@@ -501,6 +512,7 @@ def test_concurrent_link_by_email_with_different_subjects_does_not_reassign(monk
 	losing_error = next(iter(errors.values()))
 	assert isinstance(losing_error, HTTPException)
 	assert losing_error.status_code == 409
+	assert losing_error.code == "account_conflict"
 
 	winning_sub = next(iter(results))
 	assert results[winning_sub] == winning_sub

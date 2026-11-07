@@ -9,11 +9,11 @@ Never logs the access token or the raw UserInfo response body.
 """
 
 import requests
-from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.errors import ApiError
 from app.settings import SETTINGS
 
 from .models import User
@@ -41,18 +41,18 @@ def fetch_userinfo(token: str) -> dict:
 			timeout=SETTINGS.sso_userinfo_timeout,
 		)
 	except requests.RequestException as error:
-		raise HTTPException(status_code=503, detail=_UNAVAILABLE_DETAIL) from error
+		raise ApiError(503, "sso_unavailable", _UNAVAILABLE_DETAIL) from error
 
 	if response.status_code != 200:
-		raise HTTPException(status_code=503, detail=_UNAVAILABLE_DETAIL)
+		raise ApiError(503, "sso_unavailable", _UNAVAILABLE_DETAIL)
 
 	try:
 		payload = response.json()
 	except ValueError as error:
-		raise HTTPException(status_code=503, detail=_UNPARSEABLE_DETAIL) from error
+		raise ApiError(503, "sso_unavailable", _UNPARSEABLE_DETAIL) from error
 
 	if not isinstance(payload, dict):
-		raise HTTPException(status_code=503, detail=_UNPARSEABLE_DETAIL)
+		raise ApiError(503, "sso_unavailable", _UNPARSEABLE_DETAIL)
 
 	return payload
 
@@ -75,7 +75,7 @@ def _validate_userinfo(payload: dict, sub: str) -> str:
 		or not email.strip()
 		or email_verified is not True
 	):
-		raise HTTPException(status_code=403, detail=_UNVERIFIED_DETAIL)
+		raise ApiError(403, "account_unverified", _UNVERIFIED_DETAIL)
 
 	return email.strip()
 
@@ -122,7 +122,7 @@ def _link_or_create(db: Session, *, sub: str, email: str, name: object, existing
 	existing_by_email = _lookup_by_email(db, email)
 	if existing_by_email is not None:
 		if existing_by_email.sso_sub is not None and existing_by_email.sso_sub != sub:
-			raise HTTPException(status_code=409, detail=_CONFLICT_DETAIL)
+			raise ApiError(409, "account_conflict", _CONFLICT_DETAIL)
 		return _claim_email_for_subject(db, existing_by_email, sub=sub)
 
 	_sync_before_write()
@@ -177,7 +177,7 @@ def _relink_verified_sub_to_new_email(db: Session, user: User, *, sub: str, emai
 	"""
 	conflicting = _lookup_by_email(db, email)
 	if conflicting is not None and conflicting.id != user.id:
-		raise HTTPException(status_code=409, detail=_CONFLICT_DETAIL)
+		raise ApiError(409, "account_conflict", _CONFLICT_DETAIL)
 	_sync_before_write()
 	updated = (
 		db.query(User)
@@ -201,7 +201,7 @@ def _reread_after_conflict(db: Session, *, sub: str, email: str) -> User:
 	if user is not None and user.sso_sub == sub:
 		return user
 
-	raise HTTPException(status_code=409, detail=_CONFLICT_DETAIL)
+	raise ApiError(409, "account_conflict", _CONFLICT_DETAIL)
 
 
 def resolve_local_user(db: Session, sub: str, token: str) -> User:

@@ -185,23 +185,23 @@ def test_invalid_language_is_422(db, fake_run_typo_correction):
 # --- model resolution ----------------------------------------------------------
 
 
-def test_disabled_model_is_404(db, fake_run_typo_correction):
+def test_disabled_model_is_422(db, fake_run_typo_correction):
 	client = _client(db)
 	payload = dict(PAYLOAD, corrector_config_id="qwen2&Ollama")
 
 	response = client.post("/proofreader", json=payload)
 
-	assert response.status_code == 404
+	assert response.status_code == 422
 	assert db.query(Interaction).count() == 0
 
 
-def test_unknown_model_is_404(db, fake_run_typo_correction):
+def test_unknown_model_is_422(db, fake_run_typo_correction):
 	client = _client(db)
 	payload = dict(PAYLOAD, corrector_config_id="does-not-exist&Nobody")
 
 	response = client.post("/proofreader", json=payload)
 
-	assert response.status_code == 404
+	assert response.status_code == 422
 	assert db.query(Interaction).count() == 0
 
 
@@ -309,13 +309,13 @@ def test_oversized_forwarded_ip_still_counts_toward_guest_quota(db, fake_run_typ
 # --- guest quotas ----------------------------------------------------------------
 
 
-def test_guest_text_over_128_chars_is_429(db, fake_run_typo_correction, monkeypatch):
+def test_guest_text_over_128_chars_is_413(db, fake_run_typo_correction, monkeypatch):
 	client = _client(db)
 	payload = dict(PAYLOAD, request="a" * 129)
 
 	response = client.post("/proofreader", json=payload)
 
-	assert response.status_code == 429
+	assert response.status_code == 413
 	assert db.query(Interaction).count() == 0
 
 
@@ -350,24 +350,24 @@ def test_request_length_under_cap_is_accepted(db, fake_run_typo_correction, monk
 	assert response.status_code == 200
 
 
-def test_guest_over_length_cap_is_422_not_429_and_writes_no_interaction(
+def test_guest_over_length_cap_is_413_text_too_long_and_writes_no_interaction(
 	db,
 	fake_run_typo_correction,
 	monkeypatch,
 ):
-	# Above the (tighter) guest limit but this asserts the universal cap
-	# fires with 422, distinct from the guest-only 429 quota path.
+	# Above the (tighter) guest limit too, but the universal cap is checked
+	# first: signing in would not help with this text.
 	client = _client(db)
 	payload = dict(PAYLOAD, request="a" * (main_module.REQUEST_TEXT_MAX_LENGTH + 1))
 
 	response = client.post("/proofreader", json=payload)
 
-	assert response.status_code == 422
+	assert response.status_code == 413
 	assert db.query(Interaction).count() == 0
 	assert fake_run_typo_correction == []
 
 
-def test_authenticated_user_over_length_cap_is_422_not_502_and_writes_no_interaction(
+def test_authenticated_user_over_length_cap_is_413_and_writes_no_interaction(
 	db,
 	fake_run_typo_correction,
 	monkeypatch,
@@ -391,7 +391,7 @@ def test_authenticated_user_over_length_cap_is_422_not_502_and_writes_no_interac
 
 	response = client.post("/proofreader", json=payload)
 
-	assert response.status_code == 422
+	assert response.status_code == 413
 	assert db.query(Interaction).count() == 0
 	assert fake_run_typo_correction == []
 
