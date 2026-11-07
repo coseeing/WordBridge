@@ -1,3 +1,4 @@
+import importlib.util
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -9,8 +10,7 @@ from sqlalchemy.pool import StaticPool
 
 import app.main as main_module
 from app.baseModel import Base
-from app.dependencies import get_db
-from app.dependenciesA import get_session
+from app.dependencies import get_async_session, get_db
 from app.models.models import Interaction
 from app.user.auth import get_optional_user, get_token_verifier
 from app.user.models import User
@@ -18,7 +18,7 @@ from app.user.models import User
 
 async def _override_get_session():
 	# The CRUD routers (fastcrud crud_router) use a separate async session
-	# dependency (get_session, bound to the real MySQL deployment engine).
+	# dependency (get_async_session, bound to the real MySQL deployment engine).
 	# Route-permission tests only need this to resolve to *some* working
 	# async session so the request completes end-to-end for a superuser --
 	# an in-memory sqlite engine is enough.
@@ -59,7 +59,7 @@ def _clear_overrides():
 def _client(db, *, user=None):
 	main_module.app.dependency_overrides[get_db] = _override_get_db(db)
 	main_module.app.dependency_overrides[get_optional_user] = lambda: user
-	main_module.app.dependency_overrides[get_session] = _override_get_session
+	main_module.app.dependency_overrides[get_async_session] = _override_get_session
 	return TestClient(main_module.app)
 
 
@@ -111,6 +111,10 @@ def _superuser(db):
 	db.add(user)
 	db.commit()
 	return user
+
+
+def test_the_async_dependency_lives_in_dependencies():
+	assert importlib.util.find_spec("app.dependenciesA") is None
 
 
 # --- / (the public catalog) ------------------------------------------------
@@ -258,7 +262,7 @@ def _client_with_real_auth_chain(db, *, verifier):
 	# must run.
 	main_module.app.dependency_overrides[get_db] = _override_get_db(db)
 	main_module.app.dependency_overrides[get_token_verifier] = lambda: verifier
-	main_module.app.dependency_overrides[get_session] = _override_get_session
+	main_module.app.dependency_overrides[get_async_session] = _override_get_session
 	return TestClient(main_module.app)
 
 

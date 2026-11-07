@@ -13,8 +13,7 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 
 from .correction_config import SETTING_DIR, load_correction_settings, resolve_model
-from .dependencies import get_db
-from .dependenciesA import get_session
+from .dependencies import get_async_session, get_db
 from .lib.application.task_runner import run_typo_correction
 from .lib.decimalUtils import decimal_to_str_0
 from .lib.tasks.typo.utils import strings_diff
@@ -307,7 +306,7 @@ def feedback(
 
 user_crud = FastCRUD(UserModel)
 user_router = crud_router(
-	session=get_session,
+	session=get_async_session,
 	model=UserModel,
 	crud=user_crud,
 	create_schema=UserSchema,
@@ -323,7 +322,7 @@ app.include_router(
 
 interaction_crud = FastCRUD(InteractionModel)
 interaction_router = crud_router(
-	session=get_session,
+	session=get_async_session,
 	model=InteractionModel,
 	crud=interaction_crud,
 	create_schema=InteractionSchema,
