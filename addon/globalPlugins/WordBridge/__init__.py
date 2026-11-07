@@ -195,6 +195,105 @@ def get_coseeing_access_token(*, reconsider_guest=False):
 	return coseeing_auth.get_coseeing_access_token(reconsider_guest=reconsider_guest)
 
 
+# Error codes the Coseeing server sends that need a limit in their message.
+_COSEEING_LENGTH_CODES = frozenset({"guest_text_too_long", "text_too_long"})
+
+
+def _coseeing_error_details(response):
+	"""The `code` and `limit` of a Coseeing error answer, or None for each.
+
+	The body is {"detail", "code"} plus "limit" on length errors. Anything
+	else (older servers, a proxy's error page) gives (None, None). `limit`
+	counts only as a whole number above 0.
+	"""
+	try:
+		body = response.json()
+	except Exception:  # noqa: BLE001 -- any unreadable body means "no code"
+		return None, None
+	if not isinstance(body, dict):
+		return None, None
+	code = body.get("code")
+	limit = body.get("limit")
+	if not isinstance(code, str):
+		code = None
+	if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
+		limit = None
+	return code, limit
+
+
+def _coseeing_error_message(code, limit):
+	"""The message for a Coseeing error code, or None to fall back to the status.
+
+	None for a missing or unknown code, and for a length code without a
+	usable limit.
+	"""
+	if code in _COSEEING_LENGTH_CODES and limit is None:
+		return None
+	if code == "guest_text_too_long":
+		return _(
+			# Translators: Reported when a guest's text is longer than the Coseeing service accepts from
+			# guests; {limit} is the number of characters allowed.
+			"Guests can correct up to {limit} characters at a time. Sign in to Coseeing to correct longer text.",
+		).format(limit=limit)
+	if code == "text_too_long":
+		return _(
+			# Translators: Reported when the text is longer than the Coseeing service accepts; {limit} is the
+			# number of characters allowed.
+			"The text is too long. Up to {limit} characters can be corrected at a time.",
+		).format(limit=limit)
+	if code == "guest_quota_exceeded":
+		return _(
+			# Translators: Reported when the Coseeing service's guest quota has been used up.
+			"Today's guest quota has been used up. Please try again later or sign in to Coseeing.",
+		)
+	if code == "user_quota_exceeded":
+		# Translators: Reported when the quota of the user's Coseeing account has been used up.
+		return _("Your Coseeing account's quota has been used up.")
+	if code == "model_unavailable":
+		return _(
+			# Translators: Reported when the Coseeing service does not offer the model selected in the settings.
+			"The selected model is currently unavailable. Please choose another model in the settings.",
+		)
+	if code == "provider_overloaded":
+		# Translators: Reported when the AI service behind Coseeing is too busy to answer.
+		return _("The AI service is currently overloaded. Please try again later.")
+	if code == "provider_rate_limited":
+		return _(
+			# Translators: Reported when the AI service behind Coseeing has reached its usage limit.
+			"Coseeing's AI service has reached its usage limit for now. Please try again later or choose another model.",
+		)
+	if code == "provider_unreachable":
+		# Translators: Reported when the Coseeing service could not reach its AI service.
+		return _("The AI service could not be reached. Please try again later.")
+	if code == "provider_configuration":
+		return _(
+			# Translators: Reported when the AI service behind Coseeing rejects Coseeing's configuration.
+			"Coseeing's AI service is misconfigured. Please choose another model or try again later.",
+		)
+	if code == "provider_error":
+		# Translators: Reported when the AI service behind Coseeing answered with an error.
+		return _("The AI service returned an error. Please try again later.")
+	if code == "service_error":
+		# Translators: Reported when the Coseeing service itself failed.
+		return _("The Coseeing service encountered a problem. Please try again later.")
+	if code == "sso_unavailable":
+		# Translators: Reported when the Coseeing sign-in service cannot be reached.
+		return _("The Coseeing sign-in service is currently unavailable. Please try again later.")
+	if code == "account_unverified":
+		return _(
+			# Translators: Reported when the Coseeing service cannot confirm the user's account, for example
+			# because its email address is not verified.
+			"Your Coseeing account could not be verified. Please make sure its email address is verified, then sign in again.",
+		)
+	if code == "account_disabled":
+		# Translators: Reported when the user's Coseeing account has been disabled.
+		return _("Your Coseeing account has been disabled. Please contact Coseeing.")
+	if code == "account_conflict":
+		# Translators: Reported when the user's sign-in conflicts with another Coseeing account.
+		return _("There is a conflict with your Coseeing account. Please contact Coseeing.")
+	return None
+
+
 @dataclass(frozen=True)
 class CorrectionAction:
 	request: str | None = None
@@ -714,6 +813,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				return
 			if data is None or self._shutdown.is_set():
 				return
+			if data.status_code >= 400:
+				code, limit = _coseeing_error_details(data)
+				log.warning(f"Coseeing proofreader request failed: status {data.status_code}, code {code}")
+				message = _coseeing_error_message(code, limit)
+				if message is not None:
+					self._notify(message)
+					return
 			if data.status_code == 401:
 				self._notify(
 					# Translators: Reported when the Coseeing service does not accept the user's sign-in (HTTP

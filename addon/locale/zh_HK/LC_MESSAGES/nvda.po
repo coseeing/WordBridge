@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 'WordBridge' '2026.9.3'\n"
 "Report-Msgid-Bugs-To: nvda-translations@groups.io\n"
-"POT-Creation-Date: 2026-11-06 08:35+0000\n"
+"POT-Creation-Date: 2026-11-07 02:40+0000\n"
 "PO-Revision-Date: 2026-09-23 19:14+0800\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -17,9 +17,105 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 3.9\n"
 
+#. Translators: Reported when a guest's text is longer than the Coseeing service accepts from
+#. guests; {limit} is the number of characters allowed.
+#: addon/globalPlugins/WordBridge/__init__.py:236
+#, python-brace-format
+msgid ""
+"Guests can correct up to {limit} characters at a time. Sign in to Coseeing "
+"to correct longer text."
+msgstr "訪客每次最多可校對 {limit} 字，登入 Coseeing 即可校對更長的文字。"
+
+#. Translators: Reported when the text is longer than the Coseeing service accepts; {limit} is the
+#. number of characters allowed.
+#: addon/globalPlugins/WordBridge/__init__.py:242
+#, python-brace-format
+msgid ""
+"The text is too long. Up to {limit} characters can be corrected at a time."
+msgstr "文字過長，每次最多可校對 {limit} 字。"
+
+#. Translators: Reported when the Coseeing service's guest quota has been used up.
+#: addon/globalPlugins/WordBridge/__init__.py:247
+msgid ""
+"Today's guest quota has been used up. Please try again later or sign in to "
+"Coseeing."
+msgstr "今日訪客額度已用完，請稍後再試或登入 Coseeing。"
+
+#. Translators: Reported when the quota of the user's Coseeing account has been used up.
+#: addon/globalPlugins/WordBridge/__init__.py:251
+msgid "Your Coseeing account's quota has been used up."
+msgstr "你的 Coseeing 帳戶額度已用完。"
+
+#. Translators: Reported when the Coseeing service does not offer the model selected in the settings.
+#: addon/globalPlugins/WordBridge/__init__.py:255
+msgid ""
+"The selected model is currently unavailable. Please choose another model in "
+"the settings."
+msgstr "所選的模型目前無法使用，請在設定中改選其他模型。"
+
+#. Translators: Reported when the AI service behind Coseeing is too busy to answer.
+#: addon/globalPlugins/WordBridge/__init__.py:259
+msgid "The AI service is currently overloaded. Please try again later."
+msgstr "AI 服務目前過載，請稍後再試。"
+
+#. Translators: Reported when the AI service behind Coseeing has reached its usage limit.
+#: addon/globalPlugins/WordBridge/__init__.py:263
+msgid ""
+"Coseeing's AI service has reached its usage limit for now. Please try again "
+"later or choose another model."
+msgstr "Coseeing 的 AI 服務暫時達到用量上限，請稍後再試或改選其他模型。"
+
+#. Translators: Reported when the Coseeing service could not reach its AI service.
+#: addon/globalPlugins/WordBridge/__init__.py:267
+msgid "The AI service could not be reached. Please try again later."
+msgstr "暫時無法連接到 AI 服務，請稍後再試。"
+
+#. Translators: Reported when the AI service behind Coseeing rejects Coseeing's configuration.
+#: addon/globalPlugins/WordBridge/__init__.py:271
+msgid ""
+"Coseeing's AI service is misconfigured. Please choose another model or try "
+"again later."
+msgstr "Coseeing 的 AI 服務設定有問題，請改選其他模型或稍後再試。"
+
+#. Translators: Reported when the AI service behind Coseeing answered with an error.
+#: addon/globalPlugins/WordBridge/__init__.py:275
+msgid "The AI service returned an error. Please try again later."
+msgstr "AI 服務發生錯誤，請稍後再試。"
+
+#. Translators: Reported when the Coseeing service itself failed.
+#: addon/globalPlugins/WordBridge/__init__.py:278
+msgid "The Coseeing service encountered a problem. Please try again later."
+msgstr "Coseeing 服務出現問題，請稍後再試。"
+
+#. Translators: Reported when the Coseeing sign-in service cannot be reached.
+#: addon/globalPlugins/WordBridge/__init__.py:281
+msgid ""
+"The Coseeing sign-in service is currently unavailable. Please try again "
+"later."
+msgstr "目前無法連接到 Coseeing 登入服務，請稍後再試。"
+
+#. Translators: Reported when the Coseeing service cannot confirm the user's account, for example
+#. because its email address is not verified.
+#: addon/globalPlugins/WordBridge/__init__.py:286
+msgid ""
+"Your Coseeing account could not be verified. Please make sure its email "
+"address is verified, then sign in again."
+msgstr "無法確認你的 Coseeing 帳戶，請確認電郵地址已驗證後重新登入。"
+
+#. Translators: Reported when the user's Coseeing account has been disabled.
+#: addon/globalPlugins/WordBridge/__init__.py:290
+msgid "Your Coseeing account has been disabled. Please contact Coseeing."
+msgstr "你的 Coseeing 帳戶已停用，請聯絡 Coseeing。"
+
+#. Translators: Reported when the user's sign-in conflicts with another Coseeing account.
+#: addon/globalPlugins/WordBridge/__init__.py:293
+msgid ""
+"There is a conflict with your Coseeing account. Please contact Coseeing."
+msgstr "你的 Coseeing 帳戶發生衝突，請聯絡 Coseeing。"
+
 #. Translators: Reported when the correction settings file that comes with WordBridge is
 #. damaged, so WordBridge uses its built-in defaults.
-#: addon/globalPlugins/WordBridge/__init__.py:271
+#: addon/globalPlugins/WordBridge/__init__.py:370
 msgid ""
 "The bundled correction settings file is damaged; WordBridge is using its "
 "built-in defaults."
@@ -29,7 +125,7 @@ msgstr "隨附的校正設定檔已損毀；WordBridge 正在使用內置預設�
 #. model that uses their own API key, but the model list has not been downloaded. Yes
 #. switches the setting to the Coseeing default and sends the text to Coseeing; No sends
 #. nothing.
-#: addon/globalPlugins/WordBridge/__init__.py:342
+#: addon/globalPlugins/WordBridge/__init__.py:441
 msgid ""
 "The model list is not available yet, so the model you selected cannot be "
 "used.\n"
@@ -47,37 +143,37 @@ msgstr ""
 #. Translators: Title of the WordBridge category in NVDA's settings dialog; the add-on name.
 #. Translators: Summary/title for this add-on
 #. to be shown on installation and add-on information found in add-on store
-#: addon/globalPlugins/WordBridge/__init__.py:348
+#: addon/globalPlugins/WordBridge/__init__.py:447
 #: addon/globalPlugins/WordBridge/dialogs.py:227 buildVars.py:20
 msgid "WordBridge"
 msgstr "WordBridge"
 
 #. Translators: Spoken after the user answers No (or presses Escape) in the dialog asking whether to
 #. switch to the Coseeing default because the model list is not available.
-#: addon/globalPlugins/WordBridge/__init__.py:371
+#: addon/globalPlugins/WordBridge/__init__.py:470
 msgid "The text was not sent. Your model selection was not changed."
 msgstr "未傳送文字，模型選擇維持不變。"
 
 #. Translators: Reported after a correction when its cost could not be calculated.
-#: addon/globalPlugins/WordBridge/__init__.py:489
+#: addon/globalPlugins/WordBridge/__init__.py:588
 msgid "This task's cost is unavailable."
 msgstr "無法取得此任務的費用。"
 
 #. Translators: Reported after a correction; {cost} is what the request cost, in US dollars.
-#: addon/globalPlugins/WordBridge/__init__.py:492
+#: addon/globalPlugins/WordBridge/__init__.py:591
 #, python-brace-format
 msgid "This task costs {cost} USD."
 msgstr "此任務費用為 {cost} 美元。"
 
 #. Translators: Reported when the report of a correction (the page that shows the changes) could
 #. not be created.
-#: addon/globalPlugins/WordBridge/__init__.py:543
+#: addon/globalPlugins/WordBridge/__init__.py:642
 msgid "The correction report could not be generated."
 msgstr "無法產生錯別字校正報告。"
 
 #. Translators: Reported when the selected text is too long to correct; {len_text} is its
 #. number of characters and {max_char_count} the maximum set in WordBridge settings.
-#: addon/globalPlugins/WordBridge/__init__.py:559
+#: addon/globalPlugins/WordBridge/__init__.py:658
 #, python-brace-format
 msgid ""
 "The number of characters is {len_text}, which exceeds the maximum, "
@@ -85,27 +181,27 @@ msgid ""
 msgstr "文字字元數為 {len_text}，超過上限 {max_char_count}。"
 
 #. Translators: Reported when a correction is started without any selected text.
-#: addon/globalPlugins/WordBridge/__init__.py:568
+#: addon/globalPlugins/WordBridge/__init__.py:667
 msgid "No text is selected, unable to analyze."
 msgstr "未選取任何文字，無法分析。"
 
 #. Translators: Reported when the selected text has no Chinese characters, so there is nothing to
 #. correct.
-#: addon/globalPlugins/WordBridge/__init__.py:574
+#: addon/globalPlugins/WordBridge/__init__.py:673
 msgid ""
 "The selected text does not contain Chinese characters, unable to analyze."
 msgstr "所選文字不含中文字元，無法分析。"
 
 #. Translators: Reported once when the model list could not be loaded, so the correction goes to
 #. the Coseeing service, which picks the model.
-#: addon/globalPlugins/WordBridge/__init__.py:620
+#: addon/globalPlugins/WordBridge/__init__.py:719
 msgid ""
 "The model list could not be loaded. Coseeing will choose a model for you."
 msgstr "無法載入模型清單。Coseeing 會為你選擇模型。"
 
 #. Translators: Reported when the model chosen in WordBridge settings is no longer in
 #. the model list.
-#: addon/globalPlugins/WordBridge/__init__.py:629
+#: addon/globalPlugins/WordBridge/__init__.py:728
 msgid ""
 "The selected model is no longer available. Please choose another one in "
 "WordBridge settings."
@@ -113,7 +209,7 @@ msgstr "所選模型已無法使用。請在 WordBridge 設定中選擇其他模
 
 #. Translators: Reported when the service provider of the chosen model is no longer in
 #. the model list.
-#: addon/globalPlugins/WordBridge/__init__.py:639
+#: addon/globalPlugins/WordBridge/__init__.py:738
 msgid ""
 "The selected provider is no longer available. Please choose another one in "
 "WordBridge settings."
@@ -121,32 +217,32 @@ msgstr "所選服務供應商已無法使用。請在 WordBridge 設定中選擇
 
 #. Translators: Reported when a correction with the user's own API key fails; {e} is the
 #. error message, which may come from the service provider untranslated.
-#: addon/globalPlugins/WordBridge/__init__.py:670
+#: addon/globalPlugins/WordBridge/__init__.py:769
 #, python-brace-format
 msgid ""
 "Sorry, an error occurred during the program execution, the details are: {e}"
 msgstr "抱歉，程式執行時發生錯誤，詳情如下：{e}"
 
 #. Translators: Reported when signing in to Coseeing failed before a correction could be sent.
-#: addon/globalPlugins/WordBridge/__init__.py:688
+#: addon/globalPlugins/WordBridge/__init__.py:787
 msgid "Sorry, an error occurred while authenticating with Coseeing."
 msgstr "抱歉，驗證 Coseeing 時發生錯誤。"
 
 #. Translators: Reported when a correction request to the Coseeing service took too long.
-#: addon/globalPlugins/WordBridge/__init__.py:708
+#: addon/globalPlugins/WordBridge/__init__.py:807
 msgid "The Coseeing request timed out. Please try again later."
 msgstr "Coseeing 請求逾時，請稍後再試。"
 
 #. Translators: Reported when a correction request to the Coseeing service failed.
-#: addon/globalPlugins/WordBridge/__init__.py:711
-#: addon/globalPlugins/WordBridge/__init__.py:736
+#: addon/globalPlugins/WordBridge/__init__.py:810
+#: addon/globalPlugins/WordBridge/__init__.py:842
 msgid "The Coseeing request failed. Please try again later."
 msgstr "Coseeing 請求失敗，請稍後再試。"
 
 #. Translators: Reported when the Coseeing service does not accept the user's sign-in (HTTP
 #. 401).
-#: addon/globalPlugins/WordBridge/__init__.py:721
-#: addon/globalPlugins/WordBridge/__init__.py:986
+#: addon/globalPlugins/WordBridge/__init__.py:827
+#: addon/globalPlugins/WordBridge/__init__.py:1092
 msgid ""
 "Authentication error. Please sign in to Coseeing or check your account "
 "permissions."
@@ -156,8 +252,8 @@ msgstr "驗證錯誤。請登入 Coseeing，或檢查帳戶權限。"
 #. requests (HTTP 429); the next sentence follows it directly, so keep the trailing space.
 #. Translators: First sentence reported when the AI service provider limits the user's requests
 #. (HTTP 429); the next sentence follows it directly, so keep the trailing space.
-#: addon/globalPlugins/WordBridge/__init__.py:728
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:79
+#: addon/globalPlugins/WordBridge/__init__.py:834
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:102
 msgid "Rate limit reached for requests or you exceeded your current quota. "
 msgstr "請求已達到速率限制，或已超出目前配額。"
 
@@ -165,8 +261,8 @@ msgstr "請求已達到速率限制，或已超出目前配額。"
 #. requests (HTTP 429).
 #. Translators: Second sentence reported when the AI service provider limits the user's requests
 #. (HTTP 429).
-#: addon/globalPlugins/WordBridge/__init__.py:731
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:82
+#: addon/globalPlugins/WordBridge/__init__.py:837
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:105
 msgid ""
 "Please reduce the frequency of sending requests or check your account "
 "balance."
@@ -174,22 +270,22 @@ msgstr "請降低發送請求的頻率，或檢查帳戶餘額。"
 
 #. Translators: Reported when the Coseeing service's answer to a correction request could not
 #. be read.
-#: addon/globalPlugins/WordBridge/__init__.py:746
+#: addon/globalPlugins/WordBridge/__init__.py:852
 msgid "The Coseeing response was invalid. Please try again later."
 msgstr "Coseeing 回應無效，請稍後再試。"
 
 #. Translators: Reported when a correction found no errors in the selected text.
-#: addon/globalPlugins/WordBridge/__init__.py:762
+#: addon/globalPlugins/WordBridge/__init__.py:868
 msgid "No errors in the selected text."
 msgstr "所選文字未偵測到錯誤。"
 
 #. Translators: Reported when a correction has finished and the corrected text is on the clipboard.
-#: addon/globalPlugins/WordBridge/__init__.py:768
+#: addon/globalPlugins/WordBridge/__init__.py:874
 msgid "The corrected text has been copied to the clipboard."
 msgstr "已將校正後的文字複製到剪貼簿。"
 
 #. Translators: Reported when a correction is started while another one is still running.
-#: addon/globalPlugins/WordBridge/__init__.py:789
+#: addon/globalPlugins/WordBridge/__init__.py:895
 msgid ""
 "Only one proofreading task can run at a time. Please wait until the current "
 "task has finished before starting another."
@@ -197,19 +293,19 @@ msgstr "一次只能執行一項校對任務。請等待目前任務完成後，
 
 #. Translators: Description of the command that opens the WordBridge personal dictionary, shown in
 #. Input gestures.
-#: addon/globalPlugins/WordBridge/__init__.py:842
+#: addon/globalPlugins/WordBridge/__init__.py:948
 msgid "Open personal dictionary editor"
 msgstr "開啟個人詞典編輯器"
 
 #. Translators: Description of the command that corrects typos in the selected text, shown in Input
 #. gestures.
-#: addon/globalPlugins/WordBridge/__init__.py:852
+#: addon/globalPlugins/WordBridge/__init__.py:958
 msgid "Execute typo correction"
 msgstr "執行錯別字校正"
 
 #. Translators: Reported when a correction is started while the NVDA settings dialog is
 #. open.
-#: addon/globalPlugins/WordBridge/__init__.py:861
+#: addon/globalPlugins/WordBridge/__init__.py:967
 msgid ""
 "The function cannot be executed. Please finish the configuration and close "
 "the setting window."
@@ -217,55 +313,55 @@ msgstr "無法執行此功能，請完成設定並關閉設定視窗。"
 
 #. Translators: Description of the command that opens the WordBridge settings panel, shown in Input
 #. gestures.
-#: addon/globalPlugins/WordBridge/__init__.py:883
+#: addon/globalPlugins/WordBridge/__init__.py:989
 msgid "Open WordBridge settings"
 msgstr "開啟 WordBridge 設定"
 
 #. Translators: Description of the command that shows the report of the latest correction, shown in
 #. Input gestures.
-#: addon/globalPlugins/WordBridge/__init__.py:896
+#: addon/globalPlugins/WordBridge/__init__.py:1002
 msgid "Show correction report"
 msgstr "顯示校正報告"
 
 #. Translators: Reported when the correction report is asked for before any correction has run.
-#: addon/globalPlugins/WordBridge/__init__.py:903
+#: addon/globalPlugins/WordBridge/__init__.py:1009
 msgid "No report has been generated yet."
 msgstr "尚未產生報告。"
 
 #. Translators: Description of the command that sends feedback on the latest correction to Coseeing,
 #. shown in Input gestures.
-#: addon/globalPlugins/WordBridge/__init__.py:913
+#: addon/globalPlugins/WordBridge/__init__.py:1019
 msgid "Submit correction feedback"
 msgstr "提交校正意見回饋"
 
 #. Translators: Reported when feedback is sent before any correction has run with the Coseeing
 #. service.
-#: addon/globalPlugins/WordBridge/__init__.py:928
+#: addon/globalPlugins/WordBridge/__init__.py:1034
 msgid ""
 "You have not run a typos correction task with the Coseeing service provider "
 "yet."
 msgstr "您尚未使用 Coseeing 服務供應商執行錯別字校正任務。"
 
 #. Translators: Reported when signing in to Coseeing failed before feedback could be sent.
-#: addon/globalPlugins/WordBridge/__init__.py:970
+#: addon/globalPlugins/WordBridge/__init__.py:1076
 msgid "The Coseeing authentication failed. Please try again later."
 msgstr "Coseeing 驗證失敗，請稍後再試。"
 
 #. Translators: Reported when sending correction feedback to the Coseeing service failed.
-#: addon/globalPlugins/WordBridge/__init__.py:990
-#: addon/globalPlugins/WordBridge/__init__.py:1005
+#: addon/globalPlugins/WordBridge/__init__.py:1096
+#: addon/globalPlugins/WordBridge/__init__.py:1111
 msgid "Sorry, the Coseeing feedback request failed. Please try again later."
 msgstr "抱歉，Coseeing 意見回饋請求失敗，請稍後再試。"
 
 #. Translators: Reported when sending correction feedback to the Coseeing service took too
 #. long.
-#: addon/globalPlugins/WordBridge/__init__.py:998
+#: addon/globalPlugins/WordBridge/__init__.py:1104
 msgid "The Coseeing feedback request timed out. Please try again later."
 msgstr "Coseeing 意見回饋請求逾時，請稍後再試。"
 
 #. Translators: Reported when the Coseeing service's answer to correction feedback could not be
 #. read.
-#: addon/globalPlugins/WordBridge/__init__.py:1002
+#: addon/globalPlugins/WordBridge/__init__.py:1108
 msgid "The Coseeing feedback response was invalid. Please try again later."
 msgstr "Coseeing 意見回饋回應無效，請稍後再試。"
 
@@ -685,38 +781,39 @@ msgid "Parsing error. Unexpected server response. Response: {response}"
 msgstr "解析錯誤。伺服器回應異常。回應內容：{response}"
 
 #. Translators: Reported when the AI service provider rejects the user's API key (HTTP 401).
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:65
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:82
 msgid ""
 "Authentication error. Please check if the service provider's key is correct."
 msgstr "驗證錯誤。請檢查服務供應商的金鑰是否正確。"
 
-#. Translators: Reported when the AI service provider refuses requests from the user's location (HTTP 403).
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:69
+#. Translators: Reported when the AI service provider refuses requests from the user's location
+#. (HTTP 403).
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:89
 msgid "Country, region, or territory not supported."
 msgstr "不支援你所在的國家、地區或領土。"
 
 #. Translators: Reported when the AI service provider does not know the selected model (HTTP 404).
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:73
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:95
 msgid ""
 "Service does not exist. Please check if the model does not exist or has "
 "expired."
 msgstr "服務不存在。請檢查模型是否不存在或已過期。"
 
 #. Translators: Reported when the AI service provider is too busy to answer (HTTP 503).
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:86
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:111
 msgid "The server is currently overloaded, please try again later."
 msgstr "伺服器目前負載過重，請稍後再試。"
 
 #. Translators: Reported for any other error from the AI service provider; the HTTP status code
 #. and the provider's own (untranslated) message follow it, as "401, message".
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:91
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:117
 msgid "An error occurred, status code = "
 msgstr "發生錯誤，狀態碼 = "
 
 #. Translators: Reported when the AI service provider cannot be reached; {request_error} is the
 #. name of the network error, for example ConnectTimeout.
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:115
-#: addon/globalPlugins/WordBridge/lib/llm/provider.py:154
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:143
+#: addon/globalPlugins/WordBridge/lib/llm/provider.py:183
 #, python-brace-format
 msgid "HTTP request error ({request_error}). Please check the network setting."
 msgstr "HTTP 請求錯誤（{request_error}）。請檢查網絡設定。"
