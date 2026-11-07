@@ -47,9 +47,10 @@ app.add_exception_handler(ApiError, api_error_handler)
 app.add_exception_handler(Exception, unexpected_error_handler)
 
 # Process-wide deployment settings for the /proofreader correction workflow
-# (bundled catalog + task config). Validates the deployment default model at
-# import time -- a broken deployment fails loudly at startup rather than
-# silently misbehaving per-request.
+# (bundled catalog + task config + provider API keys). Validates at import
+# time the deployment default model and that every provider a served model
+# uses has its API key set -- a broken deployment fails loudly at startup
+# rather than silently misbehaving per-request.
 CORRECTION_SETTINGS = load_correction_settings(SETTINGS)
 
 
