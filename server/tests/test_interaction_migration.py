@@ -124,6 +124,12 @@ def test_downgrade_restores_the_previous_shape():
 	# change, so such a failure leaves the columns untouched.
 	names = [name for name, _, _ in recorder.calls]
 	assert names[:2] == ["drop_index", "drop_index"]
+	# Of the two, only the user_id one can hit the foreign key (error 1553),
+	# so it goes first: if it fails, nothing has changed at all.
+	assert [args[0] for args, _ in _calls(recorder, "drop_index")] == [
+		"ix_interaction_user_id_request_time",
+		"ix_interaction_ip_address_request_time",
+	]
 
 
 def test_downgrade_refuses_long_versions_before_any_ddl():

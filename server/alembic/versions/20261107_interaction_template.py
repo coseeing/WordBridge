@@ -71,10 +71,10 @@ def downgrade() -> None:
 				"which the previous schema cannot hold. Restore the backup taken before the "
 				"upgrade, or shorten those values, then downgrade again. Nothing was changed.",
 			)
-	# The index drops can fail on a foreign key, so they go before any
-	# column change.
-	op.drop_index("ix_interaction_ip_address_request_time", table_name="interaction")
+	# Dropping the user_id index can fail on the foreign key (error 1553) if
+	# KEY user_id is gone, so it goes first, before any other change.
 	op.drop_index("ix_interaction_user_id_request_time", table_name="interaction")
+	op.drop_index("ix_interaction_ip_address_request_time", table_name="interaction")
 	op.add_column("interaction", sa.Column("category", sa.String(length=8), nullable=True))
 	op.drop_column("interaction", "template")
 	op.alter_column(
