@@ -42,8 +42,10 @@ def run_migrations_offline() -> None:
 	Calls to context.execute() here emit the given string to the
 	script output.
 
+	Uses the same URL as online mode (alembic.ini only holds a
+	placeholder). Offline mode takes just the dialect from it and never
+	connects.
 	"""
-	url = config.get_main_option("sqlalchemy.url")
 	context.configure(
 		url=url,
 		target_metadata=target_metadata,
