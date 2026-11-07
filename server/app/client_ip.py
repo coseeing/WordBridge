@@ -56,19 +56,21 @@ def load_cloudflare_networks(path: Path) -> tuple[ipaddress.IPv4Network | ipaddr
 
 
 def _parse(value: str | None) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+	"""The address in `value`; an IPv4-mapped IPv6 address as plain IPv4."""
 	if not value:
 		return None
 	try:
-		return ipaddress.ip_address(value.strip())
+		address = ipaddress.ip_address(value.strip())
 	except ValueError:
 		return None
+	if address.version == 6 and address.ipv4_mapped is not None:
+		return address.ipv4_mapped
+	return address
 
 
 def _is_cloudflare(address, networks) -> bool:
 	if address is None:
 		return False
-	if address.version == 6 and address.ipv4_mapped is not None:
-		address = address.ipv4_mapped
 	return any(address in network for network in networks)
 
 
@@ -83,7 +85,8 @@ def select_client_ip(
 	"""The client address for one request (see the module docstring).
 
 	`forwarded_for` holds every X-Forwarded-For header line in order. An
-	address is returned in its normal text form, so one client always
+	address is returned in its normal text form, an IPv4-mapped IPv6
+	address (::ffff:203.0.113.5) as plain IPv4, so one client always
 	counts against one quota; a peer that is not an address (a test
 	client's name) is returned as it is, and no peer at all gives None.
 	"""

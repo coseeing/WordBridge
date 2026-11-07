@@ -81,6 +81,20 @@ def test_select_checks_an_ipv4_mapped_peer_as_ipv4():
 	assert _select(["::ffff:" + EDGE], "198.51.100.7") == "198.51.100.7"
 
 
+@pytest.mark.parametrize(
+	"forwarded_for, cf_connecting_ip, source, expected",
+	[
+		(["::ffff:203.0.113.5"], None, "proxy", "203.0.113.5"),
+		(["::ffff:" + EDGE], None, "cloudflare", EDGE),
+		([EDGE], "::ffff:198.51.100.7", "cloudflare", "198.51.100.7"),
+	],
+	ids=["proxy-peer", "edge-peer-fallback", "cf-header"],
+)
+def test_an_ipv4_mapped_address_is_returned_as_ipv4(forwarded_for, cf_connecting_ip, source, expected):
+	# The same IPv4 client must count against one quota however it arrived.
+	assert _select(forwarded_for, cf_connecting_ip, source=source) == expected
+
+
 def test_select_normalises_cf_connecting_ip():
 	assert _select([EDGE_V6], " 2001:DB8::1 ") == _select([EDGE_V6], "2001:db8::1") == "2001:db8::1"
 
