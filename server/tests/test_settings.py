@@ -25,6 +25,7 @@ COMPLETE = {
 	"GUEST_IP_QUOTA": "0.06",
 	"GUEST_GLOBAL_QUOTA": "0.3",
 	"QUOTA_WINDOW_HOURS": "24",
+	"CLIENT_IP_SOURCE": "cloudflare",
 }
 
 
@@ -118,11 +119,20 @@ def test_every_problem_is_reported_at_once():
 		("QUOTA_WINDOW_HOURS", "a day"),
 		("QUOTA_WINDOW_HOURS", "0"),
 		("QUOTA_WINDOW_HOURS", "nan"),
+		("CLIENT_IP_SOURCE", "Cloudflare"),
+		("CLIENT_IP_SOURCE", "traefik"),
 	],
 )
 def test_a_malformed_value_stops_startup(name, value):
 	with pytest.raises(SettingsError, match=name):
 		load_settings(dict(COMPLETE, **{name: value}))
+
+
+@pytest.mark.parametrize("value", ["cloudflare", "proxy", " proxy "])
+def test_client_ip_source_accepts_both_values(value):
+	settings = load_settings(dict(COMPLETE, CLIENT_IP_SOURCE=value))
+
+	assert settings.client_ip_source == value.strip()
 
 
 def test_a_zero_quota_is_allowed():

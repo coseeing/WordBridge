@@ -43,7 +43,12 @@ REQUIRED_VARIABLES = (
 	"GUEST_IP_QUOTA",
 	"GUEST_GLOBAL_QUOTA",
 	"QUOTA_WINDOW_HOURS",
+	"CLIENT_IP_SOURCE",
 )
+
+# Where the client address comes from (app/client_ip.py): "cloudflare" when
+# Cloudflare proxies the domain, "proxy" when Cloudflare only serves DNS.
+CLIENT_IP_SOURCES = ("cloudflare", "proxy")
 
 # Variables where an empty value is a choice rather than a gap.
 _MAY_BE_EMPTY = frozenset({"COSEEING_MODEL_IDS"})
@@ -74,6 +79,7 @@ class Settings:
 	guest_ip_quota: Decimal
 	guest_global_quota: Decimal
 	quota_window: timedelta
+	client_ip_source: str
 
 	def database_url(self, drivername: str) -> URL:
 		return URL.create(
@@ -111,6 +117,7 @@ def load_settings(environ=None) -> Settings:
 		"guest_ip_quota": reader.amount("GUEST_IP_QUOTA"),
 		"guest_global_quota": reader.amount("GUEST_GLOBAL_QUOTA"),
 		"quota_window": reader.hours("QUOTA_WINDOW_HOURS"),
+		"client_ip_source": reader.choice("CLIENT_IP_SOURCE", CLIENT_IP_SOURCES),
 	}
 	if reader.problems:
 		raise SettingsError("Deployment settings are incomplete: " + "; ".join(reader.problems))
@@ -136,6 +143,14 @@ class _Reader:
 	def text(self, name):
 		value = self.raw(name)
 		return None if value is None else value.strip()
+
+	def choice(self, name, options):
+		value = self.text(name)
+		if value is None:
+			return None
+		if value not in options:
+			return self._reject(name, "must be " + " or ".join(options))
+		return value
 
 	def id_list(self, name):
 		value = self.raw(name)
