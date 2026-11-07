@@ -20,6 +20,7 @@ from .lib.catalog import CorrectorCatalog
 from .lib.catalog.fallback import load_catalog
 from .lib.catalog.sources import BundledCatalogSource
 from .lib.llm import SUPPORTED_PROVIDERS
+from .models.models import Interaction
 from .settings import Settings, SettingsError, load_settings
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,10 @@ SETTING_DIR = Path(__file__).parent / "setting"
 CORRECTOR_TASK_CONFIG_PATH = SETTING_DIR / "task" / "corrector.json"
 # Written by server/sync_addon_code.py from buildVars.py.
 ADDON_VERSION_PATH = SETTING_DIR / "addon_version.txt"
+# Every correction stores both; a value its column cannot hold would fail
+# each write, so it stops startup instead.
+VERSION_LENGTH = Interaction.__table__.c.version.type.length
+TEMPLATE_LENGTH = Interaction.__table__.c.template.type.length
 
 
 @dataclass(frozen=True)
@@ -70,6 +75,9 @@ def load_correction_settings(
 	cannot be served is logged as a warning and needs no key: a catalog
 	update that deactivates a model must not stop the server, and the
 	entry keeps being rejected per request.
+
+	A template name whose stem is longer than interaction.template holds
+	raises ValueError too.
 	"""
 	if environ is None:
 		environ = os.environ
@@ -85,9 +93,17 @@ def load_correction_settings(
 			f"DEFAULT_CORRECTOR_CONFIG_ID {default_id!r} does not name an enabled, runnable local catalog model",
 		)
 
+	template_names = task_config.get("template_name", {})
+	for mode, template_name in sorted(template_names.items()):
+		if len(template_stem(template_name)) > TEMPLATE_LENGTH:
+			raise ValueError(
+				f"{CORRECTOR_TASK_CONFIG_PATH.name}: the {mode} template name {template_stem(template_name)!r} "
+				f"is longer than {TEMPLATE_LENGTH} characters, which interaction.template cannot hold",
+			)
+
 	correction_settings = CorrectionSettings(
 		catalog=catalog,
-		template_name=task_config.get("template_name", {}),
+		template_name=template_names,
 		optional_guidance_enable=task_config.get("optional_guidance_enable", {}),
 		default_id=default_id,
 		coseeing_ids=settings.coseeing_model_ids,
@@ -119,7 +135,8 @@ def load_addon_version(path: Path = ADDON_VERSION_PATH) -> str:
 	"""The add-on version this server's code and prompts correspond to.
 
 	Recorded with every correction. Raises ValueError when the file is
-	missing or blank, so a broken image stops at startup.
+	missing or blank, or the version is longer than interaction.version
+	holds, so a broken image stops at startup.
 	"""
 	try:
 		version = path.read_text(encoding="utf-8").strip()
@@ -127,6 +144,11 @@ def load_addon_version(path: Path = ADDON_VERSION_PATH) -> str:
 		raise ValueError(f"{path.name} is missing; run python3 server/sync_addon_code.py") from error
 	if not version:
 		raise ValueError(f"{path.name} is empty; run python3 server/sync_addon_code.py")
+	if len(version) > VERSION_LENGTH:
+		raise ValueError(
+			f"{path.name}: version {version!r} is longer than {VERSION_LENGTH} characters, "
+			"which interaction.version cannot hold",
+		)
 	return version
 
 

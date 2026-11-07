@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -7,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+import app.correction_config as correction_config
 from app.correction_config import (
 	ADDON_VERSION_PATH,
 	api_key_variable,
@@ -16,6 +18,7 @@ from app.correction_config import (
 	template_stem,
 )
 from app.lib.llm import PROVIDER_CLASSES
+from app.models.models import Interaction
 from app.settings import SettingsError
 
 SERVER = Path(__file__).resolve().parent.parent
@@ -236,6 +239,37 @@ def test_a_missing_or_blank_version_file_stops_startup(tmp_path, content):
 
 	with pytest.raises(ValueError, match="addon_version.txt"):
 		load_addon_version(path)
+
+
+def test_a_version_longer_than_its_column_stops_startup(tmp_path):
+	# Otherwise every correction would fail at the database write.
+	length = Interaction.__table__.c.version.type.length
+	path = tmp_path / "addon_version.txt"
+	path.write_text("9" * length + "\n", encoding="utf-8")
+	assert load_addon_version(path) == "9" * length
+
+	path.write_text("9" * (length + 1) + "\n", encoding="utf-8")
+	with pytest.raises(ValueError, match=f"longer than {length} characters"):
+		load_addon_version(path)
+
+
+@pytest.mark.parametrize("extra, fits", [(0, True), (1, False)], ids=["at-the-limit", "too-long"])
+def test_a_template_name_longer_than_its_column_stops_startup(tmp_path, monkeypatch, extra, fits):
+	# The stem (without .json) is what is stored.
+	length = Interaction.__table__.c.template.type.length
+	stem = "T" * (length + extra)
+	task = tmp_path / "corrector.json"
+	task.write_text(
+		json.dumps({"template_name": {"standard": "Standard_v1.json", "lite": stem + ".json"}}),
+		encoding="utf-8",
+	)
+	monkeypatch.setattr(correction_config, "CORRECTOR_TASK_CONFIG_PATH", task)
+
+	if fits:
+		assert load_correction_settings().template_name["lite"] == stem + ".json"
+	else:
+		with pytest.raises(ValueError, match=f"lite.*longer than {length} characters"):
+			load_correction_settings()
 
 
 def test_template_stem_drops_the_json_suffix():
