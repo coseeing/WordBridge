@@ -546,6 +546,25 @@ def test_a_forged_cf_header_from_a_non_edge_peer_is_ignored(db, fake_run_typo_co
 	assert _stored_ip(db, response) == "203.0.113.5"
 
 
+@pytest.mark.parametrize(
+	"forwarded_for, stored",
+	[
+		# Only the last header line holds Traefik's peer, the edge.
+		(["1.1.1.1", _EDGE], "198.51.100.7"),
+		# A forged first line naming an edge must not unlock the CF header.
+		([_EDGE, "203.0.113.5"], "203.0.113.5"),
+	],
+	ids=["edge-last", "forged-edge-first"],
+)
+def test_separate_forwarded_for_lines_are_read_as_one_list(db, fake_run_typo_correction, forwarded_for, stored):
+	headers = [("X-Forwarded-For", value) for value in forwarded_for]
+	headers.append(("CF-Connecting-IP", "198.51.100.7"))
+
+	response = _client(db).post("/proofreader", json=PAYLOAD, headers=headers)
+
+	assert _stored_ip(db, response) == stored
+
+
 def test_guests_behind_one_edge_have_separate_quotas(db, fake_run_typo_correction):
 	_seed_interaction(db, cost=Decimal("0.06"), ip_address="198.51.100.7")
 	client = _client(db)
