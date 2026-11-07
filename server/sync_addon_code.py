@@ -19,7 +19,12 @@ server records it with every correction, and the image has no buildVars.py.
 
 The one difference the copy makes: the add-on imports its bundled packages
 under the _wb_vendor prefix (lib/vendor.py), while the server installs them
-normally, so UNPREFIXED files drop the prefix.
+normally, so UNPREFIXED files drop the prefix. Every UNPREFIXED file must
+exist in the add-on: one that was renamed or deleted stops the sync, so the
+list is corrected instead of silently skipped.
+
+The version and the UNPREFIXED files are checked before any directory is
+replaced, so a failed sync leaves the server's copy as it was.
 tests/test_server_addon_copy.py fails when the copies drift.
 """
 
@@ -52,9 +57,9 @@ UNPREFIXED = frozenset(
 _IGNORED = shutil.ignore_patterns("__pycache__", "*.pyc")
 
 
-def as_on_the_server(relative: str, text: str) -> str:
+def as_on_the_server(relative: str, text: str, unprefixed: frozenset = UNPREFIXED) -> str:
 	"""The server's text for the add-on file at `relative` (see UNPREFIXED)."""
-	if relative not in UNPREFIXED:
+	if relative not in unprefixed:
 		return text
 	text = re.sub(r"^from _wb_vendor\.(\w+) import ", r"from \1 import ", text, flags=re.MULTILINE)
 	return re.sub(r"^from _wb_vendor import (\w+)$", r"import \1", text, flags=re.MULTILINE)
@@ -74,19 +79,32 @@ def read_addon_version(buildvars: Path = BUILDVARS) -> str:
 	raise ValueError(f"{buildvars.name} sets no addon_version string")
 
 
-def sync(*, addon: Path = ADDON, server_app: Path = SERVER_APP, buildvars: Path = BUILDVARS) -> None:
+def sync(
+	*,
+	addon: Path = ADDON,
+	server_app: Path = SERVER_APP,
+	buildvars: Path = BUILDVARS,
+	unprefixed: frozenset = UNPREFIXED,
+) -> None:
+	"""Copy COPIED_DIRS from `addon` to `server_app` and write the version.
+
+	Raises ValueError (no version) or FileNotFoundError (an `unprefixed`
+	file missing from `addon`) before anything under `server_app` changes.
+	"""
+	version = read_addon_version(buildvars)
+	missing = sorted(relative for relative in unprefixed if not (addon / relative).is_file())
+	if missing:
+		raise FileNotFoundError("UNPREFIXED names files the add-on does not have: " + ", ".join(missing))
 	for relative in COPIED_DIRS:
 		target = server_app / relative
 		shutil.rmtree(target, ignore_errors=True)
 		shutil.copytree(addon / relative, target, ignore=_IGNORED)
-	for relative in UNPREFIXED:
+	for relative in unprefixed:
 		path = server_app / relative
-		if not path.exists():
-			continue
-		text = as_on_the_server(relative, path.read_text(encoding="utf-8"))
+		text = as_on_the_server(relative, path.read_text(encoding="utf-8"), unprefixed)
 		path.write_text(text, encoding="utf-8", newline="\n")
 	version_file = server_app / ADDON_VERSION_FILE.relative_to(SERVER_APP)
-	version_file.write_text(read_addon_version(buildvars) + "\n", encoding="utf-8", newline="\n")
+	version_file.write_text(version + "\n", encoding="utf-8", newline="\n")
 
 
 if __name__ == "__main__":

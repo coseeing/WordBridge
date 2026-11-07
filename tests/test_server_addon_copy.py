@@ -80,11 +80,12 @@ def test_read_addon_version_reads_the_keyword(tmp_path):
 		sync_addon_code.read_addon_version(buildvars)
 
 
-def test_sync_replaces_only_the_copied_dirs(tmp_path):
+def _fake_trees(tmp_path):
 	addon = tmp_path / "addon"
 	server_app = tmp_path / "server_app"
 	for relative, text in {
 		"lib/a.py": "a",
+		"lib/b.py": "from _wb_vendor.pkg import name\nfrom _wb_vendor import other\n",
 		"dictionary/d.txt": "d",
 		"setting/templates/T.json": "t",
 		"setting/task/c.json": "c",
@@ -101,8 +102,17 @@ def test_sync_replaces_only_the_copied_dirs(tmp_path):
 		(server_app / relative).write_text(text, encoding="utf-8")
 	buildvars = tmp_path / "buildVars.py"
 	buildvars.write_text('addon_info = AddonInfo(addon_version="9.9.9")\n', encoding="utf-8")
+	return addon, server_app, buildvars
 
-	sync_addon_code.sync(addon=addon, server_app=server_app, buildvars=buildvars)
+
+def _snapshot(root):
+	return {path.relative_to(root).as_posix(): path.read_bytes() for path in root.rglob("*") if path.is_file()}
+
+
+def test_sync_replaces_only_the_copied_dirs(tmp_path):
+	addon, server_app, buildvars = _fake_trees(tmp_path)
+
+	sync_addon_code.sync(addon=addon, server_app=server_app, buildvars=buildvars, unprefixed=frozenset())
 
 	assert (server_app / "setting/catalog.json").read_text(encoding="utf-8") == "server"
 	assert (server_app / "setting/cloudflare_ips.txt").read_text(encoding="utf-8") == "ranges"
@@ -111,3 +121,40 @@ def test_sync_replaces_only_the_copied_dirs(tmp_path):
 	assert (server_app / "setting/task/c.json").read_text(encoding="utf-8") == "c"
 	assert (server_app / "lib/a.py").read_text(encoding="utf-8") == "a"
 	assert (server_app / "setting/addon_version.txt").read_text(encoding="utf-8") == "9.9.9\n"
+	assert (server_app / "lib/b.py").read_text(encoding="utf-8") == (addon / "lib/b.py").read_text(encoding="utf-8")
+
+
+def test_sync_drops_the_prefix_from_the_unprefixed_files(tmp_path):
+	addon, server_app, buildvars = _fake_trees(tmp_path)
+
+	sync_addon_code.sync(addon=addon, server_app=server_app, buildvars=buildvars, unprefixed=frozenset({"lib/b.py"}))
+
+	assert (server_app / "lib/b.py").read_text(encoding="utf-8") == "from pkg import name\nimport other\n"
+	assert (server_app / "lib/a.py").read_text(encoding="utf-8") == "a"
+
+
+def test_sync_stops_before_changing_anything_on_a_missing_unprefixed_file(tmp_path):
+	# A renamed or deleted file must be taken out of UNPREFIXED, not skipped.
+	addon, server_app, buildvars = _fake_trees(tmp_path)
+	before = _snapshot(server_app)
+
+	with pytest.raises(FileNotFoundError, match="lib/gone.py"):
+		sync_addon_code.sync(
+			addon=addon,
+			server_app=server_app,
+			buildvars=buildvars,
+			unprefixed=frozenset({"lib/gone.py"}),
+		)
+
+	assert _snapshot(server_app) == before
+
+
+def test_sync_stops_before_changing_anything_without_a_version(tmp_path):
+	addon, server_app, buildvars = _fake_trees(tmp_path)
+	buildvars.write_text('addon_info = AddonInfo(addon_name="x")\n', encoding="utf-8")
+	before = _snapshot(server_app)
+
+	with pytest.raises(ValueError, match="addon_version"):
+		sync_addon_code.sync(addon=addon, server_app=server_app, buildvars=buildvars, unprefixed=frozenset())
+
+	assert _snapshot(server_app) == before
