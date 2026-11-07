@@ -761,7 +761,7 @@ meaning and the terminology in §15.6.
 | `guest_text_too_long` | Guests can correct up to {limit} characters at a time. Sign in to Coseeing to correct longer text. | 訪客每次最多可校對 {limit} 字，登入 Coseeing 即可校對更長的文字。 |
 | `text_too_long` | The text is too long. Up to {limit} characters can be corrected at a time. | 文字過長，每次最多可校對 {limit} 字。 |
 | `guest_quota_exceeded` | Today's guest quota has been used up. Please try again later or sign in to Coseeing. | 今日訪客額度已用完，請稍後再試或登入 Coseeing。 |
-| `user_quota_exceeded` | Your Coseeing account's quota has been used up. | 您的 Coseeing 帳號額度已用完。 |
+| `user_quota_exceeded` | Your Coseeing account's quota has been used up. | 您的 Coseeing 帳戶額度已用完。 |
 | `model_unavailable` | The selected model is currently unavailable. Please choose another model in the settings. | 所選的模型目前無法使用，請在設定中改選其他模型。 |
 | `provider_overloaded` | The AI service is currently overloaded. Please try again later. | AI 服務目前過載，請稍後再試。 |
 | `provider_rate_limited` | Coseeing's AI service has reached its usage limit for now. Please try again later or choose another model. | Coseeing 的 AI 服務暫時達到用量上限，請稍後再試或改選其他模型。 |
@@ -770,11 +770,13 @@ meaning and the terminology in §15.6.
 | `provider_error` | The AI service returned an error. Please try again later. | AI 服務發生錯誤，請稍後再試。 |
 | `service_error` | The Coseeing service encountered a problem. Please try again later. | Coseeing 服務發生問題，請稍後再試。 |
 | `sso_unavailable` | The Coseeing sign-in service is currently unavailable. Please try again later. | 目前無法連線到 Coseeing 登入服務，請稍後再試。 |
-| `account_unverified` | Your Coseeing account could not be verified. Please make sure its email address is verified, then sign in again. | 無法確認您的 Coseeing 帳號，請確認電子郵件已驗證後重新登入。 |
-| `account_disabled` | Your Coseeing account has been disabled. Please contact Coseeing. | 您的 Coseeing 帳號已停用，請聯絡 Coseeing。 |
-| `account_conflict` | There is a conflict with your Coseeing account. Please contact Coseeing. | Coseeing 帳號發生衝突，請聯絡 Coseeing。 |
+| `account_unverified` | Your Coseeing account could not be verified. Please make sure its email address is verified, then sign in again. | 無法確認您的 Coseeing 帳戶，請確認電子郵件已驗證後重新登入。 |
+| `account_disabled` | Your Coseeing account has been disabled. Please contact Coseeing. | 您的 Coseeing 帳戶已停用，請聯絡 Coseeing。 |
+| `account_conflict` | There is a conflict with your Coseeing account. Please contact Coseeing. | Coseeing 帳戶發生衝突，請聯絡 Coseeing。 |
 
-zh_TW uses 您 throughout, matching the existing translations (D17, F6).
+zh_TW uses 您 throughout, matching the existing translations (D17, F6), and
+帳戶 for "account", as the existing catalog does (the settings panel's
+"Coseeing 帳戶"; final review m1).
 
 ## 18. Deployment steps (first deployment of this work)
 

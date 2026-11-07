@@ -39,7 +39,7 @@ msgstr "今日訪客額度已用完，請稍後再試或登入 Coseeing。"
 #. Translators: Reported when the quota of the user's Coseeing account has been used up.
 #: addon/globalPlugins/WordBridge/__init__.py:251
 msgid "Your Coseeing account's quota has been used up."
-msgstr "您的 Coseeing 帳號額度已用完。"
+msgstr "您的 Coseeing 帳戶額度已用完。"
 
 #. Translators: Reported when the Coseeing service does not offer the model selected in the settings.
 #: addon/globalPlugins/WordBridge/__init__.py:255
@@ -85,17 +85,17 @@ msgstr "目前無法連線到 Coseeing 登入服務，請稍後再試。"
 #. because its email address is not verified.
 #: addon/globalPlugins/WordBridge/__init__.py:286
 msgid "Your Coseeing account could not be verified. Please make sure its email address is verified, then sign in again."
-msgstr "無法確認您的 Coseeing 帳號，請確認電子郵件已驗證後重新登入。"
+msgstr "無法確認您的 Coseeing 帳戶，請確認電子郵件已驗證後重新登入。"
 
 #. Translators: Reported when the user's Coseeing account has been disabled.
 #: addon/globalPlugins/WordBridge/__init__.py:290
 msgid "Your Coseeing account has been disabled. Please contact Coseeing."
-msgstr "您的 Coseeing 帳號已停用，請聯絡 Coseeing。"
+msgstr "您的 Coseeing 帳戶已停用，請聯絡 Coseeing。"
 
 #. Translators: Reported when the user's sign-in conflicts with another Coseeing account.
 #: addon/globalPlugins/WordBridge/__init__.py:293
 msgid "There is a conflict with your Coseeing account. Please contact Coseeing."
-msgstr "Coseeing 帳號發生衝突，請聯絡 Coseeing。"
+msgstr "Coseeing 帳戶發生衝突，請聯絡 Coseeing。"
 
 #. Translators: Reported when the correction settings file that comes with WordBridge is
 #. damaged, so WordBridge uses its built-in defaults.

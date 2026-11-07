@@ -46,7 +46,7 @@ MESSAGES = {
 	"user_quota_exceeded": (
 		429,
 		"Your Coseeing account's quota has been used up.",
-		"您的 Coseeing 帳號額度已用完。",
+		"您的 Coseeing 帳戶額度已用完。",
 	),
 	"model_unavailable": (
 		422,
@@ -91,17 +91,17 @@ MESSAGES = {
 	"account_unverified": (
 		403,
 		"Your Coseeing account could not be verified. Please make sure its email address is verified, then sign in again.",
-		"無法確認您的 Coseeing 帳號，請確認電子郵件已驗證後重新登入。",
+		"無法確認您的 Coseeing 帳戶，請確認電子郵件已驗證後重新登入。",
 	),
 	"account_disabled": (
 		403,
 		"Your Coseeing account has been disabled. Please contact Coseeing.",
-		"您的 Coseeing 帳號已停用，請聯絡 Coseeing。",
+		"您的 Coseeing 帳戶已停用，請聯絡 Coseeing。",
 	),
 	"account_conflict": (
 		409,
 		"There is a conflict with your Coseeing account. Please contact Coseeing.",
-		"Coseeing 帳號發生衝突，請聯絡 Coseeing。",
+		"Coseeing 帳戶發生衝突，請聯絡 Coseeing。",
 	),
 }
 
