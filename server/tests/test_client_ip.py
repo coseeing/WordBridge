@@ -127,7 +127,9 @@ def test_a_missing_or_empty_ranges_file_stops_loading(tmp_path):
 
 def test_render_ranges_validates_and_round_trips(tmp_path):
 	path = tmp_path / "ranges.txt"
-	path.write_text(update_cloudflare_ips.render_ranges("173.245.48.0/20\n103.21.244.0/22", "2400:cb00::/32\n"))
+	path.write_text(
+		update_cloudflare_ips.render_ranges("173.245.48.0/20\n103.21.244.0/22", "2400:cb00::/32\n"),
+	)
 
 	assert [str(network) for network in load_cloudflare_networks(path)] == [
 		"173.245.48.0/20",

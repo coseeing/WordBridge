@@ -38,7 +38,7 @@ def render_ranges(v4_text: str, v6_text: str) -> str:
 def _fetch(url: str) -> str:
 	# Cloudflare answers 403 to urllib's default User-Agent.
 	request = urllib.request.Request(url, headers={"User-Agent": "WordBridge-update-cloudflare-ips"})
-	with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 -- fixed https URLs
+	with urllib.request.urlopen(request, timeout=30) as response:
 		return response.read().decode("ascii")
 
 

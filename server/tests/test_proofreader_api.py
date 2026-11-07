@@ -541,7 +541,9 @@ def test_guests_behind_one_edge_have_separate_quotas(db, fake_run_typo_correctio
 	headers = {"X-Forwarded-For": _EDGE}
 
 	blocked = client.post(
-		"/proofreader", json=PAYLOAD, headers={**headers, "CF-Connecting-IP": "198.51.100.7"}
+		"/proofreader",
+		json=PAYLOAD,
+		headers={**headers, "CF-Connecting-IP": "198.51.100.7"},
 	)
 	other = client.post("/proofreader", json=PAYLOAD, headers={**headers, "CF-Connecting-IP": "198.51.100.8"})
 
@@ -551,7 +553,9 @@ def test_guests_behind_one_edge_have_separate_quotas(db, fake_run_typo_correctio
 
 def test_proxy_mode_ignores_cf_connecting_ip(db, fake_run_typo_correction, monkeypatch):
 	monkeypatch.setattr(
-		main_module, "SETTINGS", dataclasses.replace(main_module.SETTINGS, client_ip_source="proxy")
+		main_module,
+		"SETTINGS",
+		dataclasses.replace(main_module.SETTINGS, client_ip_source="proxy"),
 	)
 
 	response = _client(db).post(
