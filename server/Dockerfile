@@ -8,6 +8,8 @@ WORKDIR /app
 # requirements.txt is compiled with hashes from requirements.in (see there).
 # uv is mounted for this step only, so it does not stay in the image; it
 # checks every hash, and --require-hashes also rejects an entry without one.
+# sync removes every installed package the list does not name, except pip,
+# which stays for operators (python -m pip list).
 # --mount needs BuildKit (the default builder in current Docker).
 COPY requirements.txt ./
 RUN --mount=from=ghcr.io/astral-sh/uv:0.13.5,source=/uv,target=/bin/uv \
