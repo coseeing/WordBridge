@@ -22,7 +22,7 @@ addon_info = AddonInfo(
 	# Translators: Long description to be shown for this add-on on add-on information from add-on store
 	addon_description=_("helps users identify and correct homophone-based typos in Chinese."),
 	# version
-	addon_version="2026.9.3",
+	addon_version="2026.11.1",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
 	addon_changelog=_("Update models to GPT-6 and Claude 5.5"),

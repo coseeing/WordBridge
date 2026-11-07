@@ -1,19 +1,29 @@
-"""Copy the add-on's lib and dictionary packages into the server.
+"""Copy the add-on's correction code and prompt files into the server.
 
 The server runs the add-on's correction code, so server/app/lib and
 server/app/dictionary are whole copies of the add-on's lib and dictionary,
-including modules only NVDA can load. Run this after changing either
-package in the add-on:
+including modules only NVDA can load. The prompts that code reads,
+setting/templates and setting/task, are copied the same way. Run this after
+changing any of them, or after changing addon_version in buildVars.py:
 
 	python3 server/sync_addon_code.py
 
-Each target is replaced, not merged, so a file deleted in the add-on goes
-from the server too. The one difference it makes: the add-on imports its
-bundled packages under the _wb_vendor prefix (lib/vendor.py), while the
-server installs them normally, so UNPREFIXED files drop the prefix.
+Each copied directory is replaced, not merged, so a file deleted in the
+add-on goes from the server too. Only those directories are replaced:
+server/app/setting also holds server-only files (catalog.json, which
+deliberately differs from the add-on's, the Cloudflare ranges and the
+version file), and they are left alone.
+
+The add-on version is written to server/app/setting/addon_version.txt: the
+server records it with every correction, and the image has no buildVars.py.
+
+The one difference the copy makes: the add-on imports its bundled packages
+under the _wb_vendor prefix (lib/vendor.py), while the server installs them
+normally, so UNPREFIXED files drop the prefix.
 tests/test_server_addon_copy.py fails when the copies drift.
 """
 
+import ast
 import re
 import shutil
 from pathlib import Path
@@ -21,9 +31,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ADDON = ROOT / "addon" / "globalPlugins" / "WordBridge"
 SERVER_APP = ROOT / "server" / "app"
+BUILDVARS = ROOT / "buildVars.py"
+ADDON_VERSION_FILE = SERVER_APP / "setting" / "addon_version.txt"
 
-# Packages under the add-on root, copied to the same name under server/app.
-PACKAGES = ("lib", "dictionary")
+# Directories under the add-on root, copied to the same path under server/app.
+COPIED_DIRS = ("lib", "dictionary", "setting/templates", "setting/task")
 
 # Paths relative to those roots. lib/vendor.py and
 # lib/coseeing_auth.py also use the prefix but only ever run inside NVDA,
@@ -48,15 +60,33 @@ def as_on_the_server(relative: str, text: str) -> str:
 	return re.sub(r"^from _wb_vendor import (\w+)$", r"import \1", text, flags=re.MULTILINE)
 
 
-def sync() -> None:
-	for package in PACKAGES:
-		target = SERVER_APP / package
+def read_addon_version(buildvars: Path = BUILDVARS) -> str:
+	"""The addon_version keyword argument in buildVars.py."""
+	tree = ast.parse(buildvars.read_text(encoding="utf-8"))
+	for node in ast.walk(tree):
+		if (
+			isinstance(node, ast.keyword)
+			and node.arg == "addon_version"
+			and isinstance(node.value, ast.Constant)
+			and isinstance(node.value.value, str)
+		):
+			return node.value.value
+	raise ValueError(f"{buildvars.name} sets no addon_version string")
+
+
+def sync(*, addon: Path = ADDON, server_app: Path = SERVER_APP, buildvars: Path = BUILDVARS) -> None:
+	for relative in COPIED_DIRS:
+		target = server_app / relative
 		shutil.rmtree(target, ignore_errors=True)
-		shutil.copytree(ADDON / package, target, ignore=_IGNORED)
+		shutil.copytree(addon / relative, target, ignore=_IGNORED)
 	for relative in UNPREFIXED:
-		path = SERVER_APP / relative
+		path = server_app / relative
+		if not path.exists():
+			continue
 		text = as_on_the_server(relative, path.read_text(encoding="utf-8"))
 		path.write_text(text, encoding="utf-8", newline="\n")
+	version_file = server_app / ADDON_VERSION_FILE.relative_to(SERVER_APP)
+	version_file.write_text(read_addon_version(buildvars) + "\n", encoding="utf-8", newline="\n")
 
 
 if __name__ == "__main__":
