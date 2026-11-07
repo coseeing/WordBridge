@@ -595,13 +595,17 @@ the database first (§18).
 
   ```dockerfile
   RUN --mount=from=ghcr.io/astral-sh/uv:<pinned version>,source=/uv,target=/bin/uv \
-      uv pip sync --system requirements.txt
+      uv pip install --system --require-hashes --no-cache -r requirements.txt
   ```
 
+- **`uv pip install`, not `uv pip sync` (decided by the user, 2026-11-07;
+  final review m4):** `install` puts in exactly the locked, hash-checked set
+  and never uninstalls anything, so the base image's own pip stays whatever
+  the image contains. `sync` would also remove every package the list does
+  not name.
 - uv is pinned to an exact version.
-- Hashes are verified at install; `uv pip sync` verifies a hashed list
-  automatically — the implementer confirms whether an explicit flag is
-  needed.
+- Hashes are verified at install: uv checks a hashed list by itself, and
+  `--require-hashes` also rejects an entry without a hash.
 - Before deploying: production Docker must support BuildKit, which
   `--mount=from=` needs. Recent Docker enables it by default.
 
