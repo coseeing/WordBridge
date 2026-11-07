@@ -132,10 +132,15 @@ def test_downgrade_restores_the_previous_shape():
 	]
 
 
-def test_downgrade_refuses_long_versions_before_any_ddl():
-	recorder = _Recorder(long_versions=3)
+@pytest.mark.parametrize(
+	"long_versions, message",
+	[(1, "1 interaction row has a version"), (3, "3 interaction rows have a version")],
+	ids=["one", "several"],
+)
+def test_downgrade_refuses_long_versions_before_any_ddl(long_versions, message):
+	recorder = _Recorder(long_versions=long_versions)
 
-	with pytest.raises(RuntimeError, match="3"):
+	with pytest.raises(RuntimeError, match=f"^{message} longer than 8 characters"):
 		_migration(recorder).downgrade()
 
 	assert recorder.calls == []

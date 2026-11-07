@@ -66,8 +66,9 @@ def downgrade() -> None:
 			.scalar()
 		)
 		if long_versions:
+			rows = "1 interaction row has" if long_versions == 1 else f"{long_versions} interaction rows have"
 			raise RuntimeError(
-				f"{long_versions} interaction rows have a version longer than 8 characters, "
+				f"{rows} a version longer than 8 characters, "
 				"which the previous schema cannot hold. Restore the backup taken before the "
 				"upgrade, or shorten those values, then downgrade again. Nothing was changed.",
 			)
