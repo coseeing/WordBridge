@@ -137,12 +137,35 @@ Items 5 and 8 share **one** alembic migration.
 - **D13.** 401 responses keep their current body with no `code`; the add-on
   keeps its current 401 message.
 
+Rulings on the findings in §20 (also decided by orchestrator with the
+recommended default; user may override before merge):
+
+- **D14 (F1).** `handle_errors` parses the "other status" body defensively
+  and always raises `LLMServiceError(kind="other")` (§15.4.1). Today that
+  path crashes with `ValueError`/`KeyError`, so the local-mode change is a
+  bug fix, not a message change.
+- **D15 (F2).** The startup key check covers only the ids `resolve_model()`
+  could actually serve; an id that cannot resolve is logged as a warning and
+  does not stop startup (§10.2).
+- **D16 (F3).** The migration is verified on a real MariaDB from a schema
+  built with `Base.metadata.create_all` at `918566c`, never from the
+  production dump (§19.3).
+- **D17 (F6).** zh_TW uses 您, matching the existing translations (§17).
+- **D18 (F9).** The key check lives in the correction-settings startup path,
+  not in `app/settings.load_settings()` (§10.2).
+- **D19 (F10).** The misleading comment at `server/app/main.py:238-239` is
+  rewritten as part of item 11's logging change (§15.5).
+
 ## 3. What NVDA users hear and see
 
-- **Local mode** (the user's own API key): nothing changes. The messages
+- **Local mode** (the user's own API key): nothing changes except one bug
+  fix. The messages
   raised by `LLMServiceError` stay exactly as they are
   (`addon/globalPlugins/WordBridge/lib/llm/provider.py:60-92`, `:112-118`,
   `:150-157`; `addon/globalPlugins/WordBridge/lib/llm/executor.py:68-76`).
+  One bug fix (D14, §15.4.1): an error status whose body is not JSON or
+  lacks `error.message` no longer crashes; the user hears the usual "An
+  error occurred, status code = …" message with the status and its reason.
 - **Coseeing mode:** instead of "The Coseeing request failed. Please try
   again later." (`addon/globalPlugins/WordBridge/__init__.py:734-736`) for
   every error other than 401 and 429, the user hears a specific message for
@@ -346,6 +369,19 @@ a variable starts normally and fails only when a user corrects text.
   - One error lists every missing variable name and no value, like
     `SettingsError` (`server/app/settings.py:52-53`, `:115-116`).
   - Providers no served model uses are not checked.
+- **Which ids count (D15).** Only the ids `resolve_model()` could actually
+  serve: `"default"` (already validated at startup,
+  `server/app/correction_config.py:49-54`), plus the `COSEEING_MODEL_IDS`
+  entries that resolve to an active catalog model with a bundled provider
+  (the test at `server/app/correction_config.py:77-79`). An id that cannot
+  resolve is logged as a warning at startup and does **not** stop startup,
+  so a catalog update that deactivates a model never takes the server down.
+  Such an id keeps being rejected per request as today.
+- **Where the check lives (D18).** In the correction-settings startup path
+  (`load_correction_settings()`, `server/app/correction_config.py:31-62`, or
+  an equivalent step run by `app.main` at import, `server/app/main.py:36`),
+  **not** in `app/settings.load_settings()`: alembic imports `app.settings`
+  (`server/alembic/env.py:24`) and must not need API keys.
 - Keys are read once at startup; requests no longer read the environment.
 - The "no key → 500" branch in `/proofreader`
   (`server/app/main.py:207-213`) is removed; it can no longer happen.
@@ -629,19 +665,48 @@ raising:
 | `rate_limited` | HTTP 429 (`provider.py:75-83`) |
 | `unreachable` | `send()` gets no response after its retries (`provider.py:150-157`); `try_connection()` fails (`provider.py:112-118`; called through `executor.py:37-38` from `lib/tasks/typo/workflow.py:23`) |
 | `configuration` | HTTP 401, 403, 404 (`provider.py:62-74`) |
-| `other` | Any other HTTP error (`provider.py:87-92`); unexpected response shape in `executor.py:66-76` |
+| `other` | Any other HTTP error (`provider.py:87-92`), including bodies that are not JSON or lack `error.message` (§15.4.1); unexpected response shape in `executor.py:66-76` |
 
-- **Local-mode messages do not change at all.** The add-on already writes
-  the full message to the NVDA log; that stays.
+- **Local-mode messages do not change**, except the bug fix in §15.4.1. The
+  add-on already writes the full message to the NVDA log; that stays.
 - After the change, run `python3 server/sync_addon_code.py`.
 - The server maps `kind` to the `provider_*` codes in §15.3.
 - Paths in this table are under `addon/globalPlugins/WordBridge/lib/llm/`.
+
+#### 15.4.1 Defensive parsing of "other status" bodies (D14)
+
+Today the generic branch reads `json.loads(response.text)["error"]["message"]`
+unguarded (`addon/globalPlugins/WordBridge/lib/llm/provider.py:87`), so a
+non-JSON body (e.g. an HTML 502 page) or a body without `error.message`
+crashes with `ValueError`/`KeyError`/`TypeError` instead of raising
+`LLMServiceError`.
+
+- Parse the body defensively. When it is JSON with `error.message`, the
+  message stays exactly as today:
+  `_("An error occurred, status code = ") + f"{status}, {message}"`
+  (`provider.py:88-92`).
+- Otherwise still raise `LLMServiceError(kind="other")` with the same msgid
+  followed by `f"{status}, {reason}"`, where `reason` is `response.reason`
+  when present and otherwise empty.
+- The raw body is never included.
+- No new translatable string.
+- This is a bug fix in local mode (a crash becomes the usual error message)
+  and makes these cases `provider_error` (502) on the server instead of
+  `service_error` (500).
+- Test: non-JSON body, JSON without `error`, JSON with `error` but no
+  `message`, each with and without `reason`; all raise `LLMServiceError`
+  with `kind == "other"`, the expected text, and no part of the body.
 
 ### 15.5 Server log
 
 - AI service failures: log the provider name, `kind` and the AI service's
   raw error text, never the key.
 - Server bugs: `logger.exception` with the full traceback.
+- The comment at `server/app/main.py:238-239` ("Never surface exception
+  details ... to the client or the log"), which `logger.exception` at `:240`
+  already contradicts, is rewritten with this change to state the rule
+  above: details go to the log, never the key, and never to the client
+  (D19).
 - Responses to users **never** contain the AI service's raw text, because:
   - it is written for local-mode users (e.g. "check your key") and misleads
     in Coseeing mode;
@@ -705,11 +770,11 @@ meaning and the terminology in §15.6.
 | `provider_error` | The AI service returned an error. Please try again later. | AI 服務發生錯誤，請稍後再試。 |
 | `service_error` | The Coseeing service encountered a problem. Please try again later. | Coseeing 服務發生問題，請稍後再試。 |
 | `sso_unavailable` | The Coseeing sign-in service is currently unavailable. Please try again later. | 目前無法連線到 Coseeing 登入服務，請稍後再試。 |
-| `account_unverified` | Your Coseeing account could not be verified. Please make sure its email address is verified, then sign in again. | 無法確認你的 Coseeing 帳號，請確認電子郵件已驗證後重新登入。 |
-| `account_disabled` | Your Coseeing account has been disabled. Please contact Coseeing. | 你的 Coseeing 帳號已停用，請聯絡 Coseeing。 |
+| `account_unverified` | Your Coseeing account could not be verified. Please make sure its email address is verified, then sign in again. | 無法確認您的 Coseeing 帳號，請確認電子郵件已驗證後重新登入。 |
+| `account_disabled` | Your Coseeing account has been disabled. Please contact Coseeing. | 您的 Coseeing 帳號已停用，請聯絡 Coseeing。 |
 | `account_conflict` | There is a conflict with your Coseeing account. Please contact Coseeing. | Coseeing 帳號發生衝突，請聯絡 Coseeing。 |
 
-See F6 (§20) on 你/您.
+zh_TW uses 您 throughout, matching the existing translations (D17, F6).
 
 ## 18. Deployment steps (first deployment of this work)
 
@@ -755,8 +820,11 @@ the three `.po` files. Record passed/skipped counts against the baseline.
   check) shows no difference between models and migrations.
 - **Item 6:** a served model's provider without a key stops startup and the
   error names every missing variable and no value; an unused provider's key
-  is not required; the request path no longer reads the environment. The
-  test at `server/tests/test_proofreader_api.py:213` is replaced.
+  is not required; a `COSEEING_MODEL_IDS` id that cannot resolve logs a
+  warning, does not stop startup and does not require its provider's key;
+  importing `app.settings` (as alembic does) does not need any API key; the
+  request path no longer reads the environment. The test at
+  `server/tests/test_proofreader_api.py:213` is replaced.
 - **Item 7:** imports updated; `server/tests/test_route_permissions.py`
   passes with `get_async_session`.
 - **Item 8:** the stored `version` equals the version file; `template` is
@@ -778,7 +846,7 @@ the three `.po` files. Record passed/skipped counts against the baseline.
 - **Item 11 (add-on `lib`):** `kind` for 401/403/404, 429, 503, 529, other
   statuses, `send()` without response, `try_connection()` failure and
   parse failure; messages unchanged (extend `tests/test_llm_errors.py:35-52`,
-  `:56`, `:66`, `:101`).
+  `:56`, `:66`, `:101`); the defensive-parsing cases of §15.4.1.
 - **Item 11 (add-on UI, NVDA-stubbed):** each `code` gives its message;
   `limit` is inserted; unknown or missing `code` falls back to today's
   messages by status; `code` and status are logged untranslated; every new
@@ -794,11 +862,15 @@ the range check, swap two `kind`s) and confirm the tests catch each mutant.
 
 ### 19.3 MariaDB migration check (D3)
 
-- Install MariaDB in the container (e.g. with apt) and run the new
-  migration's `upgrade` and `downgrade` (and `upgrade` again). If the
-  version differs from 11.3.2, record the version used in the handoff.
-- The starting schema must match production at `20260923_sso_user`; see F3
-  (§20) — alembic cannot build it from an empty database.
+- Install MariaDB in the container (e.g. with apt). Record the MariaDB
+  version actually used in the handoff (production is 11.3.2).
+- alembic cannot build the schema from an empty database (F3), and the
+  production dump contains user data, so it is **not** used (D16). Instead:
+  1. Build the pre-migration schema with `Base.metadata.create_all` from the
+     models at the base commit `918566c`, e.g. from a scratch
+     `git worktree add --detach <scratch path> 918566c`.
+  2. `alembic stamp 20260923_sso_user`.
+  3. `alembic upgrade head`, `alembic downgrade -1`, `alembic upgrade head`.
 - After `upgrade`: both indexes exist, `KEY user_id` is still there,
   `version` is `varchar(32)`, `template` exists, `category` is gone. After
   `downgrade`: the schema is back to the starting one (with `category`
@@ -826,34 +898,33 @@ against a server that has this work, checks in Coseeing mode:
 
 ## 20. Findings while writing the spec
 
-These were found while verifying references. The design above is unchanged;
-each needs the user's (or the implementer's) attention as noted.
+These were found while verifying references. F1, F2, F3, F6, F9 and F10
+are closed by the orchestrator's rulings D14–D19 (§2.2; decided by
+orchestrator with the recommended default; user may override before merge).
+The others are notes for the implementer.
 
 - **F1. `handle_errors` can raise something other than `LLMServiceError`.**
   The generic branch parses the body unguarded:
   `json.loads(response.text)["error"]["message"]`
   (`addon/globalPlugins/WordBridge/lib/llm/provider.py:87`). A non-JSON body
   (e.g. an HTML 502 page) or a different shape raises `ValueError`,
-  `KeyError` or `TypeError`, not `LLMServiceError`. §15.4 assumes every
-  other HTTP error becomes `kind="other"`; as written, these cases would be
-  `service_error` (500) on the server. Making the branch robust would change
-  what local mode shows in those cases, which §15.4 says must not change.
-  **Needs a decision.**
+  `KeyError` or `TypeError`, not `LLMServiceError`, so these cases would be
+  `service_error` (500) on the server. **Closed by D14:** the body is parsed
+  defensively and always raises `LLMServiceError(kind="other")` with the
+  existing msgid; the local-mode change is a bug fix (§15.4.1).
 - **F2. Which models count for the startup key check.** `COSEEING_MODEL_IDS`
   is not validated at startup; an id that is not an active catalog model is
-  rejected only per request (`server/app/correction_config.py:75-79`). §10.2
-  says "the providers those models use" but does not say what to do with an
-  id that names no active model (skip it, or stop startup). **Needs a
-  decision**; skipping keeps today's startup behaviour.
+  rejected only per request (`server/app/correction_config.py:75-79`).
+  **Closed by D15:** only ids `resolve_model()` could serve count; an id
+  that cannot resolve is a startup warning, not a startup failure (§10.2).
 - **F3. alembic cannot build the schema from empty.** The first revision,
   `dad5039f4770`, has `down_revision = None` and only alters
   `interaction.cost` (`server/alembic/versions/dad5039f4770_change_cost_from_float_to_numeric_15_12.py:15-30`);
-  `wob/mariadb/init.sql` creates no tables. So §19.3 needs a starting
-  schema from elsewhere: the `CREATE TABLE` statements in the production
-  dump (`/workspace/WordBridgeService/data/wob.sql:25-28`, `:49-69`,
-  `:826-838`, then `alembic stamp 20260923_sso_user`), or
-  `Base.metadata.create_all` plus the same stamp. The dump also holds user
-  data (emails, texts); only its DDL should be used.
+  `wob/mariadb/init.sql` creates no tables. The production dump
+  (`/workspace/WordBridgeService/data/wob.sql`) has the DDL but also user
+  data. **Closed by D16:** the dump is not used; the starting schema is
+  built with `Base.metadata.create_all` from the models at `918566c`, then
+  stamped `20260923_sso_user` (§19.3).
 - **F4. Production schema confirms the spec.** `version varchar(8) NOT
   NULL`, `category varchar(8)`, `KEY user_id`, `KEY review_user_id`, head
   `20260923_sso_user` (`/workspace/WordBridgeService/data/wob.sql:38`,
@@ -867,8 +938,8 @@ each needs the user's (or the implementer's) attention as noted.
 - **F6. 你 vs 您 in the zh_TW drafts.** The existing zh_TW catalogue uses
   您 (6 msgstr lines) and never 你; the drafts use 您 in
   `user_quota_exceeded` but 你 in `account_unverified` and
-  `account_disabled`. Suggest 您 for consistency; left as drafted for the
-  user's string review.
+  `account_disabled`. **Closed by D17:** 您 everywhere; the strings table
+  (§17) is updated.
 - **F7. `pytest` is listed, but not for the server.** It is pinned in the
   add-on's `tests/requirement.txt:1`; storage/spec.md says it is in no list.
   The conclusion for the server (§14.1) holds.
@@ -879,12 +950,13 @@ each needs the user's (or the implementer's) attention as noted.
 - **F9. Where the key check lives matters for alembic.** `alembic/env.py`
   imports `app.settings` (`server/alembic/env.py:24`). If item 6's check is
   added to `load_settings()`, running migrations would also require the API
-  keys; a check in the app's startup path would not. Implementer's choice;
-  note it in the plan.
+  keys; a check in the app's startup path would not. **Closed by D18:** the
+  check goes in the correction-settings startup path, not in
+  `load_settings()` (§10.2).
 - **F10. The comment at `server/app/main.py:238-239`** says exception
   details are never surfaced "to the client or the log", but
-  `logger.exception` at `:240` logs the exception text. §15.5 replaces this
-  with an explicit rule; the comment is rewritten with it.
+  `logger.exception` at `:240` logs the exception text. **Closed by D19:**
+  the comment is rewritten as part of item 11's logging change (§15.5).
 
 Not verified here: Traefik's default `X-Forwarded-*` handling (§1.1, checked
 after deployment by §5.7); the SQLAlchemy pool and anyio thread-pool
