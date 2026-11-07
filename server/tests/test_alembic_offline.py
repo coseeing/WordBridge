@@ -64,3 +64,18 @@ def test_offline_sql_contains_the_new_migration():
 	assert "ALTER TABLE interaction MODIFY version VARCHAR(32) NOT NULL" in result.stdout
 	assert "ALTER TABLE interaction DROP COLUMN category" in result.stdout
 	assert "version_num='20261107_interaction_template'" in result.stdout
+
+
+def test_offline_downgrade_sql_starts_with_the_guard_to_run_by_hand():
+	# Offline mode has no database to count the rows that no longer fit,
+	# so the SQL tells whoever runs it to check first.
+	result = run_alembic_sql("downgrade", "20261107_interaction_template:20260923_sso_user", "--sql")
+
+	assert result.returncode == 0, result.stderr
+	guard = "SELECT COUNT(*) FROM interaction WHERE CHAR_LENGTH(version) > 8"
+	assert guard in result.stdout
+	lines = result.stdout.splitlines()
+	[guard_line] = [line for line in lines if guard in line]
+	assert guard_line.startswith("-- ")
+	first_ddl = next(index for index, line in enumerate(lines) if line.startswith(("ALTER", "DROP")))
+	assert lines.index(guard_line) < first_ddl

@@ -17,6 +17,9 @@ down_revision: str | None = "20260923_sso_user"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+# The rows whose version the previous schema, varchar(8), cannot hold.
+LONG_VERSIONS = "SELECT COUNT(*) FROM interaction WHERE CHAR_LENGTH(version) > 8"
+
 
 def upgrade() -> None:
 	"""Upgrade schema."""
@@ -58,13 +61,18 @@ def downgrade() -> None:
 
 	MariaDB cannot roll DDL back, so the one step that can fail on data,
 	shrinking version back to 8 characters, is checked before any change.
+	Offline (--sql) there is no database to check, so the SQL starts with
+	comments telling whoever runs it to check by hand.
 	"""
-	if not context.is_offline_mode():
-		long_versions = (
-			op.get_bind()
-			.execute(sa.text("SELECT COUNT(*) FROM interaction WHERE CHAR_LENGTH(version) > 8"))
-			.scalar()
+	if context.is_offline_mode():
+		context.get_context().impl.static_output(
+			"-- Check first: the previous schema holds a version of at most 8 characters,\n"
+			"-- and MariaDB cannot roll DDL back. Run this only when\n"
+			f"-- {LONG_VERSIONS}\n"
+			"-- returns 0.",
 		)
+	else:
+		long_versions = op.get_bind().execute(sa.text(LONG_VERSIONS)).scalar()
 		if long_versions:
 			rows = "1 interaction row has" if long_versions == 1 else f"{long_versions} interaction rows have"
 			raise RuntimeError(
