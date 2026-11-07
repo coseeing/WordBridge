@@ -259,6 +259,17 @@ value from the right.
 | `proxy` | Cloudflare proxy on | Edge IPs; guests share quotas; too strict but not bypassable |
 | `cloudflare` | Cloudflare proxy off | Peer is outside the ranges, falls back to peer IP: correct; a forged `CF-Connecting-IP` is ignored |
 
+**Known residual risk (`cloudflare` mode, batch review M-B2-7):** the range
+check proves that a request came through *some* Cloudflare edge, not through
+this zone. A request sent from another Cloudflare zone or a Cloudflare
+Worker straight at the origin also arrives from an edge address, and may set
+`CF-Connecting-IP` to any value, so one attacker can claim many guest IPs and
+many per-IP quotas. `GUEST_GLOBAL_QUOTA` still caps the total guest cost.
+The full fix is Cloudflare's Authenticated Origin Pulls (mTLS between the
+edge and Traefik, so the origin accepts only this zone's edge); it is
+infrastructure work outside this repository and not part of this change
+(§21).
+
 ### 5.6 Tests
 
 See §19.1, item 1.
@@ -488,6 +499,11 @@ template but has always been `1`.
 `String(8)` (`server/app/models/models.py:25`; production `varchar(8) NOT NULL`,
 `/workspace/WordBridgeService/data/wob.sql:58`) cannot hold `2026.11.1`. It
 becomes `String(32)` (D12).
+
+Startup stops when the version file holds more characters than
+`Interaction.version` allows, or a template stem in
+`setting/task/corrector.json` more than `Interaction.template` allows
+(batch review M-B2-6): such a value would fail every database write.
 
 ### 12.7 Admin routes
 
@@ -785,11 +801,29 @@ zh_TW uses 您 throughout, matching the existing translations (D17, F6), and
    (all five are set today).
 3. Confirm production Docker supports BuildKit.
 4. Copy the repository's `server/` to `wob/server/` and rebuild the image.
-5. Back up the `WordBridge` database with `mysqldump` (D4).
-6. Review the migration SQL with `alembic upgrade head --sql`, then run
-   `alembic upgrade head`. The Dockerfile does not run migrations
-   (`server/Dockerfile:21` starts uvicorn only).
-7. Check the client IP as in §5.7.
+5. Stop the server. The old code still writes `category`; once the
+   migration drops that column, every correction it saves fails.
+6. Back up the `WordBridge` database with `mysqldump` (D4).
+7. With the new image, review the migration SQL and run the migration
+   (the Dockerfile does not run migrations; its `CMD` starts uvicorn only):
+
+   ```bash
+   docker compose run --rm <service> python -m alembic upgrade head --sql
+   docker compose run --rm <service> python -m alembic upgrade head
+   ```
+
+8. Start the server.
+9. Check the client IP as in §5.7.
+
+Rolling back (batch review M-B2-1, M-B2-4): stop the server first, then run
+`docker compose run --rm <service> python -m alembic downgrade -1` with the
+new image, then start the old image. The downgrade refuses, before any
+change, while a row's `version` is longer than 8 characters (every row the
+new code wrote); restore the backup from step 6 instead. Run the downgrade
+online: `alembic downgrade --sql` cannot check the data, so its output
+starts with comments giving the check query
+(`SELECT COUNT(*) FROM interaction WHERE CHAR_LENGTH(version) > 8`), which
+must return 0 before the rest is run by hand.
 
 Order of add-on release and server deployment:
 
@@ -969,6 +1003,9 @@ sources (the server's dependencies are not installed in this container).
 
 - Item 2 `/feedback` and item 3 quota race (§6, §7).
 - Quota bypass by IPv6 address rotation.
+- Quota bypass through another Cloudflare zone or a Worker setting
+  `CF-Connecting-IP` (§5.5); capped by `GUEST_GLOBAL_QUOTA`, fixed by
+  Authenticated Origin Pulls.
 - Making the main routes async or removing fastcrud.
 - Linting `workspace/` (`.pre-commit-config.yaml` covers only the add-on,
   tests and server).
