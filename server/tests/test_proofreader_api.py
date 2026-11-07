@@ -87,7 +87,6 @@ def test_app_imports():
 
 
 def test_guest_default_model_success(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	client = _client(db)
 
 	response = client.post("/proofreader", json=PAYLOAD)
@@ -107,7 +106,6 @@ def test_guest_default_model_success(db, fake_run_typo_correction, monkeypatch):
 
 
 def test_explicit_model_success(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 	client = _client(db)
 	payload = dict(PAYLOAD, corrector_config_id="gpt-6-luna&OpenAI")
 
@@ -122,7 +120,6 @@ def test_explicit_model_success(db, fake_run_typo_correction, monkeypatch):
 
 
 def test_run_typo_correction_receives_all_expected_arguments(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	client = _client(db)
 	payload = dict(PAYLOAD, customized_words=["專有名詞", "WordBridge"])
 
@@ -146,7 +143,6 @@ def test_run_typo_correction_receives_all_expected_arguments(db, fake_run_typo_c
 
 
 def test_invalid_mode_is_422(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	client = _client(db)
 	payload = dict(PAYLOAD, typo_correction_mode="not-a-real-mode")
 
@@ -210,21 +206,21 @@ def test_unknown_model_is_404(db, fake_run_typo_correction):
 # --- provider/credential failures ----------------------------------------------
 
 
-def test_missing_api_key_is_5xx_and_writes_no_interaction(db, fake_run_typo_correction, monkeypatch):
+def test_the_request_uses_the_key_read_at_startup(db, fake_run_typo_correction, monkeypatch):
+	# Keys are read once at startup; the request path no longer reads the
+	# environment, so removing the variable afterwards changes nothing.
 	monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
 	client = _client(db)
 
 	response = client.post("/proofreader", json=PAYLOAD)
 
-	assert response.status_code >= 500
-	assert "test-key" not in response.text
-	assert db.query(Interaction).count() == 0
-	assert fake_run_typo_correction == []
+	assert response.status_code == 200
+	assert fake_run_typo_correction[0]["credential"] == {
+		"api_key": main_module.CORRECTION_SETTINGS.api_keys["DeepSeek"],
+	}
 
 
 def test_provider_failure_is_5xx_and_writes_no_interaction(db, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "super-secret-key")
-
 	def _boom(**kwargs):
 		raise RuntimeError("provider exploded")
 
@@ -234,12 +230,11 @@ def test_provider_failure_is_5xx_and_writes_no_interaction(db, monkeypatch):
 	response = client.post("/proofreader", json=PAYLOAD)
 
 	assert response.status_code >= 500
-	assert "super-secret-key" not in response.text
+	assert main_module.CORRECTION_SETTINGS.api_keys["DeepSeek"] not in response.text
 	assert db.query(Interaction).count() == 0
 
 
 def test_db_commit_failure_is_5xx_and_writes_no_interaction(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	client = _client(db)
 
 	before_count = db.query(Interaction).count()
@@ -260,7 +255,6 @@ def test_db_commit_failure_is_5xx_and_writes_no_interaction(db, fake_run_typo_co
 
 
 def test_oversized_forwarded_ip_is_normalized_before_storage(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	client = _client(db)
 	oversized_ip = "1" * 200
 
@@ -277,7 +271,6 @@ def test_oversized_forwarded_ip_is_normalized_before_storage(db, fake_run_typo_c
 
 
 def test_oversized_forwarded_ip_still_counts_toward_guest_quota(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	oversized_ip = "2" * 200
 	client = _client(db)
 
@@ -307,7 +300,6 @@ def test_oversized_forwarded_ip_still_counts_toward_guest_quota(db, fake_run_typ
 
 
 def test_guest_text_over_128_chars_is_429(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	client = _client(db)
 	payload = dict(PAYLOAD, request="a" * 129)
 
@@ -318,7 +310,6 @@ def test_guest_text_over_128_chars_is_429(db, fake_run_typo_correction, monkeypa
 
 
 def test_guest_text_at_128_chars_is_accepted(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	client = _client(db)
 	payload = dict(PAYLOAD, request="a" * 128)
 
@@ -330,7 +321,6 @@ def test_guest_text_at_128_chars_is_accepted(db, fake_run_typo_correction, monke
 def test_request_length_under_cap_is_accepted(db, fake_run_typo_correction, monkeypatch):
 	# Must be an authenticated user with enough quota -- a guest this long
 	# would already be blocked by the separate, tighter 128-char guest limit.
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	user = User(
 		account="atcap@example.org",
 		name="AtCap",
@@ -357,7 +347,6 @@ def test_guest_over_length_cap_is_422_not_429_and_writes_no_interaction(
 ):
 	# Above the (tighter) guest limit but this asserts the universal cap
 	# fires with 422, distinct from the guest-only 429 quota path.
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	client = _client(db)
 	payload = dict(PAYLOAD, request="a" * (main_module.REQUEST_TEXT_MAX_LENGTH + 1))
 
@@ -376,7 +365,6 @@ def test_authenticated_user_over_length_cap_is_422_not_502_and_writes_no_interac
 	# Above the guest limit (which does not apply to authenticated users) but
 	# also above the universal cap -- must still be rejected before ever
 	# reaching the provider.
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	user = User(
 		account="longtext@example.org",
 		name="LongText",
@@ -399,7 +387,6 @@ def test_authenticated_user_over_length_cap_is_422_not_502_and_writes_no_interac
 
 
 def test_guest_ip_quota_exact_boundary_is_429(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	# TestClient's default client IP is "testclient" -- seed exactly the
 	# per-IP quota for that same IP within the trailing 24h window.
 	_seed_interaction(db, cost=Decimal("0.06"), ip_address="testclient")
@@ -412,7 +399,6 @@ def test_guest_ip_quota_exact_boundary_is_429(db, fake_run_typo_correction, monk
 
 
 def test_guest_ip_quota_just_under_boundary_is_accepted(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	_seed_interaction(db, cost=Decimal("0.059999999999"), ip_address="testclient")
 	client = _client(db)
 
@@ -426,7 +412,6 @@ def test_guest_global_quota_exact_boundary_is_429_independent_of_ip(
 	fake_run_typo_correction,
 	monkeypatch,
 ):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	# Spread 0.3 total cost across other guest IPs -- none of which is the
 	# requesting IP, so the per-IP check alone would pass.
 	_seed_interaction(db, cost=Decimal("0.1"), ip_address="1.2.3.4")
@@ -445,7 +430,6 @@ def test_guest_global_quota_exact_boundary_is_429_independent_of_ip(
 
 
 def test_guest_quota_ignores_interactions_older_than_24h(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	_seed_interaction(db, cost=Decimal("0.06"), ip_address="testclient", age=timedelta(hours=25))
 	client = _client(db)
 
@@ -458,7 +442,6 @@ def test_guest_quota_ignores_interactions_older_than_24h(db, fake_run_typo_corre
 
 
 def test_ordinary_user_quota_is_enforced(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	user = User(
 		account="user@example.org",
 		name="User",
@@ -479,7 +462,6 @@ def test_ordinary_user_quota_is_enforced(db, fake_run_typo_correction, monkeypat
 
 
 def test_ordinary_user_under_quota_is_accepted(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	user = User(
 		account="user2@example.org",
 		name="User2",
@@ -502,7 +484,6 @@ def test_ordinary_user_under_quota_is_accepted(db, fake_run_typo_correction, mon
 
 
 def test_superuser_is_exempt_from_quota(db, fake_run_typo_correction, monkeypatch):
-	monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
 	user = User(
 		account="admin@example.org",
 		name="Admin",

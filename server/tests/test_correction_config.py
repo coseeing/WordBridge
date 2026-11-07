@@ -1,6 +1,22 @@
+import logging
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from app.correction_config import load_correction_settings, resolve_model
+from app.settings import SettingsError
+
+SERVER = Path(__file__).resolve().parent.parent
+
+
+def _environ(**overrides):
+	"""os.environ (the conftest settings) without any provider key, plus overrides."""
+	environ = {name: value for name, value in os.environ.items() if not name.endswith("_API_KEY")}
+	environ.update(overrides)
+	return environ
 
 
 def test_default_resolves_to_local_model(monkeypatch):
@@ -106,3 +122,78 @@ def test_invalid_deployment_default_fails_startup(monkeypatch):
 	monkeypatch.setenv("DEFAULT_CORRECTOR_CONFIG_ID", "missing&Provider")
 	with pytest.raises(ValueError):
 		load_correction_settings()
+
+
+# --- provider API keys, checked at startup ----------------------------------
+
+
+def test_a_served_provider_without_a_key_stops_startup():
+	environ = _environ(
+		DEFAULT_CORRECTOR_CONFIG_ID="deepseek-flash&DeepSeek",
+		COSEEING_MODEL_IDS="gpt-6-luna&OpenAI",
+	)
+
+	with pytest.raises(SettingsError) as raised:
+		load_correction_settings(environ=environ)
+
+	assert "DEEPSEEK_API_KEY" in str(raised.value)
+	assert "OPENAI_API_KEY" in str(raised.value)
+
+
+def test_a_blank_key_counts_as_missing():
+	environ = _environ(COSEEING_MODEL_IDS="", DEEPSEEK_API_KEY="  ")
+
+	with pytest.raises(SettingsError, match="DEEPSEEK_API_KEY"):
+		load_correction_settings(environ=environ)
+
+
+def test_the_error_never_echoes_a_key():
+	environ = _environ(COSEEING_MODEL_IDS="gpt-6-luna&OpenAI", OPENAI_API_KEY="sk-visible")
+
+	with pytest.raises(SettingsError) as raised:
+		load_correction_settings(environ=environ)
+
+	assert "DEEPSEEK_API_KEY" in str(raised.value)
+	assert "sk-visible" not in str(raised.value)
+
+
+def test_an_unused_providers_key_is_not_required():
+	environ = _environ(COSEEING_MODEL_IDS="", DEEPSEEK_API_KEY="key-deepseek")
+
+	settings = load_correction_settings(environ=environ)
+
+	assert settings.api_keys == {"DeepSeek": "key-deepseek"}
+
+
+def test_an_unservable_coseeing_id_warns_and_needs_no_key(caplog):
+	environ = _environ(COSEEING_MODEL_IDS="qwen2&Ollama,missing&Nobody", DEEPSEEK_API_KEY="key-deepseek")
+
+	with caplog.at_level(logging.WARNING, logger="app.correction_config"):
+		settings = load_correction_settings(environ=environ)
+
+	warnings = [record.getMessage() for record in caplog.records if record.levelno == logging.WARNING]
+	assert any("qwen2&Ollama" in message for message in warnings)
+	assert any("missing&Nobody" in message for message in warnings)
+	assert settings.api_keys == {"DeepSeek": "key-deepseek"}
+
+
+def test_api_keys_are_not_in_the_repr():
+	settings = load_correction_settings()
+
+	assert settings.api_keys["DeepSeek"] == "test-key-deepseek"
+	assert "test-key" not in repr(settings)
+
+
+def test_importing_app_settings_needs_no_api_key():
+	# alembic imports app.settings; running a migration must not need keys.
+	result = subprocess.run(
+		[sys.executable, "-c", "import app.settings"],
+		cwd=SERVER,
+		env=_environ(),
+		capture_output=True,
+		text=True,
+		timeout=60,
+		check=False,
+	)
+
+	assert result.returncode == 0, result.stderr

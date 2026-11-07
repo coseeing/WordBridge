@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Literal
@@ -203,14 +202,9 @@ def proofreader(
 			detail="The requested model is unavailable.",
 		)
 
-	api_key = os.environ.get(f"{model_entry.provider.upper()}_API_KEY")
-	if not api_key:
-		logger.error("Missing API key for provider %s", model_entry.provider)
-		raise HTTPException(
-			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-			detail="The proofreading service is temporarily unavailable.",
-		)
-	credential = {"api_key": api_key}
+	# Read and checked at startup (load_correction_settings), so every
+	# servable model's provider has one.
+	credential = {"api_key": CORRECTION_SETTINGS.api_keys[model_entry.provider]}
 
 	template_name = CORRECTION_SETTINGS.template_name[data.typo_correction_mode]
 	optional_guidance_enable = CORRECTION_SETTINGS.optional_guidance_enable

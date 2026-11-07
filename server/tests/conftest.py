@@ -26,6 +26,12 @@ os.environ.update(
 		"GUEST_IP_QUOTA": "0.06",
 		"GUEST_GLOBAL_QUOTA": "0.3",
 		"QUOTA_WINDOW_HOURS": "24",
+		# Required at startup for every provider a served model uses.
+		"ANTHROPIC_API_KEY": "test-key-anthropic",
+		"DEEPSEEK_API_KEY": "test-key-deepseek",
+		"OPENAI_API_KEY": "test-key-openai",
+		"GOOGLE_API_KEY": "test-key-google",
+		"OPENROUTER_API_KEY": "test-key-openrouter",
 	},
 )
 
