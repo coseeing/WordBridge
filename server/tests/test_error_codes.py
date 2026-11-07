@@ -93,6 +93,10 @@ def _seed(db, *, cost, ip_address=None, user=None):
 
 def _coded(response):
 	body = response.json()
+	# Only the two length errors carry "limit"; every other body has no
+	# such key at all, not even null (spec §15.2).
+	expected_keys = {"detail", "code"} if body.get("limit") is None else {"detail", "code", "limit"}
+	assert set(body) == expected_keys, body
 	return response.status_code, body.get("code"), body.get("limit")
 
 
