@@ -240,8 +240,15 @@ def test_db_commit_failure_is_5xx_and_writes_no_interaction(db, fake_run_typo_co
 	client = _client(db)
 
 	before_count = db.query(Interaction).count()
+	real_commit = db.commit
+	commits = []
 
 	def _boom():
+		# The first commit ends the quota check before the AI call; the
+		# second writes the result, and that is the one that fails here.
+		commits.append(None)
+		if len(commits) == 1:
+			return real_commit()
 		raise RuntimeError("db exploded")
 
 	monkeypatch.setattr(db, "commit", _boom)
@@ -250,6 +257,7 @@ def test_db_commit_failure_is_5xx_and_writes_no_interaction(db, fake_run_typo_co
 
 	assert response.status_code >= 500
 	assert "interaction_id" not in response.json()
+	assert len(commits) == 2
 	assert db.query(Interaction).count() == before_count
 
 

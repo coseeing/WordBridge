@@ -215,6 +215,12 @@ def proofreader(
 	template_name = CORRECTION_SETTINGS.template_name[data.typo_correction_mode]
 	optional_guidance_enable = CORRECTION_SETTINGS.optional_guidance_enable
 
+	# End the quota check's read-only transaction so its pooled connection is
+	# free while the AI service answers (seconds to tens of seconds). The
+	# write below takes a connection again; `user` belongs to this session,
+	# expires here and reloads on that write.
+	db.commit()
+
 	request_time = datetime.now(timezone.utc)
 	try:
 		result = run_typo_correction(
