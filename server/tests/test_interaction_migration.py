@@ -24,10 +24,15 @@ class _Recorder:
 
 	def __init__(self, long_versions=0):
 		self.calls = []
+		self.queries = []
 		self.long_versions = long_versions
 
 	def get_bind(self):
-		return SimpleNamespace(execute=lambda statement: SimpleNamespace(scalar=lambda: self.long_versions))
+		return SimpleNamespace(execute=self._query)
+
+	def _query(self, statement):
+		self.queries.append(str(statement))
+		return SimpleNamespace(scalar=lambda: self.long_versions)
 
 	def __getattr__(self, name):
 		return lambda *args, **kwargs: self.calls.append((name, args, kwargs))
@@ -75,6 +80,14 @@ def test_upgrade_matches_the_model():
 		64,
 		False,
 	)
+	# The "" default only fills the existing rows; new rows must name their
+	# template, as the model has no default.
+	assert column.server_default.arg == ""
+	[(args, kwargs)] = [call for call in _calls(recorder, "alter_column") if call[0][1] == "template"]
+	assert args == ("interaction", "template")
+	assert "server_default" in kwargs
+	assert kwargs["server_default"] is None
+	assert Interaction.__table__.c.template.server_default is None
 	assert Interaction.__table__.c.template.type.length == 64
 	assert Interaction.__table__.c.template.nullable is False
 
@@ -120,6 +133,9 @@ def test_downgrade_refuses_long_versions_before_any_ddl():
 		_migration(recorder).downgrade()
 
 	assert recorder.calls == []
+	# The previous schema holds 8 characters: the guard counts exactly the
+	# rows that would not fit.
+	assert recorder.queries == ["SELECT COUNT(*) FROM interaction WHERE CHAR_LENGTH(version) > 8"]
 
 
 def test_alembic_env_maps_every_model():
