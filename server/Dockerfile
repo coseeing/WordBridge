@@ -5,8 +5,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# requirements.txt is compiled with hashes from requirements.in (see there).
+# uv is mounted for this step only, so it does not stay in the image; it
+# checks every hash, and --require-hashes also rejects an entry without one.
+# --mount needs BuildKit (the default builder in current Docker).
 COPY requirements.txt ./
-RUN python -m pip install --no-cache-dir -r requirements.txt
+RUN --mount=from=ghcr.io/astral-sh/uv:0.13.5,source=/uv,target=/bin/uv \
+    uv pip sync --system --require-hashes --no-cache requirements.txt
 
 RUN groupadd --system --gid 10001 app && \
     useradd --system --uid 10001 --gid app --create-home --home-dir /home/app app

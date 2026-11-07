@@ -1,0 +1,37 @@
+# Production dependencies of the WordBridge server: what app/ and alembic/
+# import, plus what it needs to run. Compiled, with hashes, into
+# requirements.txt, which the Docker image installs:
+#
+#   uv pip compile requirements.in --python-version 3.14 --generate-hashes \
+#       --exclude-newer 2026-10-24 -o requirements.txt
+#
+# --exclude-newer keeps out releases younger than about two weeks; move it
+# forward when recompiling.
+# Existing pins in requirements.txt are kept unless a package is upgraded
+# (--upgrade-package <name>). Recompile requirements-dev.txt afterwards.
+
+# Web framework and the superuser CRUD routes
+fastapi
+fastcrud
+pydantic
+uvicorn
+
+# Database and migrations (MySQL/MariaDB, sync and async drivers)
+SQLAlchemy
+alembic
+PyMySQL
+aiomysql
+
+# Settings
+python-dotenv
+
+# AI service calls (app/lib) and SSO (app/package/coseeing_auth, a library
+# shared with other projects: keep its dependencies)
+requests
+Authlib
+PyJWT[crypto]
+
+# Chinese text handling (app/lib)
+chinese-converter
+hanzidentifier
+pypinyin

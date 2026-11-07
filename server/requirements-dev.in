@@ -1,0 +1,17 @@
+# Development and test dependencies of the WordBridge server: production plus
+# the test tools. Compiled, with hashes, into requirements-dev.txt; the
+# production pins are constraints, so both lists hold the same versions:
+#
+#   uv pip compile requirements-dev.in --python-version 3.14 --generate-hashes \
+#       --exclude-newer 2026-10-24 --constraint requirements.txt -o requirements-dev.txt
+#
+# Install with `uv pip sync requirements-dev.txt`, then run
+# `python -m pytest -q` in server/.
+
+-r requirements.in
+
+pytest
+# fastapi.testclient
+httpx
+# The admin-route tests run the async session on SQLite
+aiosqlite
