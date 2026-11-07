@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from app.correction_config import load_correction_settings, resolve_model
+from app.correction_config import api_key_variable, load_correction_settings, resolve_model
+from app.lib.llm import PROVIDER_CLASSES
 from app.settings import SettingsError
 
 SERVER = Path(__file__).resolve().parent.parent
@@ -186,10 +187,14 @@ def test_api_keys_are_not_in_the_repr():
 
 def test_importing_app_settings_needs_no_api_key():
 	# alembic imports app.settings; running a migration must not need keys.
+	# Every key is set to "" rather than removed: app.settings loads
+	# server/.env, which never overrides a variable that is set, but would
+	# refill a removed one from a developer's real .env and hide a check.
+	no_keys = {api_key_variable(provider): "" for provider in PROVIDER_CLASSES}
 	result = subprocess.run(
 		[sys.executable, "-c", "import app.settings"],
 		cwd=SERVER,
-		env=_environ(),
+		env=_environ(**no_keys),
 		capture_output=True,
 		text=True,
 		timeout=60,
