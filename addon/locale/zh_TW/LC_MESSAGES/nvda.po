@@ -895,6 +895,6 @@ msgid "helps users identify and correct homophone-based typos in Chinese."
 msgstr "協助使用者辨識並修正中文同音錯字。"
 
 #. Translators: what's new content for the add-on version to be shown in the add-on store
-#: buildVars.py:28
-msgid "Update models to GPT-5.6 and Claude 5"
-msgstr "更新至 GPT-5.6 與 Claude 5"
+#: buildVars.py:29
+msgid "Update models to GPT-6.1 and Claude 5.5; load the model list from a configurable URL; explain why a Coseeing correction failed"
+msgstr "更新至 GPT-6.1 與 Claude 5.5；模型清單可從自訂網址載入；Coseeing 校正失敗時說明原因"

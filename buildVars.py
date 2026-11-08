@@ -25,7 +25,9 @@ addon_info = AddonInfo(
 	addon_version="2026.11.1",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
-	addon_changelog=_("Update models to GPT-6 and Claude 5.5"),
+	addon_changelog=_(
+		"Update models to GPT-6.1 and Claude 5.5; load the model list from a configurable URL; explain why a Coseeing correction failed"
+	),
 	# Author(s)
 	addon_author="Coseeing Community Contributors <coseeing@coseeing.org>, Woody Tseng <tsengwoody.tw@gmail.com>",
 	# URL for the add-on documentation support
